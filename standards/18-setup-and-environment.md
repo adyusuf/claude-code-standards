@@ -134,6 +134,7 @@ Prefer a criterion verifiable by command over "open it in a browser and look".
 - [ ] The tests pass locally
 - [ ] The formatter/linter works in the editor (`.editorconfig`, the ESLint plugin)
 - [ ] The git hooks are installed (pre-commit secret scan)
+- [ ] `.claude/settings.local.json` is untracked (`git check-ignore -v .claude/settings.local.json` prints a rule)
 - [ ] Repository access plus the necessary console access (Cloudflare, GCP, the stores) were granted
 
 ## 10. When the setup changes
@@ -142,3 +143,26 @@ Prefer a criterion verifiable by command over "open it in a browser and look".
 - If a new dependency or tool was added, it goes into the prerequisite table.
 - A new env variable → `.env.example` + the secret inventory + the start-up validation.
 - For an "it used to work on my machine" situation, check in order: version differences (`node -v`, the SDK), a missing env var, a port collision, the state of Docker.
+
+## 11. Claude Code settings: shared vs local
+
+Three files, three audiences. Precedence, highest first: **local project** ·
+**shared project** · **user** (an organisation's managed settings sit above all three).
+
+| File | Committed? | Holds |
+|---|---|---|
+| `.claude/settings.json` | **Yes** — the team's | Hooks (`guard-destructive.sh`, `md-hook.sh`), `permissions.deny` for the never-do list, the plugins the stack needs |
+| `.claude/settings.local.json` | **No** — one person's | Personal allow-rules, model/effort preferences, machine-specific paths |
+| `~/.claude/settings.json` | n/a (user level) | What applies to every project; `settings.example.json` in the configuration repository is its template |
+
+- **A hook a shared file calls is committed too** (under `scripts/` or `.claude/hooks/`),
+  and its path is written from `"$CLAUDE_PROJECT_DIR"`. A hook that exists only on one
+  machine breaks the next clone.
+- **Neither file is a secret store** (global #3). Both are plain text on disk; a token
+  goes to the environment or the secret store and is listed in the inventory (§4).
+- **Local means untracked, and that is checked, not assumed:** Claude Code normally
+  ignores `settings.local.json` when it creates it, but a hand-made copy or an older
+  `.gitignore` can leave it tracked (the §9 checklist has the command).
+- A team rule goes in the **shared** file, a personal preference in the **local** one.
+  If a preference would change what the gate or the hooks enforce, it is not a
+  preference: it goes through the same review as any other change.
