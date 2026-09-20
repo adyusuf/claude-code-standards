@@ -1,126 +1,128 @@
-# Commit, PR ve Code Review
+# Commits, PRs and code review
 
-## 1. Branch
-
-```
-<tip>/<kısa-açıklama>     feat/member-process-status
-                          fix/order-total-rounding
-                          chore/upgrade-efcore
-                          docs/api-contract
-```
-
-- İngilizce, kebab-case, kısa. Kişi adı/ticket no tek başına branch adı olmaz.
-- Branch **entegrasyon dalından** (`dev`) açılır, oraya döner. `test`/`prod`'a doğrudan branch açılmaz.
-- Uzun yaşayan branch yok — 2-3 günü geçen dal ya bölünür ya sık sık `dev`'den rebase/merge edilir.
-
-## 2. Commit
+## 1. Branches
 
 ```
-<tip>(<kapsam>): <Türkçe özet, emir kipi, 72 karakter altı>
-
-Gövde: neden bu değişiklik gerekti, hangi alternatif elendi.
-Kırıcı değişiklik varsa: BREAKING CHANGE: <açıklama>
+<type>/<short-description>     feat/member-process-status
+                               fix/order-total-rounding
+                               chore/upgrade-efcore
+                               docs/api-contract
 ```
 
-Tipler: `feat` `fix` `refactor` `perf` `test` `docs` `chore` `build` `ci` `revert`
+- English, kebab-case, short. A person's name or a ticket number alone is not a branch name.
+- A branch is cut **from the integration branch** (`dev`) and returns there. No branch is cut directly from `test`/`prod`.
+- No long-lived branches — a branch older than two or three days is either split or frequently rebased/merged from `dev`.
 
-- **Atomik commit:** bir commit derlenebilir ve tek bir konuyu içerir. "wip", "düzeltme", "son" yasak.
-- Formatlama/rename commit'i mantıksal değişiklikten **ayrı** commit'lenir (diff okunabilir kalsın).
-- Üretilen dosyalar, `node_modules`, build çıktıları commit edilmez.
-- **Yalnız kendi diff'ini commit et.** `git add -A` kör kullanılmaz; paralel oturum başkasının dosyasını kapabilir.
+## 2. Commits
 
-## 3. PR boyutu ve içeriği
+```
+<type>(<scope>): <summary, imperative mood, under 72 characters>
 
-- Hedef **< 400 satır** değişiklik. Büyükse böl — büyük PR'da review kalitesi çöker.
-- **Bir PR = bir konu.** Refactor + özellik + format aynı PR'da olmaz.
-- PR açıklaması (`templates/pr-template.md`):
-  - Ne / neden
-  - Nasıl test edildi (komut + sonuç)
-  - Ekran görüntüsü (UI değişikliği varsa, öncesi/sonrası)
-  - Geriye uyumluluk etkisi (**zorunlu alan**: "yok" da bir cevaptır ama yazılır)
-  - Migration / env değişikliği / yeni sır var mı
-  - Rollback nasıl yapılır
+The body: why this change was needed, and which alternative was ruled out.
+If it is breaking: BREAKING CHANGE: <explanation>
+```
 
-## 4. Merge kapısı (otomatik — geçilmeden merge yok)
+Types: `feat` `fix` `refactor` `perf` `test` `docs` `chore` `build` `ci` `revert`
 
-> **Kapsam (global kural #25):** Aşağıdaki tam kapı **`dev → test` ve `test → prod` promosyonları** içindir.
-> **`feature/* → dev` merge'inde** yalnız **build + hızlı unit test** koşar; review, sır/SAST/CVE taraması,
-> geriye uyumluluk taraması, e2e ve kapsam eşiği **koşmaz**. **Formatlayıcı/lint de her merge'de değil,
-> iş listesinin SONUNDA bir kez** koşar (20/09/2026, global #25/#26). `dev` dışarı yayın yapmaz; kapının yeri promosyondur.
+- **Atomic commits:** a commit compiles and covers exactly one subject. "wip", "fix", "final" are forbidden.
+- A formatting or rename commit is committed **separately** from a logical change (so the diff stays readable).
+- Generated files, `node_modules` and build output are never committed.
+- **Commit only your own diff.** Never use `git add -A` blindly; a parallel session may grab someone else's file.
 
-- [ ] Build (backend + web + mobil)
-- [ ] Unit testler yeşil
-- [ ] **Satır kapsamı her kod tabanında ≥ %80** — dürüst paydayla, ölçülmemiş taban bloklar (global #29, `10-test-strategy.md` §7)
+## 3. PR size and contents
+
+- Target: **under 400 changed lines**. If it is bigger, split it — review quality collapses on a large PR.
+- **One PR = one subject.** A refactor, a feature and a reformat never share a PR.
+- The PR description (`templates/pr-template.md`):
+  - What / why
+  - How it was tested (the command plus its result)
+  - A screenshot (if the UI changed, before/after)
+  - Backward-compatibility impact (**a required field**: "none" is a valid answer, but it is written down)
+  - Whether there is a migration / an env change / a new secret
+  - How to roll it back
+
+## 4. The merge gate (automatic — no merge without passing it)
+
+> **Scope (global rule #25):** the full gate below is for the **`dev → test` and
+> `test → prod` promotions**. On a **`feature/* → dev` merge** only **build + fast
+> unit tests** run; review, secret/SAST/CVE scanning, backward-compatibility
+> scanning, e2e and the coverage threshold **do not run**. **The formatter/linter
+> also runs once at the END of the task list**, not on every merge (global
+> #25/#26). `dev` publishes nothing outward; the gate belongs at the promotion.
+
+- [ ] Build (backend + web + mobile)
+- [ ] Unit tests green
+- [ ] **Line coverage ≥ 80% in every codebase** — with an honest denominator; an unmeasured codebase blocks (global #29, `10-test-strategy.md` §7)
 - [ ] `tsc --noEmit`, ESLint, `dotnet format --verify-no-changes`
-- [ ] Geriye uyumluluk taraması (`08-backward-compatibility.md` §7)
-- [ ] Sır tarayıcı (gitleaks vb.) temiz
-- [ ] Bağımlılık güvenlik taraması kritik bulgu yok
-- [ ] Migration varsa geri alınabilirliği belirtilmiş
+- [ ] Backward-compatibility scan (`08-backward-compatibility.md` §7)
+- [ ] The secret scanner (gitleaks or similar) is clean
+- [ ] The dependency security scan has no critical finding
+- [ ] If there is a migration, its reversibility is stated
 
-Kapı **atlatılmaz**. Kapıyı geçmek için testi gevşetmek yasak.
+The gate is **never bypassed**. Loosening a test to get through it is forbidden.
 
-## 5. Review checklist (gözden geçiren için)
+## 5. Review checklist (for the reviewer)
 
-**Doğruluk**
-- [ ] Kabul kriterlerini gerçekten karşılıyor mu?
-- [ ] Sınır durumlar: boş, tek, çok, null, uzun metin, negatif, eşzamanlı
-- [ ] Hata yolları ele alınmış mı? Sessiz yutulan exception var mı?
+**Correctness**
+- [ ] Does it genuinely meet the acceptance criteria?
+- [ ] Edge cases: empty, one, many, null, long text, negative, concurrent
+- [ ] Are the error paths handled? Is any exception swallowed silently?
 
-**Sözleşme / uyumluluk**
-- [ ] Alan silindi/yeniden adlandırıldı/tipi değişti mi?
-- [ ] Yeni zorunlu input alanı var mı?
-- [ ] Enum sıralaması bozuldu mu? Global serializer ayarı değişti mi?
-- [ ] Mobil eski sürüm bu değişiklikle çalışır mı?
+**Contract / compatibility**
+- [ ] Was a field deleted, renamed or retyped?
+- [ ] Is there a new required input field?
+- [ ] Did enum ordering break? Did a global serializer setting change?
+- [ ] Does the older mobile version still work with this change?
 
-**Güvenlik**
-- [ ] Her endpoint yetkilendirilmiş mi? Kaynak sahipliği (IDOR) kontrol ediliyor mu?
-- [ ] Girdi doğrulanıyor mu? Ham SQL parametreli mi?
-- [ ] Sır/PII log'a veya yanıta sızıyor mu?
+**Security**
+- [ ] Is every endpoint authorized? Is resource ownership (IDOR) checked?
+- [ ] Is input validated? Is raw SQL parameterized?
+- [ ] Does a secret or PII leak into a log or a response?
 
-**Veri**
-- [ ] N+1 var mı? Sayfalama var mı? Index gerekiyor mu?
-- [ ] Transaction sınırı doğru mu? İçinde dış çağrı var mı?
-- [ ] Migration geri alınabilir mi? `DROP` var mı?
+**Data**
+- [ ] Any N+1? Is there pagination? Is an index needed?
+- [ ] Is the transaction boundary right? Is there an external call inside it?
+- [ ] Is the migration reversible? Does it contain a `DROP`?
 
-**Okunabilirlik**
-- [ ] İsimler niyeti anlatıyor mu? 300 satır kuralı?
-- [ ] Ölü kod, yorum satırına alınmış kod, sahipsiz TODO var mı?
-- [ ] Hard-coded URL/port/anahtar var mı?
+**Readability**
+- [ ] Do the names convey intent? The 300-line rule?
+- [ ] Any dead code, commented-out code, or an ownerless TODO?
+- [ ] Any hard-coded URL/port/key?
 
-**Test & doküman**
-- [ ] Davranış değişikliğinin testi var mı? Test gevşetilmiş mi?
-- [ ] Swagger/OpenAPI, CLAUDE.md, ilgili doküman güncel mi?
+**Tests & documentation**
+- [ ] Is there a test for the behaviour change? Was a test loosened?
+- [ ] Are Swagger/OpenAPI, CLAUDE.md and the related documents current?
 
-## 6. Bulgu şiddet seviyeleri
+## 6. Finding severity levels
 
-| Seviye | Anlam | Sonuç |
+| Level | Meaning | Consequence |
 |---|---|---|
-| **Bloke** | Veri kaybı, güvenlik açığı, kırıcı değişiklik, yanlış iş mantığı | Merge edilmez |
-| **Önemli** | Performans sorunu, eksik test, eksik hata yolu, sözleşme riski | Bu PR'da düzeltilir |
-| **Öneri** | İsimlendirme, yapı, okunabilirlik | Yazar takdirinde |
-| **Not** | Bilgi paylaşımı | Aksiyon yok |
+| **Blocking** | Data loss, a security hole, a breaking change, wrong business logic | Not merged |
+| **Important** | A performance problem, a missing test, a missing error path, a contract risk | Fixed in this PR |
+| **Suggestion** | Naming, structure, readability | The author's call |
+| **Note** | Sharing information | No action |
 
-Yorum yazarken: **ne** yanlış + **neden** önemli + **öneri**. "Bu kötü" yorumu review değildir.
-Öneri seviyesindeki yorum merge'i bloke etmez.
+When writing a comment: **what** is wrong + **why** it matters + **a suggestion**.
+"This is bad" is not a review. A suggestion-level comment does not block the merge.
 
-## 7. Yazar sorumluluğu
+## 7. The author's responsibility
 
-- PR açmadan önce **kendi diff'ini oku**. Kendi görebileceğin hatayı reviewer'a buldurma.
-- Her yoruma cevap ver (düzelttim / şu nedenle düzeltmiyorum). Sessiz kapatma yok.
-- Review sonrası büyük değişiklik yaptıysan tekrar review iste.
+- **Read your own diff** before opening the PR. Do not make the reviewer find what you could see yourself.
+- Answer every comment (fixed / not fixing, for this reason). No silent resolutions.
+- If you made a large change after review, ask for review again.
 
-## 8. Merge stratejisi
+## 8. Merge strategy
 
-- `dev`'e: **squash merge** (temiz tarih) veya rebase — proje içinde tek stil.
-- `dev → test → prod`: **promosyon**, fast-forward/merge. Ters yönde merge yok.
-- `test` ve `prod`'a doğrudan commit/PR **yok** — yalnız bir önceki aşamadan, kullanıcı onayıyla.
-- Merge öncesi `git fetch` + geride kalınmışsa güncelle — bayat kodla koşan kapı yanlış güven verir.
-- `--force` push yalnız kendi feature dalında ve açık onayla.
+- Into `dev`: **squash merge** (a clean history) or rebase — one style within a project.
+- `dev → test → prod`: a **promotion**, fast-forward/merge. Never a merge in the reverse direction.
+- **No** direct commit or PR to `test` and `prod` — only from the previous stage, with the user's approval.
+- Before merging, `git fetch` and update if you are behind — a gate running against stale code gives false confidence.
+- A `--force` push happens only on your own feature branch and only with explicit approval.
 
-## 9. Claude'un review'daki rolü
+## 9. Claude's role in review
 
-- **Hedef dal `dev` ise review yapılmaz** (global kural #25): diff okunmaz, ajan çağrılmaz, tarama koşulmaz — build + hızlı test + lint yeşilse merge edilir. Yol üstünde göze çarpan bir şey varsa merge'i bloklamadan tek satır not düşülür.
-  - ⚠️ **Tek istisna (08/09/2026, `modes/role-selection.md` §3):** değişiklik **yedeklemeyi, sır yönetimini ya da güvenlik kapısının kendisini** zayıflatıyorsa (`continue-on-error`, kapı devre dışı bırakma, gitleaks kapatma, yedek/restore bozma) `dev` yönünde de `qa` koşar ve gerekçesi yazılır. #25 hızı satın alır, geri alınamaz kaybı değil.
-- "merge" komutu **`test` veya `prod` hedefliyse**: **önce diff'e review** yapılır; **bloke** seviyesinde bulgu varsa DUR ve raporla.
-- Review yapılmadan merge kapısına "review yapıldı" bayrağı verilmez.
-- Otomatik taramanın yakalayamadıkları (anlam değişikliği, enum kayması, yetki sıkılaştırma) **elle** kontrol edilir.
+- **If the target branch is `dev`, no review happens** (global rule #25): the diff is not read, no agent is invoked, no scan runs — if build + fast tests + lint are green, it is merged. If something catches the eye along the way, it is noted in one line without blocking the merge.
+  - ⚠️ **One exception (`modes/role-selection.md` §3):** if the change weakens **backups, secret management or a security gate itself** (`continue-on-error`, disabling a gate, switching off gitleaks, breaking backup/restore) then `qa` runs in the `dev` direction too and the reason is recorded. #25 buys speed, not an irreversible loss.
+- If the "merge" command **targets `test` or `prod`**: **the diff is reviewed first**; if there is a **blocking** finding, STOP and report it.
+- The "review done" flag is never given to the merge gate without a review having happened.
+- What automatic scanning cannot catch (a change of meaning, enum drift, tightened authorization) is checked **by hand**.

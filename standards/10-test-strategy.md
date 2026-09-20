@@ -1,163 +1,162 @@
-# Test Stratejisi
+# Test strategy
 
-## 1. Piramit
+## 1. The pyramid
 
 ```
-        /\        E2E (Playwright / Maestro)      — az, kritik akış, gerçek sistem
-       /  \       Integration (API + gerçek DB)   — orta, sözleşme + veri katmanı
-      /____\      Unit                            — çok, hızlı, izole
+        /\        E2E (Playwright / Maestro)      — few, critical flows, the real system
+       /  \       Integration (API + a real DB)   — some, the contract and the data layer
+      /____\      Unit                            — many, fast, isolated
 ```
 
-- Piramidin tersine dönmesi (her şeyi e2e ile test etmek) yavaş ve kırılgan CI demektir.
-- Bir hata bulunduğunda: **önce hatayı gösteren test yazılır**, sonra düzeltilir (regresyon kalkanı).
+- Inverting the pyramid (testing everything through e2e) means a slow and fragile CI.
+- When a bug is found: **first write the test that exposes it**, then fix it (a regression shield).
 
-## 2. Ne test edilir, ne edilmez
+## 2. What is tested, and what is not
 
-**Edilir:** iş kuralları, sınır değerler, hata yolları, yetki kararları, hesaplamalar,
-durum makineleri, serileştirme sözleşmesi, geriye uyumluluk.
+**Tested:** business rules, boundary values, error paths, authorization decisions,
+calculations, state machines, the serialization contract, backward compatibility.
 
-**Edilmez:** framework'ün kendisi, getter/setter, tip sisteminin zaten garantilediği şeyler,
-implementasyon detayı (özel metot isimleri, çağrı sırası).
+**Not tested:** the framework itself, getters/setters, things the type system
+already guarantees, implementation detail (private method names, call order).
 
-## 3. Unit test kuralları
+## 3. Unit test rules
 
-- **AAA:** Arrange / Act / Assert — üç blok görünür olsun.
-- Test adı davranışı anlatır:
-  `Siparis_iptal_edildiginde_stok_geri_yuklenir` / `returns_400_when_email_is_invalid`
-- **Bir test bir davranış.** Bir testte 8 assert varsa muhtemelen 3 test olmalı.
-- Testte **mantık yok**: `if`, `for`, hesaplama yok. Beklenen değer elle yazılır (kodun formülünü tekrarlama).
-- Testler **birbirinden bağımsız** ve **sıradan bağımsız**; paylaşılan mutable state yok.
-- Deterministik: `DateTime.Now`, `Random`, `Guid.NewGuid()` doğrudan kullanılmaz → enjekte edilir/sabitlenir.
-- `Thread.Sleep` yasak → gerçek bekleme yerine sahte saat / event bekleme.
-- Test verisi builder/factory ile üretilir (`aMember().withStatus(Active).build()`), her testte 20 satır kurulum yok.
+- **AAA:** Arrange / Act / Assert — the three blocks should be visible.
+- The test name states the behaviour:
+  `restores_stock_when_order_is_cancelled` / `returns_400_when_email_is_invalid`
+- **One test, one behaviour.** If a test has eight assertions it should probably be three tests.
+- **No logic in a test**: no `if`, no `for`, no computation. The expected value is written by hand (never re-implement the code's formula).
+- Tests are **independent of each other** and **of order**; no shared mutable state.
+- Deterministic: `DateTime.Now`, `Random` and `Guid.NewGuid()` are never used directly → they are injected or fixed.
+- `Thread.Sleep` is forbidden → use a fake clock or wait on an event instead of a real wait.
+- Test data comes from a builder/factory (`aMember().withStatus(Active).build()`), not twenty lines of setup in every test.
 
-## 4. Test double seçimi
+## 4. Choosing a test double
 
-| Tür | Ne zaman |
+| Kind | When |
 |---|---|
-| **Fake** (çalışan basit implementasyon) | Tercih edilen — in-memory repo, sahte saat |
-| **Stub** (sabit değer döner) | Girdi sağlamak için |
-| **Mock** (etkileşim doğrular) | Yalnız **dış etki** doğrulanacaksa (e-posta gönderildi mi) |
+| **Fake** (a simple working implementation) | Preferred — an in-memory repository, a fake clock |
+| **Stub** (returns a fixed value) | To supply an input |
+| **Mock** (verifies an interaction) | Only when an **external effect** must be verified (was the email sent) |
 
-- Aşırı mock'lama testi implementasyona bağlar → refactor'da kırılır, hata yakalamaz.
-- Kendi kodunu mock'lama; sınırları (dış servis, saat, ağ, dosya) mock'la.
+- Over-mocking ties the test to the implementation → it breaks during a refactor and catches no bugs.
+- Never mock your own code; mock the boundaries (external services, the clock, the network, the filesystem).
 
-## 5. Integration test
+## 5. Integration tests
 
-- Gerçek veritabanına karşı koşulur (**Testcontainers** tercih edilir).
-- In-memory provider kullanılıyorsa farkları bilinerek: case-sensitivity, `unaccent`, transaction, concurrency, raw SQL, FK davranışı **farklıdır**. Kritik davranış in-memory ile doğrulanmış sayılmaz.
-- Her test kendi verisini yaratır ve temizler (transaction rollback veya izole şema).
-- API testi HTTP seviyesinden yapılır (`WebApplicationFactory`) — controller metodunu doğrudan çağırmak değil.
+- They run against a real database (**Testcontainers** preferred).
+- If an in-memory provider is used, know the differences: case sensitivity, `unaccent`, transactions, concurrency, raw SQL and foreign-key behaviour **all differ**. Critical behaviour is not considered verified by an in-memory run.
+- Every test creates and cleans up its own data (a transaction rollback or an isolated schema).
+- API tests go through HTTP (`WebApplicationFactory`) — not by calling the controller method directly.
 
-### 5a. Test sonucu makineye bağlı olamaz — sır sızıntısı taban fabrikada kesilir
+### 5a. A test result can never depend on the machine — cut secret leakage at the base factory
 
-Integration testi geliştirme ortamında ayağa kalkıyorsa (`Development`), yapılandırma zinciri **user-secrets'ı da yükler**. Geliştiricinin makinesinde tanımlı her sır teste sızar; temiz bir makinede sızmaz. Sonuç: aynı commit iki makinede iki farklı sonuç verir ve testin ne kanıtladığı belirsizleşir.
+If an integration test boots in the development environment (`Development`), the
+configuration chain **also loads user secrets**. Every secret defined on the
+developer's machine leaks into the test; on a clean machine it does not. The
+result: the same commit produces two different results on two machines, and what
+the test proves becomes unclear.
 
-- Testin ayağa kaldırdığı **taban fabrikada** (`WebApplicationFactory` türevi), dış dünyaya açılan veya davranış değiştiren **her ayar açıkça sabitlenir** — tek tek, sızdığı görüldükçe değil. Tipik olanlar: LLM/API anahtarları, şifreleme anahtar halkası yolu, dış servis adresleri, tarayıcı görünürlüğü, özellik bayrakları.
-- Varsayılan **"yapılandırılmadı"** (boş/kapalı) olur. Uç testlerinin çoğu bu yeteneklere ihtiyaç duymaz; ihtiyaç duyan test yeteneği **kendisi** kurar (`WithWebHostBuilder` + teste özel geçici dizin) ve bu override taban fabrikadan sonra koştuğu için kazanır.
-- Sabitlemenin yanına **neden** yazılır. "Boş bırakıldı" tek başına bir sonraki kişiye anlamsız gelir ve silinir; "geliştiricinin gerçek anahtarı sızıp test para harcadı" silinmez.
-- Yerel bir çözüm (tek bir alt fabrikada boşaltma) taban fabrikaya taşındığında **kaldırılır**. Yerel satır kaldırıldıktan sonra ilgili testin hâlâ geçmesi, taban ayarın gerçekten uygulandığının kanıtıdır.
+- In the **base factory** the test boots (a `WebApplicationFactory` derivative), **every setting that reaches the outside world or changes behaviour is pinned explicitly** — all of them, not one at a time as leaks are discovered. The usual suspects: LLM/API keys, the path of the encryption key ring, external service addresses, browser visibility, feature flags.
+- The default is **"not configured"** (empty/off). Most endpoint tests do not need those capabilities; a test that does sets the capability up **itself** (`WithWebHostBuilder` + a temporary directory scoped to the test), and that override wins because it runs after the base factory.
+- Write **why** next to the pinning. "Left empty" means nothing to the next person and gets deleted; "a developer's real key leaked and the test spent money" does not.
+- When a local workaround (clearing it in one sub-factory) is moved into the base factory, it is **removed** locally. That the test still passes after the local line is gone is the proof the base setting really applies.
 
-Aynı kural test veritabanı için de geçerli: paylaşılan sabit adlı bir test veritabanı, paralel çalışma kopyalarında birbirinin verisini siler. Ad **çalışma kopyasından türetilir**; `[Collection]` serileştirmesi yalnız süreç içinde korur.
+The same rule applies to the test database: a shared, fixed-name test database
+wipes another working copy's data in parallel runs. The name is **derived from the
+working copy**; `[Collection]` serialization only protects within a single process.
 
-## 6. Sözleşme (contract) testi
+## 6. Contract tests
 
-- İstemcinin beklediği alanlar sunucu yanıtında var mı — **geriye uyumluluk kalkanı**.
-- Her endpoint için minimum: durum kodu + zorunlu alanların varlığı ve tipi.
-- Bir alan silinirse/adı değişirse bu test **kırmızı yanar** — asıl amacı budur.
-- OpenAPI şemasına karşı doğrulama otomatikleştirilebilir.
+- Do the fields the client expects exist in the server's response — **the backward-compatibility shield**.
+- The minimum per endpoint: the status code plus the presence and type of the required fields.
+- If a field is deleted or renamed this test **turns red** — which is precisely its purpose.
+- Validation against the OpenAPI schema can be automated.
 
-## 7. Kapsam (coverage) — EŞİK %80, istisnasız (global kural #29)
+## 7. Coverage — THE THRESHOLD IS 80%, no exceptions (global rule #29)
 
-**KARAR (13/09/2026, kullanıcı kararı — "irademdir"):** Her kod tabanının
-satır kapsamı **en az %80**. Eskiden burada "kapsam hedef değil, teşhis
-aracıdır" yazıyordu; o cümle **kaldırıldı** — artık eşik bir kapıdır ve
-`dev → test` / `test → prod` promosyonunu bloklar.
+**THE DECISION:** line coverage in every codebase is **at least 80%**. This
+section used to say "coverage is a diagnostic, not a target"; that sentence has
+been **removed** — the threshold is now a gate and it blocks the `dev → test` and
+`test → prod` promotions.
 
-### 7.1 Ne ölçülür
+### 7.1 What is measured
 
-- **Satır kapsamı**, her kod tabanı **ayrı**: backend · web · Android · iOS.
-  Birleşik ortalama alınmaz.
-- Dal ve fonksiyon kapsamı **raporlanır** ama eşik satırdadır. ⚠️ v8 (Vitest)
-  yalnız **yüklenen** dosyaların dallarını sayar — hiç import edilmeyen
-  dosyalar dal paydasına girmez, dal yüzdesi bu yüzden şişkin görünür.
-- E2E sayılmaz. Senaryoyu ölçer, satırı değil; ayrı kapıdır.
+- **Line coverage**, every codebase **separately**: backend · web · Android · iOS. Never a combined average.
+- Branch and function coverage are **reported** but the threshold is on lines. ⚠️ v8 (Vitest) counts branches only for the files it **loaded** — files never imported do not enter the branch denominator, which makes the branch percentage look inflated.
+- E2E does not count. It measures a scenario, not a line; it is a separate gate.
 
-### 7.2 Payda — neyi çıkarmak serbest
+### 7.2 The denominator — what may be excluded
 
-Yalnız **üretilmiş ya da ürün olmayan** kod:
+Only **generated or non-product** code:
 
-| Yığın | Çıkarılabilir |
+| Stack | May be excluded |
 |---|---|
 | .NET | `Migrations/`, `*ModelSnapshot.cs`, `*.Designer.cs`, `obj/`, `*.g.cs` |
 | TS/React | `*.test.ts(x)`, `*.d.ts`, `e2e/`, `*.config.ts` |
-| Android | `R`, `BuildConfig`, Hilt/Room/Compose üretilmiş sınıfları |
-| iOS | test hedefleri, üretilmiş kaynak erişimcileri |
+| Android | `R`, `BuildConfig`, generated Hilt/Room/Compose classes |
+| iOS | test targets, generated resource accessors |
 
-Çıkarma listesi projede **tek dosyada** ve her kalıp gerekçesiyle durur.
-⚠️ **El yazısı ürün kodu listeye giremez** — test etmesi zor olan dosya
-(HTTP istemcisi, açılış kodu) da dahil. Zor dosya **sahte bağımlılıkla**
-test edilir (sahte `HttpMessageHandler`, sahte saat), paydadan çıkarılmaz.
+The exclusion list lives in **one file** in the project, with a reason next to
+every pattern.
+⚠️ **Hand-written product code may never enter the list** — including files that
+are hard to test (an HTTP client, start-up code). A hard file is tested **with a
+fake dependency** (a fake `HttpMessageHandler`, a fake clock), not excluded from
+the denominator.
 
-⚠️ **Ham sayı yanıltır.** Proje B backend'i (12/09/2026): göçler dahil
-%95,0 — göçler çıkarılınca **%83,0**. EF göçleri testlerde kendiliğinden
-çalışır ve paydanın %85'ini oluşturuyordu.
+⚠️ **The raw number misleads.** One project's backend measured 95.0% with
+migrations included — and **83.0%** once they were excluded. EF migrations run by
+themselves during tests and made up 85% of the denominator.
 
-### 7.3 Kapı
+### 7.3 The gate
 
-- Projenin yerel kapı betiğinde, **promosyon modunda** koşan adım; eşik
-  altında çıkış kodu ≠ 0. CI aynı betiği çağırır (#19).
-- Ölçülemeyen kod tabanı **"ölçülmedi"** diye raporlanır ve promosyonu
-  **yine bloklar** — koşmayan kapı geçilmiş sayılmaz.
-- Eşik projede düşürülmez; proje `CLAUDE.md`'si bu eşiği ezemez.
+- A step in the project's local gate script, running in **promotion mode**; below the threshold the exit code is ≠ 0. CI calls the same script (#19).
+- A codebase that cannot be measured is reported as **"not measured"** and **still blocks** the promotion — a gate that did not run did not pass.
+- The threshold is never lowered in a project; a project's `CLAUDE.md` cannot override it.
 
-### 7.4 Yığın başına komut
+### 7.4 Commands per stack
 
 ```bash
-# .NET — coverlet (xunit şablonunda hazır gelir), cobertura çıktısı
-dotnet test <sln> --collect:"XPlat Code Coverage" --results-directory <dizin>
-# iki test projesi ayrı dosya üretir; aynı satır ikisinde olabilir →
-# satırların BİRLEŞİMİ alınır, toplam değil
+# .NET — coverlet (included in the xunit template), cobertura output
+dotnet test <sln> --collect:"XPlat Code Coverage" --results-directory <dir>
+# two test projects produce separate files and the same line may appear in both →
+# take the UNION of the lines, not the sum
 
-# Vitest — @vitest/coverage-v8; eşik yapılandırmada
+# Vitest — @vitest/coverage-v8; the threshold lives in the config
 #   coverage: { include: ['src/**/*.{ts,tsx}'], thresholds: { lines: 80 } }
 npx vitest run --coverage
 
-# Android — Kover (Gradle eklentisi; eklemeden önce sor, global #10)
+# Android — Kover (a Gradle plugin; ask before adding it, global #10)
 ./gradlew koverVerify          # koverVerify { rule { minBound(80) } }
 
 # iOS
-xcodebuild test ... -enableCodeCoverage YES -resultBundlePath <yol>
-xcrun xccov view --report --json <yol>.xcresult
+xcodebuild test ... -enableCodeCoverage YES -resultBundlePath <path>
+xcrun xccov view --report --json <path>.xcresult
 ```
 
-### 7.5 Kapsam için yazılan testin kalitesi
+### 7.5 The quality of a test written for coverage
 
-- Assert'sız, yalnız "çalıştırıp geçen" test **yasak** — eşiği gevşetmekle
-  aynıdır.
-- Eklenen her testin bir şey yakaladığı **mutasyonla** doğrulanır: test
-  ettiği satır bozulunca kırmızıya dönmeli. Dönmüyorsa test sayılmaz.
-- Kritik iş mantığında (para, yetki, durum makinesi) %80 **taban**dır,
-  hedef değil — orada daha yükseği beklenir.
-- Mutation testing (Stryker) kritik modüllerde değerlidir — "test var ama
-  hiçbir şey yakalamıyor" durumunu ortaya çıkarır.
+- A test with no assertion, one that merely runs the code and passes, is **forbidden** — it is the same as loosening the threshold.
+- That every added test catches something is verified **by mutation**: break the line it tests and it must turn red. If it does not, it is not a test.
+- In critical business logic (money, authorization, state machines) 80% is **a floor**, not a target — more is expected there.
+- Mutation testing (Stryker) is valuable in critical modules — it exposes the "there are tests but they catch nothing" situation.
 
-## 8. Flaky test politikası
+## 8. Flaky test policy
 
-- Flaky test **derhal** ya düzeltilir ya karantinaya alınır (issue açılarak). Sessizce `retry` eklemek yasak.
-- Yaygın nedenler: zamanlama (`sleep`), paylaşılan veri, sıra bağımlılığı, gerçek ağ, saat dilimi, rastgelelik.
-- Karantinadaki test 2 hafta içinde çözülmezse silinir veya sahiplenilir; sonsuza dek görmezden gelinmez.
+- A flaky test is **immediately** either fixed or quarantined (with an issue opened). Silently adding `retry` is forbidden.
+- The usual causes: timing (`sleep`), shared data, order dependency, a real network, time zones, randomness.
+- A quarantined test that is not resolved within two weeks is deleted or adopted; it is never ignored forever.
 
-## 9. Testler ne zaman değişir
+## 9. When tests change
 
-- Davranış değiştiyse test değişir — **bu normaldir**.
-- Yalnız refactor yapıldıysa test değişmemelidir. Refactor'da test kırılıyorsa test implementasyona fazla bağlıdır.
-- **Testi "geçsin diye" gevşetmek yasak** — assert silmek, `Skip` eklemek, eşiği düşürmek. Neden kırıldığı anlaşılmadan dokunulmaz.
-- Obsolete edilen alanın testi, alan gerçekten kaldırılana dek yaşar.
+- If the behaviour changed, the test changes — **that is normal**.
+- If only a refactor happened, the test should not change. A test that breaks during a refactor is too tied to the implementation.
+- **Loosening a test "so it passes" is forbidden** — no deleting assertions, no adding `Skip`, no lowering a threshold. Nothing is touched before it is understood why it broke.
+- A test for an obsoleted field lives until that field is genuinely removed.
 
-## 10. CI'da testler
+## 10. Tests in CI
 
-- Hızlı kapı (unit + tsc + lint) **her push'ta**.
-- Yavaş/state'li testler (canlı DB, e2e) ayrı iş akışında veya elle tetiklenir — hızlı kapıya karıştırılmaz.
-- Test çıktısı okunabilir olmalı; başarısız testin **neden** başarısız olduğu log'dan anlaşılmalı.
-- Testler yerelde de aynı komutla koşabilmeli (`npm test`, `dotnet test`) — CI'ya özel sihir yok.
+- The fast gate (unit + tsc + lint) runs **on every push**.
+- Slow or stateful tests (a live database, e2e) live in a separate workflow or are triggered manually — never mixed into the fast gate.
+- Test output must be readable; the log must make clear **why** a failing test failed.
+- Tests must run locally with the same command (`npm test`, `dotnet test`) — no CI-only magic.
