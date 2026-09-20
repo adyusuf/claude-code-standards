@@ -1,7 +1,14 @@
 #!/usr/bin/env bash
-# Shared merge gate — one gate definition for every project.
+# Shared gate CORE — one definition of the step set for every project.
 #
-# Usage:  scripts/merge-gate.sh <dev|test|prod>
+# Usage:  scripts/gate-core.sh <dev|test|prod> [--list]
+#
+# Two layers, deliberately: this file owns the SHARED STEPS, while a project's own
+# scripts/merge-gate.sh stays the orchestrator (it pulls, merges, pushes and adds
+# whatever that project needs) and CALLS this file for the shared set. That way the
+# step definition lives in one place and a project can ADD steps without forking it.
+# `--list` prints the steps that WOULD run, with the command each one resolves to,
+# and runs nothing — use it when rolling the gate into a project.
 #
 # ⚠️ The canonical copy lives in the configuration repository; every project takes
 # a COPY into its own scripts/ and commits it. A project's gate cannot depend on a
@@ -29,15 +36,21 @@
 #   TEST_VERSION_URL=https://test.example.com/version   # must report the deployed SHA
 #   E2E_WEB_CMD="npx playwright test"                   # default when e2e/ exists
 #   E2E_MOBILE_CMD="bash scripts/mobile-e2e.sh"         # default when .maestro/ exists
-#   COVERAGE_CMD="bash scripts/coverage.sh"             # must exit non-zero below the threshold
+#   COVERAGE_CMD="node scripts/coverage-budget.cjs"     # must exit non-zero below the threshold
 #   COVERAGE_MIN=80
+#   SAST_CMD="bash scripts/codeql-scan.sh"              # default: scripts/codeql-scan.sh
+#   BACKCOMPAT_CMD="bash scripts/api-compat.sh"         # default: scripts/backward-compat-scan.sh
+#   SECRET_CMD="gitleaks detect --no-banner --redact"   # default: the same
+#   LINT_CMD / TYPECHECK_CMD / BUILD_CMD / UNIT_CMD     # override the auto-detected ones
 #   SKIP_STACKS="mobile"                                # codebases this project does not have
 set -uo pipefail
 
 TARGET="${1:-}"
+LIST_ONLY=0
+[ "${2:-}" = "--list" ] && LIST_ONLY=1
 case "$TARGET" in
   dev|test|prod) ;;
-  *) echo "usage: $0 <dev|test|prod>"; exit 2 ;;
+  *) echo "usage: $0 <dev|test|prod> [--list]"; exit 2 ;;
 esac
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
@@ -54,6 +67,7 @@ warn() { printf '  \033[33m!\033[0m %s\n' "$1"; WARN+=("$1"); }
 have() { command -v "$1" >/dev/null 2>&1; }
 run()  { # run <label> <command...>
   local label="$1"; shift
+  if [ "$LIST_ONLY" = 1 ]; then printf '  → %-42s %s\n' "$label" "$*"; PASS+=("$label"); return 0; fi
   if "$@" >/tmp/mg.$$ 2>&1; then ok "$label"; else bad "$label"; tail -20 /tmp/mg.$$ | sed 's/^/      /'; fi
   rm -f /tmp/mg.$$
 }
@@ -105,12 +119,13 @@ if [ "$TARGET" != "prod" ]; then
   done
 
   say "coverage (>= ${COVERAGE_MIN}% lines, per codebase)"
-  if [ -n "${COVERAGE_CMD:-}" ]; then run "coverage ($COVERAGE_CMD)" bash -c "$COVERAGE_CMD"
-  elif [ -x scripts/coverage.sh ]; then run "coverage (scripts/coverage.sh)" bash scripts/coverage.sh
-  else skip "coverage: no COVERAGE_CMD and no scripts/coverage.sh — the threshold is NOT measured"; fi
+  if [ -n "${COVERAGE_CMD:-}" ]; then run "coverage" bash -c "$COVERAGE_CMD"
+  elif [ -x scripts/coverage.sh ]; then run "coverage" bash scripts/coverage.sh
+  else skip "coverage: set COVERAGE_CMD in scripts/merge-gate.conf — the threshold is NOT measured"; fi
 
   say "secret scan"
-  if have gitleaks; then run "gitleaks detect" gitleaks detect --no-banner --redact
+  if [ -n "${SECRET_CMD:-}" ]; then run "secret scan" bash -c "$SECRET_CMD"
+  elif have gitleaks; then run "gitleaks detect" gitleaks detect --no-banner --redact
   else skip "gitleaks is not installed"; fi
 
   say "dependency CVE"
@@ -126,12 +141,14 @@ if [ "$TARGET" != "prod" ]; then
   done
 
   say "SAST"
-  if [ -x scripts/codeql-scan.sh ]; then run "codeql-scan.sh" bash scripts/codeql-scan.sh
-  else skip "SAST: scripts/codeql-scan.sh is missing"; fi
+  if [ -n "${SAST_CMD:-}" ]; then run "SAST" bash -c "$SAST_CMD"
+  elif [ -x scripts/codeql-scan.sh ]; then run "SAST" bash scripts/codeql-scan.sh
+  else skip "SAST: set SAST_CMD in scripts/merge-gate.conf"; fi
 
   say "backward compatibility"
-  if [ -x scripts/backward-compat-scan.sh ]; then run "backward-compat-scan.sh" bash scripts/backward-compat-scan.sh
-  else skip "backward-compatibility scan: scripts/backward-compat-scan.sh is missing"; fi
+  if [ -n "${BACKCOMPAT_CMD:-}" ]; then run "backward compatibility" bash -c "$BACKCOMPAT_CMD"
+  elif [ -x scripts/backward-compat-scan.sh ]; then run "backward compatibility" bash scripts/backward-compat-scan.sh
+  else skip "backward-compatibility scan: set BACKCOMPAT_CMD in scripts/merge-gate.conf"; fi
 
   say "CLAUDE.md gates"
   if [ -x scripts/md-size-gate.sh ]; then run "md-size-gate.sh" bash scripts/md-size-gate.sh

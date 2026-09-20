@@ -110,7 +110,7 @@ themselves during tests and made up 85% of the denominator.
 
 ### 7.3 The gate
 
-- A step in the shared gate (`scripts/merge-gate.sh`), running at **every** promotion including `dev`; below the threshold the exit code is ≠ 0. CI calls the same script (#19, #25).
+- A step in the shared gate core (`scripts/gate-core.sh`), running at **every** promotion including `dev`; below the threshold the exit code is ≠ 0. CI calls the same script (#19, #25).
 - A codebase that cannot be measured is reported as **"not measured"** and **still blocks** the promotion — a gate that did not run did not pass.
 - The threshold is never lowered in a project; a project's `CLAUDE.md` cannot override it.
 

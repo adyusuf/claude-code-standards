@@ -67,12 +67,18 @@ count halves) · `grep -E "dotnet|codeql"` is not a SAST run, and such mentions 
 reported separately in the `dismissed` column rather than counted · a step that
 runs from inside another script is invisible: that is **"not seen"**, not "zero".
 
-## merge-gate.sh — the shared gate
+## gate-core.sh — the shared gate, in two layers
 
-One gate definition for every project: `scripts/merge-gate.sh <dev|test|prod>`.
-The canonical copy lives here; every project commits a copy, because a project's
-gate cannot depend on a path outside its repository (CI runners do not have the
-configuration checked out). The drift test in `md-hook.sh` covers it.
+`scripts/gate-core.sh <dev|test|prod>` owns the SHARED STEP SET. A project's own
+`scripts/merge-gate.sh` remains the orchestrator — it pulls, merges, pushes and
+adds whatever that project needs — and CALLS the core for the shared steps. So the
+step definition lives in one place while a project can ADD steps without forking
+it. The canonical copy lives here; every project commits a copy, because a
+project's gate cannot depend on a path outside its repository (CI runners do not
+have the configuration checked out). The drift test in `md-hook.sh` covers it.
+
+`gate-core.sh <target> --list` prints the steps that WOULD run and the command
+each resolves to, and runs nothing — use it when rolling the gate into a project.
 
 | Target | What runs |
 |---|---|
@@ -80,9 +86,10 @@ configuration checked out). The drift test in `md-hook.sh` covers it.
 | `prod` | The code must already be **deployed to the test environment** (verified through the version endpoint), then the **whole** e2e suite runs against it. Only a green run allows the promotion. |
 
 Stacks are auto-detected (.NET solution, `web/`, `mobile/`, `e2e/`, `.maestro/`).
-Per-project settings are optional, in `scripts/merge-gate.conf`:
-`TEST_VERSION_URL`, `E2E_WEB_CMD`, `E2E_MOBILE_CMD`, `COVERAGE_CMD`,
-`COVERAGE_MIN`, `SKIP_STACKS`.
+Per-project settings live in `scripts/merge-gate.conf` (sourced if present):
+`TEST_VERSION_URL`, `E2E_WEB_CMD`, `E2E_MOBILE_CMD`, `COVERAGE_CMD`, `COVERAGE_MIN`,
+`SAST_CMD`, `BACKCOMPAT_CMD`, `SECRET_CMD`, `SKIP_STACKS`. Point them at the scripts
+the project already has instead of renaming those scripts.
 
 ⚠️ **A step that did not run did not pass.** A missing tool is reported SKIPPED
 and the gate exits non-zero with INCOMPLETE — never green. A project may ADD
