@@ -1,82 +1,88 @@
 ---
-description: Bu projeye standart dokümanlarını (CLAUDE.md, SETUP.md, .env.example) kur veya güncelle
+description: Install or update this project's standard documents (CLAUDE.md, SETUP.md, .env.example)
 ---
 
-Bu projeyi `~/.claude/standards/` düzenine uydur. **Var olanı silme, eksiği tamamla.**
+Bring this project in line with the `~/.claude/standards/` layout. **Do not delete what exists; fill in what is missing.**
 
-## 1. Keşif (önce oku, sonra yaz)
+## 1. Discovery (read first, write second)
 
-- Kök dizin, `package.json` / `*.csproj` / `docker-compose.yml` / `.github/workflows/`
-- Mevcut `CLAUDE.md`, `README.md`, `SETUP.md`, `DEPLOY.md`, `.env*`
-- Gerçek portlar, gerçek servis adları, gerçek branch akışı (`git branch -a`)
+- The root directory, `package.json` / `*.csproj` / `docker-compose.yml` / `.github/workflows/`
+- Any existing `CLAUDE.md`, `README.md`, `SETUP.md`, `DEPLOY.md`, `.env*`
+- The real ports, the real service names, the real branch flow (`git branch -a`)
 
-**Tahmin yazma.** Bilmediğin bir alanı `<TODO: ...>` olarak bırak ve sonunda listele.
+**Never write a guess.** Leave any field you do not know as `<TODO: ...>` and list them at the end.
 
 ## 2. `CLAUDE.md`
 
-- Yoksa: `~/.claude/standards/templates/project-claude-md.md` şablonundan, **gerçek** bilgilerle doldurarak oluştur.
-- Varsa: silme. Yalnız eksik bölümleri ekle ve en üste şu notu koy (yoksa):
+- If missing: create it from `~/.claude/standards/templates/project-claude-md.md`, filled in with **real** information.
+- If present: do not delete it. Add only the missing sections and put this note at the top (if it is not there already):
 
   ```
-  > Genel yazılım standartları: `~/.claude/standards/` (her oturumda `~/.claude/CLAUDE.md` yüklenir).
-  > Burada yalnız **bu projeye özel** kurallar bulunur; buradaki kural genel standardı ezer.
+  > Global software standards: `~/.claude/standards/` (`~/.claude/CLAUDE.md` is loaded in every session).
+  > This file holds only the rules **specific to this project**; a rule here overrides the global standard.
   ```
 
-- Hedef < 200 satır. Uzun tarihsel detayı `docs/` altına taşımayı öner (kullanıcı onayıyla).
+- Target: under 200 lines. Propose moving long historical detail into `docs/` (with the user's approval).
 
 ## 3. `SETUP.md`
 
-`~/.claude/standards/templates/setup-md.md` şablonundan — kritik bölüm **§3 sır/token envanteri**:
-her sır için ad, ne işe yarar, **nereden alınır (menü yolu)**, nerede saklanır, sahibi, rotasyon, sır mı public mi.
+From `~/.claude/standards/templates/setup-md.md` — the critical section is **§3, the secret/token inventory**:
+for every secret, its name, what it is for, **where to obtain it (the menu path)**, where it is stored, who owns it, its rotation, and whether it is secret or public.
 
-Mevcut env kullanımlarını koddan tara (`process.env`, `import.meta.env`, `IConfiguration`, `appsettings*.json`)
-ve **hepsini** tabloya al. Değerleri **asla** yazma.
+Scan the code for existing env usage (`process.env`, `import.meta.env`, `IConfiguration`, `appsettings*.json`)
+and put **all of it** in the table. **Never** write the values.
 
 ## 4. `.env.example`
 
-Koddan bulunan tüm değişkenler, açıklamalı, zorunlu/opsiyonel ayrımıyla. `.env` gitignore'da mı kontrol et.
+Every variable found in the code, with a comment and a required/optional distinction. Check that `.env` is in `.gitignore`.
 
-## 5. CLAUDE.md kapıları (araç kurulumu — ÖNCE SOR)
+## 5. CLAUDE.md gates (tool installation — ASK FIRST)
 
-⚠️ Bu adım doküman değil **araç** kurar; kullanıcıya sor, onay almadan yapma.
+⚠️ This step installs a **tool**, not a document; ask the user and do not proceed without approval.
 
-`CLAUDE.md` dosyaları o dizindeki **her oturumda ve her subagent turunda**
-bağlama girer; şişme hem maliyet hem **görünürlük** sorunudur (170 KB'lık bir
-dosyada kural bulunmaz). İki kapı bunu tutar — kanonik kopyaları
-`~/.claude/scripts/`, ayrıntı `~/.claude/scripts/README.md`:
+`CLAUDE.md` files enter context in **every session and every subagent turn** in
+that directory; bloat is both a cost and a **visibility** problem (nobody finds a
+rule in a 170 KB file). Two gates hold the line — the canonical copies live in
+`~/.claude/scripts/`, with detail in `~/.claude/scripts/README.md`:
 
 ```bash
 mkdir -p scripts && cp ~/.claude/scripts/md-*.sh ~/.claude/scripts/md-*.py scripts/
-bash scripts/md-size-gate.sh --guncelle   # tavan = BUGÜNKÜ boyut
+bash scripts/md-size-gate.sh --update   # the ceiling becomes TODAY's size
 ```
 
-- Araçlar **projeye kopyalanır ve orada commit'lenir** — projenin kapısı repo
-  dışı bir yola bağlanamaz (bu bir kez yaşandı: araç hiçbir depoda değildi ve
-  ona yönlendiren satır 3 hafta boyunca ölü bir yolu gösterdi).
-- Projenin merge/CI kapısına `bash scripts/md-size-gate.sh` adımını ekle.
-  Kapı yoksa **ekleme, raporla** — kapı kurmak ayrı bir istektir.
-- Zaten bir boyut kapısı varsa **ikincisini kurma**; var olanı kullan. **Ölçüt
-  (tahmin etme, koştur):** `grep -rlE 'md-size-gate|md-budget|claude-md-budget' scripts/ .github/ 2>/dev/null`
-  boş değilse kapı vardır — kurulumu atla ve raporla. (05/09/2026'da tam bu
-  atlandı: var olan kapının yanına ikincisi yazıldı, baseline'lar çelişti.)
+- The tools are **copied into the project and committed there** — a project's gate
+  cannot depend on a path outside the repository (this happened once: the tool was
+  in no repository at all and the line pointing to it referenced a dead path for
+  three weeks).
+- Add a `bash scripts/md-size-gate.sh` step to the project's merge/CI gate.
+  If there is no gate, **do not create one — report it**; installing a gate is a
+  separate request.
+- If a size gate already exists, **do not install a second one**; use the existing
+  one. **The test (run it, do not guess):** if
+  `grep -rlE 'md-size-gate|md-budget|claude-md-budget' scripts/ .github/ 2>/dev/null`
+  is not empty, a gate exists — skip the installation and report it. (This exact
+  check was once skipped: a second gate was written next to the existing one and
+  their baselines contradicted each other.)
 
-⚠️ **Küçültme önerme.** Cırcırlı tavan büyümeyi durdurur, asıl amaç budur.
-Bölme yalnız **kök** `CLAUDE.md` çok büyükse ve **taşıyarak** (özetleyerek
-değil) yapılır; sonucu `md-rule-gate.py` ile doğrulanır.
+⚠️ **Do not propose shrinking.** A ratcheted ceiling stops growth, which is the
+whole point. Splitting happens only if the **root** `CLAUDE.md` is very large, and
+only by **moving** content (never by summarising it); the result is verified with
+`md-rule-gate.py`.
 
-## 6. Çalışma modu (opsiyonel)
+## 6. Working mode (optional)
 
-Proje `.claude/mode` dosyası taşımıyorsa mod **A** (ajan yok) geçerlidir.
-Ajan isteniyorsa `/working-mode <B|C|D>`.
-Tanımlar `~/.claude/modes/README.md`, kural `~/.claude/CLAUDE.md` #27.
-⚠️ `.claude/*` çoğu projede gitignore'ludur; mod dosyası **commit edilmeli**
-(dar bir `!.claude/mode` istisnası gerekir) — o proje ayarıdır, kişisel oturum
-durumu değil.
+If the project carries no `.claude/mode` file, mode **B** applies.
+To request a different agent set: `/working-mode <A|C|D|E>`.
+Definitions are in `~/.claude/modes/README.md`, the rule in `~/.claude/CLAUDE.md` #27.
+⚠️ `.claude/*` is gitignored in most projects; the mode file **must be committed**
+(a narrow `!.claude/mode` exception is needed) — it is a project setting, not
+personal session state.
 
-## 7. Rapor
+## 7. Report
 
-- Oluşturulan / güncellenen dosyalar
-- Doldurulamayan `<TODO>` alanları — kullanıcıya net sorularla
-- Standartlara aykırı gördüğün mevcut durumlar (hard-coded URL, sır repoda, yedek yok, `SETUP.md` yok) — **düzeltme, raporla**
+- Files created / updated
+- `<TODO>` fields that could not be filled — as clear questions to the user
+- Existing conditions you found that contradict the standards (hard-coded URL, a secret in the repo, no backup, no `SETUP.md`) — **report them, do not fix them**
 
-Kod değişikliği yapma; yalnız doküman üret — **tek istisna §5'in araç kopyalaması** ve o da kullanıcı onayıyla. Kod düzeltmesi ayrı bir istektir.
+Make no code changes; produce documents only — **the single exception is the tool
+copy in §5**, and that one needs the user's approval. Fixing code is a separate request.

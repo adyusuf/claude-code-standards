@@ -1,69 +1,79 @@
 ---
 name: working-mode
-description: Bu proje için çalışma modunu (A/B/C/D/E) gösterir veya değiştirir. Modlar ajan kullanımını, review'ı ve onay politikasını belirler. Kullanıcı "/working-mode", "modu değiştir", "hangi moddayız", "tam takım çalış", "ajansız çalış" dediğinde kullan.
+description: Shows or changes the operating mode (A/B/C/D/E) for this project. The mode determines agent usage, review and the approval policy. Use it when the user says "/working-mode", "change the mode", "which mode are we in", "work as a full team", or "work without agents".
 ---
 
-# Çalışma modu
+# Working mode
 
-## 1. Mevcut modu oku
+## 1. Read the current mode
 
-Öncelik sırası: **oturumluk seçim** → proje dosyası → A.
+Priority order: **session-scoped selection** → project file → B.
 
 ```bash
-S="<sistem prompt'taki Scratchpad Directory>"   # oturuma özel, sıkıştırmada silinmez
+S="<the Scratchpad Directory from the system prompt>"   # session-scoped, survives compaction
 cat "$S/mode" 2>/dev/null || cat "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.claude/mode" 2>/dev/null || echo B
 ```
 
-Hiçbiri yoksa mod **B**'dir (18/09/2026, kullanıcı kararı; öncesinde A idi).
-B'nin üç ajanı (`analyst`, `test-writer`, `doc-writer`) varsayılanla birlikte onaylıdır.
-Kullanıcı mod söylemediyse **B'de başla, gerekiyorsa en düşük yeterli modu tek
-satırla öner** — kendin geçme (README › "Mod verilmediyse").
+If none of them exists the mode is **B**. B's three agents (`analyst`,
+`test-writer`, `doc-writer`) are approved along with the default. If the user
+named no mode, **start in B and propose the lowest sufficient mode in one line**
+if the work deserves it — never switch on your own (README › "When no mode is given").
 
-⚠️ `--tek` ile seçilen mod **scratchpad'e yazılır** (`$S/mode`), `.claude/mode`'a
-değil. Sebep: "yalnız bu oturumda uygula" sözü belleğe güvenirse bağlam
-sıkıştırmasından sonra **unutulur** ve proje dosyasındaki moda sessizce geri
-dönülür. Scratchpad oturuma özeldir ve oturum bitince gider — tam istenen ömür.
+⚠️ A mode chosen with `--once` is written **to the scratchpad** (`$S/mode`), not
+to `.claude/mode`. Reason: if "apply this for this session only" relies on
+memory, it is **forgotten** after context compaction and the project file's mode
+silently takes over again. The scratchpad is session-scoped and disappears with
+the session — exactly the lifetime required.
+(`--tek` is still accepted as a legacy alias of `--once`.)
 
-## 2. Mod tanımlarını yükle
+## 2. Load the mode definitions
 
-`~/.claude/modes/README.md` matristir (tek kaynak). Aktif modun dosyasını oku:
-`~/.claude/modes/<HARF>-*.md` (5 harfin her biri tek dosyaya çözülür).
-**Yalnız aktif modun dosyasını oku** — beşini birden okumak boşuna bağlam yakar.
-⚠️ **X/Y/Z arşivdedir** (`modes/archive/README.md`) — mod olarak teklif edilmez.
+`~/.claude/modes/README.md` is the matrix (single source). Read the active mode's
+file: `~/.claude/modes/<LETTER>-*.md` (each of the five letters resolves to one
+file). **Read only the active mode's file** — reading all five burns context for
+nothing. ⚠️ **X/Y/Z are archived** (`modes/archive/README.md`) and are never
+offered as a mode.
 
-## 3. Argümansız çağrıldıysa
+## 3. If called without an argument
 
-Mevcut modu, ne anlama geldiğini ve diğer seçenekleri **kısa** göster:
-harf + ad + ajan seti + review kimde + maliyet çarpanı. Matrisin tamamını
-yapıştırma; 5-6 satır yeter (A-E).
+Show the current mode, what it means and the other options **briefly**: letter +
+name + agent set + who reviews + cost multiplier. Do not paste the whole matrix;
+5-6 lines are enough (A-E).
 
-## 4. Harf verildiyse (`/working-mode B`)
+## 4. If a letter is given (`/working-mode B`)
 
-1. Harfi doğrula (**A/B/C/D/E**). ⚠️ **D ve E 18/09/2026'da yer değiştirdi**: D artık 14 rollü geniş takım, E fan-out (`Workflow`). Eski oturumlardan gelen "D = fan-out" beklentisini düzelt. Geçersiz harfi reddet, listeyi göster.
-2. `--tek` verilmediyse repo kökündeki `.claude/mode` dosyasına **tek harf** yaz:
+1. Validate the letter (**A/B/C/D/E**). ⚠️ **D and E swapped places**: D is now the
+   14-role wide team and E is fan-out (`Workflow`). Correct any "D = fan-out"
+   expectation carried over from older sessions. Reject an invalid letter and
+   show the list.
+2. If `--once` was not given, write the **single letter** to `.claude/mode` at the
+   repository root:
    ```bash
-   root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)" && mkdir -p "$root/.claude" && printf '%s\n' "B" > "$root/.claude/mode" && echo "yazıldı: $root/.claude/mode"
+   root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)" && mkdir -p "$root/.claude" && printf '%s\n' "B" > "$root/.claude/mode" && echo "written: $root/.claude/mode"
    ```
-   ⚠️ Fallback zorunlu: git deposu olmayan dizinde `git rev-parse` **exit 128**
-   verir ve `&&` zinciri kırılır — dosya yazılmaz. Eskiden okuma komutunda
-   fallback vardı, yazmada yoktu: kullanıcıya "kalıcı yazıldı" denip aslında
-   yazılmıyordu. **Yazma başarısızsa kullanıcıya söyle**, onaylama.
-   `--tek` verildiyse `.claude/mode`'a **yazma**; scratchpad'e yaz: `printf '%s\n' "B" > "$S/mode"`
-   (oturumluk, §1'deki öncelik sırasında proje dosyasını ezer).
-3. Yeni modun dosyasını oku ve **o andan itibaren onun kurallarına uy**.
-4. Kullanıcıya onayla: eski mod → yeni mod, neyin değiştiği (ajan seti,
-   review kimde, onay politikası, beklenen çarpan). 4-6 satır.
+   ⚠️ The fallback is mandatory: in a directory that is not a git repository
+   `git rev-parse` exits **128** and breaks the `&&` chain, so the file is never
+   written. The read command used to have a fallback while the write did not:
+   the user was told "saved permanently" when nothing had been saved. **If the
+   write fails, say so** — never confirm it.
+   If `--once` was given, do **not** write `.claude/mode`; write the scratchpad
+   instead: `printf '%s\n' "B" > "$S/mode"` (session-scoped; it overrides the
+   project file in the priority order of §1).
+3. Read the new mode's file and **follow its rules from that point on**.
+4. Confirm to the user: old mode → new mode, and what changed (agent set, who
+   reviews, approval policy, expected multiplier). 4-6 lines.
 
-## Kalıcı kurallar
+## Permanent rules
 
-- `.claude/mode` **commit edilir** — proje için varsayılanı takım/oturumlar
-  arasında taşır. Kişisel geçici tercih için `--tek` kullan.
-- **B/C/D/E modlarında** modu seçmek o ajan setine verilmiş
-  onaydır (#27); çağrı öncesi ayrıca sorulmaz. Tur sonunda kaç ajan koştuğu ve
-  tahmini maliyet **raporlanır**.
-- **A modunda** ajan hiç çağrılmaz; ajan gerekiyorsa mod değiştirmeyi öner, başlatma.
-- Mod **hiçbir durumda** şunları gevşetmez: geri alınamaz işlerde onay,
-  `test`/`prod` promosyonunun kullanıcıya ait olması, "tamamlandı" öncesi
-  eksik-kontrolü, sırların repoya girmemesi.
-- Mod değişikliği **geriye dönük değildir** — önceki turlarda yapılan iş
-  yeniden değerlendirilmez.
+- `.claude/mode` **is committed** — it carries the project default across team
+  members and sessions. Use `--once` for a personal, temporary preference.
+- **In modes B/C/D/E** choosing the mode **is** the approval for that agent set
+  (#27); no separate question before a call. At the end of the turn the number of
+  agents that ran and the estimated cost are **reported**.
+- **In mode A** no agent is ever invoked; if an agent is needed, propose changing
+  the mode instead of starting one.
+- The mode **never** loosens any of these: approval for irreversible work, the
+  `test`/`prod` promotions belonging to the user, the completeness check before
+  "done", secrets staying out of the repository.
+- A mode change is **not retroactive** — work done in earlier turns is not
+  re-evaluated.

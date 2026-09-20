@@ -1,51 +1,53 @@
 #!/usr/bin/env python3
-"""Oturumların SABIT ONEGINI olcer (sistem prompt + arac/skill listeleri + CLAUDE.md).
+"""MEASURES the FIXED PREFIX of sessions (system prompt + tool/skill listings + CLAUDE.md).
 
-Kullanim:  python3 ~/.claude/scripts/prefix-measure.py [YYYY-MM-DD HH:MM]
-           ikinci argüman verilirse o andan SONRA baslayan oturumlar isaretlenir.
+Usage:  python3 ~/.claude/scripts/prefix-measure.py ["YYYY-MM-DD HH:MM"]
+        With a cut timestamp, sessions that started AFTER that moment are marked.
 
-NEDEN VAR: sabit onek her istekte yeniden okunur; 20/09/2026 olcumunde toplam
-harcamanin %18'iydi. Eklenti kapatmak / CLAUDE.md kucultmek bu sayiyi dusurur
-ama etkisi YALNIZ YENI OTURUMDA gorunur — acik oturum yapilandirma anlik
-goruntusunu baslangicta alir (olculerek dogrulandi: ayni oturumda degisiklik
-oncesi ve sonrasi ajan onegi birebir ayni cikti).
+WHY IT EXISTS: the fixed prefix is re-read on every request; in one measurement it
+was 18% of the total spend. Disabling plugins or shrinking CLAUDE.md lowers that
+number, but the effect is visible ONLY IN A NEW SESSION — an open session takes its
+configuration snapshot at start-up (verified by measurement: before and after the
+change, the agent prefix inside the same session was byte-for-byte identical).
 
-⚠️ Siralama dosya damgasina degil OTURUM BASLANGICINA gore yapilir: en son
-YAZILAN transcript cogu zaman eski bir oturumdur ve "sonrasi" sanilir.
+⚠️ Sorting is by SESSION START, not by file timestamp: the most recently WRITTEN
+transcript is usually an older session and is easily mistaken for "after".
 """
 import glob, json, os, sys, datetime
 
-kes = None
+cut = None
 if len(sys.argv) > 1:
-    kes = datetime.datetime.fromisoformat(' '.join(sys.argv[1:])).timestamp()
+    cut = datetime.datetime.fromisoformat(' '.join(sys.argv[1:])).timestamp()
 
 rows = []
-for f in glob.glob(os.path.expanduser('~/.claude/projects/**/*.jsonl'), recursive=True):
-    if os.path.basename(f).startswith('agent-'):
+for path in glob.glob(os.path.expanduser('~/.claude/projects/**/*.jsonl'), recursive=True):
+    if os.path.basename(path).startswith('agent-'):
         continue
-    ilk = bas = None
-    for line in open(f, errors='ignore'):
+    first = started = None
+    for line in open(path, errors='ignore'):
         try:
-            d = json.loads(line)
+            record = json.loads(line)
         except Exception:
             continue
-        if bas is None and d.get('timestamp'):
-            bas = d['timestamp']
-        u = (d.get('message') or {}).get('usage')
-        if u:
-            ilk = sum(u.get(k, 0) or 0 for k in
-                      ('input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens'))
+        if started is None and record.get('timestamp'):
+            started = record['timestamp']
+        usage = (record.get('message') or {}).get('usage')
+        if usage:
+            first = sum(usage.get(key, 0) or 0 for key in
+                        ('input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens'))
             break
-    if ilk and bas:
-        ts = datetime.datetime.fromisoformat(bas.replace('Z', '+00:00')).timestamp()
-        rows.append((ts, os.path.basename(f)[:8], ilk))
+    if first and started:
+        when = datetime.datetime.fromisoformat(started.replace('Z', '+00:00')).timestamp()
+        rows.append((when, os.path.basename(path)[:8], first))
 
 rows.sort(reverse=True)
-print("oturum başlangıcına göre son 10 oturum:\n")
-for ts, ad, ilk in rows[:10]:
-    im = ' ← kesim sonrası' if kes and ts > kes else ''
-    print(f"  {datetime.datetime.fromtimestamp(ts):%d/%m %H:%M}  {ad}  {ilk:>8,} token{im}")
-if kes:
-    s = [r[2] for r in rows if r[0] > kes]
-    print(f"\nkesimden sonra başlayan oturum: {len(s)}" +
-          (f" · medyan önek {sorted(s)[len(s)//2]:,} token" if s else " → yeni oturum açılmalı"))
+print("the last 10 sessions, by session start:\n")
+for when, name, prefix in rows[:10]:
+    marker = ' ← after the cut' if cut and when > cut else ''
+    print(f"  {datetime.datetime.fromtimestamp(when):%d/%m %H:%M}  {name}  {prefix:>8,} tokens{marker}")
+if cut:
+    after = [prefix for when, _name, prefix in rows if when > cut]
+    if after:
+        print(f"\nsessions started after the cut: {len(after)} · median prefix {sorted(after)[len(after)//2]:,} tokens")
+    else:
+        print("\nsessions started after the cut: 0 → a new session is needed")

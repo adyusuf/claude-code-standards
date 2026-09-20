@@ -1,52 +1,53 @@
 ---
 name: software-standards
-description: Tüm projelerde geçerli yazılım standartlarını (ürün tasarımı, UI/UX, .NET, React, mobil, API, geriye uyumluluk, veritabanı, test, Playwright, Maestro, PR/review, DevOps, güvenlik/OWASP, performans, gözlemlenebilirlik, kurulum/sır envanteri, Cloudflare/edge, sertleştirme, yedekleme) yükler. Kod yazmadan, review yaparken, kurulum/deploy planlarken veya "best practice", "standart", "kurallar" sorulduğunda kullan.
+description: Loads the software standards that apply to every project (product design, UI/UX, .NET, React, mobile, API, backward compatibility, database, testing, Playwright, Maestro, PR/review, DevOps, security/OWASP, performance, observability, setup/secret inventory, Cloudflare/edge, hardening, backup). Use it before writing code, while reviewing, when planning a setup or deploy, or whenever "best practice", "standard" or "the rules" come up.
 ---
 
-# Yazılım Standartları
+# Software standards
 
-Standartlar `~/.claude/standards/` altında **konu başına ayrı dosya** halinde durur.
-Hepsini birden okuma — **görevle ilgili olanı** oku.
+The standards live under `~/.claude/standards/`, **one file per topic**. Do not
+read them all — read **the one the task is about**.
 
-## Yönlendirme
+## Index
 
-| Görev | Oku |
+| Task | Read |
 |---|---|
-| Yeni özellik, kapsam, kabul kriteri, ADR | `01-product-design.md` |
-| Ekran, bileşen, stil, erişilebilirlik, i18n | `02-ui-ux.md` |
-| Genel kodlama, isimlendirme, hata yönetimi, log | `03-coding-general.md` |
-| .NET endpoint/servis/EF Core/DI/config | `04-dotnet.md` |
-| React sayfa/bileşen/state/veri çekme/form | `05-react.md` |
-| React Native / Expo / store yayını | `06-mobile.md` |
-| Endpoint sözleşmesi, hata formatı, sayfalama, idempotency | `07-api-design.md` |
-| Alan/endpoint değiştirme, deprecation, expand-contract | `08-backward-compatibility.md` |
-| Şema, migration, index, transaction, soft delete | `09-database.md` |
-| Unit/integration/contract test, flaky politikası | `10-test-strategy.md` |
+| New feature, scope, acceptance criteria, ADR | `01-product-design.md` |
+| Screen, component, styling, accessibility, i18n | `02-ui-ux.md` |
+| General coding, naming, error handling, logging | `03-coding-general.md` |
+| .NET endpoint/service/EF Core/DI/config | `04-dotnet.md` |
+| React page/component/state/data fetching/forms | `05-react.md` |
+| React Native / Expo / store release | `06-mobile.md` |
+| Endpoint contract, error format, pagination, idempotency | `07-api-design.md` |
+| Changing a field/endpoint, deprecation, expand-contract | `08-backward-compatibility.md` |
+| Schema, migration, index, transaction, soft delete | `09-database.md` |
+| Unit/integration/contract tests, flaky policy | `10-test-strategy.md` |
 | Web e2e | `11-playwright.md` |
-| Mobil e2e | `12-maestro.md` |
+| Mobile e2e | `12-maestro.md` |
 | Commit, branch, PR, code review | `13-pr-and-review.md` |
-| Ortamlar, CI/CD, deploy, rollback, tek-origin topoloji | `14-devops.md` |
-| AuthN/AuthZ, OWASP Top 10, tarama zinciri, KVKK | `15-security.md` |
-| Yavaşlık, cache, bundle, Core Web Vitals, yük testi | `16-performance.md` |
-| Log, metrik, trace, alarm, incident, post-mortem | `17-observability.md` |
-| Kurulum, ön koşullar, **sır/token envanteri**, `.env` | `18-setup-and-environment.md` |
+| Environments, CI/CD, deploy, rollback, single-origin topology | `14-devops.md` |
+| AuthN/AuthZ, OWASP Top 10, the scanning chain, data-protection law | `15-security.md` |
+| Slowness, cache, bundle, Core Web Vitals, load testing | `16-performance.md` |
+| Logs, metrics, traces, alerts, incidents, post-mortem | `17-observability.md` |
+| Setup, prerequisites, **secret/token inventory**, `.env` | `18-setup-and-environment.md` |
 | Cloudflare DNS/TLS/WAF/cache/Tunnel/Workers/R2 | `19-cloudflare-and-edge.md` |
-| Sunucu + uygulama sertleştirme, güvenlik başlıkları, IIS/Docker | `20-hardening.md` |
-| Yedekleme, restore provası, RPO/RTO, felaket kurtarma | `21-backup-and-recovery.md` |
+| Server + application hardening, security headers, IIS/Docker | `20-hardening.md` |
+| Backup, restore drill, RPO/RTO, disaster recovery | `21-backup-and-recovery.md` |
 
-Şablonlar: `~/.claude/standards/templates/`
+Templates: `~/.claude/standards/templates/`
 (`project-claude-md.md`, `setup-md.md`, `pr-template.md`, `adr-template.md`, `user-story-template.md`)
 
-## Sık kombinasyonlar
+## Common combinations
 
-- **Yeni özellik (uçtan uca):** 01 → 07 → 08 → (04 veya 05/06) → 10 → 02
+- **New feature (end to end):** 01 → 07 → 08 → (04 or 05/06) → 10 → 02
 - **Code review / merge:** 13 → 08 → 15
-- **Yeni proje kurulumu:** 18 → 14 → 19 → 20 → 21
-- **Prod'a çıkış hazırlığı:** 15 (§15 checklist) → 20 → 21 → 17 → 14
-- **"Yavaş" şikâyeti:** 16 → 09 → 17
-- **Güvenlik incelemesi:** 15 (OWASP §12-13) → 20 → 19
+- **New project setup:** 18 → 14 → 19 → 20 → 21
+- **Preparing a production release:** 15 (§15 checklist) → 20 → 21 → 17 → 14
+- **A "it's slow" complaint:** 16 → 09 → 17
+- **Security review:** 15 (OWASP §12-13) → 20 → 19
 
-## Öncelik
+## Precedence
 
-Kullanıcının o anki talimatı > projenin `CLAUDE.md`'si > `~/.claude/CLAUDE.md` > bu standartlar.
-Bir standardı bilinçli ihlal ediyorsan **nedenini koda/PR'a yaz** — sessiz istisna yok.
+The user's instruction right now > the project's `CLAUDE.md` > `~/.claude/CLAUDE.md`
+> these standards. If you are knowingly breaking a standard, **write the reason
+into the code or the PR** — there are no silent exceptions.

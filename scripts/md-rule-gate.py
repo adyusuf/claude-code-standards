@@ -1,160 +1,174 @@
 #!/usr/bin/env python3
-"""CLAUDE.md sadeleştirme kapısı — kural kaybını yakalar.
+"""CLAUDE.md simplification gate — it catches rule loss.
 
-Kullanım:  python3 scripts/md-rule-gate.py <eski-dosya> <yeni-dosya>
+Usage:  python3 scripts/md-rule-gate.py <old-file> <new-file>
 
-⚠️ Taşıma birden çok dosyaya yayıldıysa "yeni" tarafı BİRLEŞTİRİLEREK verilir:
-     cat CLAUDE.md docs/kurallar/*.md > /tmp/yeni.md
-     python3 scripts/md-rule-gate.py <(git show origin/dev:CLAUDE.md) /tmp/yeni.md
-⚠️ Kanonik kopya ~/.claude/scripts/ altındadır; her proje KOPYA alır ve
-   commit'ler. Üçü ikizdir — birini değiştiren hepsini değiştirir.
+⚠️ If the move was spread across several files, the "new" side is given CONCATENATED:
+     cat CLAUDE.md docs/decision-log.md > /tmp/new.md
+     python3 scripts/md-rule-gate.py <(git show origin/dev:CLAUDE.md) /tmp/new.md
+⚠️ The canonical copy lives under ~/.claude/scripts/; every project takes a COPY
+   and commits it. The three tools are twins — changing one means changing all.
 
-Sadeleştirmenin tek kabul edilebilir biçimi "taşımak"tır, silmek değil. Bu
-betik, aktif dosyadan bir KURALIN düşüp düşmediğini denetler. Tarihçe/göç
-anlatısının arşive taşınması beklenen davranıştır ve rapor edilir ama kapıyı
-kırmaz; kural kaybı kırar.
+The only acceptable form of simplification is MOVING content, not deleting it.
+This script checks whether a RULE fell out of the active file. Moving history or
+migration narrative into an archive is the expected behaviour and is reported,
+but it does not break the gate; losing a rule does.
 
-Kural taşıyıcı olarak sayılanlar (kullanıcının kendi işaretleri):
-  1. ❌ ile başlayan yapma-listesi maddeleri
-  2. KALICI / ZORUNLU / YASAK / YASAKTIR geçen satırlar
-  3. Ters tırnak içindeki tanımlayıcılar (dosya yolu, sınıf, endpoint, bayrak)
+What counts as carrying a rule (the author's own markers):
+  1. Never-do list items that start with ❌
+  2. Lines carrying an obligation or a prohibition (PERMANENT / MANDATORY /
+     FORBIDDEN, and plain modal wording such as never / only / must / no)
+  3. Identifiers inside backticks (file path, class, endpoint, flag)
 
-Eşleştirme normalize edilerek yapılır (markdown süsü, boşluk, büyük/küçük harf
-atılır) — çünkü sadeleştirme cümleyi yeniden biçimlendirebilir; ama kuralın
-ÖZÜ ve içindeki tanımlayıcılar aynen durmalıdır.
+Matching is normalized (markdown decoration, whitespace and case are stripped),
+because simplification may reformat a sentence — but the SUBSTANCE of the rule
+and the identifiers inside it must survive verbatim.
 
-Çıkış kodu: 0 = geçti, 1 = kural kaybı var (birleştirme YAPILMAZ).
+Exit code: 0 = passed, 1 = a rule was lost (in which case DO NOT merge).
 """
 import re
 import sys
 import unicodedata
 
-# ⚠ Bu desen MUTASYONLA doğrulandı ve bir kez GENİŞLETİLDİ. İlk hâli yalnız
-# KALICI/ZORUNLU/YASAK arıyordu; "`test`/`prod`'a doğrudan push yok" gibi düz
-# Türkçe yasak kipiyle yazılmış gerçek bir kuralı silen mutant kapıdan GEÇTİ.
-# Kuralların çoğu büyük harfli etiket taşımaz — yükümlülük/yasak KİPİ taşır.
-# Yeni bir kural kipi fark edilirse buraya eklenir; daraltma yapılmaz.
-KURAL_ISARETI = re.compile(
-    r"KALICI|ZORUNLU|YASAK"
-    r"|\byok\b|\basla\b|\byalnız\b|\byalniz\b|\bsadece\b|\bşart\b|\bdaima\b"
-    r"|\bher zaman\b|\bhiçbir\b|\bhicbir\b|\bgerekir\b|\bgerekmez\b"
-    r"|\w+m[ae]z\b"          # yapılmaz, edilmez, açılmaz, dokunulmaz
-    r"|\w+m[ae]li\b"         # olmalı, yazılmalı, geçmeli
-    r"|\bdeğil\b|\bdegil\b",
+# ⚠ This pattern was verified BY MUTATION and has been WIDENED once. Its first
+# version looked only for PERMANENT/MANDATORY/FORBIDDEN, and a mutant that
+# deleted a real rule written in plain prohibitive prose ("no direct push to
+# `test`/`prod`") PASSED the gate. Most rules carry no uppercase label — they
+# carry an obligation or prohibition MOOD. If a new rule mood turns up, add it
+# here; never narrow the pattern.
+RULE_MARKER = re.compile(
+    r"PERMANENT|MANDATORY|FORBIDDEN|REQUIRED"
+    r"|\bnever\b|\balways\b|\bonly\b|\bmust\b|\bcannot\b|\bcan not\b|\bmay not\b"
+    r"|\bshall\b|\brequired\b|\bmandatory\b|\bforbidden\b|\bprohibited\b"
+    r"|\bdo not\b|\bdon't\b|\bdoes not\b|\bis not\b|\bare not\b"
+    r"|\bno\b|\bnot\b|\bnothing\b|\bevery\b|\beach\b",
     re.IGNORECASE,
 )
-# Tanımlayıcı: en az bir nokta/eğik çizgi/parantez içeren ya da CamelCase olan
-# ters tırnaklı parça. "bkz" gibi düz kelimeleri elemek için.
-TANIMLAYICI = re.compile(r"`([^`\n]{3,80})`")
-ANLAMLI_TANIMLAYICI = re.compile(r"[./]|[a-z][A-Z]|^[A-Z][a-zA-Z]+[A-Z]|\(\)|^--|^-[A-Za-z]")
+# An identifier: a backticked fragment containing at least a dot/slash/parens or
+# written in CamelCase — so that plain words like "see" are filtered out.
+IDENTIFIER = re.compile(r"`([^`\n]{3,80})`")
+MEANINGFUL_IDENTIFIER = re.compile(r"[./]|[a-z][A-Z]|^[A-Z][a-zA-Z]+[A-Z]|\(\)|^--|^-[A-Za-z]")
 
 
-def normalize(s: str) -> str:
-    s = unicodedata.normalize("NFKC", s)
-    s = re.sub(r"[*_`>#\[\]()]", " ", s)     # markdown süsü
-    s = re.sub(r"[^\w\s/.:-]", " ", s)        # emoji, noktalama
-    s = re.sub(r"\s+", " ", s)
-    return s.strip().lower()
+def normalize(text: str) -> str:
+    text = unicodedata.normalize("NFKC", text)
+    text = re.sub(r"[*_`>#\[\]()]", " ", text)     # markdown decoration
+    text = re.sub(r"[^\w\s/.:-]", " ", text)       # emoji, punctuation
+    text = re.sub(r"\s+", " ", text)
+    return text.strip().lower()
 
 
-def yapma_maddeleri(metin: str):
-    """❌ ile işaretli yapma-listesi maddeleri."""
+def never_do_items(text: str):
+    """Never-do list items marked with ❌."""
     out = []
-    for satir in metin.splitlines():
-        if "❌" in satir:
-            g = normalize(satir.split("❌", 1)[1])
-            if len(g) >= 12:
-                out.append((satir.strip(), g))
+    for line in text.splitlines():
+        if "❌" in line:
+            normalized = normalize(line.split("❌", 1)[1])
+            if len(normalized) >= 12:
+                out.append((line.strip(), normalized))
     return out
 
 
-def kural_satirlari(metin: str):
-    """KALICI/ZORUNLU/YASAK taşıyan satırlar."""
+def rule_lines(text: str):
+    """Lines that carry an obligation or a prohibition."""
     out = []
-    for satir in metin.splitlines():
-        if KURAL_ISARETI.search(satir):
-            g = normalize(satir)
-            if len(g) >= 12:
-                out.append((satir.strip(), g))
+    for line in text.splitlines():
+        if RULE_MARKER.search(line):
+            normalized = normalize(line)
+            if len(normalized) >= 12:
+                out.append((line.strip(), normalized))
     return out
 
 
-def tanimlayicilar(metin: str):
+def identifiers(text: str):
     out = set()
-    for m in TANIMLAYICI.finditer(metin):
-        t = m.group(1).strip()
-        if ANLAMLI_TANIMLAYICI.search(t):
-            out.add(t)
+    for match in IDENTIFIER.finditer(text):
+        candidate = match.group(1).strip()
+        if MEANINGFUL_IDENTIFIER.search(candidate):
+            out.add(candidate)
     return out
 
 
-OLUMSUZLAMA = re.compile(
-    r"geçersiz|gecersiz|serbest|artık\s+\S+\s+değil|artik\s+\S+\s+degil"
-    r"|kaldırıldı|kaldirildi|iptal edildi|yürürlükten|yururlukten|uygulanmaz",
+NEGATION = re.compile(
+    r"\binvalid\b|\bno longer\b|\bremoved\b|\brevoked\b|\bcancelled\b|\bcanceled\b"
+    r"|\bsuperseded\b|\bdoes not apply\b|\brepealed\b|\bobsolete\b|\bfree to\b|\bwithdrawn\b",
     re.IGNORECASE,
 )
-EN_AZ_ORAN = 0.6   # yeni satir, eskisinin en az bu kadari kadar uzun olmali
+MIN_RATIO = 0.6   # the new line must be at least this fraction of the old one's length
 
 
-def eslesen_satir(ihtiyac: str, yeni_satirlar):
-    """Kuralın özünü taşıyan YENİ SATIRI döndürür (yoksa None). Tam cümle
-    aranmaz (yeniden biçimlendirilmiş olabilir); anlamlı kelime pencereleri
-    aranır. Eşleşen satırı döndürmek şart: uzunluk ve olumsuzlama o satır
-    üzerinde ölçülür — bütün metin üzerinde ölçülemez."""
-    kelimeler = ihtiyac.split()
-    adaylar = [ihtiyac]
-    for pencere in (10, 7, 5, 4):
-        if len(kelimeler) >= pencere:
-            adaylar.append(" ".join(kelimeler[:pencere]))
-            orta = len(kelimeler) // 2
-            adaylar.append(" ".join(kelimeler[orta:orta + pencere]))
-    # ⚠️ "En uzun eslesen satiri al" YANLISTI (05/09/2026, regresyonda yakalandi):
-    # kisa bir satirin penceresi, alakasiz UZUN bir maddenin icinde de gecebilir
-    # ve o maddenin tarihce dilindeki "kaldirildi" yanlis olumsuzlama uretir.
-    # Dogrusu: tam icerme varsa o; yoksa uzunlugu ESKISINE EN YAKIN satir.
-    tam = [x for x in yeni_satirlar if ihtiyac in x]
-    if tam:
-        return min(tam, key=lambda x: abs(len(x) - len(ihtiyac)))
-    kismi = [x for x in yeni_satirlar if any(a in x for a in adaylar)]
-    if not kismi:
+def matching_line(needle: str, new_lines):
+    """Returns the NEW LINE carrying the substance of the rule (None if there is
+    none). It does not look for the whole sentence (that may have been
+    reformatted); it looks for meaningful word windows. Returning the matched
+    line matters: length and negation are measured ON THAT LINE — they cannot be
+    measured across the whole document."""
+    words = needle.split()
+    candidates = [needle]
+    for window in (10, 7, 5, 4):
+        if len(words) >= window:
+            candidates.append(" ".join(words[:window]))
+            middle = len(words) // 2
+            candidates.append(" ".join(words[middle:middle + window]))
+    # ⚠️ "Take the LONGEST matching line" was WRONG (caught in a regression): a
+    # short line's window can also occur inside an unrelated LONG item, and the
+    # word "removed" in that item's historical prose then produces a false
+    # negation. The correct rule: an exact containment if there is one, otherwise
+    # the line whose length is CLOSEST TO THE OLD ONE.
+    exact = [x for x in new_lines if needle in x]
+    if exact:
+        return min(exact, key=lambda x: abs(len(x) - len(needle)))
+    partial = [x for x in new_lines if any(c in x for c in candidates)]
+    if not partial:
         return None
-    return min(kismi, key=lambda x: abs(len(x) - len(ihtiyac)))
+    return min(partial, key=lambda x: abs(len(x) - len(needle)))
 
 
-def kural_triaji():
-    """md-kapi-triaj.json icindeki "kural" haritasi: {eski satirin normalize
-    ILK 60 KARAKTERI: gerekce}. ⚠️ Muafiyet YOLA degil DEGERE verilir ve
-    gerekceli olmak ZORUNDADIR — bos gerekce muafiyet sayilmaz. Niyetli bir
-    yeniden-yazim (yanlis oldugu KODDA dogrulanan bir madde) buraya yazilir;
-    aksi halde kapi onu "budanmis" diye kirar ve kirmakta haklidir."""
-    import json, pathlib
-    tf = pathlib.Path(__file__).with_name("md-kapi-triaj.json")
-    if not tf.exists():
+def _triage_file():
+    import pathlib
+    here = pathlib.Path(__file__)
+    for name in ("md-gate-triage.json", "md-kapi-triaj.json"):   # legacy name second
+        candidate = here.with_name(name)
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def rule_triage():
+    """The "rule" map inside md-gate-triage.json: {the normalized FIRST 60
+    CHARACTERS of the old line: reason}. ⚠️ An exemption is granted to a VALUE, not
+    to a path, and it MUST carry a reason — an empty reason is not an exemption. A
+    deliberate rewrite (an item proven wrong IN THE CODE) is recorded here;
+    otherwise the gate breaks on it as "truncated", and it is right to."""
+    import json
+    path = _triage_file()
+    if path is None:
         return {}
-    d = json.loads(tf.read_text(encoding="utf-8"))
-    return {k: v for k, v in (d.get("kural") or {}).items() if isinstance(v, str) and v.strip()}
+    data = json.loads(path.read_text(encoding="utf-8"))
+    return {k: v for k, v in (data.get("rule") or data.get("kural") or {}).items()
+            if isinstance(v, str) and v.strip()}
 
 
-def kayip_mi(ham: str, g: str, yeni_satirlar, triaj=None):
-    anahtar = g[:60]
-    if triaj and anahtar in triaj:
-        return None   # gerekceli, niyetli degisiklik — raporda ayrica listelenir
-    """(sebep | None). ⚠️ Iki kor nokta 05/09/2026'da MUTASYONLA bulundu ve
-    kapatildi: (1) kural metni duruyor ama sonuna 'ARTIK GECERSIZ / SERBEST'
-    eklenmis — eski kapi yalniz VARLIGA bakiyordu, gecti. (2) ters-tirnaksiz
-    bir maddenin govdesi silinip ilk 6 kelimesi birakilmis — pencere eslesmesi
-    saglandi, gecti. Ikisi de kontrol degiskeniyle (tam silme yakalaniyor)
-    dogrulandi."""
-    satir = eslesen_satir(g, yeni_satirlar)
-    if satir is None:
-        return "KAYIP"
-    if len(satir) < EN_AZ_ORAN * len(g):
-        return "BUDANMIS (%d -> %d karakter, govde gitmis)" % (len(g), len(satir))
-    yeni_isaret = set(m.group(0).lower() for m in OLUMSUZLAMA.finditer(satir))
-    eski_isaret = set(m.group(0).lower() for m in OLUMSUZLAMA.finditer(g))
-    fark = yeni_isaret - eski_isaret
-    if fark:
-        return "TERSINE CEVRILMIS OLABILIR (yeni olumsuzlama: %s)" % ", ".join(sorted(fark))
+def is_lost(raw: str, normalized: str, new_lines, triage=None):
+    """(reason | None). ⚠️ Two blind spots were found BY MUTATION and closed:
+    (1) the rule text was still present but "NO LONGER VALID / FREE TO" had been
+    appended — the old gate only checked for PRESENCE and passed. (2) the body of
+    an item with no backticks was deleted and its first six words left behind —
+    the window match succeeded and it passed. Both were verified with a control
+    variable (a full deletion is still caught)."""
+    key = normalized[:60]
+    if triage and key in triage:
+        return None   # a deliberate, justified change — listed separately in the report
+    line = matching_line(normalized, new_lines)
+    if line is None:
+        return "LOST"
+    if len(line) < MIN_RATIO * len(normalized):
+        return "TRUNCATED (%d -> %d characters, the body is gone)" % (len(normalized), len(line))
+    new_markers = set(m.group(0).lower() for m in NEGATION.finditer(line))
+    old_markers = set(m.group(0).lower() for m in NEGATION.finditer(normalized))
+    added = new_markers - old_markers
+    if added:
+        return "POSSIBLY INVERTED (new negation: %s)" % ", ".join(sorted(added))
     return None
 
 
@@ -162,88 +176,89 @@ def main() -> int:
     if len(sys.argv) != 3:
         print(__doc__)
         return 2
-    eski = open(sys.argv[1], encoding="utf-8").read()
-    yeni = open(sys.argv[2], encoding="utf-8").read()
-    # Satir satir normalize: uzunluk ve olumsuzlama SATIR uzerinde olculur.
-    yeni_satirlar = [normalize(l) for l in yeni.splitlines() if normalize(l)]
+    old = open(sys.argv[1], encoding="utf-8").read()
+    new = open(sys.argv[2], encoding="utf-8").read()
+    # Normalized line by line: length and negation are measured PER LINE.
+    new_lines = [normalize(l) for l in new.splitlines() if normalize(l)]
 
-    kayip_yapma, kayip_kural, kayip_tanim = [], [], []
-    ktriaj = kural_triaji()
-    triajli = [(ham, ktriaj[g[:60]]) for ham, g in yapma_maddeleri(eski) + kural_satirlari(eski) if g[:60] in ktriaj]
+    lost_items, lost_rules = [], []
+    triage = rule_triage()
+    triaged = [(raw, triage[n[:60]])
+               for raw, n in never_do_items(old) + rule_lines(old) if n[:60] in triage]
 
-    for ham, g in yapma_maddeleri(eski):
-        sebep = kayip_mi(ham, g, yeni_satirlar, ktriaj)
-        if sebep:
-            kayip_yapma.append((ham, sebep))
+    for raw, normalized in never_do_items(old):
+        reason = is_lost(raw, normalized, new_lines, triage)
+        if reason:
+            lost_items.append((raw, reason))
 
-    for ham, g in kural_satirlari(eski):
-        sebep = kayip_mi(ham, g, yeni_satirlar, ktriaj)
-        if sebep:
-            kayip_kural.append((ham, sebep))
+    for raw, normalized in rule_lines(old):
+        reason = is_lost(raw, normalized, new_lines, triage)
+        if reason:
+            lost_rules.append((raw, reason))
 
-    eski_t, yeni_t = tanimlayicilar(eski), tanimlayicilar(yeni)
-    kayip_tanim = sorted(eski_t - yeni_t)
+    old_ids, new_ids = identifiers(old), identifiers(new)
+    lost_ids = sorted(old_ids - new_ids)
 
-    e_sat, y_sat = len(eski.splitlines()), len(yeni.splitlines())
-    e_kb, y_kb = len(eski.encode()) / 1024, len(yeni.encode()) / 1024
-    print(f"satır : {e_sat} -> {y_sat}  (%{100 - y_sat * 100 // max(e_sat,1)} azaldı)")
-    print(f"boyut : {e_kb:.0f} KB -> {y_kb:.0f} KB  (%{100 - int(y_kb * 100 / max(e_kb,0.01))} azaldı)")
-    print(f"❌ madde   : {len(yapma_maddeleri(eski))} -> {len(yapma_maddeleri(yeni))}")
-    print(f"kural satırı: {len(kural_satirlari(eski))} -> {len(kural_satirlari(yeni))}")
-    print(f"tanımlayıcı : {len(eski_t)} -> {len(yeni_t)}")
+    old_lines_n, new_lines_n = len(old.splitlines()), len(new.splitlines())
+    old_kb, new_kb = len(old.encode()) / 1024, len(new.encode()) / 1024
+    print(f"lines       : {old_lines_n} -> {new_lines_n}")
+    print(f"size        : {old_kb:.0f} KB -> {new_kb:.0f} KB")
+    print(f"❌ items    : {len(never_do_items(old))} -> {len(never_do_items(new))}")
+    print(f"rule lines  : {len(rule_lines(old))} -> {len(rule_lines(new))}")
+    print(f"identifiers : {len(old_ids)} -> {len(new_ids)}")
 
-    hata = False
-    if triajli:
-        print(f"\n· Gerekçeli niyetli değişiklik ({len(set(h for h,_ in triajli))}) — triajda:")
-        for ham, ger in dict(triajli).items():
-            print(f"   {ham[:90]}\n      → {ger}")
-    if kayip_yapma:
-        hata = True
-        print(f"\n✗ KAYIP/BOZUK YAPMA MADDESİ ({len(kayip_yapma)}):")
-        for x, sebep in kayip_yapma:
-            print(f"   [{sebep}] " + x[:140])
-    if kayip_kural:
-        hata = True
-        print(f"\n✗ KAYIP/BOZUK KURAL SATIRI ({len(kayip_kural)}):")
-        for x, sebep in kayip_kural:
-            print(f"   [{sebep}] " + x[:140])
-    if kayip_tanim:
-        # Tanımlayıcı kaybı da KAPIYI KIRAR. Bir kısmı meşru olabilir (bitmiş
-        # göçün tablo adı, arşive taşınan eski dosya yolu) ama bu KARAR
-        # GEREKTİRİR — sessizce geçmez. Muafiyet YOLA değil DEĞERE verilir ve
-        # gerekçesiyle triaj dosyasına yazılır (standards/15 §13b/2 ile aynı
-        # disiplin). Triaj boşaltıldığında kapı yeniden kırılmalıdır.
-        triaj = {}
+    failed = False
+    if triaged:
+        print(f"\n· Deliberate, justified changes ({len(set(r for r, _ in triaged))}) — in the triage file:")
+        for raw, reason in dict(triaged).items():
+            print(f"   {raw[:90]}\n      → {reason}")
+    if lost_items:
+        failed = True
+        print(f"\n✗ LOST/BROKEN NEVER-DO ITEM ({len(lost_items)}):")
+        for raw, reason in lost_items:
+            print(f"   [{reason}] " + raw[:140])
+    if lost_rules:
+        failed = True
+        print(f"\n✗ LOST/BROKEN RULE LINE ({len(lost_rules)}):")
+        for raw, reason in lost_rules:
+            print(f"   [{reason}] " + raw[:140])
+    if lost_ids:
+        # Losing an identifier ALSO BREAKS THE GATE. Some of it may be legitimate
+        # (the table name of a finished migration, the old path of a file moved to
+        # an archive) but that REQUIRES A DECISION — it never passes silently. An
+        # exemption is granted to a VALUE, not to a path, and it is written into
+        # the triage file with its reason. When the triage file is emptied the gate
+        # must break again.
+        triage_all = {}
         try:
             import json
-            import pathlib
-            tf = pathlib.Path(__file__).with_name("md-kapi-triaj.json")
-            if tf.exists():
-                triaj = json.loads(tf.read_text(encoding="utf-8"))
-        except Exception as e:  # triaj okunamıyorsa kapıyı GEVŞETME
-            print(f"\n✗ Triaj dosyası okunamadı ({e}) — kapı kapalı sayılır.")
+            path = _triage_file()
+            if path is not None:
+                triage_all = json.loads(path.read_text(encoding="utf-8"))
+        except Exception as error:   # if the triage file cannot be read, DO NOT loosen the gate
+            print(f"\n✗ The triage file could not be read ({error}) — the gate counts as closed.")
             return 1
 
-        dosya_triaji = triaj.get(sys.argv[2], {}) or triaj.get("*", {})
-        gerekceli = [x for x in kayip_tanim if x in dosya_triaji]
-        gerekcesiz = [x for x in kayip_tanim if x not in dosya_triaji]
+        per_file = triage_all.get(sys.argv[2], {}) or triage_all.get("*", {})
+        justified = [x for x in lost_ids if x in per_file]
+        unjustified = [x for x in lost_ids if x not in per_file]
 
-        if gerekceli:
-            print(f"\n· Gerekçeli taşınan tanımlayıcılar ({len(gerekceli)}) — arşivde:")
-            for x in gerekceli:
-                print(f"   `{x}` — {dosya_triaji[x]}")
-        if gerekcesiz:
-            hata = True
-            print(f"\n✗ GEREKÇESİZ DÜŞEN TANIMLAYICI ({len(gerekcesiz)}):")
-            for x in gerekcesiz:
+        if justified:
+            print(f"\n· Identifiers moved with a reason ({len(justified)}) — archived:")
+            for x in justified:
+                print(f"   `{x}` — {per_file[x]}")
+        if unjustified:
+            failed = True
+            print(f"\n✗ IDENTIFIER DROPPED WITHOUT A REASON ({len(unjustified)}):")
+            for x in unjustified:
                 print("   `" + x + "`")
-            print("   → Ya aktif dosyada kalmalı ya da md-kapi-triaj.json'a")
-            print("     'neden aktif dosyada gerekmiyor' gerekçesiyle yazılmalı.")
+            print("   → Either it stays in the active file, or it goes into")
+            print("     md-gate-triage.json with a reason why it is no longer needed there.")
 
-    if hata:
-        print("\nKAPI KIRILDI — kural kaybı var, bu sadeleştirme kabul edilmez.")
+    if failed:
+        print("\nGATE BROKEN — a rule was lost; this simplification is not acceptable.")
         return 1
-    print("\n✓ Kapı geçti: hiçbir yapma-maddesi ve kural satırı düşmedi.")
+    print("\n✓ Gate passed: no never-do item and no rule line was dropped.")
     return 0
 
 
