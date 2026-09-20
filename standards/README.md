@@ -1,40 +1,42 @@
-# Yazılım Standartları — İndeks
+# Engineering Standards — index
 
-Bu klasör `~/.claude/CLAUDE.md`'nin detay katmanıdır. **Otomatik yüklenmez** —
-görev hangi konuya giriyorsa yalnız o dosya okunur (token maliyeti bu yüzden düşük).
+This folder is the detail layer behind `~/.claude/CLAUDE.md`. It is **not loaded
+automatically** — only the file matching the task at hand is read, which is why the
+token cost stays low.
 
-| Dosya | Konu |
+| File | Topic |
 |---|---|
-| `00-working-method.md` | Claude ile çalışma protokolü: plan, onay, doğrulama, bağlam yönetimi |
-| `01-product-design.md` | Problem tanımı, user story, kabul kriteri, kapsam, MVP, ADR |
-| `02-ui-ux.md` | Tasarım sistemi, durum tasarımı, responsive, erişilebilirlik, i18n |
-| `03-coding-general.md` | İsimlendirme, dosya boyutu, hata yönetimi, log, ölü kod, yorum |
-| `04-dotnet.md` | .NET Web API katmanları, DI, EF Core, async, validation, config |
-| `05-react.md` | React + TS yapı, state, veri çekme, form, performans, test |
-| `06-mobile.md` | React Native / Expo, web-mobil paritesi, offline, store yayını |
-| `07-api-design.md` | REST sözleşmesi, tek API, sayfalama, hata formatı, idempotency |
-| `08-backward-compatibility.md` | Additive evrim, deprecation yaşam döngüsü, expand/contract |
-| `09-database.md` | Şema, migration, index, transaction, audit, soft delete |
-| `10-test-strategy.md` | Test piramidi, unit test kuralları, contract test, flaky politikası |
-| `11-playwright.md` | Web e2e: selector, fixture, izolasyon, CI |
-| `12-maestro.md` | Mobil e2e: flow yapısı, testID, cihaz matrisi |
-| `13-pr-and-review.md` | Commit, branch, PR boyutu, review checklist ve şiddet seviyeleri |
-| `14-devops.md` | Ortamlar, branch akışı, CI/CD, container, deploy, rollback, yedek |
-| `15-security.md` | AuthN/AuthZ, OWASP, sır yönetimi, KVKK/PII, bağımlılık taraması |
-| `16-performance.md` | Bütçeler, N+1, cache, bundle, Core Web Vitals, yük testi |
-| `17-observability.md` | Log, metrik, trace, correlation id, alarm, incident |
-| `18-setup-and-environment.md` | Ön koşullar, `SETUP.md`, **sır/token envanteri**, `.env`, port haritası |
-| `19-cloudflare-and-edge.md` | DNS, TLS, WAF, rate limit, cache, **tek-origin `/api`**, Tunnel, Workers, R2 |
-| `20-hardening.md` | Güvenlik başlıkları, firewall, SSH/RDP, IIS, Docker, DB, CI sertleştirme |
-| `21-backup-and-recovery.md` | 3-2-1, neyi yedekliyoruz envanteri, RPO/RTO, **restore provası**, runbook |
-| `../docs/decision-log.md` | **Karar defteri** — `CLAUDE.md`'den taşınan gerekçe, tarihçe, ölçüm, yürürlükten kalkmış madde metinleri |
-| `templates/` | Proje CLAUDE.md, **SETUP.md**, PR, ADR, user story şablonları |
+| `00-working-method.md` | The protocol for working with Claude: planning, approval, verification, context management |
+| `01-product-design.md` | Problem definition, user stories, acceptance criteria, scope, MVP, ADRs |
+| `02-ui-ux.md` | Design system, state design, responsive layout, accessibility, i18n |
+| `03-coding-general.md` | Naming, file size, error handling, logging, dead code, comments |
+| `04-dotnet.md` | .NET Web API layers, DI, EF Core, async, validation, configuration |
+| `05-react.md` | React + TS structure, state, data fetching, forms, performance, tests |
+| `06-mobile.md` | React Native / Expo, web-mobile parity, offline, store releases |
+| `07-api-design.md` | REST contract, one API, pagination, error format, idempotency |
+| `08-backward-compatibility.md` | Additive evolution, the deprecation lifecycle, expand/contract |
+| `09-database.md` | Schema, migrations, indexes, transactions, auditing, soft delete |
+| `10-test-strategy.md` | The test pyramid, unit-test rules, contract tests, the flaky policy |
+| `11-playwright.md` | Web e2e: selectors, fixtures, isolation, CI |
+| `12-maestro.md` | Mobile e2e: flow structure, testIDs, the device matrix |
+| `13-pr-and-review.md` | Commits, branches, PR size, the review checklist and severity levels |
+| `14-devops.md` | Environments, branching flow, CI/CD, containers, deploys, rollback, backups |
+| `15-security.md` | AuthN/AuthZ, OWASP, secret management, data protection/PII, dependency scanning |
+| `16-performance.md` | Budgets, N+1, caching, bundles, Core Web Vitals, load testing |
+| `17-observability.md` | Logs, metrics, traces, correlation ids, alerts, incidents |
+| `18-setup-and-environment.md` | Prerequisites, `SETUP.md`, **the secret/token inventory**, `.env`, the port map |
+| `19-cloudflare-and-edge.md` | DNS, TLS, WAF, rate limiting, caching, **single-origin `/api`**, Tunnel, Workers, R2 |
+| `20-hardening.md` | Security headers, firewall, SSH/RDP, IIS, Docker, DB, CI hardening |
+| `21-backup-and-recovery.md` | 3-2-1, the inventory of what is backed up, RPO/RTO, **restore drills**, runbooks |
+| `../docs/decision-log.md` | **The decision log** — rationale, measurements and retired rule text moved out of `CLAUDE.md` |
+| `templates/` | Project CLAUDE.md, **SETUP.md**, PR, ADR and user-story templates |
 
-## Öncelik sırası (çakışma olursa)
+## Order of precedence (when things conflict)
 
-1. Kullanıcının o anki açık talimatı
-2. Projenin kendi `CLAUDE.md`'si (alt dizin > kök)
+1. The user's explicit instruction in the moment
+2. The project's own `CLAUDE.md` (a subdirectory beats the root)
 3. `~/.claude/CLAUDE.md`
-4. Bu klasördeki standartlar
+4. The standards in this folder
 
-Bir standardı bilinçli olarak ihlal ediyorsan **nedenini koda/PR'a yaz**. Sessiz istisna yok.
+If you are deliberately violating a standard, **write the reason in the code or the
+PR**. No silent exceptions.

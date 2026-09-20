@@ -1,92 +1,124 @@
-# Veritabanı Standartları
+# Database Standards
 
-## 1. İsimlendirme
+## 1. Naming
 
-- Tablo: çoğul `PascalCase` (EF varsayılanı) veya `snake_case` — **proje içinde tek stil**, karıştırılmaz.
-- Kolon: alan adı net; kısaltma yok. Boolean `Is*`/`Has*`.
-- Foreign key: `<Entity>Id` (`MemberId`). İndeks adı `IX_<Tablo>_<Kolonlar>`, FK adı `FK_<Tablo>_<HedefTablo>_<Kolon>`.
-- Rezerve kelime kullanılmaz (`user`, `order`, `group` → `Users`, `Orders`, `MemberGroups`).
+- Tables: plural `PascalCase` (the EF default) or `snake_case` — **one style per
+  project**, never mixed.
+- Columns: a clear field name; no abbreviations. Booleans use `Is*`/`Has*`.
+- Foreign keys: `<Entity>Id` (`MemberId`). Index names `IX_<Table>_<Columns>`, FK names
+  `FK_<Table>_<TargetTable>_<Column>`.
+- Reserved words are avoided (`user`, `order`, `group` → `Users`, `Orders`,
+  `MemberGroups`).
 
-## 2. Şema kuralları
+## 2. Schema rules
 
-- Her tabloda **surrogate PK** (`int identity` veya `uuid`). Doğal anahtar PK yapılmaz (değişebilir).
-- Her tabloda audit kolonları: `CreatedAt` (UTC), `CreatedByMemberId`, `UpdatedAt`, `UpdatedByMemberId`.
-- Zaman **UTC** (`timestamptz`). Yerel saat saklanmaz.
-- Para: `numeric(19,4)` + ayrı `Currency` kolonu. `float`/`real` ile para **yasak**.
-- Metin: sınırsız `text` yerine iş kuralına uygun `varchar(n)` — ama sınır **daraltmak kırıcıdır** (bkz. `08-backward-compatibility.md`).
-- Enum DB'de `int` veya `varchar` olarak saklanır; **`int` ise değerlerin sayısal karşılığı asla değişmez**, araya değer eklenmez.
-- Referans bütünlüğü DB'de FK ile zorlanır — "uygulama nasılsa kontrol ediyor" yeterli değil.
-- Silme davranışı açıkça seçilir (`Restrict` varsayılan; `Cascade` yalnız gerçek sahiplik ilişkisinde).
+- Every table has a **surrogate PK** (`int identity` or `uuid`). A natural key is never
+  the PK (it can change).
+- Every table has audit columns: `CreatedAt` (UTC), `CreatedByMemberId`, `UpdatedAt`,
+  `UpdatedByMemberId`.
+- Time is **UTC** (`timestamptz`). Local time is never stored.
+- Money: `numeric(19,4)` plus a separate `Currency` column. Money as `float`/`real` is
+  **forbidden**.
+- Text: `varchar(n)` sized to the business rule rather than an unbounded `text` — but
+  **narrowing a limit is breaking** (see `08-backward-compatibility.md`).
+- Enums are stored in the DB as `int` or `varchar`; **if `int`, the numeric value of a
+  member never changes** and no value is inserted in the middle.
+- Referential integrity is enforced in the DB with FKs — "the application checks it
+  anyway" is not enough.
+- Delete behaviour is chosen explicitly (`Restrict` by default; `Cascade` only for a true
+  ownership relationship).
 
-## 3. İndeksler
+## 3. Indexes
 
-- Her FK'ye indeks (Postgres otomatik oluşturmaz).
-- Sık filtrelenen/sıralanan kolonlara indeks; **sıra önemli** (eşitlik kolonları önce, aralık sonra).
-- Kapsayıcı (covering) indeks büyük listelerde `INCLUDE` ile.
-- Tekil kısıt iş kuralıysa `UNIQUE` — ama **var olan tabloya yeni UNIQUE eklemek kırıcıdır** (önce veri temizliği + doğrulama).
-- Kullanılmayan indeks silinir (yazma maliyeti). `pg_stat_user_indexes` ile periyodik kontrol.
-- Aksan/harf-boyutu bağımsız arama için `unaccent(lower(col))` üzerinde functional index veya `pg_trgm` GIN.
+- An index on every FK (Postgres does not create them automatically).
+- Indexes on frequently filtered or sorted columns; **order matters** (equality columns
+  first, range columns last).
+- A covering index with `INCLUDE` for large lists.
+- If a uniqueness constraint is a business rule, use `UNIQUE` — but **adding a new UNIQUE
+  to an existing table is breaking** (clean and validate the data first).
+- Unused indexes are dropped (they cost on writes). Check `pg_stat_user_indexes`
+  periodically.
+- For accent- and case-insensitive search, a functional index on `unaccent(lower(col))` or
+  a `pg_trgm` GIN index.
 
-## 4. Migration disiplini
+## 4. Migration discipline
 
-- **Her şema değişikliği migration ile.** Elle SQL çalıştırıp "sonra migration yazarım" yasak.
-- Migration adı ne yaptığını söyler: `AddPhoneNumbersToMember`, `20260729_...`.
-- Üretilen SQL **okunur** — EF'in ürettiğine körü körüne güvenilmez.
-- Bir migration = bir mantıksal değişiklik. Şema + büyük veri taşıma aynı migration'da olmaz.
-- `Down` yazılır veya geri alma planı belgelenir.
-- Uzun süren işlem üretimi kilitler: Postgres'te `CREATE INDEX CONCURRENTLY`, kolon ekleme varsayılansız (PG11+ hızlı), `ALTER TYPE` yerine yeni kolon.
-- Migration'lar **ileri doğru** birikir; geçmiş migration düzenlenmez (uygulanmış olabilir).
+- **Every schema change goes through a migration.** Running SQL by hand and saying "I'll
+  write the migration later" is forbidden.
+- A migration's name says what it does: `AddPhoneNumbersToMember`.
+- The generated SQL is **read** — what EF produces is not trusted blindly.
+- One migration = one logical change. A schema change and a large data migration never
+  share a migration.
+- `Down` is written, or the rollback plan is documented.
+- A long-running operation locks production: in Postgres use `CREATE INDEX CONCURRENTLY`,
+  add columns without a default (fast on PG11+), and prefer a new column over `ALTER TYPE`.
+- Migrations accumulate **forward**; a past migration is never edited (it may already have
+  been applied).
 
-## 5. Sorgu kuralları
+## 5. Query rules
 
-- `SELECT *` yasak — gereken kolonlar seçilir.
-- **N+1 yasak**: döngü içinde sorgu yok; join/projeksiyon ile tek sorgu.
-- Sayfalamasız liste sorgusu yok; `OFFSET` derinleştikçe yavaşlar → büyük setlerde keyset/cursor.
-- Ham SQL **parametreli**; string birleştirme = SQL injection.
-- Sorgu planı şüpheliyse `EXPLAIN ANALYZE` ile bakılır; "yavaş" tahminle optimize edilmez.
-- Uzun sorgulara `statement_timeout` uygulanır.
+- `SELECT *` is forbidden — select the columns you need.
+- **No N+1**: no query inside a loop; one query via a join or a projection.
+- No list query without pagination; `OFFSET` gets slower the deeper it goes → use
+  keyset/cursor pagination on large sets.
+- Raw SQL is **parameterised**; string concatenation = SQL injection.
+- If a query plan is suspect, look at it with `EXPLAIN ANALYZE`; "slow" is never optimised
+  by guesswork.
+- A `statement_timeout` is applied to long queries.
 
-## 6. Transaction
+## 6. Transactions
 
-- Transaction sınırı = **servis metodu** (bir iş birimi). Controller'da veya repository'de değil.
-- Transaction içinde **dış çağrı yapılmaz** (HTTP, e-posta, kuyruk) — kilit süresi uzar, tutarsızlık doğar. Dış etki commit sonrası (outbox pattern).
-- İzolasyon seviyesi bilinçli seçilir; varsayılan `ReadCommitted`. Kayıp güncelleme riski varsa optimistic concurrency (`xmin`/`rowVersion`).
-- Deadlock ihtimaline karşı kaynaklara **aynı sırada** erişilir.
+- The transaction boundary is **the service method** (one unit of work). Not the
+  controller, not the repository.
+- **No outbound call inside a transaction** (HTTP, email, a queue) — it extends the lock
+  and creates inconsistency. External effects happen after commit (the outbox pattern).
+- The isolation level is chosen deliberately; `ReadCommitted` by default. If there is a
+  lost-update risk, use optimistic concurrency (`xmin`/`rowVersion`).
+- To avoid deadlocks, resources are accessed **in the same order** everywhere.
 
-## 7. Silme politikası
+## 7. Delete policy
 
-- Kullanıcı verisi genelde **soft delete** (`DeletedAt`, `DeletedByMemberId`) + global query filter.
-- Soft delete kullanılıyorsa: unique index'ler `WHERE DeletedAt IS NULL` ile kısmi olmalı.
-- Hard delete yalnız KVKK/GDPR silme talebi veya çöp veri temizliği için, **onayla**.
-- Silme bir **ürün kararıdır** — kim silebilir, ne kadar süre geri alınabilir, kullanıcı sorulmadan varsayılmaz.
+- User data is generally **soft deleted** (`DeletedAt`, `DeletedByMemberId`) plus a global
+  query filter.
+- If soft delete is used, unique indexes must be partial with `WHERE DeletedAt IS NULL`.
+- Hard delete only for a data-protection erasure request or clearing junk data, and **with
+  approval**.
+- Deletion is a **product decision** — who may delete, how long it can be undone; it is
+  never assumed without asking the user.
 
-## 8. Çok kiracılılık (multi-tenant)
+## 8. Multi-tenancy
 
-- Tenant ayrımı **her sorguda** zorunlu — global query filter + testle doğrulanır.
-- Filtreyi atlayan (`IgnoreQueryFilters`) her kullanım gerekçeli yorum taşır.
-- Tenant sızıntısı için otomatik test yazılır ("A tenant'ı B'nin kaydını göremez").
+- Tenant separation is mandatory **on every query** — a global query filter, verified by a
+  test.
+- Every use that bypasses the filter (`IgnoreQueryFilters`) carries a justifying comment.
+- An automated test is written for tenant leakage ("tenant A cannot see tenant B's
+  record").
 
-## 9. Yedekleme ve kurtarma
+## 9. Backup and recovery
 
-- Günlük otomatik yedek + haftalık **sunucu dışı** kopya.
-- **Ayda bir restore provası.** Denenmemiş yedek, yedek değildir.
-- Yedek saklama süresi ve şifreleme tanımlı.
-- `DROP`/toplu `UPDATE` öncesi elle yedek + önce test ortamında deneme.
-- Point-in-time recovery hedefi (RPO/RTO) yazılı olsun.
+- A daily automatic backup plus a weekly **off-server** copy.
+- **A restore drill once a month.** An untested backup is not a backup.
+- The retention period and encryption are defined.
+- A manual backup before any `DROP` or bulk `UPDATE`, and a rehearsal in the test
+  environment first.
+- The point-in-time recovery target (RPO/RTO) is written down.
 
-## 10. Seed ve test verisi
+## 10. Seed and test data
 
-- Seed **idempotent** olur (iki kez çalışınca çift kayıt yok).
-- Test verisi gerçekçi: Türkçe karakterli isimler, uzun metinler, sınır değerler, boş alanlar.
-- Üretim verisi geliştirme ortamına **maskelenmeden** kopyalanmaz (KVKK).
+- Seeds are **idempotent** (running twice produces no duplicates).
+- Test data is realistic: names with non-ASCII characters, long strings, boundary values,
+  empty fields.
+- Production data is never copied into a development environment **unmasked** (data
+  protection).
 
-## 11. Yapma listesi
+## 11. Never-do list
 
-- ❌ Elle şema değişikliği (migration'sız)
-- ❌ `SELECT *`, N+1, sayfalamasız liste
-- ❌ Para için `float`
-- ❌ Yerel saat saklamak
-- ❌ Enum sayısal değerini değiştirmek / araya değer eklemek
-- ❌ Transaction içinde HTTP/e-posta çağrısı
-- ❌ Yedek almadan `DROP`
-- ❌ Test/prod veritabanını karıştırmak (connection string ortam bazlı ve kontrollü)
+- ❌ A manual schema change (with no migration)
+- ❌ `SELECT *`, N+1, a list with no pagination
+- ❌ `float` for money
+- ❌ Storing local time
+- ❌ Changing an enum's numeric value / inserting a value in the middle
+- ❌ An HTTP or email call inside a transaction
+- ❌ A `DROP` without a backup
+- ❌ Mixing the test and production databases (connection strings are per environment and
+  controlled)

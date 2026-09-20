@@ -1,165 +1,178 @@
-# Çalışma Düzeni — Claude ile Nasıl İlerlenir
+# Working Method — how to proceed with Claude
 
-## 1. Görev alındığında
+## 1. When a task arrives
 
-1. **Sınıflandır:** bug fix mi, yeni özellik mi, refactor mi, araştırma mı? Her birinin farklı çıktısı var.
-2. **Bağlam topla:** projenin `CLAUDE.md`'si → varsa `docs/` → ilgili dosyalar. Düzenlemeden önce **oku**.
-3. **Kapsamı doğrula:** talep edilen iş neyse o yapılır. Ne daraltılır ne genişletilir. "Yol üstü" iyileştirme ayrı iştir → not al, sonra öner.
-4. **Belirsizlik varsa:** bağımsız kısımları bitir; kalan için tek net soru sor. Yanlış varsayım işi çöpe atacaksa **önce sor**.
+1. **Classify it:** is this a bug fix, a new feature, a refactor or research? Each has a
+   different output.
+2. **Gather context:** the project's `CLAUDE.md` → its `docs/` if present → the relevant
+   files. **Read** before editing.
+3. **Confirm the scope:** what was requested is what gets done. It is neither narrowed
+   nor widened. A "while I was in there" improvement is separate work → note it, propose
+   it later.
+4. **If something is unclear:** finish the independent parts; ask one clear question
+   about the rest. If a wrong assumption would throw the work away, **ask first**.
 
-## 2. Plan → onay → uygula
+## 2. Plan → approval → execute
 
-- Tek dosyalık küçük değişiklik: doğrudan yap.
-- **Birden fazla dosya / mimari etki / şema değişikliği:** önce 5–10 satırlık plan sun — hangi dosya, ne değişecek, neden, hangi riski var. Onay al.
-- Büyük işi **dikey dilimlere** böl: her dilim tek başına çalışan ve test edilebilen bir bütün olsun (API + UI + test). Yatay dilim (önce tüm DTO'lar, sonra tüm servisler) yasak.
+- A small single-file change: just do it.
+- **Multiple files / architectural impact / a schema change:** present a 5–10 line plan
+  first — which file, what changes, why, what the risk is. Get approval.
+- Split large work into **vertical slices**: each slice is a working, testable whole
+  (API + UI + tests). Horizontal slices (all the DTOs first, then all the services) are
+  forbidden.
 
-## 3. Uygulama sırası
+## 3. Order of implementation
 
 ```
-şema/model → API → sözleşme testi → istemci → e2e → doküman
+schema/model → API → contract test → client → e2e → documentation
 ```
 
-- Her adımda derlenebilir/çalışır durumda kal. "Sonra düzeltirim" bırakma.
-- Yarım bırakılan iş varsa `TODO(<ad>): ...` değil, **açıkça mesajda** raporla.
+- Stay compilable and runnable at every step. Never leave "I'll fix it later" behind.
+- If work is left half-done, do not leave a `TODO(<name>): ...` — report it **explicitly
+  in the message**.
 
-## 4. Doğrulama (bitirmeden önce zorunlu)
+## 4. Verification (mandatory before finishing)
 
-- [ ] Build geçiyor (`dotnet build` / `tsc --noEmit` / `expo doctor`)
-- [ ] İlgili testler koşuldu ve geçti
-- [ ] Formatlayıcı + linter koşuldu (`dotnet format`, `eslint --fix`, `prettier`)
-- [ ] Geriye uyumluluk kontrolü (alan/endpoint silindi mi, tip değişti mi)
-- [ ] Sır/PII sızıntısı yok
-- [ ] Değişen davranış dokümana/CLAUDE.md'ye yazıldı
+- [ ] The build passes (`dotnet build` / `tsc --noEmit` / `expo doctor`)
+- [ ] The relevant tests were run and passed
+- [ ] The formatter and linter were run (`dotnet format`, `eslint --fix`, `prettier`)
+- [ ] Backward compatibility was checked (was a field/endpoint deleted, did a type change)
+- [ ] No secret or PII leakage
+- [ ] Changed behaviour was written into the documentation / CLAUDE.md
 
-**Koşmadığın adımı "geçti" sayma.** Koşamadıysan nedenini yaz.
+**Never count a step you did not run as "passed".** If you could not run it, write why.
 
-## 5. Raporlama biçimi
+## 5. Reporting format
 
-- Ne yapıldı → hangi dosyalar → nasıl doğrulandı → ne yapılmadı/kaldı.
-- Test kırmızıysa çıktıyı göster. Hata varsa gizleme.
-- Uzun anlatım yok; madde madde, dosya yolları tıklanabilir link olarak.
+- What was done → which files → how it was verified → what was not done / what is left.
+- If tests are red, show the output. Do not hide an error.
+- No long prose; bullet points, with file paths as clickable links.
 
-## 6. Bağlam ve token disiplini
+## 6. Context and token discipline
 
-- Tüm dosyayı okumak yerine ilgili bölümü oku (`offset`/`limit`, `grep`).
-- Aynı dosyayı düzenledikten sonra doğrulamak için tekrar okuma.
-- Uzun log/çıktıyı olduğu gibi yapıştırma; ilgili satırları özetle.
-- Detay standardı yalnız o konuya girildiğinde aç.
+- Read the relevant section rather than the whole file (`offset`/`limit`, `grep`).
+- Do not re-read a file you just edited in order to verify it.
+- Do not paste long logs or output verbatim; summarise the relevant lines.
+- Open a detailed standard only when you enter that topic.
 
-### 6a. `CLAUDE.md` bir kural indeksidir, karar günlüğü değildir
+### 6a. A `CLAUDE.md` is a rule index, not a decision journal
 
-Bir `CLAUDE.md`, o dizinde çalışan **her oturumda** otomatik bağlama girer:
-eklenen satırın bedeli bir kez değil, dosyanın okunduğu **her oturumda** ödenir.
-Bu yüzden içeriği iki sınıfa ayrılır ve yalnız biri orada durur:
+A `CLAUDE.md` enters context automatically in **every session** that works in that
+directory: the cost of a line you add is paid not once but on **every session** that
+reads the file. Its content therefore splits into two classes, and only one of them
+belongs there:
 
-| Aktif `CLAUDE.md`'de **kalır** | `docs/<ayak>-decision-log.md`'ye **taşınır** |
+| **Stays** in the active `CLAUDE.md` | **Moves** to `docs/<tier>-decision-log.md` |
 |---|---|
-| Kural cümlesi, yasak, kapı, akış | Kuralın gerekçesi, alternatiflerin neden elendiği |
-| Tuzak uyarısı (bir daha düşmemek için) | Nasıl keşfedildiğinin hikâyesi, kullanıcı alıntısı |
-| Test kilidinin **adı** | O günün koşum tutanağı ("1017/1017 yeşil") |
-| Bugün geçerli sözleşme | Tamamlanmış göçün adımları, `DROP` listeleri |
+| The rule statement, the prohibition, the gate, the flow | The rule's rationale, why the alternatives were eliminated |
+| A trap warning (so it is not repeated) | The story of how it was discovered |
+| The **name** of a test lock | That day's run record ("1017/1017 green") |
+| The contract that holds today | The steps of a completed migration, `DROP` lists |
 
-Taşınan her blok geriye **kural cümlesi + detay linki** bırakır. Metin
-**parafraz edilmez, birebir taşınır** — parafraz kaybın en sık yoludur.
+Every block that moves leaves behind **a rule statement + a link to the detail**. The
+text is **moved verbatim, never paraphrased** — paraphrasing is the most common way to
+lose it.
 
-**Bu bir kapıya bağlanır.** Dosya başına bir boyut tavanı tutulur (cırcır:
-tavan yalnız iner) ve merge kapısı büyümeyi reddeder. Gerekçesi ölçülmüştür:
-bir projede `backend/CLAUDE.md` Haziran'da 48 KB'ken Ağustos'ta 378 KB oldu —
-iki ayda 8 kat. **Tek seferlik temizlik bu sorunu çözmez**, iki ay sonra aynı
-yere gelinir; çözen şey kapıdır.
+**This is tied to a gate.** A size ceiling is kept per file (ratcheted: the ceiling only
+comes down) and the merge gate rejects growth. The rationale was measured: in one
+project a `backend/CLAUDE.md` went from 48 KB to 378 KB in two months — 8x. **A one-off
+cleanup does not solve this**; two months later you are back in the same place. What
+solves it is the gate.
 
-⚠️ Sadeleştirme yaparken kural kaybı **mekanik olarak** denetlenir (yapma
-maddeleri, yükümlülük/yasak kipi taşıyan satırlar, ters tırnaklı
-tanımlayıcılar). Kapı mutasyonla doğrulanır: bilinen bir kuralı silen bir
-deneme kapıyı **kırmalıdır**. Kırmıyorsa kapı dekoratiftir.
+⚠️ When simplifying, rule loss is audited **mechanically** (never-do items, lines
+carrying obligation or prohibition, backticked identifiers). The gate is verified by
+mutation: an attempt that deletes a known rule **must** break the gate. If it does not,
+the gate is decorative.
 
-### 6b. Eklenti/MCP yüzeyi de token bütçesine dahildir (20/09/2026, kullanıcı kararı)
+### 6b. The plugin/MCP surface counts against the token budget too
 
-`CLAUDE.md` kadar pahalı ikinci kalem **etkin eklenti setidir**: her eklentinin
-skill ve ajan açıklamaları, MCP araç adları ve varsa oturum başı hook çıktısı
-sistem prompt'una girer — yani **her istekte** yeniden okunur ve her subagent
-çağrısında tekrar ödenir.
+The second most expensive item after `CLAUDE.md` is **the set of enabled plugins**:
+every plugin's skill and agent descriptions, its MCP tool names, and any session-start
+hook output enter the system prompt — so they are re-read on **every request** and paid
+again on every subagent call.
 
-- Etkin eklenti seti **yığınla sınırlıdır**. Projede kullanılmayan bir eklenti
-  açık bırakılmaz; ihtiyaç doğunca `settings.json`'da açılır.
-- Yeni eklenti açmadan önce maliyeti ölçülür:
-  `find <eklenti> -name SKILL.md -exec awk '/^name:|^description:/' {} \; | wc -c`
-- **Yetkilendirilmemiş MCP sunucusu açık tutulmaz** — prompt yeri tüketir,
-  yetenek vermez.
+- The set of enabled plugins is **limited to the stack**. A plugin not used in the
+  project is not left enabled; it is switched on in `settings.json` when the need arises.
+- Before enabling a new plugin, measure its cost:
+  `find <plugin> -name SKILL.md -exec awk '/^name:|^description:/' {} \; | wc -c`
+- **An unauthorized MCP server is never left enabled** — it consumes prompt space and
+  provides no capability.
 
-Ölçüm (20/09/2026, 333 oturum / 103.307 istek): sabit önek medyanı 57.756 token,
-toplam harcamanın **%18'i**; 24. haftadan 38. haftaya 27.700 → 63.500 token.
-Kapatılan 10 eklentinin yalnız açıklama metni 45.333 karakterdi.
+Measurement: the median fixed prefix was 57,756 tokens, **18%** of total spend, having
+grown 27,700 → 63,500 tokens over fourteen weeks. The description text alone of the 10
+plugins that were switched off came to 45,333 characters.
 
-⚠️ Ölçüm yöntemi: `~/.claude/projects/**/*.jsonl` içinde bir oturumun **ilk**
-isteğindeki `input + cache_creation + cache_read` toplamı = o oturumun sabit
-öneği. Değişikliğin etkisi **yalnız yeni oturumda** görünür; açık oturum
-yapılandırma anlık görüntüsünü başlangıçta alır (20/09/2026'da ölçülerek
-doğrulandı: aynı oturumda değişiklik öncesi ve sonrası ajan öneği birebir aynı).
+⚠️ Measurement method: within a session's transcript, the sum of
+`input + cache_creation + cache_read` on that session's **first** request is that
+session's fixed prefix. The effect of a change is visible **only in a new session**; an
+open session takes its configuration snapshot at the start (verified by measurement: in
+the same session, the agent prefix before and after a change was identical).
 
-## 7. Paralel oturum / worktree disiplini
+## 7. Parallel session / worktree discipline
 
-Aynı repo birden fazla Claude oturumunda açık olabilir:
+The same repository may be open in more than one Claude session:
 
-- Commit öncesi **her zaman** `git status` + `git diff --staged` doğrula; yalnız kendi diff'ini stage'le. `git add -A` kör kullanılmaz.
-- `git push --force` / `--force-with-lease` kullanıcı açıkça istemeden yapılmaz.
-- Branch checkout ederken başka worktree'de checkout'lu olabileceğini varsay; hata alırsan izole clone kullan.
-- Uzun süren işten önce `git fetch` + geride kalınmışsa `--ff-only` pull.
+- **Always** verify `git status` + `git diff --staged` before committing; stage only your
+  own diff. `git add -A` is never used blindly.
+- `git push --force` / `--force-with-lease` is not used unless the user explicitly asks.
+- When checking out a branch, assume it may already be checked out in another worktree;
+  if you get an error, use an isolated clone.
+- Before long-running work: `git fetch`, and a `--ff-only` pull if you are behind.
 
-## 8. Onay gerektiren işler (istisnasız)
+## 8. Work that requires approval (no exceptions)
 
-- Prod'a deploy / prod branch'e merge
-- Migration'da `DROP`, veri silme, toplu `UPDATE`
-- `git push --force`, branch silme, tag taşıma
-- Dış dünyaya gönderim: e-posta, mesaj, sosyal medya paylaşımı, webhook tetikleme
-- Yeni bağımlılık, yeni servis, yeni maliyet kalemi
-- Kullanıcı verisi içeren dosyanın dışarı çıkması
+- Deploying to production / merging to a production branch
+- A `DROP` in a migration, deleting data, a bulk `UPDATE`
+- `git push --force`, deleting a branch, moving a tag
+- Sending anything outward: email, messages, social posts, triggering a webhook
+- A new dependency, a new service, a new cost line
+- A file containing user data leaving the machine
 
-## 9. Kural kalıcılaştırma
+## 9. Making a rule permanent
 
-Kullanıcı "bundan sonra hep şöyle olsun" dediğinde:
+When the user says "from now on, always do it this way":
 
-1. Kural **projeye mi geneline mi** ait, karar ver.
-2. Projeye aitse `<proje>/CLAUDE.md`, geneline aitse `~/.claude/CLAUDE.md` veya ilgili `standards/*.md`.
-3. Tarih + "KALICI" etiketi + **nedeni** ile yaz. Neden yazılmayan kural sonra yanlışlıkla geri alınır.
-4. Aynı turda yaz; "sonra eklerim" deme.
+1. Decide whether the rule belongs **to the project or to the global set**.
+2. If it is the project's, `<project>/CLAUDE.md`; if it is global, `~/.claude/CLAUDE.md`
+   or the relevant `standards/*.md`.
+3. Write it with a **PERMANENT** label and **the reason**. A rule with no stated reason
+   gets reverted by accident later.
+4. Write it in the same turn; never say "I'll add it later".
 
-## 10. Canlı pano — uzun kapı/koşum sırasında (KALICI, tüm projeler)
+## 10. The live dashboard — during a long gate or run (PERMANENT, all projects)
 
-*(20/09/2026: ayrıntı `~/.claude/CLAUDE.md`'den buraya taşındı; aktif dosyada
-kural cümlesi + bu bölüme link kaldı.)*
+When you start a gate, run or deploy that takes minutes (merge gate, CI, test battery,
+publish/deploy chain, migration), **publish an Artifact dashboard and keep it current by
+republishing to the SAME URL throughout the run.** A text report does not replace the
+dashboard; give both.
 
-Dakikalarca süren bir kapı, koşum veya deploy başlattığında (merge kapısı, CI,
-test bataryası, publish/deploy zinciri, migration) **bir Artifact panosu yayınla
-ve koşum boyunca AYNI URL'e yeniden yayınlayarak güncel tut.** Metin raporu
-panonun yerine geçmez; ikisini birlikte ver.
+### 10a. What the dashboard MUST contain
 
-### 10a. Panoda bulunması ZORUNLU olanlar
+1. **A weighted overall percentage.** Break the work into items, weight each by the
+   *effort remaining* (totalling 100), and sum the weights of what is complete. An
+   unweighted "5 of 10 items done" is misleading — a review of 473 commits and a one-line
+   config change are not the same thing.
+2. **Per-item breakdowns.** The sub-steps of the running item must be individually
+   visible; the percentage is computed from the breakdown, not from a guess.
+3. **A live measurement.** The time of the last measurement, the raw data measured
+   (processes, memory, SHA, file timestamps) and which stage it corresponds to.
+4. **Open risks and blockers.** Every item awaiting a decision or blocking the next one,
+   with its reasoning.
 
-1. **Ağırlıklı genel yüzde.** İşleri maddelere böl, her maddeye kalan *emeğe*
-   göre ağırlık ver (toplam 100), tamamlananların ağırlığını topla. Ağırlıksız
-   "5/10 madde bitti" yanıltıcıdır — 473 commit'lik bir review ile bir config
-   satırı aynı şey değildir.
-2. **Madde kırılımları.** Koşan maddenin alt adımları tek tek görünmeli; yüzde
-   kırılımdan hesaplanır, tahminden değil.
-3. **Canlı ölçüm.** Son ölçümün saati, ölçülen ham veri (süreçler, bellek, SHA,
-   dosya damgaları) ve o ölçümün hangi aşamaya karşılık geldiği.
-4. **Açık riskler/engeller.** Karar bekleyen veya sonraki maddeyi bloklayan her
-   kalem, gerekçesiyle.
+### 10b. Permanent rules
 
-### 10b. Kalıcı kurallar
-
-- ⚠️ **Yüzde ÖLÇÜLÜR, uydurulmaz.** Hangi sinyalden okuduğunu panoda yaz
-  (süreç imzası, dosya damgası, API sonucu). Ölçemiyorsan aralık ver ve
-  "ölçülemiyor" de.
-- ⚠️ **Fazla iyimser tahmin bir HATADIR, düzeltilir.** Kırılım çıkarınca yüzde
-  düşüyorsa düşür ve neden düştüğünü söyle — sessizce yukarı yuvarlama.
-- ⚠️ **Uzun koşumun çıktısını `tail`/`head` gibi tamponlayan bir boruya verme:**
-  iş bitene kadar hiçbir ara ilerleme okunamaz. Log dosyasına yaz, panoyu ondan
-  besle.
-- ⚠️ **Aşama tespiti dolaylıysa bunu SÖYLE.** ("süreç sayısından çıkarıyorum")
-  Dolaylı ölçüm yanılabilir; okuyucu neye baktığını bilmeli.
-- ⚠️ **Aynı dosya yolunu yeniden yayınla** — yeni URL üretme, kullanıcı sekmeyi
-  açık tutuyor.
-- Ölçüm aralığını kullanıcı belirler; belirtmezse aşama değişimlerinde raporla.
-  Değişmeyen turlarda da kısa bir satır geç, sessiz kalma.
+- ⚠️ **The percentage is MEASURED, not invented.** State on the dashboard which signal
+  you read it from (process signature, file timestamp, API result). If you cannot measure
+  it, give a range and say "cannot be measured".
+- ⚠️ **An over-optimistic estimate is an ERROR and gets corrected.** If the percentage
+  drops once you produce the breakdown, drop it and say why — never round quietly upward.
+- ⚠️ **Never pipe a long run's output into something that buffers** (`tail`/`head`): no
+  intermediate progress can be read until the job finishes. Write to a log file and feed
+  the dashboard from that.
+- ⚠️ **If stage detection is indirect, SAY SO** ("I am inferring it from the process
+  count"). An indirect measurement can be wrong; the reader must know what they are
+  looking at.
+- ⚠️ **Republish to the same file path** — do not produce a new URL, the user is keeping
+  the tab open.
+- The user sets the reporting interval; if they do not, report on stage changes. Pass a
+  short line even on unchanged turns — do not go silent.

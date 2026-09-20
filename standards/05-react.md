@@ -1,108 +1,133 @@
-# React + TypeScript Standartları
+# React + TypeScript Standards
 
-## 1. Klasör yapısı (özellik bazlı)
+## 1. Folder structure (feature-based)
 
 ```
 src/
-  api/          → client.ts (TEK config: BASE_URL, SIGNALR_URL), endpoint modülleri
-  components/   → paylaşılan sunum bileşenleri (Button, Modal, EmptyState, Table)
-  features/<ad>/→ o özelliğe ait sayfa, bileşen, hook, tip
-  hooks/        → paylaşılan hook'lar
-  lib/          → saf yardımcılar (date, search normalize, format)
-  i18n/         → tr.json, en.json
-  types/        → paylaşılan tipler / API'den üretilen tipler
+  api/          → client.ts (THE single config: BASE_URL, SIGNALR_URL), endpoint modules
+  components/   → shared presentational components (Button, Modal, EmptyState, Table)
+  features/<name>/→ the page, components, hooks and types for that feature
+  hooks/        → shared hooks
+  lib/          → pure helpers (date, search normalisation, formatting)
+  i18n/         → the locale files
+  types/        → shared types / types generated from the API
 ```
 
-Teknoloji bazlı değil **özellik bazlı** gruplama. Bir özelliği silmek tek klasörü silmek olmalı.
+Grouped **by feature**, not by technology. Deleting a feature should mean deleting one
+folder.
 
 ## 2. TypeScript
 
-- `strict: true`. `any` yasak (`unknown` + daraltma kullan). Kaçınılmazsa gerekçe yorumu.
-- API tiplerini elle yazma — OpenAPI'den üret (`openapi-typescript` vb.) veya tek yerde tanımla.
-- Tip assertion (`as`) yerine tip guard. `!` non-null assertion istisna, gerekçeli.
-- Discriminated union ile durum modelle: `{status:'loading'} | {status:'error',error} | {status:'ok',data}` — `isLoading && !error && data` üçlemesi değil.
-- `enum` yerine `as const` union tercih edilir.
+- `strict: true`. `any` is forbidden (use `unknown` + narrowing). If unavoidable, add a
+  justifying comment.
+- Do not hand-write API types — generate them from OpenAPI (`openapi-typescript` or
+  similar) or define them in one place.
+- Use type guards instead of type assertions (`as`). A `!` non-null assertion is an
+  exception and needs a reason.
+- Model state with a discriminated union: `{status:'loading'} | {status:'error',error} |
+  {status:'ok',data}` — not the `isLoading && !error && data` triad.
+- An `as const` union is preferred over `enum`.
 
-## 3. Bileşen kuralları
+## 3. Component rules
 
-- Fonksiyon bileşeni + hook. Class bileşen yok.
-- **300 satır üstü bileşen bölünür.** Bölme sırasında props/JSX/veri çağrısı/i18n anahtarı aynen korunur.
-- Bileşen içinde bileşen tanımlanmaz (her render'da yeniden yaratılır → state kaybı).
-- Props destructure edilir; `props.x.y.z` zinciri yok.
-- Erken `return` ile guard (`if (!data) return <Skeleton/>`), derin ternary iç içeliği yok.
-- `key` olarak index kullanılmaz (liste sıralanabiliyorsa/silinebiliyorsa) — kararlı id.
+- Function components + hooks. No class components.
+- **A component over 300 lines gets split.** During the split, props, JSX, data calls and
+  i18n keys are preserved exactly.
+- A component is never defined inside another component (it is recreated on every render →
+  state loss).
+- Props are destructured; no `props.x.y.z` chains.
+- Guard with an early `return` (`if (!data) return <Skeleton/>`); no deeply nested
+  ternaries.
+- An index is never used as a `key` (if the list can be sorted or items removed) — use a
+  stable id.
 
-## 4. State yönetimi — doğru yerde
+## 4. State management — in the right place
 
-| Durum türü | Nerede |
+| Kind of state | Where |
 |---|---|
-| Sunucu verisi | TanStack Query (veya eşdeğeri) — `useState`+`useEffect` ile elle çekme değil |
-| URL'e ait durum (filtre, sekme, sayfa) | Query param (`useSearchParams`) |
-| Form durumu | Form kütüphanesi (react-hook-form) veya lokal state |
-| Kısa ömürlü UI durumu | Lokal `useState` |
-| Gerçekten global (auth, tema, i18n) | Context — küçük ve bölünmüş |
+| Server data | TanStack Query (or equivalent) — not manual fetching with `useState`+`useEffect` |
+| State that belongs in the URL (filter, tab, page) | Query params (`useSearchParams`) |
+| Form state | A form library (react-hook-form) or local state |
+| Short-lived UI state | Local `useState` |
+| Genuinely global (auth, theme, i18n) | Context — small and split up |
 
-- Türetilebilen değer state'te tutulmaz, render sırasında hesaplanır.
-- Context'e sık değişen değer konmaz (tüm ağaç render olur) — böl veya store kullan.
-- `useEffect` yalnız **dış sistemle senkronizasyon** içindir. Prop'tan state türetmek, hesap yapmak, event'e tepki vermek için `useEffect` **yanlıştır**.
+- A derivable value is not kept in state; it is computed during render.
+- A frequently changing value is never put in context (the whole tree re-renders) — split
+  it or use a store.
+- `useEffect` is **only** for synchronising with an external system. Using `useEffect` to
+  derive state from props, to compute something, or to react to an event is **wrong**.
 
-## 5. Veri çekme
+## 5. Data fetching
 
-- Tek API client (`src/api/client.ts`) — base URL, header, auth, hata normalizasyonu orada. Bileşenler `fetch`/`axios`'u doğrudan çağırmaz.
-- Her istek: loading + error + empty durumları ele alınır (`02-ui-ux.md` §3).
-- İstek iptali (`AbortSignal`) — bileşen unmount olduğunda veya arama terimi değiştiğinde.
-- Arama/filtre girişleri debounce (300ms civarı).
-- Mutasyon sonrası ilgili sorgular invalidate edilir; optimistic update kullanılıyorsa rollback yolu yazılır.
-- Hata yanıtı sunucunun ProblemDetails formatından tek yerde parse edilir; alan hataları forma bağlanır.
+- One API client (`src/api/client.ts`) — base URL, headers, auth and error normalisation
+  live there. Components never call `fetch`/`axios` directly.
+- Every request handles loading + error + empty states (`02-ui-ux.md` §3).
+- Request cancellation (`AbortSignal`) — when the component unmounts or the search term
+  changes.
+- Search and filter inputs are debounced (around 300ms).
+- After a mutation the relevant queries are invalidated; if optimistic updates are used, a
+  rollback path is written.
+- The server's ProblemDetails error shape is parsed in one place; field errors are bound
+  to the form.
 
-## 6. Performans
+## 6. Performance
 
-- Önce doğru yapı, sonra memo. `useMemo`/`useCallback`/`React.memo` **ölçülen** sorun için.
-- Uzun listeler sanallaştırılır (`react-virtual` vb.) veya sayfalanır.
-- Route bazlı code splitting (`React.lazy` + `Suspense`).
-- Görsel: doğru boyut + `loading="lazy"` + modern format.
-- Bundle bütçesi izlenir (`16-performance.md`).
+- Correct structure first, memoisation second. `useMemo`/`useCallback`/`React.memo` are
+  for a **measured** problem.
+- Long lists are virtualised (`react-virtual` or similar) or paginated.
+- Route-based code splitting (`React.lazy` + `Suspense`).
+- Images: the right dimensions + `loading="lazy"` + a modern format.
+- The bundle budget is tracked (`16-performance.md`).
 
-## 7. Stil
+## 7. Styling
 
-- Tek yaklaşım seçilir (CSS Modules / Tailwind / CSS-in-JS) ve karıştırılmaz.
-- Ham renk/ölçü değeri yok → token (`02-ui-ux.md` §1).
-- Global CSS minimum; bileşen stili bileşenle birlikte durur.
-- Inline style yalnız gerçekten dinamik değer için.
+- One approach is chosen (CSS Modules / Tailwind / CSS-in-JS) and not mixed.
+- No raw colour or size values → tokens (`02-ui-ux.md` §1).
+- Global CSS kept to a minimum; a component's styles live with the component.
+- Inline styles only for genuinely dynamic values.
 
-## 8. Form
+## 8. Forms
 
-- `react-hook-form` + şema doğrulama (zod/yup). Şema **tek kaynak**: tip de şemadan türetilir.
-- Sunucu validasyon hatası alanlara bağlanır (`setError`).
-- Submit sırasında disable + spinner; çift gönderim engellenir.
+- `react-hook-form` + schema validation (zod/yup). The schema is the **single source**:
+  the types are derived from it too.
+- Server validation errors are bound to fields (`setError`).
+- Disabled + spinner during submit; double submission is prevented.
 
-## 9. Yönlendirme ve yetki
+## 9. Routing and authorization
 
-- Route tanımları tek dosyada; yetki kontrolü route seviyesinde guard bileşeniyle.
-- **UI'daki gizleme güvenlik değildir** — yetki her zaman API'de de kontrol edilir.
-- 401 → merkezî interceptor'da oturum yenileme veya login'e yönlendirme (her bileşende değil).
+- Route definitions in one file; authorization checked at route level with a guard
+  component.
+- **Hiding something in the UI is not security** — authorization is always checked in the
+  API as well.
+- A 401 is handled in a central interceptor (session refresh or redirect to login), not in
+  every component.
 
-## 10. Erişilebilirlik
+## 10. Accessibility
 
-- `eslint-plugin-jsx-a11y` açık.
-- Etkileşimli öğe `button`/`a`; `div onClick` yasak.
-- Modal: focus trap + `Esc` + `aria-modal` + arka plan inert.
-- Detay: `02-ui-ux.md` §7.
+- `eslint-plugin-jsx-a11y` enabled.
+- Interactive elements are `button`/`a`; `div onClick` is forbidden.
+- Modals: focus trap + `Esc` + `aria-modal` + an inert background.
+- Detail: `02-ui-ux.md` §7.
 
-## 11. Test
+## 11. Testing
 
-- **React Testing Library** — kullanıcı davranışını test et, implementasyonu değil.
-- Sorgu önceliği: `getByRole` > `getByLabelText` > `getByText` > `getByTestId` (son çare).
-- Ağ MSW ile taklit edilir; `fetch` global mock'lamak yerine gerçek istek/yanıt seviyesinde.
-- Snapshot testi kural olarak kullanılmaz (kırılgan, gözden geçirilmeden onaylanır).
-- Detay: `10-test-strategy.md`.
+- **React Testing Library** — test user behaviour, not implementation.
+- Query priority: `getByRole` > `getByLabelText` > `getByText` > `getByTestId` (last
+  resort).
+- The network is faked with MSW, at the real request/response level rather than globally
+  mocking `fetch`.
+- Snapshot tests are not used as a rule (brittle, and approved without being read).
+- Detail: `10-test-strategy.md`.
 
-## 12. Yapma listesi
+## 12. Never-do list
 
-- ❌ `useEffect` içinde state set edip aynı state'e bağımlılık vermek (sonsuz döngü)
-- ❌ `dangerouslySetInnerHTML` (zorunluysa DOMPurify ile sanitize + gerekçe)
-- ❌ `localStorage`'a token yazmak (XSS'e açık — httpOnly cookie tercih; edilemiyorsa risk yazılı kabul edilir)
-- ❌ `window.location` ile router yerine yönlendirme
-- ❌ Ortam değişkenini bileşen içinde okumak (`import.meta.env` yalnız `api/client.ts`'te)
-- ❌ Sunucu verisini Redux/Context'e elle kopyalamak
-- ❌ Prop drilling 3 seviyeden derin (compose veya context)
+- ❌ Setting state inside `useEffect` and listing that same state as a dependency (an
+  infinite loop)
+- ❌ `dangerouslySetInnerHTML` (if unavoidable, sanitise with DOMPurify + a stated reason)
+- ❌ Writing a token to `localStorage` (exposed to XSS — prefer an httpOnly cookie; if
+  that is impossible, the risk is accepted in writing)
+- ❌ Navigating with `window.location` instead of the router
+- ❌ Reading an environment variable inside a component (`import.meta.env` only in
+  `api/client.ts`)
+- ❌ Manually copying server data into Redux/Context
+- ❌ Prop drilling deeper than 3 levels (compose, or use context)

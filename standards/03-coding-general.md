@@ -1,107 +1,146 @@
-# Genel Kodlama Standartları (dilden bağımsız)
+# General Coding Standards (language-agnostic)
 
-## 1. İsimlendirme
+## 1. Naming
 
-- Kod adları **İngilizce**, yorumlar ve dokümanlar **Türkçe**.
-- İsim niyeti anlatır: `d` değil `daysUntilExpiry`; `handleData` değil `normalizeMemberRow`.
-- Boolean'lar `is/has/can/should` ile başlar: `isActive`, `canEditProfile`.
-- Fonksiyon adı **fiil**, sınıf/tip adı **isim**. Kısaltma yok (`usr`, `mgr`, `tmp`).
-- Aynı kavram her yerde aynı kelimeyle anılır. `Member` / `User` / `Person` karışımı yasak.
-- Negatif isim yok: `isNotDisabled` değil `isEnabled`.
+- Identifiers are **English**; comments and documentation are in the team's working
+  language.
+- A name states intent: `daysUntilExpiry`, not `d`; `normalizeMemberRow`, not
+  `handleData`.
+- Booleans start with `is/has/can/should`: `isActive`, `canEditProfile`.
+- A function name is a **verb**, a class or type name is a **noun**. No abbreviations
+  (`usr`, `mgr`, `tmp`).
+- The same concept is called the same word everywhere. Mixing `Member` / `User` /
+  `Person` is forbidden.
+- No negative names: `isEnabled`, not `isNotDisabled`.
 
-## 2. Fonksiyon ve dosya boyutu
+## 2. Function and file size
 
-- Fonksiyon tek iş yapar; 40 satırı geçtiyse gözden geçir.
-- **Dosya 300 satırı geçmez** — doğal sınırlarından bölünür. Bölme davranışı değiştirmez.
-- İç içe geçme (nesting) 3 seviyeyi aşmaz → erken `return` / guard clause kullan.
-- Parametre sayısı 4'ü geçtiyse obje/record ile grupla.
-- Boolean parametre yerine ayrı fonksiyon veya enum (`render(true)` okunmaz).
+- A function does one job; review it if it exceeds 40 lines.
+- **A file never exceeds 300 lines** — it is split at its natural boundaries. Splitting
+  does not change behaviour.
+- Nesting does not exceed 3 levels → use early `return` / guard clauses.
+- If the parameter count exceeds 4, group them into an object or record.
+- Instead of a boolean parameter, use a separate function or an enum (`render(true)` is
+  unreadable).
 
-## 3. Tek kaynak (single source of truth)
+## 3. Single source of truth
 
-- URL / port / host / anahtar / sabit eşik → **tek config modülü**. Her dosyada `?? "http://localhost:5080"` gibi tekrarlanan fallback yasak.
-- Aynı iş mantığı iki yerde yazılmaz. Kopyalanan üçüncü kod ortak yere taşınır (iki kez tolere edilir, üçüncüde refactor).
-- Enum / sabit listesi tek yerde; istemci ve sunucu paylaşıyorsa üretilmiş tip veya paylaşılan paket kullanılır.
-- Magic string/number yok: `if (status == 3)` → `if (status == MemberStatus.Active)`.
+- URL / port / host / key / constant threshold → **one config module**. A fallback
+  repeated in every file, such as `?? "http://localhost:5080"`, is forbidden.
+- The same business logic is never written in two places. Code copied a third time moves
+  to a shared location (twice is tolerated, the third triggers a refactor).
+- Enums and constant lists live in one place; if the client and server share them, a
+  generated type or a shared package is used.
+- No magic strings or numbers: `if (status == 3)` → `if (status == MemberStatus.Active)`.
 
-## 4. Hata yönetimi
+## 4. Error handling
 
-- **Sessiz yutma yasak:** `catch {}`, `catch (e) { return null; }` (log'suz), `.catch(() => {})`.
-- Yakalanan hata ya işlenir ya zenginleştirilip yeniden fırlatılır. Sadece log'layıp yutmak "işlenmiş" sayılmaz.
-- Beklenen hata (validasyon, bulunamadı, yetkisiz) exception ile değil, tipli sonuç veya uygun HTTP durumu ile ifade edilir. Exception **istisnai** durumlar içindir.
-- Kullanıcıya teknik detay gösterilmez; log'a **tam** detay + correlation id yazılır.
-- Hata mesajı içine PII/token/parola konmaz.
-- `finally` / `using` / `defer` ile kaynak her yolda serbest bırakılır.
+- **Silent swallowing is forbidden:** `catch {}`, `catch (e) { return null; }` with no
+  log, `.catch(() => {})`.
+- A caught error is either handled or enriched and rethrown. Logging it and swallowing it
+  does not count as "handled".
+- An expected error (validation, not found, unauthorized) is expressed with a typed result
+  or the appropriate HTTP status, not with an exception. Exceptions are for **exceptional**
+  situations.
+- Technical details are never shown to the user; the **full** detail plus a correlation id
+  goes into the log.
+- No PII, tokens or passwords in an error message.
+- Resources are released on every path via `finally` / `using` / `defer`.
 
-## 5. Null ve sınır durumlar
+## 5. Null and boundary cases
 
-- Nullable açıkça modellenir (C# nullable reference types açık, TS `strict` açık).
-- Dış dünyadan gelen her şey (HTTP, dosya, DB, env) **doğrulanmadan** kullanılmaz.
-- Boş liste, tek eleman, çok eleman, çok uzun metin, unicode/emoji, negatif sayı, sıfır, gelecek/geçmiş tarih senaryoları düşünülür.
-- Tarih/saat **UTC** saklanır ve taşınır; yalnız gösterimde yerel saate çevrilir. Saat dilimi bilgisi kaybedilmez.
-- **Tarih biçimlendirmede kültür açıkça verilir.** .NET/PowerShell'de biçim dizesindeki `/` sabit karakter değil, **kültürün tarih ayracıdır**; `:` de saat ayracıdır. Türkçe locale'li bir makinede `Get-Date -Format 'dd/MM/yyyy'` → `15.08.2026` üretir — yani global kural #12'yi (`dd/mm/yyyy`, nokta yasak) makinenin diline göre sessizce ihlal eder. Aynı tuzak okuma yönünde daha beterdir: `[datetime]::ParseExact(x, 'dd/MM/yyyy', $null)` CurrentCulture'a düşer ve `15/08/2026`'yı **ayrıştıramayıp istisna atar** — yazan ile okuyan aynı kodda bile buluşamaz. Doğrusu her iki yönde de `[cultureinfo]::InvariantCulture` geçmektir. Testi kolay: kültürü `tr-TR`'ye zorlayıp yaz→oku turunu koştur.
-- Para `decimal` (C#) veya tam sayı kuruş ile tutulur; `double`/`float` ile para hesabı **yasak**. Para birimi tutarla birlikte saklanır.
+- Nullability is modelled explicitly (C# nullable reference types on, TS `strict` on).
+- Nothing coming from the outside world (HTTP, files, the DB, env) is used **without
+  validation**.
+- Empty list, single element, many elements, very long text, unicode/emoji, negative
+  numbers, zero, and future/past dates are all considered.
+- Dates and times are **stored and transported in UTC**; they are converted to local time
+  only for display. Time-zone information is never lost.
+- **Always pass an explicit culture when formatting dates.** In .NET and PowerShell, the
+  `/` in a format string is not a literal character — it is **the culture's date
+  separator**, and `:` is the time separator. On a machine with a Turkish locale,
+  `Get-Date -Format 'dd/MM/yyyy'` produces `15.08.2026` — silently violating the global
+  `dd/mm/yyyy` rule according to the machine's language. The same trap is worse when
+  reading: `[datetime]::ParseExact(x, 'dd/MM/yyyy', $null)` falls back to CurrentCulture
+  and **throws** because it cannot parse `15/08/2026` — so the writer and the reader
+  cannot even meet inside the same codebase. The fix is to pass
+  `[cultureinfo]::InvariantCulture` in both directions. Easy to test: force the culture to
+  `tr-TR` and run a write→read round trip.
+- Money is held as `decimal` (C#) or as integer minor units; calculating money with
+  `double`/`float` is **forbidden**. The currency is stored alongside the amount.
 
 ## 6. Async
 
-- Async yol boydan boya async'tir; senkron bloklama (`.Result`, `.Wait()`, `Task.Run` sarmalama) yasak.
-- Her dış çağrıda **timeout** ve gerektiğinde **cancellation token** vardır.
-- Yeniden deneme yalnız **idempotent** işlemlerde, exponential backoff + jitter ile, üst sınırlı.
-- Paralel çalıştırılabilir bağımsız işler paralel çalıştırılır; sıralı bağımlılık varsa sıralı.
-- Fire-and-forget iş yok — ya beklenir ya kalıcı bir kuyruğa yazılır.
+- An async path is async all the way through; synchronous blocking (`.Result`, `.Wait()`,
+  wrapping in `Task.Run`) is forbidden.
+- Every outbound call has a **timeout** and, where relevant, a **cancellation token**.
+- Retries only on **idempotent** operations, with exponential backoff + jitter and an
+  upper bound.
+- Independent work that can run in parallel runs in parallel; sequential dependencies run
+  sequentially.
+- No fire-and-forget work — it is either awaited or written to a durable queue.
 
-## 7. Yorum ve doküman
+## 7. Comments and documentation
 
-- Yorum **neden**'i anlatır, **ne**'yi değil. Kodun tekrarı olan yorum silinir.
-- Karmaşık iş kuralının yanına kaynağı yazılır ("mevzuat X, madde Y" / "ADR-004").
-- `TODO` yazılıyorsa sahibi ve bağlamı ile: `// TODO(<ad>, 2026-07): X netleşince Y'yi kaldır`. Sahipsiz TODO yasak.
-- **Yorum satırına alınmış kod commit edilmez** — git zaten hatırlıyor.
-- Public API/servis metodu ne yaptığını, hangi hataları döndürdüğünü belgeler.
+- A comment explains the **why**, not the **what**. A comment that repeats the code gets
+  deleted.
+- The source of a complex business rule is written next to it ("regulation X, article Y" /
+  "ADR-004").
+- If you write a `TODO`, include its owner and context:
+  `// TODO(<name>, <yyyy-mm>): remove Y once X is settled`. An unowned TODO is forbidden.
+- **Commented-out code is never committed** — git already remembers.
+- A public API or service method documents what it does and which errors it returns.
 
-## 8. Ölü kod ve bağımlılık
+## 8. Dead code and dependencies
 
-- Kullanılmayan fonksiyon, import, dosya, feature flag, env değişkeni silinir.
-- Yeni bağımlılık eklemeden önce: gerçekten gerekli mi, bakımlı mı (son commit, açık issue), lisansı uygun mu, boyutu ne, tek fonksiyon için mi ekleniyor?
-- Bağımlılık sürümleri sabitlenir (lock file commit edilir).
+- Unused functions, imports, files, feature flags and env variables are deleted.
+- Before adding a dependency: is it genuinely needed, is it maintained (last commit, open
+  issues), is the licence suitable, how large is it, is it being added for a single
+  function?
+- Dependency versions are pinned (the lock file is committed).
 
-## 9. Log
+## 9. Logging
 
-- Yapılandırılmış log (key-value), string birleştirme değil.
-- Seviye: `Debug` (geliştirme), `Information` (iş olayı), `Warning` (beklenen ama istenmeyen), `Error` (işlem başarısız), `Critical` (sistem tehlikede).
-- Her istek/işlem bir **correlation id** taşır; log'lar bununla eşleştirilir.
-- Log'a asla: parola, token, kart no, TCKN, tam e-posta/telefon (maskele), tam istek gövdesi.
-- Döngü içinde log yok; toplu özet log.
+- Structured logging (key-value), not string concatenation.
+- Levels: `Debug` (development), `Information` (a business event), `Warning` (expected but
+  undesirable), `Error` (the operation failed), `Critical` (the system is at risk).
+- Every request or operation carries a **correlation id**; logs are matched by it.
+- Never in a log: passwords, tokens, card numbers, national identity numbers, a full email
+  or phone number (mask them), a full request body.
+- No logging inside a loop; log an aggregate summary instead.
 
-## 10. Değişmezlik ve saflık
+## 10. Immutability and purity
 
-- Mümkün olduğunca immutable veri (record, readonly, `const`). Parametre mutasyonu yapılmaz.
-- Saf fonksiyonlar (yan etkisiz) tercih edilir — test edilmesi kolaydır.
-- Global mutable state yok; durum ya DI ile ya açık parametre ile taşınır.
+- Immutable data wherever possible (records, readonly, `const`). Parameters are never
+  mutated.
+- Pure functions (no side effects) are preferred — they are easy to test.
+- No global mutable state; state is carried either through DI or as an explicit parameter.
 
-## 11. Kod inceleme öncesi kendine sor
+## 11. Ask yourself before review
 
-- Bu değişikliği 6 ay sonra ben okusam anlar mıyım?
-- Bir şey bozulursa **nasıl fark ederiz** (log/metrik/test var mı)?
-- Bu kod yanlış kullanılabilir mi? Yanlış kullanımı derleyici veya tip sistemi engelliyor mu?
-- Silinmesi gereken bir şey bıraktım mı?
+- Would I understand this change if I read it in 6 months?
+- If something breaks, **how would we notice** (is there a log, a metric, a test)?
+- Can this code be misused? Does the compiler or the type system prevent the misuse?
+- Did I leave anything behind that should have been deleted?
 
-## UUIDv7'den benzersizlik türetme
+## Deriving uniqueness from a UUIDv7
 
-UUIDv7 **zaman sıralıdır**: ilk 48 bit (metin biçiminde ilk ~8 onaltılık karakter)
-bir milisaniye zaman damgasıdır. Aynı milisaniyede üretilen iki kimlik bu kısmı
-**paylaşır**.
+A UUIDv7 is **time-ordered**: the first 48 bits (roughly the first 8 hex characters in
+text form) are a millisecond timestamp. Two ids generated in the same millisecond
+**share** that part.
 
-Kimliğin bir parçasından kısa bir ayırt edici (önek, kısa kod, dizin adı, kiracı
-etiketi) türetiliyorsa **sondan** al, baştan değil:
+If a short discriminator (a prefix, a short code, a directory name, a tenant label) is
+derived from part of an id, take it from **the end**, not the beginning:
 
 ```csharp
-// YANLIŞ — ilk 8 karakter zaman damgası; eşzamanlı iki kayıt aynı öneki alır
+// WRONG — the first 8 characters are the timestamp; two concurrent records get the same prefix
 var prefix = $"tb-{id:N}"[..11];
 
-// DOĞRU — rastgele kısım sondadır
+// RIGHT — the random part is at the end
 var prefix = $"tb-{id.ToString("N")[^8..]}";
 ```
 
-Bunun bedeli yalnız "çirkin çakışma" değil: önek verinin **sahipliğini** belirliyorsa
-(temizlik neyi silecek, hangi kayıt kimin) iki paralel iş birbirinin verisini siler.
-Testi kolay: aynı anda iki kimlik üret, öneklerin farklı olduğunu doğrula.
+The cost of this is not just an ugly collision: if the prefix determines **ownership** of
+data (what a cleanup will delete, which record belongs to whom), two parallel jobs delete
+each other's data. Easy to test: generate two ids at the same moment and assert the
+prefixes differ.
