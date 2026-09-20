@@ -25,3 +25,7 @@ settings.local.json
 
 # Canlı yapılandırmaya sembolik bağ (yereldir, depoya girmez)
 config
+
+# Python bytecode is generated, never committed
+__pycache__/
+*.pyc
