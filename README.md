@@ -27,7 +27,12 @@ tutar. Birkaç örnek:
 | Ajan turları toplam maliyetin **%7,7'si**, tur başına ortalama **~$6,9**; maliyetin %73'ü orkestratörün cache okumasıydı | Mod sistemi (A–E) — sürtünme yerine peşin seçim |
 | 9 ajan rolünden yalnız **1'i** gerçekten denetleniyordu; hata sessizce aşağı akıyordu | #28 — kanıt bloğu, geri gönderme, kapanış kanıtı |
 
-Vaka çalışmaları: [`docs/vaka-01-kapsam-yanilsamasi.md`](docs/vaka-01-kapsam-yanilsamasi.md)
+Vaka çalışmaları:
+
+- [01 — Kapsam yanılsaması: %95 nasıl %83 çıktı](docs/vaka-01-kapsam-yanilsamasi.md)
+- [02 — 48 sahte düşüş: ortam sınırını ürün hatası sanmak](docs/vaka-02-e2e-sahte-dususler.md)
+- [03 — Yanlış yerden tasarruf: ajan maliyetinin ölçülmesi](docs/vaka-03-ajan-maliyeti-ve-mod-sistemi.md)
+- [04 — Dokuz rolden yalnız biri denetleniyordu](docs/vaka-04-denetim-boslugu.md)
 
 ## Öne çıkan kurallar
 
