@@ -17,7 +17,7 @@ This script is the measurement that corrects it. Source: the `usage` fields and
    previous names are no longer counted, so md-gate counts from before that date
    are not comparable with later ones.
 """
-import glob, json, os, re, sys, datetime, statistics, collections
+import glob, json, os, pathlib, re, sys, datetime, statistics, collections
 
 PRICES = {'claude-fable-5-1': (10, 50, .025), 'claude-opus-5': (5, 25, .10),
           'claude-opus-4-8': (5, 25, .10), 'claude-sonnet-5': (2, 10, .10),
@@ -58,6 +58,121 @@ SEGMENT = re.compile(r"(^|&&|\|\||;|\||\n|\(|`|\$\()\s*"
                      r"(sudo\s+|npx\s+|npm\s+|yarn\s+|pnpm\s+|dotnet\s+|git\s+|bash\s+|python3?\s+)?$")
 
 TRANSCRIPTS = os.path.expanduser('~/.claude/projects/**/*.jsonl')
+
+# --- Sanitiser: an example command must never carry an identifier ---------------
+# Layer 1: publish the SHAPE, not the arguments — you cannot leak what you never emit.
+# Layer 2: a deny-set DERIVED AT RUNTIME from the machine. Project names are never
+#          written into this file: doing so would publish the very names we redact.
+# Layer 3: a canary gate. If the sanitiser stops working, nothing is written.
+
+SHELL_OP = re.compile(r"\s(\||\|\||&&|;|>>?|2>&1)")
+HEXISH = re.compile(r"^[0-9a-f]{7,40}$", re.I)
+SAFE_WORDS = {'src', 'test', 'tests', 'docs', 'doc', 'scripts', 'script', 'build',
+              'dist', 'node_modules', 'main', 'dev', 'test', 'prod', 'claude',
+              'claude-code-standards', 'claude-code-standards-dev', 'code', 'home',
+              'users', 'tmp', 'private', 'backend', 'frontend', 'mobile', 'web', 'api',
+              'config', 'plugin', 'plugins', 'role', 'roles', 'scan', 'agent', 'agents',
+              'session', 'sessions', 'step', 'steps', 'cut', 'cuts', 'measurement',
+              'worktrees', 'worktree', 'project', 'projects', 'standards', 'modes'}
+_DENY = False
+
+
+def deny_pattern():
+    """Identifiers to redact, computed locally. Never hard-coded — a blocklist of
+    client names living in a public repo would publish exactly what it hides."""
+    global _DENY
+    if _DENY is not False:
+        return _DENY
+    names = set()
+    here = pathlib.Path(__file__).resolve().parent.parent
+    for parent in (here.parent, pathlib.Path.home() / 'ClaudeCode'):
+        try:
+            names |= {d.name for d in parent.iterdir() if d.is_dir()}
+        except OSError:
+            pass
+    for path in glob.glob(os.path.expanduser('~/.claude/projects/*')):
+        # '-Users-me-ClaudeCode-project-f' → only the last segment is the project name;
+        # splitting on every '-' produced generic words and blocked the gate on prose.
+        segments = [seg for seg in os.path.basename(path).split('-') if seg]
+        if segments:
+            names.add(segments[-1])
+    names = {n for n in names
+             if len(n) > 3 and not n.isdigit() and n.lower() not in SAFE_WORDS}
+    _DENY = (re.compile('|'.join(re.escape(n) for n in sorted(names, key=len, reverse=True)), re.I)
+             if names else None)
+    return _DENY
+
+
+def shape(command, deny=None):
+    """Reduce a command to executable + subcommand + flag names. Every value
+    becomes a placeholder, so paths, project names, SHAs and secrets cannot ride along."""
+    head = SHELL_OP.split(command.strip(), 1)[0]
+    out = []
+    for index, token in enumerate(head.split()):
+        if index == 0:
+            if '=' in token:
+                out.append('<var>')          # L=/tmp/x.log; cmd — basename would keep the tail
+            elif '/' in token or token.startswith(('~', '$')):
+                out.append('<path>')
+            else:
+                base = os.path.basename(token)
+                out.append(base if re.fullmatch(r"[A-Za-z0-9._+-]{1,20}", base) else '<cmd>')
+        elif token.startswith('-'):
+            out.append(token.split('=')[0])
+        elif index == 1 and token.isalpha():
+            out.append(token)
+        elif '/' in token or token.startswith('~') or token.startswith('$'):
+            out.append('<path>')
+        elif HEXISH.match(token):
+            out.append('<sha>')
+        elif '=' in token:
+            out.append('<var>')
+        elif '.' in token:
+            out.append('<file>')
+        else:
+            out.append('<arg>')
+    text = ' '.join(out)
+    if deny is None:
+        deny = deny_pattern()
+    if deny is not None:
+        text = deny.sub('<project>', text)
+    text = re.sub(r"(<\w+>)( \1)+", r"\1 …", text)
+    return text[:64]
+
+
+# Every shape that actually occurs must appear here: a var-assignment prefix hid a
+# path tail from an earlier version of this gate.
+CANARY = ("L=/private/tmp/sess-AcmeCorp/run.log; dotnet build AcmeCorp.Tests/x.csproj "
+          "&& cd /Users/zzz/Code/AcmeCorp "
+          "&& git push origin d401a71eefa6e931dfad5828b0c4825f33dfea20 # pw=hunter2")
+LEAK_MARKERS = ('/Users/', '/home/', '/private/tmp', 'zzz', 'AcmeCorp',
+                'd401a71', 'hunter2', '.csproj')
+
+
+def sanitizer_gate():
+    """Mutation-style check: if a synthetic identifier survives, refuse to write."""
+    produced = shape(CANARY)
+    leaked = [m for m in LEAK_MARKERS if m.lower() in produced.lower()]
+    if leaked:
+        sys.exit(f"sanitiser gate FAILED — these survived {leaked}: {produced!r}")
+    return produced
+
+
+def scan_output(text):
+    """Belt: scan the generated document itself. The gate has to live in the
+    generator, because the file says 'do not edit by hand, regenerate'.
+
+    Hard patterns run over the whole document. The deny-set runs ONLY inside
+    backticked spans, i.e. where command samples live — applied to prose it fired
+    on ordinary words ('config', 'role', 'scan') and blocked every write, and a
+    brake that always fires gets switched off."""
+    hits = re.findall(r"/Users/\S+|/home/\S+|/private/tmp\S*|\b[0-9a-f]{20,40}\b", text)
+    deny = deny_pattern()
+    if deny is not None:
+        for span in re.findall(r"`([^`]*)`", text):
+            hits += deny.findall(span)
+    return sorted(set(hits))
+
 
 
 def command_part(command):
@@ -150,10 +265,15 @@ def count_steps(sessions):
                     counts[name] += 1
                     score = (2 if SEGMENT.search(before) else 0) + (1 if len(command) < 120 else 0)
                     if score > best.get(name, (-1, ''))[0]:
-                        sample = re.sub(r"\s+", " ", command.strip())
-                        sample = re.sub(r"(/Users/[^/]+|/home/[^/]+|/private/tmp/[^\s]*)", "…", sample)
-                        best[name] = (score, sample[:64])
+                        best[name] = (score, shape(command))
     return counts, {k: v[1] for k, v in best.items()}, dismissed
+
+
+ROLE_ALIASES = {'analiz': 'analyst', 'belge': 'doc-writer', 'e2e-yazar': 'e2e-writer',
+                'gelistirici': 'developer', 'gozlemlenebilirlik': 'observability',
+                'guvenlik': 'security', 'kapsam-denetcisi': 'coverage-auditor',
+                'mimar': 'architect', 'tasarimci': 'designer', 'test-yazar': 'test-writer',
+                'urun-yoneticisi': 'product-manager', 'veri': 'data'}
 
 
 def map_roles(sessions, agents):
@@ -219,9 +339,11 @@ def compare_cuts():
     out = ["## Fixed prefix — configuration cuts (before / after)\n",
            "| cut | label | before (median · n) | after (median · n) | delta |",
            "|---|---|---|---|---|"]
+    index = 0
     for line in open(cuts_file, encoding='utf-8'):
         if line.startswith('#') or not line.strip():
             continue
+        index += 1
         try:
             timestamp, label = line.rstrip('\n').split('\t', 1)
         except ValueError:
@@ -233,7 +355,8 @@ def compare_cuts():
         a = int(statistics.median(after)) if after else 0
         delta = f"**-{b - a:,} (-{100 * (b - a) / b:.0f}%)**" if (b and a) else "**not measured** — needs a new session"
         after_cell = f"{a:,} · {len(after)}" if a else "—"
-        out.append(f"| {timestamp} | {label} | {b:,} · {len(before)} | {after_cell} | {delta} |")
+        # The cut's timestamp stays in the local tsv; the published table shows its order.
+        out.append(f"| cut {index} | {label} | {b:,} · {len(before)} | {after_cell} | {delta} |")
     return out
 
 
@@ -241,7 +364,7 @@ def report(days=None):
     sessions, agents = collect(days)
     lines = [f"Scope: {len(sessions)} sessions + {len(agents)} agent runs"
              + (f", last {days} days" if days else ", all records")
-             + f"  ·  measured: {datetime.datetime.now():%d/%m/%Y %H:%M}\n"]
+             + "\n"]   # no timestamp: the repo carries no dates
     measured = measure(sessions)
     prefixes = [v[0] for v in measured.values() if v[0]]
     requests = sum(v[1] for v in measured.values())
@@ -252,18 +375,21 @@ def report(days=None):
         median = int(statistics.median(prefixes))
         lines.append(f"- prefix median: **{median:,} tokens** (min {min(prefixes):,} · max {max(prefixes):,})")
         lines.append(f"- the prefix is re-read on every request → ~{median * requests / 1e9:.1f} billion tokens")
-    lines.append(f"- measured total (list price): **${total:,.0f}**\n")
+    # The absolute total is deliberately not published; the ratios below carry the meaning.
+    lines.append("")
     lines += compare_cuts()
     lines.append("")
     agent_total = sum(v[2] for v in measure(agents).values())
     lines.append("## Agent roles — how many runs, at what cost\n")
     if total:
-        lines.append(f"Agent runs account for **${agent_total:,.0f}** "
-                     f"(**{100 * agent_total / total:.1f}%** of everything)\n")
+        lines.append(f"Agent runs account for **{100 * agent_total / total:.1f}%** "
+                     f"of total spend\n")
     lines.append("| role | runs | starting prefix (total) | estimated $ |")
     lines.append("|---|---:|---:|---:|")
     for role, (runs, prefix_tokens, cost) in sorted(map_roles(sessions, agents).items(), key=lambda x: -x[1][0]):
-        lines.append(f"| `{role}` | {runs} | {prefix_tokens:,} | ${cost:,.2f} |")
+        # Historical transcripts carry the old role names; report them as they are called today.
+        lines.append(f"| `{ROLE_ALIASES.get(role, role)}` | {runs} | {prefix_tokens:,} "
+                     f"| ${cost:,.2f} |")
     lines.append("")
     lines.append("## SDLC steps — how many times each one ran\n")
     lines.append("| step | runs | dismissed (mentions) | example command |")
@@ -283,7 +409,11 @@ if __name__ == '__main__':
     window = None
     if '--days' in sys.argv:
         window = int(sys.argv[sys.argv.index('--days') + 1])
+    print("sanitiser gate:", sanitizer_gate())
     text = report(window)
+    dirty = scan_output(text)
+    if dirty:
+        sys.exit(f"refusing to write — {len(dirty)} identifier(s) in the output: {dirty[:5]}")
     if '--write' in sys.argv:
         target = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
                               'docs', 'measurement-log.md')
