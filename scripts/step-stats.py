@@ -276,8 +276,8 @@ ROLE_ALIASES = {'analiz': 'analyst', 'belge': 'doc-writer', 'e2e-yazar': 'e2e-wr
                 'urun-yoneticisi': 'product-manager', 'veri': 'data'}
 
 
-def map_roles(sessions, agents):
-    """Match the role named in the Agent call with the agentId in its result."""
+def role_ids(sessions):
+    """agentId (8 hex) -> the role named in the Agent call that started it."""
     id_to_role = {}
     for path in sessions:
         pending = {}
@@ -299,6 +299,12 @@ def map_roles(sessions, agents):
                     found = re.search(r'agentId: ([0-9a-f]{8})', text)
                     if found:
                         id_to_role[found.group(1)] = pending.get(block.get('tool_use_id'), 'unknown')
+    return id_to_role
+
+
+def map_roles(sessions, agents):
+    """Match the role named in the Agent call with the agentId in its result."""
+    id_to_role = role_ids(sessions)
     stats = collections.defaultdict(lambda: [0, 0, 0.0])   # runs, prefix tokens, $
     for path, (first, _count, cost, _model) in measure(agents).items():
         role = id_to_role.get(os.path.basename(path)[6:14], 'unknown')

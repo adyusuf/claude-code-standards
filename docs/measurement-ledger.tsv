@@ -1,0 +1,350 @@
+# Measurement ledger — one row per session or agent run. GENERATED: do not edit by hand.
+# Regenerate: python3 scripts/measurement-ledger.py --write   (merges; rows are never dropped)
+# started : UTC minute of the first record · kind: session|agent · role: main, the agent role, or other
+# input/output/cache_write/cache_read : summed token counters · usd : API LIST price (a proxy, not a bill)
+# cut : how many configuration cuts (scripts/measurement-cuts.tsv) preceded this row — compare rows with
+#       the SAME cut only (docs/benchmark-method.md)
+# steps : SDLC steps this transcript RAN (step-stats.py patterns); a step run inside another script is not seen
+id	started	kind	role	model	requests	input	output	cache_write	cache_read	usd	cut	steps
+95a65a4a43	2026-05-29T17:23	session	main	claude-opus-4-8	67	21804	162140	1237424	5672171	14.7325	0	
+864da94763	2026-07-13T08:07	session	main	claude-fable-5	24	74841	20213	182043	1342781	2.6887	0	
+e8a7bf2c16	2026-08-11T12:47	session	main	claude-opus-5	15	1770	11677	170185	997774	1.8633	0	
+456d4a7056	2026-08-11T13:08	session	main	claude-opus-5	4	8	20214	152798	124640	1.5227	0	
+b203226b1d	2026-08-15T07:17	session	main	claude-opus-5	262	20889	369082	2297561	70174665	58.7786	0	secret scan=8;SAST=1;local ci gate=2;git merge=2
+39b9035a8c	2026-08-18T05:55	session	main	claude-opus-5	4782	9595	3790585	51011164	2957625344	1252.4204	0	build=55;unit test=151;typecheck=32;lint/format=17;e2e (playwright)=113;git merge=3;git push=1
+cda5bfad4b	2026-08-18T15:13	session	main	claude-sonnet-5	1473	2938	876920	6267774	579802735	140.4051	0	unit test=2;typecheck=2;lint/format=3;coverage=7;SAST=1;local ci gate=8;git merge=3;git push=1
+280377adba	2026-08-21T04:58	session	main	claude-opus-5	309	618	848660	3477787	98636524	77.3347	0	
+8437f636de	2026-08-21T05:12	session	main	claude-opus-5	375	750	161782	1894411	80795974	56.2864	0	git merge=1;git push=1
+c6018f2cba	2026-08-23T06:02	session	main	claude-opus-5	2	4	7366	82180	69076	0.7323	0	
+07ed9dfb04	2026-08-24T12:13	session	main	claude-sonnet-5	9	18	4169	104454	739030	0.4507	0	
+73c8e2808d	2026-08-25T05:53	session	main	claude-sonnet-5	10	20	8207	102796	827103	0.5045	0	
+06b69dd692	2026-08-25T08:24	session	main	claude-opus-5	846	1692	721733	6828388	321120203	221.2893	0	build=3;unit test=122;typecheck=5;lint/format=2;coverage=33;e2e (playwright)=2;git merge=3
+553b2d2fa3	2026-08-25T12:48	session	main	claude-opus-5	904	1808	630714	3063727	330670037	200.2602	0	build=6;unit test=4;lint/format=18;coverage=4;git merge=2;git push=2
+ce9d929609	2026-08-26T05:15	session	main	claude-opus-5	890	1780	875393	3511260	307237528	197.4579	0	build=7;unit test=8;lint/format=7;git merge=2;git push=2
+b78ad5ab55	2026-08-27T07:49	session	main	claude-opus-5	197	394	113510	817852	52141832	34.0222	0	unit test=8;typecheck=5;lint/format=4;git merge=3;git push=2
+3a9a9e7a69	2026-08-27T08:55	session	main	claude-opus-5	517	1034	417840	3389366	146360145	104.8148	0	build=9;unit test=17;lint/format=3;git merge=4;git push=4
+81db9a8e7a	2026-08-27T12:20	session	main	claude-opus-5	447	894	327900	1427310	145003944	89.6246	0	build=14;typecheck=5;lint/format=1;secret scan=8;git push=3;deploy/publish=2
+4fd4fa0193	2026-08-28T06:55	session	main	claude-opus-5	786	1572	646571	2656097	263712045	164.6288	0	unit test=16;typecheck=3;coverage=1;local ci gate=1;git merge=18;git push=2
+9ce3384e8f	2026-08-28T07:00	session	main	claude-opus-5	6	12	4180	86952	390390	0.8432	0	
+a3cd0ee203	2026-08-28T17:58	session	main	claude-opus-5	625	1250	619111	4166686	188185703	135.6187	0	build=14;typecheck=30;git merge=4;git push=12
+409e043cdc	2026-08-30T07:33	session	main	claude-opus-5	1199	2398	1326495	2682657	611751131	355.8165	0	build=4;unit test=133;typecheck=139;lint/format=25;git merge=5;git push=6
+cccd824946	2026-08-30T07:36	session	main	claude-opus-5	540	1080	717287	1670203	299592723	178.1727	0	build=10;unit test=21;lint/format=2;git merge=3
+5723eb5c3c	2026-08-30T11:22	agent	general-purpose	claude-opus-5	127	254	62011	642757	24678763	17.9082	0	unit test=12;typecheck=4;lint/format=5
+e21e6f59f5	2026-08-30T11:23	agent	general-purpose	claude-opus-5	55	108	11260	1056628	18435791	16.1039	0	
+f4c6bdf61c	2026-08-30T11:29	agent	general-purpose	claude-opus-5	138	276	56867	1005733	52095201	33.7565	0	unit test=11;typecheck=5;lint/format=2
+7b0b141b8f	2026-08-30T12:41	session	main	claude-opus-5	2	4	776	100380	75572	0.6846	0	
+d5029915d1	2026-08-30T12:41	session	main	claude-opus-5	82	164	73188	235544	8181599	7.3935	0	
+7975d2fe84	2026-08-30T19:29	session	main	claude-opus-5	32	64	16269	215348	2658425	3.0822	0	
+8cd520bb83	2026-08-30T19:48	session	main	claude-opus-5	1834	3668	1472424	16403898	1219914255	657.6926	0	build=9;unit test=19;typecheck=11;lint/format=1;e2e (playwright)=9;secret scan=1;git merge=13;git push=10
+045e46a382	2026-09-01T05:26	session	main	claude-opus-5	126	252	69670	881262	26365761	20.4338	0	
+aa47c63013	2026-09-01T06:35	session	main	claude-opus-5	540	1080	621568	2029691	267291579	161.8760	0	unit test=65;git merge=19;git push=14
+3bf02a1591	2026-09-01T09:45	session	main	claude-opus-5	2	4	9120	82232	75572	0.7798	0	
+70cfcfa05f	2026-09-01T10:00	session	main	claude-opus-5	9	18	5619	134902	609018	1.2882	0	
+924ff37b16	2026-09-01T11:06	session	main	claude-opus-5	303	606	283534	1154970	65274072	46.9470	0	git push=1
+0da908b413	2026-09-01T14:28	session	main	claude-opus-5	249	498	264289	1658037	73944571	53.9447	0	unit test=5;typecheck=2;git merge=2;git push=1
+f2ac09e257	2026-09-01T18:44	session	main	claude-opus-5	922	1844	961374	3688386	464908041	279.5500	0	build=38;unit test=82;lint/format=30;git merge=25;git push=8
+8648c5ad28	2026-09-02T11:45	session	main	claude-opus-5	38	76	47746	545371	5934785	7.5700	0	
+d4d137cfd4	2026-09-02T13:57	session	main	claude-opus-5	440	880	393232	1368452	123202392	79.9892	0	build=9;typecheck=16;lint/format=9;secret scan=4;git merge=4;git push=5;deploy/publish=1
+69631da9c7	2026-09-03T13:20	session	main	claude-opus-5	54	108	44070	649375	9923085	6.9632	0	git merge=2;git push=1
+fedb63e9ec	2026-09-03T17:23	session	main	claude-sonnet-5	2776	5552	1991591	18858769	1386767887	741.5907	0	build=9;unit test=28;lint/format=4;e2e (playwright)=8;e2e (maestro)=1;secret scan=12;git merge=40;git push=34
+67029a4404	2026-09-04T04:39	agent	general-purpose	claude-opus-5	137	274	20575	498846	26574145	16.9206	0	
+40a449c9ba	2026-09-04T04:40	agent	general-purpose	claude-opus-5	50	100	10447	362441	6115646	5.5848	0	
+f3babf2bd1	2026-09-04T06:16	agent	general-purpose	claude-opus-5	83	166	8298	602030	12132796	10.0374	0	
+4f83c440ba	2026-09-04T06:23	session	main	claude-opus-5	8	16	4724	112462	637104	1.1396	0	
+0f35dcfca6	2026-09-04T06:46	session	main	claude-opus-5	3684	9271	4224630	8795580	1692271906	1006.7704	0	build=144;unit test=95;typecheck=15;lint/format=24;git merge=54;git push=32
+b81f666b00	2026-09-04T09:55	agent	general-purpose	claude-opus-5	115	230	27996	528726	21062453	14.5368	0	
+66a88f21ce	2026-09-05T05:41	session	main	claude-opus-5	6	12	7522	244216	319182	1.8741	0	
+f8908386f6	2026-09-05T05:43	session	main	claude-opus-5	785	4780	1145593	6843767	380036057	255.1262	0	git merge=5;git push=33
+e8bcb99b9f	2026-09-05T07:00	agent	analyst	claude-sonnet-5	28	56	6090	536856	4390434	2.2812	0	
+ef04429505	2026-09-05T07:00	agent	analyst	claude-sonnet-5	29	58	41242	596218	5008624	2.9048	0	
+25db7a8133	2026-09-05T07:10	agent	qa	claude-opus-5	91	182	18387	354523	11733590	8.5431	0	
+12597f76a3	2026-09-05T12:11	agent	qa	claude-opus-5	44	88	9301	327896	3705957	4.1353	0	
+10882754aa	2026-09-05T14:40	session	main	claude-fable-5-1	383	11292	654743	1454254	162119638	91.5582	0	build=13;unit test=25;lint/format=5;git merge=1;git push=6
+b7a6d11bb3	2026-09-05T16:34	agent	qa	claude-opus-5	79	158	11040	304838	8736823	6.5504	0	build=1
+33c154162a	2026-09-05T16:35	agent	analyst	claude-sonnet-5	48	96	3011	515918	4262050	2.1725	0	
+1ec3880d13	2026-09-05T16:53	session	main	claude-opus-5	18098	175300	31317359	101465841	8999354216	5917.6491	0	build=435;unit test=741;typecheck=202;lint/format=113;coverage=83;e2e (playwright)=152;secret scan=20;SAST=80;git merge=165;git push=232
+153b7931e6	2026-09-05T17:13	agent	analyst	claude-sonnet-5	27	54	2226	167521	1984223	0.8380	0	
+291026edce	2026-09-05T17:13	agent	architect	claude-opus-5	86	172	7810	359903	8548453	6.7197	0	
+e4468c615d	2026-09-05T17:15	agent	test-writer	claude-sonnet-5	24	48	4993	329826	1482282	1.1710	0	typecheck=1
+758e2bc881	2026-09-05T17:16	agent	doc-writer	claude-haiku-4-5-20251001	50	412	4803	378796	3138121	0.8117	0	
+a4361e0226	2026-09-05T17:16	agent	developer	claude-opus-5	36	72	7156	215520	2305500	2.6790	0	unit test=3;lint/format=1
+cece1c25d5	2026-09-05T17:31	agent	doc-writer	claude-haiku-4-5-20251001	45	370	6949	299478	2180792	0.6275	0	
+2f512ccbe7	2026-09-05T17:36	agent	developer	claude-opus-5	78	156	19339	417294	9212148	7.6984	0	build=2;unit test=7;lint/format=1
+b7481b1cea	2026-09-05T17:41	agent	product-manager	claude-sonnet-5	26	52	1255	393735	1640322	1.3251	0	
+56eb2ff898	2026-09-05T17:53	agent	developer	claude-opus-5	77	154	13822	294049	6767590	5.5679	0	build=1;unit test=2;lint/format=2
+f2f00927fc	2026-09-05T18:03	agent	qa	claude-opus-5	65	130	13029	384328	6523408	5.9901	0	unit test=1
+41803ee40c	2026-09-05T18:12	agent	developer	claude-opus-5	68	136	36628	321886	6776201	6.3163	0	build=2;unit test=5;lint/format=2
+dbddd953f0	2026-09-05T18:13	agent	developer	claude-opus-5	81	162	20254	357648	8772748	7.1288	0	build=4;unit test=6;typecheck=2;lint/format=2
+4dd83117f1	2026-09-05T18:24	agent	developer	claude-opus-5	32	64	6064	254790	1956487	2.7226	0	typecheck=2
+e9cbff7a17	2026-09-05T18:29	agent	developer	claude-opus-5	22	44	15787	227338	1431457	2.5315	0	build=1;unit test=1;lint/format=1
+33ac3df01d	2026-09-05T18:47	agent	developer	claude-opus-5	120	240	21992	446439	15753582	11.2180	0	build=4;unit test=6;lint/format=3
+4e59d2f414	2026-09-05T18:48	agent	developer	claude-opus-5	76	152	44959	375801	8004804	7.4759	0	build=3;unit test=2;lint/format=2
+e45c7f72b9	2026-09-05T18:49	agent	developer	claude-opus-5	180	360	33737	536697	29760538	19.0799	0	build=3;unit test=10;lint/format=1
+ac711fd30f	2026-09-05T18:56	agent	analyst	claude-sonnet-5	50	100	4716	160726	3247289	1.0986	0	
+ff6ea0fb18	2026-09-05T18:56	agent	analyst	claude-sonnet-5	144	288	23287	373042	20017733	5.1696	0	
+81f7ea29ec	2026-09-05T18:57	agent	test-writer	claude-sonnet-5	128	256	6939	452572	16280997	4.4575	0	typecheck=4
+75d9c629e3	2026-09-05T18:58	agent	test-writer	claude-sonnet-5	104	208	10604	400021	10660145	3.2385	0	typecheck=1
+c998d85ac0	2026-09-05T18:58	agent	test-writer	claude-sonnet-5	87	174	14685	544547	13342482	4.1771	0	e2e (playwright)=1
+0ff2e24910	2026-09-05T18:59	agent	test-writer	claude-sonnet-5	80	160	12134	369381	8384985	2.7221	0	
+636429f972	2026-09-05T19:02	agent	test-writer	claude-sonnet-5	128	256	6270	478022	15602948	4.3789	0	build=1;unit test=4;lint/format=1
+dc066f6bd7	2026-09-05T19:07	agent	developer	claude-opus-5	59	118	29557	394506	5321863	5.8661	0	build=3;unit test=8;lint/format=2
+4ca597c2e7	2026-09-05T19:13	agent	developer	claude-opus-5	83	166	11518	286190	6956331	5.5556	0	build=2;unit test=4;typecheck=2;lint/format=1
+07e006a484	2026-09-05T19:33	agent	developer	claude-opus-5	206	412	34881	549426	28768573	18.6923	0	typecheck=2
+e6784bbdd3	2026-09-05T20:31	agent	analyst	claude-sonnet-5	60	120	9468	286268	4560571	1.7227	0	
+5ba3860ca8	2026-09-06T06:09	agent	developer	claude-sonnet-5	65	130	5515	197549	4688640	1.4870	0	build=1;unit test=1;lint/format=1
+44f4fdd7da	2026-09-06T06:10	agent	developer	claude-sonnet-5	150	300	19743	439592	19867844	5.2706	0	build=2;unit test=1;lint/format=1
+adb06852b7	2026-09-06T06:10	agent	developer	claude-sonnet-5	93	186	11203	281569	7704078	2.3571	0	build=1;unit test=1;typecheck=1;lint/format=1
+255ed59858	2026-09-06T06:28	agent	developer	claude-sonnet-5	121	242	8289	731124	19659154	5.8430	0	build=3;unit test=6;lint/format=1
+89eec526b9	2026-09-06T06:29	agent	developer	claude-sonnet-5	192	384	20582	594975	32772780	8.2486	0	typecheck=4
+d707af0f53	2026-09-06T06:29	agent	developer	claude-sonnet-5	266	532	72670	909089	73783182	17.7571	0	build=9;unit test=7;lint/format=3
+f01a82de44	2026-09-06T06:48	agent	test-writer	claude-sonnet-5	153	306	28926	523257	21808237	5.9597	0	build=2;unit test=1;lint/format=2
+ea7523f738	2026-09-06T06:49	agent	developer	claude-sonnet-5	117	234	16116	294920	12662476	3.4314	0	build=3;unit test=3;typecheck=1;lint/format=1
+f1dad50195	2026-09-06T08:09	agent	test-writer	claude-sonnet-5	175	350	26926	765289	28763118	7.9358	0	typecheck=1
+fdab5c0b39	2026-09-06T08:09	agent	analyst	claude-sonnet-5	75	150	7763	385468	6721020	2.3858	0	
+c94900bf7d	2026-09-06T08:10	agent	doc-writer	claude-sonnet-5	143	286	17630	741739	26948677	7.4210	0	
+77a16359bc	2026-09-06T08:13	agent	developer	claude-opus-5	175	350	29655	603580	30962550	19.9968	0	
+ce1bb4f71b	2026-09-06T08:13	agent	developer	claude-opus-5	123	246	29327	602135	19608890	14.3022	0	
+0e163ef56b	2026-09-06T11:42	agent	qa	claude-opus-5	117	234	11684	485519	16957283	11.8064	0	
+c533b5f32a	2026-09-06T11:42	agent	analyst	claude-sonnet-5	49	98	7743	245091	4204530	1.5313	0	
+04df68220e	2026-09-06T13:08	agent	test-writer	claude-sonnet-5	132	264	18708	511216	18543910	5.1744	0	build=4;unit test=6
+d7596cef3f	2026-09-06T13:08	agent	developer	claude-opus-5	65	130	11502	257578	5931013	4.8636	0	build=1;lint/format=1
+ef2bd2973a	2026-09-06T13:19	agent	qa	claude-opus-5	81	162	10903	356552	7975238	6.4895	0	
+10c92084e5	2026-09-07T05:26	agent	test-writer	claude-sonnet-5	53	106	2242	172498	3540968	1.1621	0	unit test=3
+a91517d832	2026-09-07T05:26	agent	test-writer	claude-sonnet-5	71	142	11479	261816	6440412	2.0577	0	unit test=6
+9724b06c4c	2026-09-07T05:28	session	main	claude-opus-5	11	22	12549	212970	1014280	2.1520	0	
+e6355ade6b	2026-09-07T05:49	session	main	claude-opus-5	230	460	173495	797438	41181714	29.9145	0	build=2;typecheck=3;lint/format=3;secret scan=1;git merge=1;git push=1
+3d1cc424e4	2026-09-07T05:57	agent	qa	claude-opus-5	116	232	26186	340659	14184815	9.8773	0	build=1
+1d2574978d	2026-09-07T06:10	agent	analyst	claude-sonnet-5	59	118	2875	316395	4794181	1.7788	0	
+12da1ed3a9	2026-09-07T06:18	agent	test-writer	claude-sonnet-5	149	298	14930	466338	20859942	5.4877	0	unit test=10;lint/format=2
+611295b036	2026-09-07T10:11	agent	test-writer	claude-sonnet-5	44	88	1326	185021	3250158	1.1260	0	build=1;unit test=5;lint/format=1
+d057c58098	2026-09-07T11:19	session	main	synthetic	1	0	0	0	0	0.0000	0	
+3080bbb838	2026-09-07T12:02	session	main	claude-opus-5	67	134	61340	668635	8975060	10.2007	0	
+e90a832c2e	2026-09-07T14:33	agent	developer	claude-opus-5	70	140	15479	324380	6540785	5.6854	0	build=1;unit test=4;lint/format=1
+f30f4318cf	2026-09-07T16:54	agent	developer	claude-opus-5	130	260	19529	379503	15416850	10.5698	0	build=4;unit test=6;lint/format=1;secret scan=2
+5f4dc9c8d6	2026-09-07T16:55	agent	developer	claude-opus-5	96	192	26415	408062	11667036	9.0452	0	build=4;unit test=5;lint/format=1
+4624fa4e67	2026-09-07T17:45	agent	analyst	claude-sonnet-5	87	174	8304	286633	7371945	2.2744	0	
+226bbccfda	2026-09-07T17:47	agent	test-writer	claude-sonnet-5	51	102	5486	350944	3512786	1.6350	0	typecheck=6
+d3a1a21855	2026-09-07T17:48	agent	test-writer	claude-sonnet-5	18	36	546	197185	1056016	0.7097	0	unit test=1
+17804ad41f	2026-09-07T17:52	session	main	claude-opus-5	230	460	354440	828357	53847141	40.9641	0	git merge=2;git push=3
+34f219d479	2026-09-07T18:03	agent	test-writer	claude-sonnet-5	49	98	4919	305398	4165597	1.6460	0	
+58dc9490f6	2026-09-07T20:40	session	main	claude-opus-5	48	96	152522	295900	7100460	9.2131	0	
+ac6b2fc598	2026-09-07T20:58	agent	developer	claude-opus-5	26	52	4247	210059	1457670	2.1481	0	typecheck=1
+77f7393369	2026-09-08T04:39	agent	analyst	claude-sonnet-5	31	62	5283	121475	907523	0.5381	0	
+df978841a1	2026-09-08T04:41	agent	qa	claude-opus-5	32	64	12142	213033	1447382	2.3590	0	
+73810e2c43	2026-09-08T04:45	agent	test-writer	claude-sonnet-5	48	96	6690	228602	2314887	1.1016	0	unit test=2
+3d10ade653	2026-09-08T04:47	agent	test-writer	claude-sonnet-5	38	76	3316	281049	2972978	1.3305	0	build=1;unit test=3
+b66608e42a	2026-09-08T04:51	agent	qa	claude-opus-5	45	90	6113	292185	2427727	3.1933	0	build=1;unit test=1
+afda27878d	2026-09-08T05:35	agent	test-writer	claude-sonnet-5	51	102	11825	211352	3973486	1.4415	0	unit test=4
+c66022cab8	2026-09-08T05:36	agent	qa	claude-opus-5	75	150	9782	259029	7253059	5.4908	0	build=1;unit test=2;typecheck=1
+fe9bd2807a	2026-09-08T05:47	agent	test-writer	claude-sonnet-5	43	86	8188	277108	3645845	1.5040	0	unit test=3
+29ffeebae9	2026-09-08T06:21	agent	designer	claude-sonnet-5	16	32	820	145714	262932	0.4251	0	
+098b4b9e28	2026-09-08T06:22	agent	qa	claude-opus-5	99	198	39541	308433	7876987	6.8557	0	
+72740800cc	2026-09-08T06:24	agent	qa	claude-opus-5	46	92	21939	278620	2592708	3.5867	0	
+4cfe96fb47	2026-09-08T06:45	session	main	claude-opus-5	953	1906	1242252	5613873	501084808	316.6949	0	build=66;unit test=47;typecheck=10;lint/format=16;coverage=2;e2e (playwright)=2;secret scan=2;SAST=13;dependency CVE=1;git merge=31;git push=1
+c71feaf674	2026-09-08T06:46	agent	analyst	claude-sonnet-5	39	78	8338	277872	1949202	1.1681	0	
+64fbf229e7	2026-09-08T06:47	agent	analyst	claude-sonnet-5	137	274	5699	443774	9578124	3.0826	0	build=5;unit test=1
+a7ddd95066	2026-09-08T07:00	agent	test-writer	claude-sonnet-5	25	50	4105	171504	1632313	0.7964	0	unit test=1
+5e6f5097a6	2026-09-08T07:06	agent	analyst	claude-sonnet-5	37	74	2490	166761	2653129	0.9726	0	
+d39ae1934a	2026-09-08T07:16	agent	analyst	claude-sonnet-5	67	134	8009	414939	6472122	2.4121	0	
+c9bc2b5db1	2026-09-08T08:13	agent	test-writer	claude-sonnet-5	58	116	11210	367965	6142450	2.2607	0	build=1;unit test=6
+0c7b177227	2026-09-08T08:27	agent	test-writer	claude-sonnet-5	44	88	14520	338351	3989154	1.7891	0	unit test=3
+063d295b0f	2026-09-08T09:33	agent	developer	claude-opus-5	52	104	6967	249665	3552224	3.5112	0	build=3;unit test=3;lint/format=1
+24e5b0e527	2026-09-08T09:33	agent	developer	claude-opus-5	66	132	11732	362854	4377127	4.7504	0	build=3;unit test=4;lint/format=2
+0e00a78bd6	2026-09-08T09:36	agent	test-writer	claude-sonnet-5	46	92	1879	384598	4137450	1.8080	0	build=1;unit test=3
+bb4009b5fa	2026-09-08T10:11	agent	test-writer	claude-sonnet-5	24	48	2676	184100	1730757	0.8333	0	build=1;unit test=3
+bac355d383	2026-09-08T12:08	agent	test-writer	claude-sonnet-5	84	168	9226	389808	9725062	3.0121	0	unit test=7
+193c508a97	2026-09-08T12:37	agent	developer	claude-opus-5	92	184	28060	388953	11837576	9.0522	0	build=1;typecheck=2
+878f23afc4	2026-09-08T12:38	agent	developer	claude-opus-5	106	212	27619	386872	13855179	10.0371	0	build=2;unit test=8;typecheck=2;lint/format=2
+1542a74470	2026-09-08T15:32	agent	developer	claude-opus-5	99	198	30696	506323	14685571	11.2757	0	build=2;unit test=9;typecheck=2;lint/format=2
+7280f360e4	2026-09-08T15:32	session	main	claude-opus-5	4877	9878	4868290	28028721	2287440637	1440.6565	0	build=239;unit test=273;typecheck=37;lint/format=96;coverage=31;secret scan=8;SAST=10;dependency CVE=9;git merge=26;git push=7
+2dd7ca34f4	2026-09-08T15:49	agent	qa	claude-opus-5	68	136	21794	317539	8055109	6.5577	0	unit test=2;typecheck=1
+df4f018dfd	2026-09-08T16:00	agent	developer	claude-opus-5	84	168	21128	361135	9103269	7.3378	0	build=2;unit test=10;typecheck=3;lint/format=3
+33d5c138f0	2026-09-08T17:56	agent	developer	claude-opus-5	163	326	39645	488225	23863555	15.9759	0	build=4;unit test=11;lint/format=1
+50aeae0837	2026-09-08T17:57	agent	developer	claude-opus-5	36	72	12192	271904	2500706	3.2549	0	typecheck=2
+26858e9e33	2026-09-08T18:24	agent	qa	claude-opus-5	84	168	20819	429550	10149044	8.2805	0	unit test=3;typecheck=1
+e90248dda2	2026-09-08T18:36	agent	developer	claude-opus-5	107	214	49474	437058	14416179	11.1776	0	build=4;unit test=11;typecheck=1;lint/format=1
+dbcf44e7de	2026-09-08T19:20	agent	developer	claude-opus-5	100	200	44672	520777	15204033	11.9747	0	build=9;unit test=4;typecheck=2;lint/format=1
+edaa425632	2026-09-08T19:45	agent	qa	claude-opus-5	102	204	18734	552713	13978640	10.9131	0	unit test=4;typecheck=1;lint/format=1;secret scan=1
+66e497239b	2026-09-09T05:47	agent	test-writer	claude-sonnet-5	31	62	4325	172243	1289271	0.7318	0	unit test=3;lint/format=1
+c9c318f617	2026-09-09T05:50	session	main	claude-opus-5	10	20	2586	260381	751971	2.0681	0	
+92110a208c	2026-09-09T05:57	agent	test-writer	claude-sonnet-5	18	36	18676	152797	787773	0.7264	0	unit test=2;lint/format=1
+2943b2b88e	2026-09-09T06:05	agent	qa	claude-opus-5	84	168	13560	509107	7931060	7.4873	0	build=1;unit test=1
+fd6468ac1c	2026-09-09T06:27	agent	qa	claude-opus-5	67	134	21328	341511	5429350	5.3830	0	build=1;unit test=1
+ed3a71acd7	2026-09-09T11:24	agent	qa	claude-opus-5	61	122	13540	264330	3472664	3.7275	0	unit test=1;typecheck=1
+67cfd743e5	2026-09-09T11:39	agent	qa	claude-opus-5	74	148	19055	298159	5377241	5.0292	0	
+0b759547b9	2026-09-10T10:37	session	main	claude-opus-5	38	76	58276	279885	4046182	5.2297	0	
+be234f4fdb	2026-09-10T18:15	session	main	claude-opus-5	5674	89226	11983197	47111780	2651281497	1920.1154	0	build=37;unit test=396;typecheck=68;lint/format=89;coverage=45;e2e (playwright)=10;local ci gate=3;git merge=105;git push=100
+3075ccb8a9	2026-09-11T06:17	session	main	claude-opus-5	115	230	45888	276122	14615025	10.1816	0	
+79cc3ec36a	2026-09-11T16:05	session	main	claude-opus-5	127	254	278642	1639513	20864350	27.6465	0	
+d886032566	2026-09-12T06:55	agent	analyst	claude-sonnet-5	66	132	14214	342951	5801156	2.1600	0	
+a5af399eee	2026-09-12T06:56	agent	analyst	claude-sonnet-5	41	82	13312	190959	3513163	1.3133	0	
+2808955a98	2026-09-12T07:07	agent	analyst	claude-sonnet-5	71	142	19646	1102887	21633873	7.2807	0	
+49c09ada3c	2026-09-12T07:08	agent	qa	claude-opus-5	129	258	32115	1261661	43480026	30.4296	0	unit test=1
+7c6b6c1174	2026-09-12T07:23	agent	qa	claude-opus-5	97	194	22560	421342	11239275	8.8180	0	unit test=2
+c4ae62d6bd	2026-09-12T07:40	agent	qa	claude-opus-5	71	142	19361	339573	6509616	5.8619	0	unit test=5;typecheck=1
+fa1d6946de	2026-09-12T09:46	agent	analyst	claude-sonnet-5	52	104	6053	471565	6511987	2.5420	0	
+7ea03d2e7a	2026-09-12T09:48	session	main	claude-opus-5	2965	63806	6841340	28349815	1432523450	1064.8006	0	unit test=233;typecheck=28;lint/format=54;coverage=243;git merge=22;git push=11
+2e1ccc58d2	2026-09-12T10:18	agent	developer	claude-opus-5	112	224	25238	330606	7866814	6.6318	0	build=2;unit test=2;lint/format=2
+43e4de596e	2026-09-12T10:18	agent	doc-writer	claude-haiku-4-5-20251001	24	200	9103	247814	1167756	0.4723	0	
+89e3fef61b	2026-09-12T10:18	agent	test-writer	claude-sonnet-5	82	164	33807	384403	9965541	3.2925	0	unit test=7
+19b6a8197e	2026-09-12T10:19	agent	developer	claude-opus-5	111	222	22108	404571	12103268	9.1340	0	build=3;unit test=6;lint/format=6
+c30b7a5f17	2026-09-12T10:19	agent	developer	claude-opus-5	112	224	36475	420102	11930609	9.5039	0	build=2;unit test=10;lint/format=3
+746b4e36b6	2026-09-12T10:46	agent	test-writer	claude-sonnet-5	24	48	11070	796543	4558419	3.0138	0	unit test=3
+de734cc5f9	2026-09-12T10:46	agent	test-writer	claude-sonnet-5	42	84	14954	958494	10505725	4.6471	0	unit test=8;coverage=4
+4cc7608006	2026-09-12T10:47	agent	test-writer	claude-sonnet-5	80	160	30663	697388	12768956	4.6042	0	unit test=8;typecheck=2;coverage=2
+561d656aae	2026-09-12T10:47	agent	test-writer	claude-sonnet-5	99	198	44470	541908	18038376	5.4075	0	unit test=15;typecheck=2;coverage=7
+584b5f4d1f	2026-09-12T10:47	agent	test-writer	claude-sonnet-5	49	98	16001	868642	10991013	4.5300	0	unit test=6;lint/format=1;coverage=2
+087b24b72a	2026-09-12T10:48	agent	test-writer	claude-sonnet-5	64	128	35823	884125	14600210	5.4888	0	unit test=5;coverage=2
+a9127d9680	2026-09-12T10:48	agent	test-writer	claude-sonnet-5	64	128	27627	766478	15147223	5.2222	0	unit test=6
+9fbac41356	2026-09-12T10:59	agent	qa	claude-opus-5	7	12	1053	332262	320412	2.2632	0	
+d5a6b88a11	2026-09-12T12:36	session	main	claude-opus-5	110	220	68983	1205469	23046719	20.7832	0	unit test=13;coverage=9;git merge=5;git push=1
+eaf19c37ec	2026-09-12T12:36	session	main	claude-opus-5	144	288	97819	1297911	39710385	30.4141	0	unit test=10;typecheck=3;lint/format=2;coverage=11;git merge=2;git push=2
+046ff18418	2026-09-12T12:40	agent	analyst	claude-sonnet-5	68	136	9493	662496	18582933	5.4680	0	
+6bc87028b4	2026-09-12T12:40	agent	analyst	claude-sonnet-5	53	106	13285	830849	14197076	5.0496	0	
+a57f3c93fd	2026-09-12T12:44	agent	test-writer	claude-sonnet-5	345	688	123310	1273201	120929943	28.6035	0	unit test=82;coverage=24
+cc0f93b8f5	2026-09-12T12:44	agent	test-writer	claude-sonnet-5	328	654	110089	921126	113951152	26.1952	0	unit test=71;lint/format=2;coverage=14
+7e0cf78b00	2026-09-12T12:45	agent	test-writer	claude-sonnet-5	335	670	121765	1029767	106410311	25.0755	0	unit test=57;coverage=20
+a1554df8e0	2026-09-12T12:45	agent	test-writer	claude-sonnet-5	269	538	108945	1167598	85425341	21.0946	0	unit test=45;coverage=2
+b0fa4a82d4	2026-09-12T12:45	agent	test-writer	claude-sonnet-5	194	388	99769	959100	60176558	15.4315	0	unit test=42;coverage=19
+de233232ed	2026-09-12T12:45	agent	test-writer	claude-sonnet-5	293	586	96864	1080280	93610044	22.3925	0	unit test=36;lint/format=1;coverage=6
+cfc0a3e875	2026-09-12T12:46	agent	test-writer	claude-sonnet-5	302	604	116723	805630	92316329	21.6458	0	unit test=61;lint/format=1;coverage=24
+ffe9eaa8f9	2026-09-12T12:46	agent	test-writer	claude-sonnet-5	307	612	131199	693479	73862478	17.8194	0	unit test=35;typecheck=4;coverage=14
+69ae5afdf2	2026-09-12T12:47	agent	test-writer	claude-sonnet-5	232	464	122370	782333	54246353	14.0297	0	unit test=21;coverage=11
+b9841fe61b	2026-09-12T12:47	agent	test-writer	claude-sonnet-5	292	582	157531	866042	75335983	18.8088	0	unit test=56;lint/format=1;coverage=19
+7c2023b70f	2026-09-12T12:48	agent	qa	claude-opus-5	116	232	49100	974286	24792583	19.7142	0	unit test=5;coverage=7
+8fbe2c0839	2026-09-12T16:40	session	main	claude-opus-5	109	218	101846	519202	23941278	17.7629	0	unit test=11;coverage=2;git merge=1;git push=1
+2adfeea21e	2026-09-12T19:08	agent	analyst	claude-sonnet-5	39	78	10117	111596	1549052	0.6901	0	
+c7b3c4f81e	2026-09-13T05:51	agent	qa	claude-opus-5	97	772	32524	1337266	8628768	13.4893	0	unit test=1
+d06f6adc6d	2026-09-13T06:00	agent	test-writer	claude-sonnet-5	151	302	44205	441404	28281114	7.2024	0	unit test=6
+ed30cd85ec	2026-09-13T06:00	agent	test-writer	claude-sonnet-5	110	220	26313	567174	22950022	6.2715	0	unit test=7;typecheck=1
+fc3a351156	2026-09-13T06:00	agent	test-writer	claude-sonnet-5	163	326	53814	708331	48356430	11.9809	0	unit test=3;lint/format=7
+a7d15089c4	2026-09-13T06:01	agent	test-writer	claude-sonnet-5	380	760	98482	1380303	101593717	24.7558	0	unit test=45;typecheck=7;lint/format=15;coverage=5
+ca0d3f1dde	2026-09-13T06:19	agent	test-writer	claude-sonnet-5	305	610	65215	743794	92981873	21.1092	0	unit test=15;typecheck=2;lint/format=19
+2d584d8fde	2026-09-13T06:20	agent	test-writer	claude-sonnet-5	537	1074	111930	1124288	188276454	41.5875	0	unit test=23;typecheck=36;lint/format=30
+9ed7c26ffd	2026-09-13T06:36	agent	developer	claude-opus-5	36	1032	10211	169391	1201028	1.9196	0	unit test=3;lint/format=2
+e26c7d65eb	2026-09-13T06:36	agent	developer	claude-opus-5	61	1862	46136	1697902	7954715	15.7520	0	unit test=3;lint/format=3
+5f391f4da4	2026-09-13T06:37	agent	developer	claude-opus-5	51	1512	23332	399778	2798146	4.4885	0	unit test=4;typecheck=1;lint/format=4
+f046fa9027	2026-09-13T10:57	session	main	claude-opus-5	76	2136	72879	262211	8501514	7.7222	0	unit test=9;typecheck=1;lint/format=3;git merge=2;git push=1
+34c302b040	2026-09-13T11:00	session	main	claude-opus-5	96	2564	130672	949440	19314270	18.8708	0	unit test=10;typecheck=4;lint/format=4;git merge=2;git push=2
+62a9ff7b38	2026-09-13T12:30	session	main	claude-opus-5	44	1232	30753	629329	6159572	7.7881	0	unit test=4;lint/format=1;git merge=2;git push=1
+a0e1a245a9	2026-09-13T12:37	session	main	claude-opus-5	35	882	25572	215827	3787548	3.8864	0	git merge=1;git push=1
+2e354978d3	2026-09-13T14:34	session	main	claude-opus-5	220	5822	476156	1573064	46525886	45.0276	0	git merge=2;git push=1
+d60b476865	2026-09-13T14:38	agent	test-writer	claude-sonnet-5	255	510	124421	583401	51542851	13.0123	0	unit test=29;coverage=7;git merge=3
+ec1e4622c1	2026-09-13T14:38	agent	test-writer	claude-sonnet-5	310	620	121544	716628	63532901	15.7148	0	unit test=37;coverage=6;git merge=1
+ef935f9c15	2026-09-13T14:38	agent	test-writer	claude-sonnet-5	196	392	77436	503027	29821293	7.9970	0	unit test=22;coverage=3;git merge=2
+2503dd5dbb	2026-09-13T15:29	agent	test-writer	claude-sonnet-5	50	100	24135	243899	3719905	1.5953	0	
+6646f95576	2026-09-13T15:37	agent	qa	claude-opus-5	29	868	30623	511716	1773779	4.8550	0	coverage=1;local ci gate=1;git merge=1;git push=2
+a5d3a563ca	2026-09-13T15:49	agent	test-writer	claude-sonnet-5	140	280	72046	376655	17191148	5.1009	0	
+579927d6d8	2026-09-13T15:50	agent	analyst	claude-sonnet-5	185	370	73657	332699	17163389	5.0017	0	git merge=3
+6a12114f69	2026-09-13T16:07	agent	qa	claude-opus-5	47	1444	37596	425185	3144135	5.1766	0	git merge=1;git push=1
+ff71ecec3d	2026-09-13T16:12	agent	test-writer	claude-sonnet-5	133	266	48798	272164	12553469	3.6796	0	typecheck=6;lint/format=6;e2e (playwright)=9
+d590f9a264	2026-09-13T16:19	agent	test-writer	claude-sonnet-5	82	164	26985	154744	5123855	1.6818	0	git merge=1
+52a70b7e65	2026-09-13T16:38	session	main	claude-opus-5	86	2422	89515	373780	13167926	11.1701	0	unit test=6;git merge=2;git push=2
+932ef77e1f	2026-09-14T05:46	session	main	claude-opus-5	90	2764	490608	993485	15706221	26.3414	0	local ci gate=1;git merge=1;git push=1
+150e029ca6	2026-09-14T05:47	session	main	claude-opus-5	2239	60322	4787211	10972953	1040173656	708.6497	0	build=11;unit test=53;typecheck=10;lint/format=2;coverage=47;e2e (playwright)=29;git merge=72;git push=61
+1b80c5a4ee	2026-09-14T08:04	agent	test-writer	claude-sonnet-5	217	434	70915	707870	32425740	8.9648	0	git push=1
+da4ff7d600	2026-09-14T08:05	agent	test-writer	claude-sonnet-5	382	764	137621	1366794	84966357	21.7880	0	e2e (maestro)=1;git push=1
+029222e39b	2026-09-14T08:06	agent	test-writer	claude-sonnet-5	126	252	61213	339548	16822322	4.8260	0	unit test=1;git push=1
+ed9286e4ae	2026-09-14T08:45	session	main	claude-opus-5	35	820	39678	221001	3623403	4.1890	0	
+616689337e	2026-09-14T11:36	session	main	claude-opus-5	308	8836	788441	1377637	87959331	72.3451	0	build=2;unit test=16;coverage=7;e2e (playwright)=2;git merge=5;git push=4
+4b8428704d	2026-09-14T11:45	agent	developer	claude-opus-5	127	3836	104993	1113969	26833161	23.0229	0	
+2d5b52f4fb	2026-09-14T11:46	agent	developer	claude-opus-5	143	4432	102086	1219633	27429180	23.9116	0	
+4e99912929	2026-09-14T12:11	agent	test-writer	claude-sonnet-5	103	206	48587	355911	13208780	4.0178	0	git push=1
+00ce4ee165	2026-09-14T12:14	agent	test-writer	claude-sonnet-5	193	386	128831	1286046	42436297	12.9915	0	git push=1
+75af8a827b	2026-09-14T12:53	agent	test-writer	claude-sonnet-5	205	410	101505	421126	33239975	8.7167	0	git push=1
+4a53ab891c	2026-09-14T12:54	agent	test-writer	claude-sonnet-5	371	742	141420	604296	82160570	19.3585	0	git merge=1;git push=2
+40f1dbaec5	2026-09-14T12:55	agent	test-writer	claude-sonnet-5	241	482	102610	496254	42531919	10.7741	0	git merge=3;git push=1
+3f5656d6ab	2026-09-14T13:04	agent	test-writer	claude-sonnet-5	541	1082	211669	1019801	185709964	41.8103	0	git push=1
+64fac82134	2026-09-14T15:10	agent	test-writer	claude-sonnet-5	222	444	62083	535238	40663517	10.0925	0	git push=1
+34652c4008	2026-09-14T15:14	agent	analyst	claude-sonnet-5	96	192	22581	417948	11737124	3.6185	0	
+26ef8f0a9c	2026-09-14T15:37	agent	test-writer	claude-sonnet-5	164	328	43877	384472	22855600	5.9717	0	git merge=1
+1d665b8616	2026-09-14T15:46	agent	analyst	claude-sonnet-5	43	86	7599	202038	3575640	1.2964	0	
+2d6a9b4c28	2026-09-14T15:46	agent	analyst	claude-sonnet-5	39	78	6553	382030	3143102	1.6494	0	
+37bdcaf678	2026-09-14T15:47	agent	analyst	claude-sonnet-5	71	142	18253	211637	6522709	2.0164	0	
+f5bdb8eb0d	2026-09-14T15:47	agent	test-writer	claude-sonnet-5	138	276	34787	413854	21680823	5.7192	0	
+fb0eef7b06	2026-09-14T15:47	agent	analyst	claude-sonnet-5	82	164	19727	298900	9820054	2.9089	0	
+f443a03ad0	2026-09-14T15:48	agent	analyst	claude-sonnet-5	77	154	20757	241491	7906226	2.3929	0	
+0372ae5dc1	2026-09-14T15:49	agent	architect	claude-opus-5	54	1668	25677	746134	7455561	9.0414	0	git merge=2
+32a6d1aeae	2026-09-14T15:50	agent	architect	claude-opus-5	49	1508	32238	1245818	6476811	11.8383	0	git merge=1
+2fb4eb2e15	2026-09-14T15:54	agent	test-writer	claude-sonnet-5	75	150	20283	255096	7185720	2.2780	0	
+5396c8c81d	2026-09-14T15:54	agent	test-writer	claude-sonnet-5	95	190	13720	305743	10918638	3.0857	0	
+403000dc81	2026-09-14T15:55	agent	developer	claude-opus-5	82	2266	38730	2299032	9401337	20.0492	0	git push=1
+b9e9451871	2026-09-14T15:55	agent	test-writer	claude-sonnet-5	59	118	13610	208890	5367362	1.7320	0	
+2bfe43cbc0	2026-09-14T15:56	agent	developer	claude-opus-5	80	2290	48357	2954008	10275234	24.8205	0	git push=1
+526b0f062f	2026-09-14T15:56	agent	developer	claude-opus-5	56	1672	34406	538413	7796727	8.1320	0	git push=1
+5e9ccd875c	2026-09-14T15:57	agent	developer	claude-opus-5	59	1738	48108	648627	7914562	9.2226	0	git push=1
+444c69069d	2026-09-14T16:13	agent	developer	claude-opus-5	80	2500	85577	1687847	11651089	18.5265	0	git push=1
+68f6d43a35	2026-09-14T16:13	agent	developer	claude-opus-5	84	2508	81655	4154523	11235984	33.6377	0	git push=1
+2d9e23fc1b	2026-09-14T16:14	agent	developer	claude-opus-5	90	2708	69285	2127034	14022983	22.0511	0	git push=1
+a613d6fe6e	2026-09-14T16:14	agent	developer	claude-opus-5	58	1796	56881	1707848	6235397	15.2228	0	git push=1
+5df910d08f	2026-09-14T16:21	agent	analyst	claude-sonnet-5	75	150	19576	301567	8593065	2.6686	0	
+5f5a8fe8c4	2026-09-14T16:22	agent	analyst	claude-sonnet-5	75	150	17098	218582	7190018	2.1557	0	
+8ff73a9c57	2026-09-14T16:22	agent	analyst	claude-sonnet-5	65	130	14689	220423	6141123	1.9264	0	
+c992aeabd6	2026-09-14T16:22	agent	analyst	claude-sonnet-5	71	142	19539	307519	7001173	2.3647	0	
+8984ef80a1	2026-09-15T08:23	session	main	claude-opus-5	5591	26566	8048998	37673398	3250244316	1651.5623	0	build=88;unit test=308;typecheck=70;lint/format=119;coverage=2;git merge=19;git push=18
+6bdfcc0e2c	2026-09-15T16:33	agent	Explore	claude-sonnet-5	44	88	5262	917590	9650309	4.2768	0	
+020136c7c2	2026-09-15T19:43	agent	Explore	claude-sonnet-5	16	32	5391	836990	2175734	2.5816	0	
+fb35c7d0e9	2026-09-16T07:36	agent	analyst	claude-sonnet-5	35	70	11791	584906	3590056	2.2983	0	
+eeda7c0fa0	2026-09-16T07:44	agent	developer	claude-opus-5	40	80	16031	423272	3770812	4.9320	0	lint/format=2
+8119cf3cd3	2026-09-16T10:04	agent	test-writer	claude-sonnet-5	131	262	64298	711481	24719335	7.3661	0	unit test=13;typecheck=3
+c5c5daa0cb	2026-09-16T10:04	session	main	claude-sonnet-5	1679	3394	1412388	8858263	772305074	431.4448	0	build=1;unit test=7;lint/format=2;SAST=8;git merge=41;git push=23
+43a461a587	2026-09-16T10:18	agent	analyst	claude-sonnet-5	39	78	9956	198504	3120817	1.2201	0	
+812ef2bfe0	2026-09-16T10:18	agent	devops	claude-sonnet-5	21	42	7325	221918	1363412	0.9008	0	
+daa1bc94f8	2026-09-16T10:23	agent	qa	claude-opus-5	62	124	17648	371550	5075524	5.3018	0	
+5942f33385	2026-09-16T10:24	agent	test-writer	claude-sonnet-5	186	372	80857	540873	29118522	7.9852	0	git merge=1
+e5592c11c5	2026-09-16T10:24	agent	developer	claude-opus-5	73	146	33080	287024	6756007	5.9996	0	
+1fb50e02dc	2026-09-16T10:27	agent	qa	claude-opus-5	91	182	41803	3422701	32701245	38.7885	0	unit test=4;typecheck=2
+aea2009253	2026-09-16T10:32	agent	analyst	claude-sonnet-5	81	162	38140	288453	8497459	2.8023	0	
+b666d63121	2026-09-16T10:34	agent	test-writer	claude-sonnet-5	59	118	27719	222417	5301669	1.8938	0	
+0dba6d18e2	2026-09-16T10:38	agent	test-writer	claude-sonnet-5	84	168	28761	448581	10934536	3.5963	0	unit test=6;typecheck=3
+63730f9eb2	2026-09-16T10:38	session	main	claude-sonnet-5	68	136	22398	425700	15720769	4.4327	0	unit test=4;lint/format=1;git merge=4;git push=1
+65f1246883	2026-09-16T10:44	agent	devops	claude-sonnet-5	75	150	22765	293747	6851814	2.3327	0	git merge=3
+86fc4280f7	2026-09-16T10:45	agent	test-writer	claude-sonnet-5	174	348	57846	451889	25573471	6.8236	0	
+b5d4e8fda5	2026-09-16T10:45	agent	test-writer	claude-sonnet-5	150	300	37435	268560	16352398	4.3168	0	git merge=1
+b6ee8014f3	2026-09-16T10:45	agent	test-writer	claude-sonnet-5	238	476	72759	538238	35721002	9.2183	0	
+d0d46ad8e9	2026-09-16T10:45	agent	test-writer	claude-sonnet-5	129	258	59755	342866	16089478	4.6731	0	git merge=2
+bfe4309e1f	2026-09-16T10:46	agent	test-writer	claude-sonnet-5	167	334	63281	545093	24249612	6.8461	0	
+9ebda11989	2026-09-16T10:47	agent	qa	claude-opus-5	73	158	40239	479664	6591809	7.3006	0	unit test=3
+8e413d8262	2026-09-16T10:55	agent	doc-writer	claude-haiku-4-5-20251001	28	232	8775	297288	1617792	0.5775	0	
+1d2bee388c	2026-09-16T11:04	session	main	claude-sonnet-5	40	80	21258	433343	7311927	2.7585	0	git merge=2
+80727de218	2026-09-16T11:08	agent	architect	claude-opus-5	57	114	35263	1098468	15825703	15.6604	0	
+b7fc843f35	2026-09-16T11:18	agent	doc-writer	claude-haiku-4-5-20251001	15	126	8566	220559	802398	0.3989	0	
+8b1e48c2db	2026-09-16T11:19	agent	test-writer	claude-sonnet-5	444	886	164891	1688300	127643552	31.4001	0	build=7;unit test=28;coverage=6;git merge=2
+931c7259e0	2026-09-16T11:19	agent	test-writer	claude-sonnet-5	451	900	158273	1375688	108715781	26.7669	0	build=23;unit test=28;coverage=14;git merge=1
+c93c66a9d7	2026-09-16T11:19	agent	test-writer	claude-sonnet-5	267	532	93354	1183059	43974384	12.6871	0	build=2;unit test=13;coverage=7;git merge=3
+d03e167a0b	2026-09-16T11:19	agent	test-writer	claude-sonnet-5	685	1368	260166	1732142	251308352	57.1964	0	build=39;unit test=62;coverage=22;git merge=2
+1bd8b61f42	2026-09-16T11:20	agent	test-writer	claude-sonnet-5	471	940	171167	2255071	131291817	33.6096	0	build=1;unit test=30;typecheck=1;coverage=10;git merge=1
+961d666992	2026-09-16T11:20	agent	devops	claude-sonnet-5	108	214	30415	292687	11965492	3.4294	0	
+13bb49b480	2026-09-16T11:25	agent	developer	claude-opus-5	72	144	30218	978480	21232922	17.4881	0	build=3;unit test=1;lint/format=2
+e9079897a0	2026-09-16T11:32	agent	qa	claude-opus-5	42	82	24927	366468	2445752	4.1369	0	build=1;unit test=6;coverage=7;dependency CVE=1
+8338ec4da5	2026-09-16T12:33	agent	test-writer	claude-sonnet-5	52	104	13121	931666	14246742	5.3099	0	build=1;unit test=4
+b36ba66f86	2026-09-16T12:43	agent	qa	claude-opus-5	74	148	36713	1004591	21231357	17.8129	0	build=3;unit test=5;lint/format=3
+ab1e0f94ed	2026-09-16T12:58	agent	test-writer	claude-sonnet-5	24	48	4787	578345	5789200	2.6517	0	build=1;unit test=2
+8a23bced36	2026-09-16T12:59	agent	doc-writer	claude-haiku-4-5-20251001	28	224	2794	300789	1330632	0.5232	0	
+94de504da4	2026-09-16T13:01	agent	doc-writer	claude-sonnet-5	19	38	5765	777209	3752633	2.7513	0	
+9e4bfc3a60	2026-09-16T13:58	agent	developer	claude-opus-5	41	82	34859	811054	10981827	11.4319	0	build=2;unit test=1;lint/format=1
+b68c05a5a3	2026-09-16T19:37	agent	developer	claude-opus-5	263	530	190847	3543706	42618693	48.2313	0	coverage=8;secret scan=3;git merge=1
+90f2a4a2e0	2026-09-16T19:38	agent	developer	claude-opus-5	331	662	221539	1049939	59425483	41.8166	0	git merge=1
+120e30e195	2026-09-16T19:50	agent	qa	claude-opus-5	40	88	39801	634071	2825077	6.3709	0	unit test=7
+714c76e057	2026-09-16T20:08	agent	qa	claude-opus-5	75	160	50652	977151	7472902	11.1107	0	
+9658065c91	2026-09-17T03:32	agent	developer	claude-opus-5	389	784	236877	1584258	128203090	79.9290	0	git merge=1
+fab9ca0f75	2026-09-17T03:37	agent	qa	claude-opus-5	48	102	27699	513704	3427973	5.6176	0	coverage=3
+71c034c99f	2026-09-17T06:39	session	main	claude-opus-5	39	78	57886	286608	5838423	6.1581	0	
+71e6d2a2f8	2026-09-17T18:18	session	main	claude-opus-5	3910	7844	2716219	24045418	2517912051	601.0578	0	build=64;unit test=191;typecheck=21;lint/format=41;coverage=3;e2e (playwright)=2;git merge=47;git push=49
+c62a3093ef	2026-09-18T05:36	session	main	claude-opus-5	198	396	443999	2463229	56626942	54.8106	0	
+9805033c63	2026-09-18T06:00	session	main	claude-opus-5	161	322	186311	1832508	30885220	31.5552	0	
+cb7e15088c	2026-09-18T19:00	agent	Explore	claude-sonnet-5	49	98	10685	663283	12689325	4.3031	0	
+1c95c89506	2026-09-18T20:15	agent	Explore	claude-sonnet-5	54	108	9909	1220065	14138079	5.9771	0	
+aaa0413cc6	2026-09-18T20:22	agent	other	claude-sonnet-5	8	16	2943	573922	286446	1.5216	0	
+7acca38136	2026-09-19T06:28	session	main	claude-sonnet-5	45	98	56143	1005329	5636857	4.2023	0	
+ab78cf6459	2026-09-19T20:14	session	main	claude-sonnet-5	617	1264	921190	2243889	354731926	85.7705	0	build=25;unit test=97;typecheck=7;lint/format=28;git merge=24;git push=24
+958506e9b0	2026-09-20T06:14	session	main	claude-opus-5	723	1446	1029764	3826959	354287217	226.8134	0	build=1;unit test=1;typecheck=1;coverage=7;secret scan=4;SAST=2;dependency CVE=5;md size gate=16;md rule gate=15;git merge=1;git push=7
+d7949a272b	2026-09-20T06:14	session	main	claude-opus-5	387	774	501046	805677	113254759	74.1929	0	secret scan=2;git push=3
+834ae945cb	2026-09-20T06:23	session	main	synthetic	1	0	0	0	0	0.0000	0	
+ce9d83316d	2026-09-20T06:23	session	main	synthetic	1	0	0	0	0	0.0000	0	
+2941ab2897	2026-09-20T06:24	agent	analyst	claude-sonnet-5	2	4	460	33537	29383	0.0943	0	
+2c65619a00	2026-09-20T06:29	session	main	claude-opus-5	466	932	952125	3394536	221471601	155.7594	0	coverage=5;secret scan=3;md size gate=2;git push=9
+41e9f90f73	2026-09-20T06:35	session	main	claude-sonnet-5	631	1314	807369	1531091	245377895	60.9796	0	build=31;unit test=92;typecheck=17;lint/format=22;coverage=9;secret scan=17;git merge=4
+c7e4fe5c2f	2026-09-20T06:37	agent	analyst	claude-sonnet-5	2	4	531	33543	29383	0.0951	0	
+7ba8765fff	2026-09-20T18:36	agent	analyst	claude-sonnet-5	44	88	19590	240630	3795626	1.5568	1	
+ea9362fc01	2026-09-20T18:39	session	main	claude-sonnet-5	103	216	142363	331361	14951583	5.2428	1	md size gate=4;md rule gate=1;git merge=1
