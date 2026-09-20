@@ -1,81 +1,85 @@
-# Playwright — Web E2E Standartları
+# Playwright — web e2e standards
 
-## 1. Ne e2e'ye girer
+## 1. What belongs in e2e
 
-E2E **pahalıdır** (yavaş, kırılgan). Yalnız şunlar:
+E2E is **expensive** (slow, fragile). Only these:
 
-- Para/veri kaybettiren kritik akışlar (giriş, kayıt, sipariş, ödeme onayı, silme)
-- Birden fazla sistemi birden kanıtlayan akışlar (UI → API → DB → e-posta)
-- Regresyona uğramış gerçek hatalar
+- Critical flows that lose money or data (login, sign-up, ordering, payment confirmation, deletion)
+- Flows that prove several systems at once (UI → API → DB → email)
+- Real bugs that have regressed before
 
-**Girmez:** her form alanının validasyonu, her buton, her varyant — bunlar unit/component testidir.
-Hedef: 15–40 senaryo arası, 10 dakikanın altında koşum.
+**Not in e2e:** the validation of every form field, every button, every variant —
+those are unit/component tests.
+Target: 15-40 scenarios, running in under 10 minutes.
 
-## 2. Selector politikası (sırayla)
+## 2. Selector policy (in order)
 
-1. `getByRole('button', { name: 'Kaydet' })` — erişilebilirlik ile aynı yolu test eder
-2. `getByLabel('E-posta')`
-3. `getByText(...)` — kararlı, i18n'e bağımlı metinlerde dikkat
-4. `getByTestId('member-row')` — **son çare**, ama karmaşık listelerde meşru
+1. `getByRole('button', { name: 'Save' })` — tests the same path accessibility uses
+2. `getByLabel('Email')`
+3. `getByText(...)` — stable, but be careful with i18n-dependent text
+4. `getByTestId('member-row')` — **a last resort**, though legitimate in complex lists
 
-**Yasak:** CSS sınıfı, `nth-child`, XPath, üretilen class (`css-1x2y3z`), DOM yapısına bağlı zincirler.
-Stil değişikliği testi kırmamalı.
+**Forbidden:** CSS classes, `nth-child`, XPath, generated class names (`css-1x2y3z`),
+chains that depend on the DOM structure. A styling change must not break a test.
 
-`data-testid` eklenirken silinmemesi gerektiği yorumla belirtilir.
+When a `data-testid` is added, a comment states that it must not be deleted.
 
-## 3. Bekleme
+## 3. Waiting
 
-- **`waitForTimeout` / `sleep` yasak.** Playwright'ın auto-wait'i + web-first assertion kullanılır:
+- **`waitForTimeout` / `sleep` are forbidden.** Use Playwright's auto-wait plus web-first assertions:
   `await expect(page.getByRole('row')).toHaveCount(3)`
-- Ağ bekleniyorsa `page.waitForResponse(...)` veya sonucun UI'daki yansımasını bekle.
-- Sabit timeout artırmak flaky çözümü değildir — nedeni bulunur.
+- If you are waiting on the network, use `page.waitForResponse(...)` or wait for the result's reflection in the UI.
+- Raising a fixed timeout is not a fix for flakiness — find the cause.
 
-## 4. Veri ve izolasyon
+## 4. Data and isolation
 
-- **Her test kendi verisini yaratır.** Ortak/paylaşılan kayıt üzerinde test yapılmaz (paralel koşumda çakışır).
-- Kurulum UI'dan değil **API'den** yapılır (hızlı ve sağlam); test edilen akış UI'dan.
-- Benzersiz veri — sabit e-posta/isim yasak. **E-posta gerçek kutuya gider** (global kural #30, 14/09/2026):
-  `<hesap>+<etiket>@gmail.com`, etiket kaydı ayırır (`musteri-${Date.now()}-${rastgele}`). Adresi fixture'daki
-  **tek yardımcı** üretir (taban `E2E_EMAIL_BASE` ile ezilebilir); spec'e adres yazılmaz. `.test` / `.local` /
-  `example.com` YASAK: test ortamı gerçek SMTP'ye bağlıysa her davet/link iletisi geri döner ve gönderim hatası basar.
-  Örnek: `e2eEmail(\`musteri-${Date.now()}\`)` → `<hesap>+musteri-1789…@gmail.com`.
-- Test sonunda temizlik (veya izole tenant/şema).
-- Üretim ortamına e2e koşulmaz. Test ortamında koşulur; ortam URL'i env'den gelir, hard-coded değil.
+- **Every test creates its own data.** Never test against a shared record (it collides in parallel runs).
+- Setup happens through the **API**, not the UI (fast and robust); the flow under test goes through the UI.
+- Unique data — a fixed email or name is forbidden. **Email goes to a real mailbox** (global rule #30):
+  `<account>+<label>@gmail.com`, where the label separates the record
+  (`customer-${Date.now()}-${random}`). The address is produced by **one helper** in
+  the fixtures (with the base overridable through `E2E_EMAIL_BASE`); no address is
+  written into a spec. `.test` / `.local` / `example.com` are FORBIDDEN: if the test
+  environment is wired to real SMTP, every invitation or link message bounces and
+  raises a delivery error.
+  Example: `e2eEmail(\`customer-${Date.now()}\`)` → `<account>+customer-1789…@gmail.com`.
+- Clean up at the end of the test (or use an isolated tenant/schema).
+- E2E never runs against production. It runs against the test environment, and the environment URL comes from env, never hard-coded.
 
-## 5. Kimlik doğrulama
+## 5. Authentication
 
-- Giriş her testte UI'dan yapılmaz → `storageState` ile bir kez giriş, tüm testler o oturumu kullanır.
-- Rol bazlı fixture: `adminPage`, `memberPage`, `guestPage`.
-- **Giriş akışının kendisi** ayrıca bir testle doğrulanır (o test storageState kullanmaz).
+- Login does not go through the UI in every test → log in once with `storageState` and let every test use that session.
+- Role-based fixtures: `adminPage`, `memberPage`, `guestPage`.
+- **The login flow itself** is verified by its own test (and that test does not use storageState).
 
-## 6. Yapı
+## 6. Structure
 
 ```
 e2e/
-  fixtures/      → auth, test verisi, API yardımcıları
-  pages/         → Page Object (yalnız karmaşık ekranlar için)
-  specs/         → senaryolar, iş akışına göre gruplanmış
-  userstories/   → kabul kriterlerini birebir yansıtan senaryolar
+  fixtures/      → auth, test data, API helpers
+  pages/         → Page Objects (only for complex screens)
+  specs/         → scenarios, grouped by business flow
+  userstories/   → scenarios that mirror the acceptance criteria one to one
 playwright.config.ts
 ```
 
-- Page Object **zorunlu değil** — basit ekranda gereksiz katman. Aynı seçici 3+ testte tekrarlanıyorsa çıkarılır.
-- Page Object'te assert yok; assert testte kalır.
+- A Page Object is **not mandatory** — on a simple screen it is a needless layer. Extract one once the same selector repeats in three or more tests.
+- No assertions inside a Page Object; assertions stay in the test.
 
-## 7. Assertion
+## 7. Assertions
 
-- Kullanıcının gördüğünü doğrula: metin, sayı, görünürlük, URL, toast.
-- `expect(await page.locator(...).count()).toBe(3)` yerine `await expect(locator).toHaveCount(3)` (retry'lı).
-- Tek "her şeyi kontrol eden" dev test yerine akış başına odaklı testler.
-- Ekran görüntüsü karşılaştırması (visual regression) yalnız kasıtlı ve dar kapsamlı kullanılır; yoksa sürekli kırmızı yanar.
+- Assert what the user sees: text, counts, visibility, the URL, a toast.
+- Prefer `await expect(locator).toHaveCount(3)` (which retries) over `expect(await page.locator(...).count()).toBe(3)`.
+- Focused tests per flow rather than one giant "check everything" test.
+- Visual regression is used deliberately and narrowly; otherwise it burns red permanently.
 
-## 8. Konfigürasyon
+## 8. Configuration
 
 ```ts
-retries: process.env.CI ? 1 : 0,   // 1'den fazla retry = flaky'yi saklamak
+retries: process.env.CI ? 1 : 0,   // more than one retry = hiding flakiness
 workers: process.env.CI ? 2 : 4,
 use: {
-  baseURL: process.env.E2E_BASE_URL,   // hard-coded URL yasak
+  baseURL: process.env.E2E_BASE_URL,   // a hard-coded URL is forbidden
   trace: 'on-first-retry',
   screenshot: 'only-on-failure',
   video: 'retain-on-failure',
@@ -84,43 +88,43 @@ use: {
 }
 ```
 
-- Locale ve timezone **sabitlenir** — makineye göre değişen tarih testi kırar.
-- `trace`/`screenshot`/`video` CI artifact olarak yüklenir; başarısızlık log okumadan anlaşılabilmeli.
+- Locale and timezone are **pinned** — a date test that varies by machine breaks.
+- `trace`/`screenshot`/`video` are uploaded as CI artifacts; a failure should be understandable without reading the log.
 
-## 9. Koşum politikası
+## 9. Run policy
 
-- Hızlı CI kapısına (unit/lint/tsc) **karıştırılmaz** — ayrı iş akışı.
-- Tetikleme: `dev → test` merge sonrası ve/veya gecelik; ayrıca `test → prod` öncesi **zorunlu** kontrol.
-- Son koşumun sonucu (commit, zaman, sonuç) bir dosyaya kaydedilir; prod merge'inden önce bu kayıt **bayat mı** diye bakılır. Bayatsa veya kırmızıysa onay olmadan ilerlenmez.
-- E2E kırmızıyken prod'a çıkılmaz.
+- Never **mixed into** the fast CI gate (unit/lint/tsc) — a separate workflow.
+- Triggers: after the `dev → test` merge and/or nightly; plus a **mandatory** check before `test → prod`.
+- The last run's result (commit, time, outcome) is recorded in a file; before a prod merge that record is checked for **staleness**. If it is stale or red, nothing proceeds without approval.
+- Nothing ships to prod while e2e is red.
 
-### 9a. Koşum döngüsü (14/09/2026, kullanıcı kararı — CLAUDE.md #31)
+### 9a. The run cycle (CLAUDE.md #31)
 
-1. **Tam koşum.** Paketin tamamı koşar; ilk hatada durulmaz (`--max-failures=0`). Paralellik ortamın sınırına göre seçilir: istek sınırı (rate limit), oturum/token ömrü, paylaşılan fixture'lar. Uzak test ortamında her testte giriş yapan paketler düşük paralellikle (çoğunlukla 1 worker) koşar.
-2. **Sınıflandırma.** Her düşen test için kanıtla bir sınıf yazılır:
-   - *ürün hatası* — davranış gerçekten bozuk;
-   - *bayat spec* — ürün değişti, spec eskidi (ör. değişen sınıf/metin);
-   - *veri/fixture* — test verisi eksik ya da önceki koşumdan artık kaldı;
-   - *ortam* — 429 istek sınırı, zaman aşımı, deploy gecikmesi, süresi dolan oturum.
-   Kanıt: hata metni, iz (`trace.zip`), sayfa görüntüsü, ağ durumları, testin önceki koşumlardaki sonucu. "Muhtemelen flaky" sınıf değildir.
-3. **Düzeltme.** Her düzeltme kendi dalında (`dev`'den) ve kendi merge'iyle. Retry artırmak, bekleme süresini körlemesine büyütmek ya da assertion gevşetmek düzeltme sayılmaz. Ortam sınıfındaki düşüş için düzeltme koşum ayarıdır (paralellik, bekleme penceresi), spec değil.
-4. **Hedefli koşum.** Yalnız düzeltilen testler ve düzeltmenin etkileyebileceği testler koşar (projede varsa `--only-failed`, yoksa dosya/satır filtresi).
-   ⚠️ **E2E yalnız `test`'e çıkmış kodla koşar (14/09/2026, kullanıcı kararı: "teste geçmeden önce e2e koşma", "teste geçince e2e koşulur").** Düzeltme `dev`'deyken doğrulama unit test + tsc/lint'tir. Hedefli koşum ve tam tekrar, düzeltme `test`'e çıkıp deploy olduktan sonra yapılır. `dev` dalındaki spec'i test ortamına karşı koşmak da e2e koşmaktır — yasak.
-   ⚠️ **Zamanlama #33 ile değişti (20/09/2026, aynı gün bir kez daha daraltıldı):** `dev` ve `test` yönünde e2e **hiç yoktur** — ne koşum, ne "yazıldı mı" kontrolü, ne deploy/durum dosyası beklemesi. Eksik spec de, koşum da `prod` ÖNCESİ kapıda: kod `test`'te mi → eksik e2e var mı → yaz → bu kodla koşulmadıysa koş → prod. Eksik listesi iki kez değil **bir kez** çıkarılır (önceki hâlinde `dev`/`test`'te çıkarılıp prod kapısında yeniden hesaplanıyordu). Bu madde ve 4. maddedeki "test'e çıkınca" ifadeleri o kurala göre okunur.
-   ⛔ **E2E koşmadan `prod`'a çıkılmaz;** e2e'siz yalnız kullanıcının açıkça "hotfix" dediği iş çıkar ve rapora "e2e atlandı (hotfix)" yazılır.
-5. **Tam tekrar kararı — Claude verir, gerekçesini raporlar.** Tam koşum tekrarlanır:
-   - düzeltme paylaşılan bir parçaya dokunduysa (layout, auth/oturum, ortak bileşen, fixture yardımcısı, Playwright config);
-   - promosyon kaydı (commit status vb.) geçerli bir tam koşum sonucu istiyorsa;
-   - ilk koşumdaki düşüşlerin bir kısmı ortam kaynaklıysa (o koşum geçerli bir taban değildir).
-   Düzeltme tek spec'e ya da tek ekrana sınırlıysa ve kayıt gerektirmiyorsa hedefli koşum yeterlidir.
-6. **Geçersiz koşum.** Ortam sınırına takılan koşumun sonucu ürün sonucu diye raporlanmaz; paralellik düşürülüp tekrarlanır ve bu açıkça yazılır.
+1. **The full run.** The whole suite runs; it does not stop at the first failure (`--max-failures=0`). Parallelism is chosen against the environment's limits: rate limits, session/token lifetime, shared fixtures. Suites that log in on every test run against a remote test environment with low parallelism (usually one worker).
+2. **Classification.** Every failure gets a class, with evidence:
+   - *product bug* — the behaviour really is broken;
+   - *stale spec* — the product changed and the spec did not (a changed class or string);
+   - *data/fixture* — test data is missing or left over from a previous run;
+   - *environment* — a 429 rate limit, a timeout, a deploy delay, an expired session.
+   The evidence: the error text, the trace (`trace.zip`), a screenshot, the network states, the test's result in previous runs. "Probably flaky" is not a class.
+3. **The fix.** Each fix on its own branch (off `dev`) with its own merge. Raising retries, blindly increasing a wait, or loosening an assertion does not count as a fix. For a failure in the environment class the fix is a run setting (parallelism, the wait window), not the spec.
+4. **The targeted run.** Only the fixed tests and the tests the fix could affect run (`--only-failed` where the project has it, otherwise a file/line filter).
+   ⚠️ **E2E runs only against code that has reached `test`.** While a fix is on `dev`, verification means unit tests + tsc/lint. The targeted run and the full repeat happen after the fix reaches `test` and is deployed. Running a spec from the `dev` branch against the test environment is also running e2e — forbidden.
+   ⚠️ **The timing changed with #33 (and was narrowed once more the same day):** in the `dev` and `test` directions there is **no e2e at all** — no run, no "was a spec written" check, no waiting on a deploy/status file. Both the missing specs and the run belong to the gate BEFORE `prod`: is the code on `test` → are any e2e specs missing → write them → if it has not been run against this code, run it → prod. The list of gaps is produced **once**, not twice (previously it was produced in `dev`/`test` and recomputed at the prod gate). This item and the "once it reaches test" phrasing in item 4 are read in the light of that rule.
+   ⛔ **Nothing ships to `prod` without e2e;** only work the user explicitly calls a "hotfix" ships without it, and the report then reads "e2e skipped (hotfix)".
+5. **The decision to repeat the full suite — Claude makes it and reports the reasoning.** The full run is repeated if:
+   - the fix touched something shared (layout, auth/session, a common component, a fixture helper, the Playwright config);
+   - the promotion record (a commit status or similar) requires a valid full-run result;
+   - some of the first run's failures were environmental (that run is not a valid baseline).
+   If the fix is limited to a single spec or screen and no record is required, a targeted run is enough.
+6. **An invalid run.** The result of a run that hit an environment limit is never reported as a product result; parallelism is lowered, the run repeated, and this is stated explicitly.
 
-## 10. Yapma listesi
+## 10. Never-do list
 
 - ❌ `waitForTimeout`
-- ❌ CSS class / XPath selector
-- ❌ Testler arası paylaşılan veri veya sıra bağımlılığı
-- ❌ Hard-coded URL / kullanıcı / parola (env veya fixture)
-- ❌ Üretimde e2e koşumu
-- ❌ Flaky testi `retries` artırarak "çözmek"
-- ❌ `test.only` commit'lemek (lint kuralı ile engelle)
+- ❌ A CSS class / XPath selector
+- ❌ Data shared between tests, or an order dependency
+- ❌ A hard-coded URL / user / password (use env or a fixture)
+- ❌ Running e2e against production
+- ❌ "Fixing" a flaky test by raising `retries`
+- ❌ Committing `test.only` (block it with a lint rule)
