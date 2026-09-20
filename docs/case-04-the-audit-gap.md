@@ -1,8 +1,8 @@
 # Case 04 — Nine roles, one of them audited
 
-> **Summary:** The agent chain had nine roles, but only `gelistirici` was
+> **Summary:** The agent chain had nine roles, but only `developer` was
 > genuinely audited — its output went to `qa` and from there to the orchestrator.
-> If `analiz` miscounted, if `devops` broke a gate, if `urun-yoneticisi` missed
+> If `analyst` miscounted, if `devops` broke a gate, if `product-manager` missed
 > scope, the error **flowed downstream silently.** Adding an auditor agent was
 > rejected on measurement: subagent tokens cost roughly **4x** more. The fix was
 > not another agent — it was **mandatory evidence**.
@@ -10,7 +10,7 @@
 ## Context
 
 The chain worked like this: the orchestrator hands work to a role, the role returns
-a report, the orchestrator uses the result. Code written by `gelistirici` passed
+a report, the orchestrator uses the result. Code written by `developer` passed
 through `qa`. The output of the other eight roles was used **directly**.
 
 ```mermaid
@@ -30,12 +30,12 @@ The audit gap came from the nature of the roles themselves:
 
 | Role | The gap |
 |---|---|
-| `analiz` | says "used in 3 places", misses the 4th — nobody recounts |
+| `analyst` | says "used in 3 places", misses the 4th — nobody recounts |
 | `devops` | breaks the gate or CI, passes review-free as "config, not code" |
-| `urun-yoneticisi` | misses scope, and its output flows into the chain on its own |
-| `test-yazar` | writes assertion-free tests, coverage rises, nothing is caught |
+| `product-manager` | misses scope, and its output flows into the chain on its own |
+| `test-writer` | writes assertion-free tests, coverage rises, nothing is caught |
 
-⚠️ `analiz` was the most insidious: **reading a lot and returning little was the
+⚠️ `analyst` was the most insidious: **reading a lot and returning little was the
 role's entire reason to exist.** When it miscounted, the only way to verify was to
 redo the whole scan — which destroys the reason for using the agent. The role's
 usefulness and its auditability were in direct conflict.
@@ -72,7 +72,7 @@ Every role whose output someone else will rely on closes its report with this:
 
 ### 2. Free auditing: return the command
 
-`analiz` returns not just the result but **the command that produced it**
+`analyst` returns not just the result but **the command that produced it**
 (`grep -rn "X" --include=*.cs`, `rg -c`, `find`). The orchestrator re-runs it in a
 second and compares the count.
 
@@ -109,7 +109,7 @@ flowchart TD
 ### 4. Two more gaps closed
 
 - `devops` output **goes through `qa`** — "config, not code" is not an exemption.
-- `urun-yoneticisi` output does not flow into the chain automatically; it goes to
+- `product-manager` output does not flow into the chain automatically; it goes to
   **user approval**.
 
 ```mermaid

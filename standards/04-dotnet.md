@@ -49,7 +49,7 @@ Kurallar:
 - Liste endpoint'i **her zaman** `Select` ile DTO'ya projeksiyon yapar — tüm entity çekilmez.
 - `IQueryable` servis sınırının dışına çıkmaz (controller'a `IQueryable` dönmek yasak).
 - Client-side evaluation'a düşen sorgu düzeltilir (log'da uyarı çıkar).
-- Migration'lar isimlendirilir ve gözden geçirilir; üretilen SQL okunur. Detay: `09-veritabani.md`.
+- Migration'lar isimlendirilir ve gözden geçirilir; üretilen SQL okunur. Detay: `09-database.md`.
 - Toplu işlemde `ExecuteUpdateAsync`/`ExecuteDeleteAsync` veya batch; tek tek `SaveChanges` döngüsü yok.
 - `SaveChangesAsync` **bir iş biriminde bir kez** çağrılır (transaction sınırı = servis metodu).
 - Global query filter kullanılıyorsa (tenant, soft delete) bunu atlayan sorgu bilinçli ve yorumlu olmalı.
@@ -59,7 +59,7 @@ Kurallar:
 - Model doğrulama DTO seviyesinde (DataAnnotations veya FluentValidation) — **tek yaklaşım** seçilir, karıştırılmaz.
 - İş kuralı validasyonu serviste (ör. "bu e-posta zaten kayıtlı").
 - Doğrulama hatası → `400` + `ValidationProblemDetails` (alan bazlı hata sözlüğü).
-- **Yeni zorunlu alan eklemek kırıcıdır** — bkz. `08-geriye-uyumluluk.md`.
+- **Yeni zorunlu alan eklemek kırıcıdır** — bkz. `08-backward-compatibility.md`.
 
 ## 7. Hata yönetimi ve HTTP
 
@@ -76,7 +76,7 @@ Kurallar:
 - `.Result` / `.Wait()` / `.GetAwaiter().GetResult()` yasak.
 - `HttpClient` **IHttpClientFactory** ile (named/typed client) — `new HttpClient()` yasak. Polly ile timeout + retry (idempotent çağrılarda) + circuit breaker.
 
-## 9. Güvenlik (detay: `15-guvenlik.md`)
+## 9. Güvenlik (detay: `15-security.md`)
 
 - Her endpoint `[Authorize]`; açık uçlar **açıkça** `[AllowAnonymous]`. Varsayılan politika fail-closed.
 - Yetki kontrolü kaynak sahipliğini de kapsar (IDOR): "bu kaydı bu kullanıcı görebilir mi?"
@@ -96,7 +96,7 @@ Kurallar:
 
 - `DateTime.UtcNow` doğrudan kullanılmaz → `TimeProvider` / `IClock` enjekte edilir.
 - `Guid.NewGuid()`, `Random`, dosya sistemi, ağ → arayüz arkasında.
-- Servis testleri gerçek DB (Testcontainers) veya in-memory ile; in-memory kullanılıyorsa **relational davranış farkları** bilinir (bkz. `10-test-stratejisi.md`).
+- Servis testleri gerçek DB (Testcontainers) veya in-memory ile; in-memory kullanılıyorsa **relational davranış farkları** bilinir (bkz. `10-test-strategy.md`).
 
 ## 12. Gözlemlenebilirlik
 
@@ -107,7 +107,7 @@ Kurallar:
 ## 13. Performans
 
 - Sıcak yolda LINQ zinciri yerine tek sorgu; gereksiz materialization (`ToList()` sonra `Where`) yok.
-- Büyük yanıt → sayfalama zorunlu (`07-api-tasarimi.md`).
+- Büyük yanıt → sayfalama zorunlu (`07-api-design.md`).
 - Response compression + output caching uygun yerlerde.
 - `IAsyncEnumerable`/streaming büyük veri setleri için.
 - Ölçmeden optimize etme; ölçüm için BenchmarkDotNet veya profil.

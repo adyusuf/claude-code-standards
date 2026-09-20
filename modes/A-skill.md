@@ -1,7 +1,7 @@
 # Mod A — Skill
 
 ⚠️ **A artık varsayılan DEĞİL** (18/09/2026, kullanıcı kararı). Varsayılan
-**B**'dir; A açıkça seçilir (`/calisma-modu A`). Ajansız çalışmak istediğin
+**B**'dir; A açıkça seçilir (`/working-mode A`). Ajansız çalışmak istediğin
 turlarda, dar işlerde ve maliyet hassas oturumlarda hâlâ doğru moddur.
 
 **Ajan yok.** Roller ana konuşmada
@@ -18,10 +18,10 @@ yaşar; ayrı süreç, ayrı prefix, ayrı onay yok.
 - Claude Code bir ajanı `description`'a bakıp kendiliğinden önerirse **uymam**
   — otomatik yönlendirme de çağrıdır. Aynısı **araç prompt'ları** için de geçerli.
 - **`feature/* → dev` yönünde elle review de yapmam** (#25: "ne benim elle diff
-  okumam, ne ajan"). İstisnası `rol-secimi.md` §3'teki güvenlik/yedek/kapı
+  okumam, ne ajan"). İstisnası `role-selection.md` §3'teki güvenlik/yedek/kapı
   kalemidir; A'da da o istisna geçerlidir.
 - Rol yöntemleri (kapsam çıkarma, plan, review, belge) **ana konuşmada** uygulanır.
-  `~/.claude/skills/yazilim-standartlari` ilgili standardı yükler; rol başına
+  `~/.claude/skills/software-standards` ilgili standardı yükler; rol başına
   ayrı skill dosyası **yoktur ve şart değildir** — A'nın vaadi "yöntem var,
   ajan yok"tur, dosya değil.
 - Kod review **ben** yaparım.

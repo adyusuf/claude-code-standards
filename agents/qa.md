@@ -53,7 +53,7 @@ yapılmamış kontroldür.
   yapılacak) ve düzeltme gelince **aynı doğrulamayı tekrar koşarsın** (kapanış
   kanıtı; "düzeltildi" beyanı kapanış değildir). Sessizce düşen bulgu yoktur.
 - Devir için **bir kez** "ciddi eksik YOK" yeter. **Tavan: 2 geri gönderme.**
-- **Sen düzeltmezsin, düzelttirirsin:** bulguyu üretene (`gelistirici`/orkestratör) gönderir, kapanışını kanıtlarsın.
+- **Sen düzeltmezsin, düzelttirirsin:** bulguyu üretene (`developer`/orkestratör) gönderir, kapanışını kanıtlarsın.
 
 Tam kural, kimin kime geri gönderdiği ve kapanış yolları:
-`~/.claude/modes/rol-secimi.md` §7.
+`~/.claude/modes/role-selection.md` §7.

@@ -1,0 +1,24 @@
+# CLAUDE.md boyut butcesi — CIRCIR (ratchet).
+#
+# ⚠️ BU DOSYANIN KAPSADIGI SEY EN YUKSEK KALDIRACLI OLAN: ~/.claude/CLAUDE.md
+# HER projede, HER oturumda ve HER subagent turunda baglama girer. Yani buraya
+# eklenen bir satirin bedeli bir projede bir kez degil, 33 projede her oturumda
+# ve her ajan turunda tekrar odenir. Proje CLAUDE.md'lerinden daha pahalidir.
+#
+# Nasil calisir: TAVAN = bugunku boyut; kapi yalnizca BUYUMEYI reddeder.
+#   denetle : bash ~/.claude/scripts/md-size-gate.sh
+#   indir   : bash ~/.claude/scripts/md-size-gate.sh --guncelle
+# Tavani YUKSELTMEK serbest degil: once kurali ~/.claude/standards/<konu>.md'ye
+# tasimayi dene. Gercekten burada durmasi gereken YENI BIR KURAL ekliyorsan
+# tavani yukselt ve NOT sutununa GEREKCE yaz.
+#
+# ⚠️ Sadelestirme = TASIMA, silme/ozetleme DEGIL. Sonrasinda kural kaybini olc:
+#   python3 ~/.claude/scripts/md-rule-gate.py <eski.md> <yeni.md>
+#
+# Kesif dislamalari — ucuncu taraf, izlenmeyen, oturuma proje talimati olarak
+# YUKLENMEYEN agaclar (plugin cache'i, kendi deposu olan addy skill'i):
+# disla:plugins
+# disla:skills/addy
+#
+# Sutunlar:  yol <TAB> tavanKB <TAB> hedefKB <TAB> not
+CLAUDE.md	22	22	05/09/2026 kuruldu. Bu dosya 33 projenin HEPSINDE her oturumda yuklenir; en pahali talimat dosyasi budur ve o gune kadar HIC butcesi yoktu. Tavan = o gunku boyut (21,5 KB -> 22). Amac kucultmek degil buyumeyi durdurmak: yeni kalici kural once ~/.claude/standards/ altina, buraya yalnizca capraz-kesen cekirdek.

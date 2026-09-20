@@ -44,7 +44,7 @@ Eksik durum tasarımı = eksik özellik.
 
 - Uygulama durumu **URL'de yaşar**: sekme, filtre, sayfa no, arama terimi query param'da. Sayfa yenilenince kaybolmaz.
 - Geri tuşu beklendiği gibi çalışır. Modal açılışı history'yi kirletmez (ya da bilinçli olarak kirletir ve geri tuşu modalı kapatır).
-- Derin link her ekrana mümkün olmalı (mobilde de — `06-mobil.md`).
+- Derin link her ekrana mümkün olmalı (mobilde de — `06-mobile.md`).
 - Yetkisiz sayfaya girişte 403 ekranı; boş sayfa veya sonsuz spinner değil.
 
 ## 6. Responsive

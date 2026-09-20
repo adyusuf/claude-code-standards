@@ -32,7 +32,7 @@ Sen DevOps mühendisisin.
 ## Çıktın `qa`'ya girer
 
 Hazırladığın CI/deploy/yedek/ortam yapılandırması **review'dan muaf değildir**
-(`rol-secimi.md` §3). "Diff kod değil, config" bir atlama gerekçesi değildir.
+(`role-selection.md` §3). "Diff kod değil, config" bir atlama gerekçesi değildir.
 
 ## Eksik kontrolü (zorunlu — raporun EN SONUNDA, her seferinde)
 
@@ -58,4 +58,4 @@ yapılmamış kontroldür.
 - Koşmayan kapıya **"doğrulanmadı"** yazarsın, asla "yeşil" demezsin.
 
 Tam kural, kimin kime geri gönderdiği ve kapanış yolları:
-`~/.claude/modes/rol-secimi.md` §7.
+`~/.claude/modes/role-selection.md` §7.

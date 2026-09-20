@@ -40,7 +40,7 @@ fi
 kok="$(git -C "$baslangic" rev-parse --show-toplevel 2>/dev/null)" || exit 0
 [ -n "$kok" ] || exit 0
 
-cikti="$(MD_KOK="$kok" bash "$HOME/.claude/scripts/md-boyut-kapisi.sh" --hook 2>&1)" || true
+cikti="$(MD_KOK="$kok" bash "$HOME/.claude/scripts/md-size-gate.sh" --hook 2>&1)" || true
 
 # Butce kurulu degilse Stop olayinda SUS (her turda kurulum onerisi gurultudur);
 # acikca bir CLAUDE.md duzenlendiyse bir kez soyle.
@@ -52,7 +52,7 @@ fi
 if printf '%s' "$cikti" | grep -q 'TAVAN AŞILDI\|BÜTÇESİZ\|DOSYA YOK'; then
   echo "⚠️ CLAUDE.md butcesi asildi — yeni kalici karar KOKE degil docs/kurallar/<konu>.md'ye:"
   printf '%s\n' "$cikti" | grep -E 'TAVAN AŞILDI|BÜTÇESİZ|DOSYA YOK'
-  echo "   Sadelestirdiysen:  bash scripts/md-boyut-kapisi.sh --guncelle"
+  echo "   Sadelestirdiysen:  bash scripts/md-size-gate.sh --guncelle"
 fi
 
 # ── Ikiz sapmasi ────────────────────────────────────────────────────────────
@@ -63,7 +63,7 @@ fi
 # 05/09/2026'da sapma GERCEKTEN yasandi: kanonik guncellendi, projedeki kopya
 # eski kaldi ve yalniz elle karsilastirmayla fark edildi.
 sapan=""
-for arac in md-boyut-kapisi.sh md-kural-kapisi.py md-bol.py; do
+for arac in md-size-gate.sh md-rule-gate.py md-split.py; do
   [ -f "$kok/scripts/$arac" ] || continue
   cmp -s "$kok/scripts/$arac" "$HOME/.claude/scripts/$arac" || sapan="$sapan $arac"
 done

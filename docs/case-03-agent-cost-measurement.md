@@ -9,9 +9,9 @@
 
 ## Context
 
-The chain has 9 (later 14) agent roles: `analiz`, `qa`, `gelistirici`,
-`test-yazar`, `devops`, `mimar`, `urun-yoneticisi`, `guvenlik`, `veri`,
-`kapsam-denetcisi` and others. The old rule required announcing every `Agent`
+The chain has 9 (later 14) agent roles: `analyst`, `qa`, `developer`,
+`test-writer`, `devops`, `architect`, `product-manager`, `security`, `data`,
+`coverage-auditor` and others. The old rule required announcing every `Agent`
 call and **waiting for approval**. The reason given was cost.
 
 ## Measurement 1 — the ratio (05/09/2026, 33 sessions)
@@ -102,9 +102,9 @@ This is the most important part of the case:
 |---|---|
 | Average per turn (~$6.9, 33 sessions) | `████████████████████` **measured** |
 | `qa` / opus (~$4.10, 3 records) | `████████████████████` **measured** |
-| `mimar` / `gelistirici` (the writing roles) | `░░░░░░░░░░░░░░░░░░░░` never measured |
-| sonnet roles (`analiz`, `test-yazar`, `devops`, …) | `░░░░░░░░░░░░░░░░░░░░` estimate only |
-| `belge` / haiku | `░░░░░░░░░░░░░░░░░░░░` estimate only |
+| `architect` / `developer` (the writing roles) | `░░░░░░░░░░░░░░░░░░░░` never measured |
+| sonnet roles (`analyst`, `test-writer`, `devops`, …) | `░░░░░░░░░░░░░░░░░░░░` estimate only |
+| `doc-writer` / haiku | `░░░░░░░░░░░░░░░░░░░░` estimate only |
 | Team modes X / Y / Z | `░░░░░░░░░░░░░░░░░░░░` never measured |
 
 - Only **two numbers in the table are measured**. Every other row is derived from
@@ -119,7 +119,7 @@ This is the most important part of the case:
 
 ```bash
 # Real cost of a session (sums the usage fields in the transcript)
-python3 ~/.claude/scripts/oturum-maliyeti.py <session-id>
+python3 ~/.claude/scripts/session-cost.py <session-id>
 
 # If only subagent_tokens is available: tokens × current per-MTok price
 ```

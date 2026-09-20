@@ -6,7 +6,7 @@ paralel, çok ajanlı orkestrasyon.
 ## Kural
 
 ⚠️ **Kimin ne yapacağına karar verme kuralı ayrı dosyada:**
-[`rol-secimi.md`](rol-secimi.md) — ajan mı ben mi, iş tipi → rol, sıra ve
+[`role-selection.md`](role-selection.md) — ajan mı ben mi, iş tipi → rol, sıra ve
 devir, atlama, çatışma hakemliği, durma, görünürlük. **Rol seçmeden önce oku.**
 - ⛔ **Workflow script'i yalnız bu modun 14 rol ajanını koşar.** Diskte 21 etkin
   eklenti ajanı var (`code-reviewer`, `test-engineer`, `code-simplifier` …);
@@ -23,7 +23,7 @@ devir, atlama, çatışma hakemliği, durma, görünürlük. **Rol seçmeden ön
 - Review: `qa` ajanı; kritik bulgular bende doğrulanır.
 - Workflow **her fazın sonunda** maliyet satırı basar (panoda da görünür) ve
   denetçi ajanlar **eksik kontrolü** bloğunu döndürür ve **tek temiz geçiş**
-  şartı aranır (`rol-secimi.md` §7). Eksik bulan faz **geri gönderir ve
+  şartı aranır (`role-selection.md` §7). Eksik bulan faz **geri gönderir ve
   düzelttirir** (script'te retry kapısı; kapanış doğrulamanın yeniden
   koşulmasıdır); 2 geri göndermede kapanmazsa faz durur ve açık bulgular
   panoya yazılır.
@@ -41,5 +41,5 @@ Duvar saati %50–70 kısalır. Bu mod süreyi satın alır, token'ı değil.
 
 ## Tarihçe
 18/09/2026, kullanıcı kararı: bu mod **D iken E oldu**. D harfi 14 rollü geniş
-takıma verildi ([`D-genis-takim.md`](D-genis-takim.md)); fan-out onun üstüne
+takıma verildi ([`D-wide-team.md`](D-wide-team.md)); fan-out onun üstüne
 biner. Takım karşılığı **Z** artık E'ye denktir (eskiden D'ye).

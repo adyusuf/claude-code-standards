@@ -1,28 +1,28 @@
 # Çalışma modları — tek kaynak
 
 Bir görevin nasıl yürütüleceğini belirleyen **beş** mod: **A-E subagent**.
-(Agent Teams modları X-Z arşivde → [`arsiv/README.md`](arsiv/README.md).) Okuma önceliği: **oturumluk seçim** (`<scratchpad>/mode`,
-`/calisma-modu <harf> --tek` ile yazılır) → proje `.claude/mode` → **B**.
+(Agent Teams modları X-Z arşivde → [`archive/README.md`](archive/README.md).) Okuma önceliği: **oturumluk seçim** (`<scratchpad>/mode`,
+`/working-mode <harf> --tek` ile yazılır) → proje `.claude/mode` → **B**.
 İkisi de yoksa **B** geçerlidir (18/09/2026, kullanıcı kararı; öncesinde A idi).
 
 | Mod | Ad | Ajan | Review | Onay politikası | Maliyet çarpanı |
 |---|---|---|---|---|---|
 | **A** | Skill | **yok** | ben | açıkça seçilir | 1,0x (taban) |
-| **B** | Seçici **(VARSAYILAN)** | `analiz`, `test-yazar`, `belge` | ben | varsayılan = onay | 1,15–1,35x ⚠tahmin |
+| **B** | Seçici **(VARSAYILAN)** | `analyst`, `test-writer`, `doc-writer` | ben | varsayılan = onay | 1,15–1,35x ⚠tahmin |
 | **C** | Tam takım | 9 rol ajanı (B ⊂ C) | `qa` ajanı + ben | mod seçimi = onay | 2,5–4x ⚠tahmin |
-| **D** | Geniş takım | 14 rol ajanı (C ⊂ D) | `qa` + `guvenlik`/`kapsam-denetcisi` doğrudan bana + ben | mod seçimi = onay | 4,5–7x ⚠tahmin |
+| **D** | Geniş takım | 14 rol ajanı (C ⊂ D) | `qa` + `security`/`coverage-auditor` doğrudan bana + ben | mod seçimi = onay | 4,5–7x ⚠tahmin |
 | **E** | Fan-out | D + `Workflow` paralel (yalnız 14 rol) | `qa` ajanı + ben | mod seçimi = onay | 7–14x ⚠tahmin |
 
 ⚠️ **Çarpanların hiçbiri ölçülmedi** — modlar 05/09/2026'da doğdu, elimizdeki
 ölçüm (33 oturum) mod karşılaştırması içermiyor. Duvar saati iddiaları (C %20–40,
 E %50–70) da **ölçülmedi**. Ölçülen tek şey rol maliyetleri:
-[`rol-secimi.md`](rol-secimi.md) §8 ölçüm defteri — orada `qa`/opus turu
+[`role-selection.md`](role-selection.md) §8 ölçüm defteri — orada `qa`/opus turu
 **$4,10** ölçüldü (eski tahmin $8–20'ydi, 2-5 kat yüksek).
 
 ### Agent Teams modları — X · Y · Z → **ARŞİVDE** (20/09/2026)
 
-Takım modları **başlatılamadığı** için `modes/arsiv/`'e alındı (sebep, geri
-getirme koşulu ve eşlemeler: [`arsiv/README.md`](arsiv/README.md)). Bir mod
+Takım modları **başlatılamadığı** için `modes/archive/`'e alındı (sebep, geri
+getirme koşulu ve eşlemeler: [`archive/README.md`](archive/README.md)). Bir mod
 olarak teklif edilmez; kullanıcı sorarsa "bugün başlatılamıyor" denir.
 
 ## Kalıcı kural — ajan yalnız modla gelir
@@ -30,7 +30,7 @@ olarak teklif edilmez; kullanıcı sorarsa "bugün başlatılamıyor" denir.
 **A'da ajan çağrılmaz; B/C/D/E'de modu seçmek o ajan setine verilmiş onaydır.**
 Çağrı öncesi ayrıca sorulmaz; tur sonunda kaç ajan koştuğu ve tahmini
 maliyet **raporlanır**. Ajan gerekiyor da mod A ise: ajanı başlatmam, **mod
-değiştirmeyi öneririm** (`/calisma-modu B`) — karar kullanıcının.
+değiştirmeyi öneririm** (`/working-mode B`) — karar kullanıcının.
 
 ⚠️ **Otomatik yönlendirme de çağrıdır.** Claude Code ajan `description`'ına
 bakıp bir ajanı kendiliğinden önerebilir; A'da buna **uyulmaz**, B/C/D'de
@@ -54,8 +54,8 @@ azaltıyordu; mod seçimi öngörülebilirliği peşinen sağlıyor.
 
 Proje `.claude/mode` taşımıyorsa **ve** kullanıcı bir mod söylemediyse:
 
-1. **B'de başla** (18/09/2026'dan beri varsayılan) — `analiz`, `test-yazar`
-   ve `belge` açık, kod ve review bende. Bu üç ajan için ayrıca sorulmaz;
+1. **B'de başla** (18/09/2026'dan beri varsayılan) — `analyst`, `test-writer`
+   ve `doc-writer` açık, kod ve review bende. Bu üç ajan için ayrıca sorulmaz;
    varsayılanın kendisi onaydır.
 2. İş bir üst modu **gerçekten** hak ediyorsa (15+ dosyalık uçtan uca özellik
    → C; güvenlik/veri/kapsam/e2e boyutu olan iş → D; 5+ bağımsız iş → E)
@@ -75,8 +75,8 @@ Proje `.claude/mode` taşımıyorsa **ve** kullanıcı bir mod söylemediyse:
 Her modda, ajan kullanılan her turda:
 
 1. **Denetçi sormaz — kontrol eder, eksik varsa geri gönderir.** Çıktısına
-   güvenilecek her rol (`qa`, `analiz`, `devops`, `test-yazar`,
-   `urun-yoneticisi`) ve her devirde orkestratör, raporunu **kanıt bloğuyla**
+   güvenilecek her rol (`qa`, `analyst`, `devops`, `test-writer`,
+   `product-manager`) ve her devirde orkestratör, raporunu **kanıt bloğuyla**
    kapatır (doğrulama komutu · madde eşlemesi · kapsanmayan → ciddi eksik
    YOK/VAR). Eksik/yanlış bulunursa iş **üretene geri döner ve düzelttirilir**,
    kullanıcıya taşınmaz; kapanış için **aynı doğrulama tekrar koşulur** —
@@ -86,22 +86,22 @@ Her modda, ajan kullanılan her turda:
    geçiş 1'in çağrı sayısının yarısını aşmaz (+%10–20 yük).
    Aynı iş 2 kez geri gönderilip hâlâ kapanmazsa zincir durur ve kullanıcıya
    **bildirilir** — soru değil, durum raporu.
-   → [`rol-secimi.md`](rol-secimi.md) §7
+   → [`role-selection.md`](role-selection.md) §7
 2. **Maliyet her devirde hatırlatılır**, tur sonuna ertelenmez:
    `↳ analiz bitti · ~$3 · tur toplamı ~$9 (2 ajan) · eşik ~$150 (C)`.
    Eşik **moda bağlı ve iki kademeli**: yarısında uyarı, tamamında durma —
    B ~$25 · C ~$150 · D ~$260 · E ~$400. Rakamların kaynağı → §8.
-3. **`urun-yoneticisi` çıktısı kullanıcı onayına gider**, zincire otomatik
+3. **`product-manager` çıktısı kullanıcı onayına gider**, zincire otomatik
    akmaz (§2a). **`devops` çıktısı `qa`'ya girer** (§3).
 
 ⚠️ **Kimin denetçisi kim** — boşluk bilinçlidir, sessiz değildir:
 
 | Rol | Denetçisi |
 |---|---|
-| `gelistirici` ve benim yazdığım kod | **`qa`** → kritik bulguları ben doğrularım |
-| `qa`, `analiz`, `devops`, `test-yazar`, `urun-yoneticisi` | Kendi **eksik kontrolü** bloğu (§7) + orkestratör |
-| `urun-yoneticisi`nin kapsamı | **Kullanıcı** (§2a onay kapısı) |
-| `mimar`, `tasarimci`, `belge` | **Ayrı denetçisi yok** — eksik kontrolü bloğundan muaf, denetleyen orkestratördür |
+| `developer` ve benim yazdığım kod | **`qa`** → kritik bulguları ben doğrularım |
+| `qa`, `analyst`, `devops`, `test-writer`, `product-manager` | Kendi **eksik kontrolü** bloğu (§7) + orkestratör |
+| `product-manager`nin kapsamı | **Kullanıcı** (§2a onay kapısı) |
+| `architect`, `designer`, `doc-writer` | **Ayrı denetçisi yok** — eksik kontrolü bloğundan muaf, denetleyen orkestratördür |
 
 `qa`'ya ikinci bir denetçi **ajan** eklenmedi: subagent token'ı ana konuşmadan
 ~4x pahalı, kazanç maliyeti karşılamıyor.
@@ -109,16 +109,16 @@ Her modda, ajan kullanılan her turda:
 ## Rol seçimi (C · D · E)
 
 Kimin ne yapacağına **orkestratör** karar verir — ajanlar birbirini çağırmaz.
-Karar ölçütleri: [`rol-secimi.md`](rol-secimi.md).
+Karar ölçütleri: [`role-selection.md`](role-selection.md).
 
 ## Otonom koşum (C/D/E üstüne biner)
 
-Uzun bir işi bırakıp gitmek: [`otonom-kosum.md`](otonom-kosum.md).
+Uzun bir işi bırakıp gitmek: [`autonomous-run.md`](autonomous-run.md).
 Onay #20 kapsamındadır ve KOŞULLUDUR — iş listesi, bitiş tanımı, bütçe tavanı,
 tıkanma freni, geri alınamaz eylemde durma.
 
 ## Mod seçimi
 
-    /calisma-modu           # mevcut modu göster
-    /calisma-modu B         # bu proje için B'ye geç (kalıcı)
-    /calisma-modu B --tek   # yalnız bu oturum, dosyaya yazma
+    /working-mode           # mevcut modu göster
+    /working-mode B         # bu proje için B'ye geç (kalıcı)
+    /working-mode B --tek   # yalnız bu oturum, dosyaya yazma

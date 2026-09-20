@@ -4,31 +4,31 @@
 `scripts/` dizinine bir **kopya** alır ve onu commit'ler.
 
 ⚠️ Projeler bu dizini **doğrudan çağırmaz**. Bir projenin kapısı repo dışı bir
-yola bağlanamaz — `md-kural-kapisi.py` 05/09/2026'ya kadar tam bu yüzden
+yola bağlanamaz — `md-rule-gate.py` 05/09/2026'ya kadar tam bu yüzden
 kayıptı: `~/ClaudeCode/.claude/` altında, hiçbir git deposunda değildi ve
-`md-butce.tsv` ona yönlendirdiği hâlde hiçbir worktree'de yoktu.
+`md-budget.tsv` ona yönlendirdiği hâlde hiçbir worktree'de yoktu.
 
 | Araç | Ne yapar | Nasıl koşar |
 |---|---|---|
-| `md-boyut-kapisi.sh` | Her `CLAUDE.md`'nin boyutunu bir **cırcıra** bağlar: tavan yalnız iner (`--guncelle`), yükseltmek elle + `NOT` sütununda gerekçeli. Bütçesiz dosya fail-closed kırmızı. | Projenin merge kapısında **otomatik** |
-| `md-kural-kapisi.py` | Bir sadeleştirmede **kural kaybını** ölçer: ❌ maddeleri, yasak/yükümlülük kipi taşıyan satırlar, ters-tırnaklı tanımlayıcılar. Düşen tanımlayıcı için **gerekçeli triaj** ister. | **Elle**, bölme yaparken |
-| `md-bol.py` | Karar günlüğünü iki katmana ayırır — **birebir taşıyarak, parafraz etmeden**. | **Elle**, bölme yaparken |
+| `md-size-gate.sh` | Her `CLAUDE.md`'nin boyutunu bir **cırcıra** bağlar: tavan yalnız iner (`--guncelle`), yükseltmek elle + `NOT` sütununda gerekçeli. Bütçesiz dosya fail-closed kırmızı. | Projenin merge kapısında **otomatik** |
+| `md-rule-gate.py` | Bir sadeleştirmede **kural kaybını** ölçer: ❌ maddeleri, yasak/yükümlülük kipi taşıyan satırlar, ters-tırnaklı tanımlayıcılar. Düşen tanımlayıcı için **gerekçeli triaj** ister. | **Elle**, bölme yaparken |
+| `md-split.py` | Karar günlüğünü iki katmana ayırır — **birebir taşıyarak, parafraz etmeden**. | **Elle**, bölme yaparken |
 
 ## Bir projeye kurulum
 
-`/proje-standardi-uygula` komutu bunu yapar. Elle yapılacaksa:
+`/apply-project-standards` komutu bunu yapar. Elle yapılacaksa:
 
 ```bash
 mkdir -p scripts && cp ~/.claude/scripts/md-*.sh ~/.claude/scripts/md-*.py scripts/
-bash scripts/md-boyut-kapisi.sh --guncelle   # tavanlar = bugünkü boyut
+bash scripts/md-size-gate.sh --guncelle   # tavanlar = bugünkü boyut
 ```
 
-Sonra projenin merge kapısına `bash scripts/md-boyut-kapisi.sh` adımını ekle.
+Sonra projenin merge kapısına `bash scripts/md-size-gate.sh` adımını ekle.
 
 ## Bölme yaparken doğru sıra
 
 ```bash
-python3 scripts/md-kural-kapisi.py <(git show origin/dev:CLAUDE.md) /tmp/yeni.md
+python3 scripts/md-rule-gate.py <(git show origin/dev:CLAUDE.md) /tmp/yeni.md
 ```
 
 Taşıma birden çok dosyaya yayıldıysa "yeni" tarafı **birleştirilerek** verilir:
@@ -36,7 +36,7 @@ Taşıma birden çok dosyaya yayıldıysa "yeni" tarafı **birleştirilerek** ve
 
 ## ⚠️ Küçültmeden önce oku
 
-`md-butce.tsv`'nin başlığında **ölçülmüş** bir sonuç var: 15/08/2026'da bir
+`md-budget.tsv`'nin başlığında **ölçülmüş** bir sonuç var: 15/08/2026'da bir
 `CLAUDE.md` üç yöntemle sadeleştirilmeye çalışıldı; biri **383 kural satırını
 düşürdü**, biri dosyayı **büyüttü**. Cümle düzeyinde ölçüm: **%61 kural,
 %9 tarihçe**. Yani bu dosyalar genelde **şişkin değil, yoğundur**.

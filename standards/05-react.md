@@ -61,7 +61,7 @@ Teknoloji bazlı değil **özellik bazlı** gruplama. Bir özelliği silmek tek 
 - Uzun listeler sanallaştırılır (`react-virtual` vb.) veya sayfalanır.
 - Route bazlı code splitting (`React.lazy` + `Suspense`).
 - Görsel: doğru boyut + `loading="lazy"` + modern format.
-- Bundle bütçesi izlenir (`16-performans.md`).
+- Bundle bütçesi izlenir (`16-performance.md`).
 
 ## 7. Stil
 
@@ -95,7 +95,7 @@ Teknoloji bazlı değil **özellik bazlı** gruplama. Bir özelliği silmek tek 
 - Sorgu önceliği: `getByRole` > `getByLabelText` > `getByText` > `getByTestId` (son çare).
 - Ağ MSW ile taklit edilir; `fetch` global mock'lamak yerine gerçek istek/yanıt seviyesinde.
 - Snapshot testi kural olarak kullanılmaz (kırılgan, gözden geçirilmeden onaylanır).
-- Detay: `10-test-stratejisi.md`.
+- Detay: `10-test-strategy.md`.
 
 ## 12. Yapma listesi
 

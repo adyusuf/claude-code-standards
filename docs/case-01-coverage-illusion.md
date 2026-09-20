@@ -100,7 +100,7 @@ flowchart TD
 ## Outcome
 
 The resulting rule — `CLAUDE.md` #29, detailed in
-`standards/10-test-stratejisi.md` §7:
+`standards/10-test-strategy.md` §7:
 
 > Line coverage of **at least 80% in every codebase**. Never averaged. The
 > denominator is made honest by excluding generated code only. The threshold is

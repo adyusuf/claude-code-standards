@@ -53,7 +53,7 @@ feature/* → dev → (onay) → test → (onay) → prod
 ## 5. Deploy
 
 - **Sıfır kesintili** hedef: rolling / blue-green. Kesinti gerekiyorsa önceden duyurulur.
-- Migration deploy'dan **ayrı ve önce** koşulur; expand→migrate→contract (`08-geriye-uyumluluk.md` §5) sayesinde eski kod da yeni şemayla çalışır.
+- Migration deploy'dan **ayrı ve önce** koşulur; expand→migrate→contract (`08-backward-compatibility.md` §5) sayesinde eski kod da yeni şemayla çalışır.
 - Deploy sonrası otomatik smoke test (`/health`, kritik 2-3 endpoint). Kırmızıysa otomatik rollback veya alarm.
 - **Rollback planı deploy'dan önce yazılır.** "Geri alamayız" durumu varsa deploy edilmez, feature flag ile çıkılır.
 - Feature flag: yeni riskli özellik kapalı çıkar, kademeli açılır. Flag'ler envanterde tutulur ve **temizlenir** (ölü flag teknik borçtur).
@@ -64,13 +64,13 @@ feature/* → dev → (onay) → test → (onay) → prod
 - **Repoda sır bulunursa:** önce **rotate**, sonra geçmiş temizliği. Sadece silmek yetmez — geçmişte kalır.
 - Sır taraması CI'da zorunlu (gitleaks/trufflehog) + `pre-commit` hook.
 - Sır rotasyon takvimi yazılı (en az yılda 1, kişi ayrılışında hemen).
-- Tüm sırların envanteri `SETUP.md`'de (bkz. `18-kurulum-ve-ortam.md`): ne, nereden alınır, nerede saklanır, kim sahibi, ne zaman yenilenir.
+- Tüm sırların envanteri `SETUP.md`'de (bkz. `18-setup-and-environment.md`): ne, nereden alınır, nerede saklanır, kim sahibi, ne zaman yenilenir.
 
 ## 7. Altyapı
 
 - Sunucu ayarı elle yapılmaz — script/IaC ile (PowerShell/bash script, Terraform, Ansible). Elle yapılan her ayar bir sonraki sunucuda kaybolur.
 - Kurulum adımları `DEPLOY.md`'de; **yeni bir sunucuya sıfırdan kurulum bu dosyayla yapılabilmeli**.
-- DNS, sertifika, firewall kuralları da dokümante edilir (`19-cloudflare-ve-edge.md`, `20-sertlestirme.md`).
+- DNS, sertifika, firewall kuralları da dokümante edilir (`19-cloudflare-and-edge.md`, `20-hardening.md`).
 - Sertifika otomatik yenilenir; yenileme başarısızlığı **alarm üretir** (sessizce süresi dolmasın).
 
 ## 8. Tek origin dağıtım (tercih edilen topoloji)
@@ -89,7 +89,7 @@ Nasıl:
 - Reverse proxy (Cloudflare/Nginx/IIS ARR) `/api/*` → backend, kalan her şey → statik SPA
 - SPA fallback: bilinmeyen yol → `index.html`, **ama `/api/*` asla fallback'e düşmez** (yoksa 404 yerine HTML döner ve istemci JSON parse hatası alır)
 - `/swagger` yalnız test ortamında açık; prod'da kapalı veya kimlik korumalı
-- Detay ve Cloudflare kuralları: `19-cloudflare-ve-edge.md` §4
+- Detay ve Cloudflare kuralları: `19-cloudflare-and-edge.md` §4
 
 ## 9. Yedekleme ve felaket kurtarma
 
@@ -101,7 +101,7 @@ Nasıl:
 
 ## 10. Gözlemlenebilirlik
 
-`17-gozlemlenebilirlik.md`. Minimum: merkezî log, hata takibi (Sentry vb.), uptime kontrolü, `/health` endpoint'i, disk/CPU/bellek alarmı, sertifika süresi alarmı.
+`17-observability.md`. Minimum: merkezî log, hata takibi (Sentry vb.), uptime kontrolü, `/health` endpoint'i, disk/CPU/bellek alarmı, sertifika süresi alarmı.
 
 ## 11. Yapma listesi
 

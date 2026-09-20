@@ -83,9 +83,9 @@ estimated. This is the honest state, not a target:
 |---|---|
 | `qa` (opus, auditing) | `████████████████████` measured — 3 records, ~$4.10/turn |
 | Turn average across 33 sessions | `████████████████████` measured — ~$6.9/turn |
-| `mimar` / `gelistirici` (writing roles) | `░░░░░░░░░░░░░░░░░░░░` estimated only |
-| sonnet roles (`analiz`, `test-yazar`, `devops`, …) | `░░░░░░░░░░░░░░░░░░░░` estimated only |
-| `belge` (haiku) | `░░░░░░░░░░░░░░░░░░░░` estimated only |
+| `architect` / `developer` (writing roles) | `░░░░░░░░░░░░░░░░░░░░` estimated only |
+| sonnet roles (`analyst`, `test-writer`, `devops`, …) | `░░░░░░░░░░░░░░░░░░░░` estimated only |
+| `doc-writer` (haiku) | `░░░░░░░░░░░░░░░░░░░░` estimated only |
 | Team modes (X / Y / Z) | `░░░░░░░░░░░░░░░░░░░░` never measured |
 
 Thresholds have deliberately **not** been adjusted on this data: all three
@@ -147,8 +147,8 @@ the rationale, the names are not.
   `<account>+<label>@gmail.com` are used instead)
 
 That split is not arbitrary: the rules governing what must never be published
-are part of the set itself, in `standards/15-guvenlik.md` (security) and
-`standards/18-kurulum-ve-ortam.md` (setup and secret inventory).
+are part of the set itself, in `standards/15-security.md` (security) and
+`standards/18-setup-and-environment.md` (setup and secret inventory).
 
 ## Language
 

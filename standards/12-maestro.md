@@ -62,7 +62,7 @@ Kurallar:
 
 - Her push'ta koşmaz — build gerektirir. Tetikleme: release adayı, gecelik, veya `dev → test` promosyonu.
 - Maestro Cloud veya self-hosted emülatör; hangisi olursa olsun **artifact** (video + log) saklanır.
-- Store yayını öncesi smoke flow'ları **zorunlu geçer** (`06-mobil.md` §9 checklist).
+- Store yayını öncesi smoke flow'ları **zorunlu geçer** (`06-mobile.md` §9 checklist).
 
 ## 8. Yazılırken dikkat
 
