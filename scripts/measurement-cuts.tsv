@@ -1,0 +1,3 @@
+# Measurement cut points — configuration changes. Columns: ISO timestamp <TAB> label
+# step-stats.py computes the prefix median BEFORE and AFTER each cut on its own.
+2026-09-20 09:39	disabled 10 out-of-stack plugins + CLAUDE.md 41 -> 22 KB

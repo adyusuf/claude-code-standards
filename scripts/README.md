@@ -50,3 +50,18 @@ sorun yoğunluk değil, tek dosyada biriktirmeydi ve **taşıma** (özetleme de�
 **Karar kuralı:** her oturumda + her ajan turunda yüklenen **kök** dosyada
 taşıma değer. Yalnız ilgili dizinde yüklenen **alt** dosyada çoğunlukla
 değmez — orada cırcırlı tavan yeterlidir.
+
+## Ölçüm ve kapı betikleri (20/09/2026)
+
+| Dosya | Ne yapar |
+|---|---|
+| `pre-commit.sh` | Commit'ten ÖNCE koşan kapı: CLAUDE.md boyut bütçesi + staged içerikte gitleaks. Kırmızıysa commit'i **durdurur** (`md-hook.sh` yalnız uyarır, çıkış kodu 0). Kurulum: `bash scripts/pre-commit.sh --install`; bilinçli istisna `git commit --no-verify`. |
+| `prefix-measure.py` | Oturumların **sabit öneğini** (sistem prompt + araç/skill listeleri + CLAUDE.md) listeler. Sıralama dosya damgasına değil **oturum başlangıcına** göredir. |
+| `step-stats.py` | `docs/measurement-log.md`'yi üretir: önek dağılımı, kesim karşılaştırması, rol bazında koşum + maliyet, **SDLC step'lerinin koşum sayısı**. `--write`, `--days N`. |
+| `measurement-cuts.tsv` | Yapılandırma değişikliklerinin tarihi (`ISO tarih<TAB>etiket`); `step-stats.py` her kesimin **öncesi/sonrası** önek medyanını kendisi hesaplar. |
+
+⚠️ **Sayım tuzakları (ölçülerek bulundu):** heredoc **gövdesi** komut değil veridir
+(gövde ayıklanır, sonrası korunur — yoksa sayım yarıya düşer) · `grep -E "dotnet|codeql"`
+bir SAST koşumu değildir, bahisler `dismissed` sütununda ayrıca raporlanır ·
+adım başka bir betiğin içinden koşarsa görünmez: "0" değil **"görünmedi"**.
+

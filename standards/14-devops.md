@@ -22,7 +22,7 @@ feature/* → dev → (onay) → test → (onay) → prod
 - Yön tek: geri merge yok. Hotfix bile `dev`'den açılır, hızlı promosyon edilir.
 - `test`/`prod`'a ham `git push` engellenir (branch protection + pre-push hook).
 - Her **promosyon** (`dev → test`, `test → prod`) öncesi: kapı yeşil + review yapılmış + e2e sonucu taze.
-- **`dev`'e merge bunun dışındadır (global kural #25):** yalnız build + hızlı unit test + lint koşar; review, güvenlik taraması ve e2e `dev`'de koşmaz.
+- **`dev`'e merge bunun dışındadır (global kural #25):** yalnız build + hızlı unit test koşar (formatlayıcı/lint iş listesinin **sonunda bir kez**, 20/09/2026 — #26); review, güvenlik taraması ve e2e `dev`'de koşmaz.
 
 ## 3. CI hattı (hızlıdan yavaşa)
 

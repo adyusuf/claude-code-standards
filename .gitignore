@@ -22,3 +22,6 @@ settings.local.json
 *.pem
 *.key
 .DS_Store
+
+# Canlı yapılandırmaya sembolik bağ (yereldir, depoya girmez)
+config
