@@ -14,7 +14,7 @@ Bring this project in line with the `~/.claude/standards/` layout. **Do not dele
 
 ## 2. `CLAUDE.md`
 
-- If missing: create it from `~/.claude/standards/templates/project-claude-md.md`, filled in with **real** information.
+- If missing: create it from `~/.claude/standards/templates/project-claude-md.md`, filled in with **real** information. A large module (`backend/`, `web/`, `mobile/`, `infra/`) gets its own small `CLAUDE.md` from `module-claude-md.md`, so its detail is loaded only when Claude works there.
 - If present: do not delete it. Add only the missing sections and put this note at the top (if it is not there already):
 
   ```

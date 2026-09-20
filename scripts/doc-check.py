@@ -14,7 +14,8 @@ What it checks (each one is a drift the rule set actually suffers from):
      standards/ names a PROJECT's file and is not checked);
   3. every index (standards/README.md, docs/README.md, modes/README.md) mentions every
      file that sits next to it — a document nobody can find is not documentation;
-  4. the counts README.md states ("N rules", "N documents + M templates", "N roles")
+  4. the counts README.md states ("N rules", "N documents + M templates", "N roles",
+     "N scripts", "N modes")
      equal what is on disk;
   5. no `#NN` rule reference in CLAUDE.md / standards / modes / agents points past the
      last numbered rule.
@@ -96,12 +97,18 @@ def check_counts(root, findings):
         if os.path.isdir(os.path.join(root, 'standards')) else 0
     templates_dir = os.path.join(root, 'standards', 'templates')
     templates = len(os.listdir(templates_dir)) if os.path.isdir(templates_dir) else 0
+    scripts_dir = os.path.join(root, 'scripts')
+    scripts = len([n for n in os.listdir(scripts_dir) if n.endswith(('.sh', '.py'))]) if os.path.isdir(scripts_dir) else 0
+    modes_dir = os.path.join(root, 'modes')
+    modes = len([n for n in os.listdir(modes_dir) if re.match(r'[A-Z]-.*\.md$', n)]) if os.path.isdir(modes_dir) else 0
     roles_dir = os.path.join(root, 'agents')
     roles = len([n for n in os.listdir(roles_dir) if n.endswith('.md')]) if os.path.isdir(roles_dir) else 0
     claims = (('rules', r'(\d+) rules', rule_count(root)),
               ('standards documents', r'(\d+) documents \+ \d+ templates', standards),
               ('templates', r'\d+ documents \+ (\d+) templates', templates),
-              ('agent roles', r'(\d+) roles', roles))
+              ('agent roles', r'(\d+) roles', roles),
+              ('scripts', r'(\d+) scripts', scripts),
+              ('modes', r'(\d+) modes', modes))
     for label, pattern, actual in claims:
         for stated in re.findall(pattern, text):
             if int(stated) != actual:

@@ -23,12 +23,17 @@ def build(files):
 def consistent():
     return {
         'CLAUDE.md': RULES,
-        'README.md': '| Rules | `CLAUDE.md` | 33 rules |\n| Standards | `standards/` | 2 documents + 1 templates |\n| Roles | `agents/` | 1 roles |\n',
+        'README.md': '| Rules | `CLAUDE.md` | 33 rules |\n| Standards | `standards/` | 2 documents + 1 templates |\n| Roles | `agents/` | 1 roles |\n| Scripts | `scripts/` | 2 scripts |\n| Modes | `modes/` | 1 modes |\n',
         'standards/00-a.md': 'see [b](01-b.md) and `standards/01-b.md`, rule #33',
         'standards/01-b.md': 'x',
         'standards/README.md': '| `00-a.md` | a |\n| `01-b.md` | b |\n',
         'standards/templates/t.md': 'x',
         'agents/qa.md': 'x',
+        'scripts/a.sh': 'x',
+        'scripts/b.py': 'x',
+        'scripts/tests/t.py': 'x',
+        'modes/A-skill.md': 'x',
+        'modes/README.md': '[A](A-skill.md)',
     }
 
 
@@ -72,8 +77,8 @@ class DocCheck(unittest.TestCase):
 
     def test_a_rule_reference_past_the_last_rule_is_found(self):
         files = consistent()
-        files['modes/x.md'] = 'per rule #34 and issue-like &#39; and rule #7'
-        self.assertEqual(dc.run(build(files)), ['modes/x.md: refers to rule #34, but the last rule is #33'])
+        files['agents/qa.md'] = 'per rule #34 and issue-like &#39; and rule #7'
+        self.assertEqual(dc.run(build(files)), ['agents/qa.md: refers to rule #34, but the last rule is #33'])
 
     def test_rule_range_counts_its_upper_bound(self):
         files = consistent()
@@ -81,6 +86,13 @@ class DocCheck(unittest.TestCase):
         files['standards/00-a.md'] = 'see [b](01-b.md)'
         files['README.md'] = '| a | b | 23 rules |\n'
         self.assertEqual(dc.run(build(files)), [])
+
+    def test_stale_scripts_and_modes_claims_are_found_and_nested_test_files_do_not_count(self):
+        files = consistent()
+        files['README.md'] = files['README.md'].replace('2 scripts', '3 scripts').replace('1 modes', '5 modes')
+        found = dc.run(build(files))
+        self.assertEqual(sorted(f.split(': ')[1] for f in found), [
+            'states 3 scripts, the repository has 2', 'states 5 modes, the repository has 1'])
 
 
 if __name__ == '__main__':

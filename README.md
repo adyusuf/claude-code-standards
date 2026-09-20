@@ -8,20 +8,20 @@ broke first.
 | What | Where | Count |
 |---|---|---|
 | Working rules (index loaded every session) | `CLAUDE.md` | 33 rules |
-| Engineering standards | `standards/` | 22 documents + 5 templates |
+| Engineering standards | `standards/` | 22 documents + 6 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate and measurement scripts | `scripts/` | 7 scripts |
+| Gate and measurement scripts | `scripts/` | 13 scripts |
 | Slash commands and skills | `commands/`, `skills/` | 5 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
 ```mermaid
 pie showData title Repository composition (files)
- "standards/ (22 docs + 5 templates)" : 28
+ "standards/ (22 docs + 6 templates)" : 29
  "agents/ (14 roles)" : 14
  "modes/ (5 modes + selection guide)" : 13
- "scripts/ (gates, cost meter)" : 8
- "docs/ (decision log + case studies)" : 6
+ "scripts/ (gates, hooks, measurement, tests)" : 22
+ "docs/ (decision log + case studies + ledger)" : 9
  "commands/ + skills/" : 5
  "root (CLAUDE.md, settings, license)" : 5
 ```
