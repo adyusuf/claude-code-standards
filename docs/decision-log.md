@@ -82,9 +82,9 @@ Additional detail shortened out of the active file:
    user explicitly says "merge" / "prod merge" (#25 and the project's own rules
    still apply).
 
-⚠️ **The `~/.claude` repository's own layout:** `dev` = working branch, `master` =
-release. Work is committed to `dev`; the **user** decides on promotion to `master`.
-The repo is a **shared working tree** — parallel sessions work in the same
+⚠️ **The configuration repository's own layout:** branches `dev` / `test` / `prod`,
+with `prod` as the default. Work is committed to `dev`; the **user** decides on each
+promotion. The repo is a **shared working tree** — parallel sessions work in the same
 directory, so `git status` is verified before switching branches and only your own
 diff is committed.
 
