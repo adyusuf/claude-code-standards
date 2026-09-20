@@ -1,0 +1,24 @@
+# Bu depo YALNIZ elle yazılmış yöntem katmanını taşır.
+# Aşağıdakiler Claude Code'un çalışma zamanı verisidir ve buraya ASLA girmez.
+projects/
+sessions/
+session-env/
+shell-snapshots/
+telemetry/
+cache/
+tasks/
+backups/
+plans/
+file-history/
+scheduled-tasks/
+plugins/
+history.jsonl
+.claude.json*
+.credentials.json
+policy-limits.json
+remote-settings.json
+mcp-needs-auth-cache.json
+settings.local.json
+*.pem
+*.key
+.DS_Store

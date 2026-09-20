@@ -1,0 +1,66 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/scripts/md-hook.sh\""
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/.claude/scripts/md-hook.sh\""
+          }
+        ]
+      }
+    ]
+  },
+  "enabledPlugins": {
+    "agent-skills@addy-agent-skills": true,
+    "agent-sdk-dev@claude-plugins-official": true,
+    "auth0@claude-plugins-official": false,
+    "claude-code-setup@claude-plugins-official": true,
+    "claude-md-management@claude-plugins-official": true,
+    "cloud-sql-postgresql@claude-plugins-official": false,
+    "cloudflare@claude-plugins-official": true,
+    "code-review@claude-plugins-official": true,
+    "code-modernization@claude-plugins-official": false,
+    "code-simplifier@claude-plugins-official": true,
+    "data-engineering@claude-plugins-official": false,
+    "desktop-commander@claude-plugins-official": false,
+    "expo@claude-plugins-official": true,
+    "firebase@claude-plugins-official": false,
+    "figma@claude-plugins-official": false,
+    "github@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "huggingface-skills@claude-plugins-official": false,
+    "microsoft-docs@claude-plugins-official": true,
+    "playwright@claude-plugins-official": true,
+    "railway@claude-plugins-official": false,
+    "redis-development@claude-plugins-official": false,
+    "sonarqube@claude-plugins-official": true,
+    "vercel@claude-plugins-official": false,
+    "feature-dev@claude-plugins-official": true,
+    "playground@claude-plugins-official": false,
+    "pr-review-toolkit@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "addy-agent-skills": {
+      "source": {
+        "source": "directory",
+        "path": "$HOME/agent-skills"
+      }
+    }
+  },
+  "autoCompactWindow": 1000000,
+  "skipWorkflowUsageWarning": true,
+  "theme": "dark",
+  "agentPushNotifEnabled": true
+}
