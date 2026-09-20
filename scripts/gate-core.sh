@@ -70,6 +70,8 @@ PASS=(); FAIL=(); SKIP=(); WARN=()
 say()  { printf '\n\033[1m▶ %s\033[0m\n' "$1"; }
 ok()   { printf '  \033[32m✓\033[0m %s\n' "$1"; PASS+=("$1"); }
 bad()  { printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL+=("$1"); }
+NA=()
+na()   { printf '  \033[90m–\033[0m n/a: %s\n' "$1"; NA+=("$1"); }   # nothing to check here — not a gap
 ACCEPTED=()
 skip() {
   local what="$1"
@@ -181,7 +183,7 @@ if [ "$TARGET" != "prod" ]; then
     printf '  → %-42s %s\n' "SETUP.md, .env.example, secret inventory" "file and heading checks"
     PASS+=("project documents")
   elif [ "$HAS_DOTNET" = 0 ] && [ "$HAS_NODE" = 0 ]; then
-    skip "project documents: no stack detected, nothing to check"
+    na "project documents: no stack at the repository root, nothing to check"
   else
     [ -f SETUP.md ] && ok "SETUP.md" || bad "SETUP.md is missing (rule #16: a clean machine must be set up from the document)"
     [ -f .env.example ] && ok ".env.example" || bad ".env.example is missing (rule #16)"
@@ -259,6 +261,7 @@ fi
 printf '\n\033[1m── result ──\033[0m\n'
 printf '  passed  : %d\n' "${#PASS[@]}"
 printf '  warnings: %d\n' "${#WARN[@]}"
+printf '  n/a     : %d\n' "${#NA[@]}"
 printf '  accepted: %d\n' "${#ACCEPTED[@]}"
 printf '  skipped : %d\n' "${#SKIP[@]}"
 printf '  failed  : %d\n' "${#FAIL[@]}"
