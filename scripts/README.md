@@ -79,7 +79,8 @@ adds whatever that project needs — and CALLS the core for the shared steps. So
 step definition lives in one place while a project can ADD steps without forking
 it. The canonical copy lives here; every project commits a copy, because a
 project's gate cannot depend on a path outside its repository (CI runners do not
-have the configuration checked out). The drift test in `md-hook.sh` covers it.
+have the configuration checked out). `md-hook.sh`'s drift test covers only the three `md-*` tools,
+**not** this file: compare a project's copy by hand with `cmp`.
 
 `gate-core.sh <target> --list` prints the steps that WOULD run and the command
 each resolves to, and runs nothing — use it when rolling the gate into a project.
@@ -99,3 +100,25 @@ the project already has instead of renaming those scripts.
 and the gate exits non-zero with INCOMPLETE — never green. A project may ADD
 steps; it may never remove one.
 
+## Adopting these scripts in a new project
+
+Not everything here is meant to be copied, and some copied files must be edited.
+`/apply-project-standards` does the document part; this is the script part.
+
+| File | What to do | Note |
+|---|---|---|
+| `gate-core.sh` | **Copy as is** | Configure it through `scripts/merge-gate.conf`, never by editing the copy. |
+| `merge-gate.sh` | **Write your own** | The project's orchestrator: pull, merge, push, and a call to `gate-core.sh`. This repository ships no template for it. |
+| `merge-gate.conf` | **Create, values are yours** | The commands, `TEST_VERSION_URL`, `ACCEPTED_GAPS` with a written reason. The values shown in `gate-core.sh`'s header are examples, not defaults to keep. |
+| `md-size-gate.sh`, `md-rule-gate.py`, `md-split.py` | **Copy as is** | Drift-checked against `~/.claude/scripts/` by `md-hook.sh`. |
+| `md-budget.tsv` | **Copy, then `md-size-gate.sh --update`** | The ceilings are this repository's. Yours become your files' size today. |
+| `pre-commit.sh` | **Copy as is, then `--install` in every clone** | A git hook is per clone; it is not committed. |
+| `guard-destructive.sh` | **Copy as is; register it** | In `.claude/settings.json` (shared) with `"$CLAUDE_PROJECT_DIR/scripts/guard-destructive.sh"`, or in your user settings. See `standards/18-setup-and-environment.md` §11. |
+| `doc-check.py` | **Copy if you want it** | Runs from `pre-commit.sh` when present. Checks that do not apply (no `standards/`, no index) are no-ops. |
+| `evidence-check.py` + `evidence-block.schema.json` | **Copy both, only if you run agents (modes C/D/E)** | The script loads the schema from beside itself. |
+| `tests/` | **Copy only the tests of the scripts you copied** | |
+| `md-hook.sh` | **Do not copy** | A user-level hook wired in `~/.claude/settings.json` (`settings.example.json`). |
+| `step-stats.py`, `measurement-ledger.py`, `session-cost.py`, `prefix-measure.py`, `measurement-cuts.tsv` | **Do not copy** | They read the transcripts of *all* projects under `~/.claude/projects`; there is one canonical copy, here. |
+
+After copying, run `python3 scripts/doc-check.py` and `bash scripts/gate-core.sh dev --list`:
+the second prints every step that would run and the command it resolves to, without running any.
