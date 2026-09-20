@@ -119,6 +119,24 @@ The same repository may be open in more than one Claude session:
   if you get an error, use an isolated clone.
 - Before long-running work: `git fetch`, and a `--ff-only` pull if you are behind.
 
+### 7a. The live configuration is a symlink into this repository
+
+`~/.claude` does not hold its own copy of the instruction text: `CLAUDE.md`,
+`standards/`, `agents/`, `modes/`, `commands/`, `scripts/`, `docs/` and the skills
+are **symlinks** into this repository's **main worktree**. The same text therefore
+lives in exactly one place (rule #2 applied to the configuration itself), and
+there is no twin to drift.
+
+The consequence that matters: **the live configuration follows whatever branch the
+main worktree has checked out.** So:
+
+- The main worktree stays on **`prod`** — that is the configuration actually in
+  force in every session.
+- Work happens in a **separate `dev` worktree** (`git worktree add ../<repo>-dev dev`),
+  so an unfinished rule never becomes live by accident.
+- A change reaches the live configuration only when the user promotes
+  `dev → test → prod`. Never check out `dev` in the main worktree to "try something".
+
 ## 8. Work that requires approval (no exceptions)
 
 - Deploying to production / merging to a production branch
