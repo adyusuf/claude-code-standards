@@ -1,66 +1,66 @@
-## Ne / Neden
+## What / Why
 
-<Bir paragraf: hangi problem, neden bu çözüm. Ticket/issue linki.>
+<One paragraph: which problem, and why this solution. Link to the ticket/issue.>
 
-## Değişiklikler
+## Changes
 
-- <dosya/modül> — <ne değişti>
+- <file/module> — <what changed>
 - ...
 
-## Nasıl test edildi
+## How it was tested
 
 ```bash
-# koşulan komutlar ve sonuçları
+# the commands that were run, and their results
 dotnet test        # 142 passed
 npm run test       # 87 passed
 npm run e2e        # 18 passed
 ```
 
-- [ ] Mutlu yol denendi
-- [ ] Hata yolu denendi (<hangisi>)
-- [ ] Yetkisiz erişim denendi
+- [ ] Happy path exercised
+- [ ] Error path exercised (<which one>)
+- [ ] Unauthorized access exercised
 
-## Ekran görüntüsü (UI değişikliği varsa)
+## Screenshot (if the UI changed)
 
-| Öncesi | Sonrası |
+| Before | After |
 |---|---|
 | | |
 
-## Geriye uyumluluk etkisi — **zorunlu alan**
+## Backward-compatibility impact — **a required field**
 
-- [ ] Alan/endpoint **silinmedi**, adı/tipi **değişmedi**
-- [ ] Yeni input alanı **opsiyonel**
-- [ ] Yeni DB kolonu **nullable**
-- [ ] Validasyon **sıkılaştırılmadı** (yeni `Required`/`UNIQUE`/daraltılmış `MaxLength` yok)
-- [ ] Enum sayısal sıralaması korundu
-- [ ] Global serializer / route / hub payload değişmedi
-- [ ] **Mobilin eski sürümü bu değişiklikle çalışır**
+- [ ] No field/endpoint was **deleted**, and no name or type **changed**
+- [ ] Any new input field is **optional**
+- [ ] Any new database column is **nullable**
+- [ ] Validation was **not tightened** (no new `Required`/`UNIQUE`/narrowed `MaxLength`)
+- [ ] Enum numeric ordering preserved
+- [ ] The global serializer / routes / hub payload did not change
+- [ ] **The older mobile version still works with this change**
 
-Etki varsa açıkla: <...>
+If there is an impact, explain it: <...>
 
-## Veritabanı / migration
+## Database / migration
 
-- [ ] Migration yok
-- [ ] Migration var → geri alınabilir mi: <evet/hayır, nasıl>
-- [ ] `DROP` içeriyor mu: <hayır / evet → yedek alındı, test ortamında denendi>
+- [ ] No migration
+- [ ] There is a migration → is it reversible: <yes/no, how>
+- [ ] Does it contain a `DROP`: <no / yes → a backup was taken and it was rehearsed in the test environment>
 
-## Konfigürasyon / sır
+## Configuration / secrets
 
-- [ ] Yeni env değişkeni yok
-- [ ] Var → `.env.example` **ve** `SETUP.md` sır envanteri güncellendi
+- [ ] No new env variable
+- [ ] There is one → `.env.example` **and** the `SETUP.md` secret inventory were updated
 
-## Güvenlik
+## Security
 
-- [ ] Yeni endpoint yetkilendirildi (kaynak sahipliği dahil)
-- [ ] Girdi doğrulanıyor
-- [ ] Log'a PII/token sızmıyor
+- [ ] Any new endpoint is authorized (including resource ownership)
+- [ ] Input is validated
+- [ ] No PII/tokens leak into the logs
 
 ## Rollback
 
-<Bu değişiklik sorun çıkarırsa nasıl geri alınır? Feature flag var mı?>
+<If this change causes a problem, how is it rolled back? Is there a feature flag?>
 
-## Doküman
+## Documentation
 
-- [ ] Swagger/OpenAPI güncel
-- [ ] `CLAUDE.md` / `docs/` güncel
-- [ ] Yeni kalıcı kural varsa MD'ye yazıldı
+- [ ] Swagger/OpenAPI is current
+- [ ] `CLAUDE.md` / `docs/` are current
+- [ ] Any new permanent rule was written into the relevant markdown file

@@ -1,99 +1,100 @@
-# <Proje Adı> — Claude Code Rehberi
+# <Project name> — Claude Code guide
 
-> Bu dosya Claude Code'un her oturumda otomatik okuduğu ana giriş noktasıdır.
-> **Kısa tut** (hedef < 200 satır). Detayı `docs/` klasörüne ve alt dizinlerin
-> kendi `CLAUDE.md` dosyalarına bırak.
-> Genel yazılım standartları `~/.claude/standards/` altında — burada **yalnız
-> bu projeye özel** olanlar yazılır. Buradaki kural genel standardı ezer.
+> This file is the main entry point Claude Code reads automatically in every
+> session. **Keep it short** (target: under 200 lines). Leave the detail to the
+> `docs/` folder and to the `CLAUDE.md` files of the subdirectories.
+> The global software standards live under `~/.claude/standards/` — this file
+> holds **only what is specific to this project**. A rule here overrides the
+> global standard.
 
-## Proje tek cümlede
+## The project in one sentence
 
-<Ne yapar, kim için, hangi problemi çözer — bir cümle.>
+<What it does, who for, which problem it solves — one sentence.>
 
-## Temel ilkeler (proje DNA'sı)
+## Core principles (the project's DNA)
 
-- **<İlke>.** <Bir cümle açıklama ve sonucu.>
-- **<İlke>.** ...
+- **<Principle>.** <One sentence of explanation and its consequence.>
+- **<Principle>.** ...
 
-## Mimari
+## Architecture
 
-- **`backend/`** — <teknoloji>, <veritabanı>. Port `<port>`.
-- **`web/`** — <teknoloji>. Port `<port>`.
-- **`mobile/`** — <teknoloji>.
+- **`backend/`** — <technology>, <database>. Port `<port>`.
+- **`web/`** — <technology>. Port `<port>`.
+- **`mobile/`** — <technology>.
 
-İstemciler yalnız API'yi tüketir. İş mantığı **asla** istemcide yapılmaz.
+Clients consume the API only. Business logic is **never** performed on a client.
 
-### Hangi API / hangi ortam
+### Which API / which environment
 
-| Durum | URL |
+| Situation | URL |
 |---|---|
 | Local API | `http://localhost:<port>` |
 | Test | `https://<test-domain>` |
-| Prod | `https://<prod-domain>` |
-| Swagger (yalnız test) | `https://<test-domain>/swagger` |
+| Production | `https://<prod-domain>` |
+| Swagger (test only) | `https://<test-domain>/swagger` |
 
-Topoloji: <tek origin mi (`/api` UI'ın altında) yoksa ayrı alt alan adı mı — ve neden>
+Topology: <single origin (`/api` under the UI) or a separate subdomain — and why>
 
-## Kurulum
+## Setup
 
-Sıfırdan kurulum: **`SETUP.md`**. Sır envanteri, ön koşullar ve port haritası orada.
-Deploy ve sunucu: **`DEPLOY.md`**.
+Setting up from scratch: **`SETUP.md`**. The secret inventory, the prerequisites
+and the port map are there. Deployment and servers: **`DEPLOY.md`**.
 
-## Branch ve deploy akışı
+## Branch and deploy flow
 
 ```
-özellik dalı → dev → (onay) → test → (onay) → prod
+feature branch → dev → (approval) → test → (approval) → prod
 ```
 
-- `test`/`prod`'a doğrudan commit/PR **yok**; yalnız bir önceki aşamadan, **kullanıcı onayıyla**.
-- "merge" komutu = <bu projede ne anlama geliyor, hangi script çalışır>
-- Kapı (build + test + format + lint + geriye uyumluluk taraması) geçilmeden merge yok.
+- **No** direct commit or PR to `test`/`prod`; only from the previous stage, **with the user's approval**.
+- The "merge" command means <what it means in this project, and which script runs>
+- No merge without passing the gate (build + tests + format + lint + backward-compatibility scan).
 
-## Bağlam yönlendirmesi
+## Context routing
 
-| Görev türü | Önce oku |
+| Kind of task | Read first |
 |---|---|
-| Backend endpoint / servis / migration | `backend/CLAUDE.md` |
-| Web sayfa / bileşen / stil | `web/CLAUDE.md` |
-| Mobil ekran / navigation | `mobile/CLAUDE.md` |
-| Yeni özellik (uçtan uca) | `docs/vision.md`, `docs/requirements.md` |
-| Domain / iş mantığı sorusu | `docs/moduller/<modul>.md` |
+| Backend endpoint / service / migration | `backend/CLAUDE.md` |
+| Web page / component / styling | `web/CLAUDE.md` |
+| Mobile screen / navigation | `mobile/CLAUDE.md` |
+| A new feature (end to end) | `docs/vision.md`, `docs/requirements.md` |
+| A domain / business-logic question | `docs/modules/<module>.md` |
 
-## Modüller
+## Modules
 
-1. **<Modül>** — <bir satır>
+1. **<Module>** — <one line>
 2. ...
 
-> ⚠️ **KALDIRILAN MODÜLLER:** <varsa — yeniden eklenmesin diye>
+> ⚠️ **REMOVED MODULES:** <if any — listed so they are not re-added>
 
-## Projeye özel kurallar
+## Project-specific rules
 
-> Genel kurallar `~/.claude/CLAUDE.md`'de. Burada **yalnız farklı olanlar**.
+> The global rules are in `~/.claude/CLAUDE.md`. Only **what differs** goes here.
 
-1. **<Kural>.** <Neden — neden yazılmayan kural sonra yanlışlıkla geri alınır.> (<Tarih>, KALICI)
+1. **<Rule>.** <Why — a rule whose reason is unwritten gets reverted by accident later.> (<Date>, PERMANENT)
 2. ...
 
-## Yapma listesi
+## Never-do list
 
-- ❌ <Bu projede özellikle yasak olan şey ve nedeni>
+- ❌ <Something specifically forbidden in this project, and why>
 - ❌ ...
 
-## Geriye uyumluluk envanteri
+## Backward-compatibility inventory
 
-| Alan/Endpoint | Obsolete tarihi | Yerine | Kaldırma koşulu | Durum |
+| Field/Endpoint | Obsoleted on | Replaced by | Condition for removal | Status |
 |---|---|---|---|---|
 | | | | | |
 
-## Otomasyon
+## Automation
 
-`.claude/settings.json` hook'ları:
-- `<hook>` — <ne yapar>
+The hooks in `.claude/settings.json`:
+- `<hook>` — <what it does>
 
-## Hızlı referans
+## Quick reference
 
-- Kurulum: `SETUP.md`
-- Deploy / sunucu / DNS / sertifika: `DEPLOY.md`
-- Yedekleme provaları: `docs/backup-drills.md`
-- Vizyon / isterler: `docs/vision.md`, `docs/requirements.md`
-- Sözlük (TR-EN): `docs/glossary.md`
-- Kararlar: `docs/adr/`
+- Setup: `SETUP.md`
+- Deploy / servers / DNS / certificates: `DEPLOY.md`
+- Backup drills: `docs/backup-drills.md`
+- Vision / requirements: `docs/vision.md`, `docs/requirements.md`
+- Glossary: `docs/glossary.md`
+- Decisions: `docs/adr/`

@@ -1,21 +1,22 @@
-# <Proje> — Kurulum
+# <Project> — Setup
 
-> Hedef: temiz bir makinede bu belgeyi takip ederek **tahmin yapmadan** projeyi
-> ayağa kaldırmak. Bir adım eksikse bu belge hatalıdır — düzelt ve commit et.
+> The goal: on a clean machine, bring the project up by following this document
+> **without guessing anything**. If a step is missing, this document is wrong —
+> fix it and commit the fix.
 
-## 1. Ön koşullar
+## 1. Prerequisites
 
-| Araç | Sürüm | Kurulum | Doğrulama |
+| Tool | Version | Install | Verify |
 |---|---|---|---|
 | .NET SDK | 8.0.x | `brew install --cask dotnet-sdk` | `dotnet --version` |
 | Node.js | 20 LTS (`.nvmrc`) | `nvm install && nvm use` | `node -v` |
-| Docker Desktop | güncel | `brew install --cask docker` | `docker ps` |
+| Docker Desktop | current | `brew install --cask docker` | `docker ps` |
 | PostgreSQL client | 16 | `brew install libpq` | `psql --version` |
-| <diğer> | | | |
+| <other> | | | |
 
-Sürümler `.nvmrc` / `global.json` / `package.json > engines` ile sabitlenmiştir. Onlara uy.
+Versions are pinned through `.nvmrc` / `global.json` / `package.json > engines`. Follow them.
 
-## 2. Depo ve bağımlılıklar
+## 2. Repository and dependencies
 
 ```bash
 git clone <repo-url> && cd <repo>
@@ -23,62 +24,62 @@ git clone <repo-url> && cd <repo>
 dotnet restore
 # web
 cd web && npm ci && cd ..
-# mobil
+# mobile
 cd mobile && npm ci && cd ..
 ```
 
-## 3. Sır ve token envanteri
+## 3. Secret and token inventory
 
-> **Sır değeri bu tabloda ASLA yazmaz** — yalnız nereden alınacağı.
-> Yeni sır ekleyen PR bu tabloyu güncellemek zorundadır.
+> **A secret's value is NEVER written in this table** — only where to obtain it.
+> Any PR that adds a new secret must update this table.
 
-| Ad | Ne işe yarar | Nereden alınır (menü yolu) | Nerede saklanır | Sahibi | Rotasyon | Sır mı? |
+| Name | What it is for | Where to obtain it (menu path) | Where it is stored | Owner | Rotation | Secret? |
 |---|---|---|---|---|---|---|
-| `DB_CONNECTION` | Postgres bağlantısı | Local: `docker-compose.yml`'deki değerler. Prod: sunucu env | dev `.env`, prod sunucu env | <ad> | Yılda 1 | ✅ |
-| `JWT_SIGNING_KEY` | Token imzalama | Üret: `openssl rand -base64 64` | dev User Secrets, prod sunucu env | <ad> | 6 ay | ✅ |
-| `GOOGLE_CLIENT_ID` | Google ile giriş | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client (Web) | `.env` | <ad> | — | ❌ public |
-| `CLOUDFLARE_API_TOKEN` | DNS / cache purge | Cloudflare → My Profile → API Tokens → Create Custom Token (dar kapsam) | GitHub Actions Secret | <ad> | 6 ay | ✅ |
-| `ANTHROPIC_API_KEY` | Claude API | console.anthropic.com → API Keys | prod sunucu env | <ad> | 6 ay | ✅ |
-| `EXPO_TOKEN` | EAS build (CI) | expo.dev → Account Settings → Access Tokens | GitHub Actions Secret | <ad> | Yılda 1 | ✅ |
-| `SENTRY_DSN` | Hata takibi | Sentry → Project Settings → Client Keys (DSN) | `.env` | <ad> | — | ❌ public |
+| `DB_CONNECTION` | Postgres connection | Local: the values in `docker-compose.yml`. Production: server env | dev `.env`, production server env | <name> | Yearly | ✅ |
+| `JWT_SIGNING_KEY` | Token signing | Generate: `openssl rand -base64 64` | dev User Secrets, production server env | <name> | 6 months | ✅ |
+| `GOOGLE_CLIENT_ID` | Sign in with Google | Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client (Web) | `.env` | <name> | — | ❌ public |
+| `CLOUDFLARE_API_TOKEN` | DNS / cache purge | Cloudflare → My Profile → API Tokens → Create Custom Token (narrow scope) | GitHub Actions Secret | <name> | 6 months | ✅ |
+| `ANTHROPIC_API_KEY` | Claude API | console.anthropic.com → API Keys | production server env | <name> | 6 months | ✅ |
+| `EXPO_TOKEN` | EAS build (CI) | expo.dev → Account Settings → Access Tokens | GitHub Actions Secret | <name> | Yearly | ✅ |
+| `SENTRY_DSN` | Error tracking | Sentry → Project Settings → Client Keys (DSN) | `.env` | <name> | — | ❌ public |
 
-**Erişim gerekiyorsa** (yeni geliştirici): <kime, nasıl talep edilir>
+**If access is needed** (a new developer): <from whom, and how to request it>
 
-## 4. Ortam değişkenleri
+## 4. Environment variables
 
 ```bash
 cp .env.example .env
-# .env içindeki zorunlu alanları §3'teki kaynaklardan doldur
+# fill in the required fields in .env from the sources in §3
 ```
 
-- Zorunlu değişken eksikse uygulama **açılışta anlamlı hata ile durur**.
-- Opsiyonel değişken boşsa ilgili özellik kapanır (`.env.example` içinde yazılı).
+- If a required variable is missing, the application **stops at start-up with a meaningful error**.
+- If an optional variable is empty, the corresponding feature is disabled (documented in `.env.example`).
 
-## 5. Veritabanı
+## 5. Database
 
 ```bash
-docker compose up -d db          # Postgres ayağa kalkar
-dotnet ef database update        # migration
+docker compose up -d db          # Postgres comes up
+dotnet ef database update        # migrations
 dotnet run --project backend -- --seed   # seed (idempotent)
 ```
 
-## 6. Çalıştırma
+## 6. Running it
 
 ```bash
 docker compose up -d api    # API      → http://localhost:5080
 cd web && npm run dev       # Web      → http://localhost:5173
-cd mobile && npx expo start # Mobil
+cd mobile && npx expo start # Mobile
 ```
 
-### Port haritası
+### Port map
 
-| Servis | Local | Docker | Not |
+| Service | Local | Docker | Note |
 |---|---|---|---|
 | API | 5080 | 5080 | `/swagger` |
 | Web | 5173 | 3000 | |
 | Postgres | 5432 | 5432 | |
 
-## 7. Doğrulama — kurulum bitti mi?
+## 7. Verification — is the setup complete?
 
 ```bash
 curl -sf http://localhost:5080/health && echo "API OK"
@@ -87,25 +88,25 @@ dotnet test --nologo
 cd web && npm test
 ```
 
-Hepsi yeşilse kurulum tamam.
+If all of it is green, the setup is done.
 
-## 8. Test araçları (gerekiyorsa)
+## 8. Test tooling (when needed)
 
 ```bash
-npx playwright install          # web e2e tarayıcıları
-curl -Ls "https://get.maestro.mobile.dev" | bash   # mobil e2e
+npx playwright install          # web e2e browsers
+curl -Ls "https://get.maestro.mobile.dev" | bash   # mobile e2e
 ```
 
-## 9. Sık karşılaşılan hatalar
+## 9. Common errors
 
-| Belirti | Neden | Çözüm |
+| Symptom | Cause | Fix |
 |---|---|---|
-| `port already in use` | Başka servis 5080'de | `lsof -i :5080` → süreci kapat |
-| `role does not exist` | Seed öncesi migration koşulmadı | `dotnet ef database update` |
-| Web'de 401 döngüsü | `API_BASE_URL` yanlış | `.env` kontrol |
-| `Unexpected token <` | API isteği SPA fallback'e düştü | Proxy `/api/*` kuralı |
+| `port already in use` | Another service on 5080 | `lsof -i :5080` → stop the process |
+| `role does not exist` | Migrations were not run before seeding | `dotnet ef database update` |
+| A 401 loop in the web app | `API_BASE_URL` is wrong | check `.env` |
+| `Unexpected token <` | An API request fell through to the SPA fallback | the proxy's `/api/*` rule |
 
-## 10. Kurulum değiştiğinde
+## 10. When the setup changes
 
-Yeni araç, yeni env değişkeni veya yeni sır ekleyen **her PR** bu dosyayı ve
-`.env.example`'ı günceller. Güncellenmemişse review'da bloke edilir.
+**Every PR** that adds a tool, an env variable or a secret updates this file and
+`.env.example`. If it does not, it is blocked in review.

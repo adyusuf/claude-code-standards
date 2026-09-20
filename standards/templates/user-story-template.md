@@ -1,69 +1,69 @@
-# US-<000>: <Kısa başlık>
+# US-<000>: <Short title>
 
-## Hikâye
+## Story
 
-**<Rol>** olarak, **<yetenek>** istiyorum; böylece **<fayda>** elde edeyim.
+As a **<role>**, I want **<capability>**, so that **<benefit>**.
 
-## Bağlam
+## Context
 
-<Neden şimdi? Hangi gerçek durumu çözüyor? Varsa mevcut acı noktası.>
+<Why now? Which real situation does it solve? The current pain point, if any.>
 
-## Kapsam
+## Scope
 
-**Var:**
+**In:**
 - <...>
 
-**Bu sürümde YOK:** (yazılmayan liste sonra kapsam kaymasına dönüşür)
+**NOT in this release:** (a list left unwritten turns into scope creep later)
 - <...>
 
-## Kabul kriterleri
+## Acceptance criteria
 
-### 1. Mutlu yol
+### 1. Happy path
 ```
-Given  <başlangıç durumu>
-When   <kullanıcı eylemi>
-Then   <gözlemlenebilir sonuç>
-And    <ek sonuç>
-```
-
-### 2. Boş durum
-```
-Given  hiç kayıt yok
-When   kullanıcı sayfayı açar
-Then   "Henüz <şey> yok" mesajı ve "<Ekle>" butonu görünür
+Given  <initial state>
+When   <user action>
+Then   <observable result>
+And    <additional result>
 ```
 
-### 3. Hata durumu
+### 2. Empty state
 ```
-Given  API 500 döner
-When   kullanıcı listeyi yükler
-Then   hata mesajı + "Tekrar dene" butonu görünür, sayfa çökmez
-```
-
-### 4. Yetki
-```
-Given  kullanıcının <yetki> izni yok
-When   <eylem> denenir
-Then   403 döner ve UI'da işlem sunulmaz (ikisi birden)
+Given  there are no records
+When   the user opens the page
+Then   a "No <thing> yet" message and an "<Add>" button are shown
 ```
 
-### 5. Sınır durumlar
-- Çok uzun metin / 1000+ kayıt / özel karakter / eşzamanlı değişiklik
-- Türkçe karakterli arama (harf boyutu + aksan bağımsız)
+### 3. Error state
+```
+Given  the API returns 500
+When   the user loads the list
+Then   an error message and a "Try again" button are shown, and the page does not crash
+```
 
-## Teknik notlar
+### 4. Authorization
+```
+Given  the user does not have the <permission> permission
+When   <action> is attempted
+Then   403 is returned AND the action is not offered in the UI (both)
+```
 
-- **API:** <yeni/değişen endpoint — additive mi?>
-- **DB:** <yeni alan — nullable mı?>
-- **Web + mobil paritesi:** <aynı mı, fark varsa neden>
-- **i18n:** <yeni anahtarlar>
+### 5. Edge cases
+- Very long text / 1000+ records / special characters / concurrent edits
+- Search with accented characters (case- and accent-insensitive)
+
+## Technical notes
+
+- **API:** <new/changed endpoint — is it additive?>
+- **DB:** <new field — is it nullable?>
+- **Web/mobile parity:** <the same, or if they differ, why>
+- **i18n:** <new keys>
 
 ## Definition of Done
 
-- [ ] Tüm kabul kriterleri karşılandı
-- [ ] Unit test + (gerekiyorsa) e2e yazıldı
-- [ ] API geriye uyumlu, Swagger güncel
-- [ ] Erişilebilirlik kontrolü yapıldı
-- [ ] i18n anahtarları eklendi (tr zorunlu)
-- [ ] Log/metrik eklendi (kritik akışsa)
-- [ ] Doküman + CLAUDE.md güncellendi
+- [ ] Every acceptance criterion is met
+- [ ] Unit tests written, plus e2e where needed
+- [ ] The API is backward compatible and Swagger is current
+- [ ] Accessibility checked
+- [ ] i18n keys added (the default locale is mandatory)
+- [ ] Logging/metrics added (if this is a critical flow)
+- [ ] Documentation and CLAUDE.md updated

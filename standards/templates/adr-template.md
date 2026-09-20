@@ -1,46 +1,47 @@
-# ADR-<000>: <Karar başlığı>
+# ADR-<000>: <Decision title>
 
-- **Tarih:** <yyyy-mm-dd>
-- **Durum:** Önerildi | **Kabul edildi** | Reddedildi | Superseded by ADR-<000>
-- **Karar veren:** <kişi>
+- **Date:** <yyyy-mm-dd>
+- **Status:** Proposed | **Accepted** | Rejected | Superseded by ADR-<000>
+- **Decided by:** <person>
 
-## Bağlam
+## Context
 
-<Hangi problem/kısıt bu kararı gerektirdi? Neyi bilmiyorduk, ne değişti?
-Teknik ve iş kısıtları. 1-2 paragraf.>
+<Which problem or constraint forced this decision? What did we not know, what
+changed? Technical and business constraints. One or two paragraphs.>
 
-## Karar
+## Decision
 
-<Ne yapmaya karar verdik — tek net cümle, sonra detay.>
+<What we decided to do — one clear sentence, then the detail.>
 
-## Değerlendirilen alternatifler
+## Alternatives considered
 
-### A) <Alternatif>
-- ➕ <artı>
-- ➖ <eksi>
-- **Neden seçilmedi:** <...>
+### A) <Alternative>
+- ➕ <pro>
+- ➖ <con>
+- **Why it was not chosen:** <...>
 
-### B) <Alternatif>
+### B) <Alternative>
 - ➕ / ➖
-- **Neden seçilmedi:** <...>
+- **Why it was not chosen:** <...>
 
-> Reddedilen alternatifleri yazmak ADR'nin asıl değeridir — 6 ay sonra
-> "neden şunu yapmadık?" sorusunun cevabı burada durur.
+> Writing down the rejected alternatives is the real value of an ADR — six months
+> later, the answer to "why didn't we do that?" lives here.
 
-## Sonuçlar
+## Consequences
 
-**Kazandıklarımız:** <...>
+**What we gained:** <...>
 
-**Kabul ettiğimiz maliyetler:** <...>
+**Costs we accepted:** <...>
 
-**Etkilenen alanlar:** <backend/web/mobil/deploy/veri modeli>
+**Areas affected:** <backend/web/mobile/deploy/data model>
 
-**Geriye uyumluluk etkisi:** <var/yok — varsa geçiş planı>
+**Backward-compatibility impact:** <yes/no — if yes, the migration plan>
 
-## Geri dönüş
+## Reversal
 
-<Bu karar yanlış çıkarsa dönüş maliyeti nedir? Ne zaman yeniden değerlendirilir?>
+<If this decision turns out to be wrong, what does reversing it cost? When is it
+re-evaluated?>
 
-## Referanslar
+## References
 
-- <link, doküman, ölçüm>
+- <link, document, measurement>
