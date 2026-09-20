@@ -8,11 +8,11 @@ exists, **B** applies.
 
 | Mode | Name | Agents | Review | Approval policy | Cost multiplier |
 |---|---|---|---|---|---|
-| **A** | Skill | **none** | me | chosen explicitly | 1.0x (baseline) |
-| **B** | Selective **(DEFAULT)** | `analyst`, `test-writer`, `doc-writer` | me | the default = approval | 1.15–1.35x ⚠ estimated |
-| **C** | Full team | 9 role agents (B ⊂ C) | the `qa` agent + me | choosing the mode = approval | 2.5–4x ⚠ estimated |
-| **D** | Wide team | 14 role agents (C ⊂ D) | `qa` + `security`/`coverage-auditor` directly to me + me | choosing the mode = approval | 4.5–7x ⚠ estimated |
-| **E** | Fan-out | D + parallel `Workflow` (the 14 roles only) | the `qa` agent + me | choosing the mode = approval | 7–14x ⚠ estimated |
+| [**A**](A-skill.md) | Skill | **none** | me | chosen explicitly | 1.0x (baseline) |
+| [**B**](B-selective.md) | Selective **(DEFAULT)** | `analyst`, `test-writer`, `doc-writer` | me | the default = approval | 1.15–1.35x ⚠ estimated |
+| [**C**](C-full-team.md) | Full team | 9 role agents (B ⊂ C) | the `qa` agent + me | choosing the mode = approval | 2.5–4x ⚠ estimated |
+| [**D**](D-wide-team.md) | Wide team | 14 role agents (C ⊂ D) | `qa` + `security`/`coverage-auditor` directly to me + me | choosing the mode = approval | 4.5–7x ⚠ estimated |
+| [**E**](E-fanout.md) | Fan-out | D + parallel `Workflow` (the 14 roles only) | the `qa` agent + me | choosing the mode = approval | 7–14x ⚠ estimated |
 
 ⚠️ **None of the multipliers has been measured** — the modes were created after the
 measurement we have (33 sessions), which contains no mode comparison. The wall-clock

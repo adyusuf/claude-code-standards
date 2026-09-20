@@ -7,10 +7,12 @@
 # measuring first. A ceiling nobody measures is not a ceiling; the gate belongs
 # on the commit itself.
 #
-# Two steps, both in seconds, so the "merging into dev is fast" rule still holds:
+# Three steps, all in seconds, so the "merging into dev is fast" rule still holds:
 #   1. CLAUDE.md size budget   (scripts/md-size-gate.sh)
 #   2. gitleaks — secret scan over the staged content (pre-commit gitleaks is
 #      the one gate that stays on in the dev direction)
+#   3. documentation consistency (scripts/doc-check.py, ~0.1 s) — only when the
+#      project carries that script
 #
 # Install:            bash scripts/pre-commit.sh --install
 # Deliberate bypass:  git commit --no-verify   (write the reason in the message)
@@ -48,6 +50,15 @@ if command -v gitleaks >/dev/null 2>&1; then
   fi
 else
   echo "⚠️ gitleaks is not installed — the secret scan DID NOT RUN (a gate that does not run is not a gate that passed)."
+fi
+
+# --- 3. documentation consistency ---------------------------------------------
+if [ -f "$root/scripts/doc-check.py" ]; then
+  if ! output="$(python3 "$root/scripts/doc-check.py" "$root" 2>&1)"; then
+    printf '%s\n' "$output"
+    echo "✗ commit STOPPED — documentation drift (a broken link, a missing index entry, a stale count)."
+    failed=1
+  fi
 fi
 
 exit "$failed"
