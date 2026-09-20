@@ -10,8 +10,9 @@ Exit 0 = consistent, 1 = at least one finding (each printed as `file: message`).
 What it checks (each one is a drift the rule set actually suffers from):
   1. every relative Markdown link  [text](path)  resolves to a file;
   2. every backticked repo path under standards/ modes/ docs/ agents/ commands/ skills/
-     exists (a `~/.claude/` prefix is read as the repository root; `docs/...` inside
-     standards/ names a PROJECT's file and is not checked);
+     exists (a `~/.claude/` prefix is read as the repository root, and only checked when
+     the root IS the configuration repository; `docs/...` inside standards/ names a
+     PROJECT's file and is not checked);
   3. every index (standards/README.md, docs/README.md, modes/README.md) mentions every
      file that sits next to it — a document nobody can find is not documentation;
   4. the counts README.md states ("N rules", "N documents + M templates", "N roles",
@@ -26,7 +27,7 @@ import re
 import sys
 
 LINK = re.compile(r'\]\(([^)\s]+)\)')
-PATH = re.compile(r'`(?:~/\.claude/)?((?:standards|modes|docs|agents|commands|skills)/[A-Za-z0-9._/-]+\.(?:md|tsv))`')
+PATH = re.compile(r'`(~/\.claude/)?((?:standards|modes|docs|agents|commands|skills)/[A-Za-z0-9._/-]+\.(?:md|tsv))`')
 RULE_LINE = re.compile(r'^(\d+)(?:-(\d+))?\.\s+\*\*', re.M)
 RULE_REF = re.compile(r'(?<![\w&/])#(\d{1,2})\b')
 INDEXES = {'standards/README.md': 'standards', 'docs/README.md': 'docs', 'modes/README.md': 'modes'}
@@ -51,7 +52,12 @@ def in_code_fence(text):
     return re.sub(r'```.*?```', '', text, flags=re.S)
 
 
+def is_configuration_repo(root):
+    return os.path.isfile(os.path.join(root, 'standards', 'README.md')) and os.path.isdir(os.path.join(root, 'modes'))
+
+
 def check_links_and_paths(root, findings):
+    config_repo = is_configuration_repo(root)
     for path in markdown_files(root):
         rel = os.path.relpath(path, root)
         text = in_code_fence(read(path))
@@ -61,7 +67,11 @@ def check_links_and_paths(root, findings):
             file_part = target.split('#', 1)[0]
             if file_part and not os.path.exists(os.path.normpath(os.path.join(os.path.dirname(path), file_part))):
                 findings.append(f'{rel}: broken link -> {target}')
-        for target in set(PATH.findall(text)):
+        for prefix, target in set(PATH.findall(text)):
+            # `~/.claude/...` is the user's configuration directory: it can be verified only
+            # when this root IS the configuration repository.
+            if prefix and not config_repo:
+                continue
             # standards/ describes what a PROJECT's docs/ holds, not this repository's.
             if rel.startswith('standards' + os.sep) and target.startswith('docs/'):
                 continue

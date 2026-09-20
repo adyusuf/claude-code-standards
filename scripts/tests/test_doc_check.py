@@ -94,6 +94,14 @@ class DocCheck(unittest.TestCase):
         self.assertEqual(sorted(f.split(': ')[1] for f in found), [
             'states 3 scripts, the repository has 2', 'states 5 modes, the repository has 1'])
 
+    def test_home_config_references_are_only_checked_in_the_configuration_repository(self):
+        project = {'CLAUDE.md': 'see `~/.claude/standards/15-security.md` and `docs/glossary.md`'}
+        self.assertEqual(dc.run(build(project)), ['CLAUDE.md: referenced path does not exist -> docs/glossary.md'])
+        files = consistent()
+        files['CLAUDE.md'] += 'see `~/.claude/modes/autonomous-run.md`'
+        self.assertEqual(dc.run(build(files)),
+                         ['CLAUDE.md: referenced path does not exist -> modes/autonomous-run.md'])
+
 
 if __name__ == '__main__':
     unittest.main()
