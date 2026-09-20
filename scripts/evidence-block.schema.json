@@ -1,0 +1,35 @@
+{
+  "$comment": "Shape of one parsed completeness-check block (modes/role-selection.md §7). scripts/evidence-check.py parses the Markdown block into this object and enforces this schema; it understands only the keywords used below (type, required, properties, items, enum, minLength, minItems, pattern).",
+  "type": "object",
+  "required": ["pass", "verification", "item_mapping", "not_covered", "result"],
+  "properties": {
+    "pass": { "type": "integer" },
+    "verification": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "(`[^`]+`|[\\w./-]+:\\d+|\\blines?\\s+\\d+)"
+    },
+    "item_mapping": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "not_covered": { "type": "string", "minLength": 1 },
+    "result": {
+      "type": "object",
+      "required": ["serious_gap"],
+      "properties": {
+        "serious_gap": { "type": "string", "enum": ["NO", "YES"] },
+        "back_to": {
+          "type": "object",
+          "required": ["who", "what", "closing_evidence"],
+          "properties": {
+            "who": { "type": "string", "minLength": 1 },
+            "what": { "type": "string", "minLength": 1 },
+            "closing_evidence": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    }
+  }
+}

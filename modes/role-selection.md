@@ -225,6 +225,9 @@ evidence. Both follow the same path — found, sent back, **fixed**, closure ver
 → Result: clean NO  |  YES → BACK TO: <who> · <what to fix> · <closing evidence>
 ```
 
+The block is machine-checkable: `python3 scripts/evidence-check.py <report>` validates it
+against `scripts/evidence-block.schema.json`, and a report with no block fails.
+
 ### The orchestrator: one line per handoff, the full block at the END of the turn
 
 The orchestrator does **not** write the full block at every handoff — the role's own
