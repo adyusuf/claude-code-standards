@@ -144,6 +144,10 @@ if [ "$TARGET" != "prod" ]; then
   else skip "gitleaks is not installed"; fi
 
   say "dependency CVE"
+  if [ "$LIST_ONLY" = 1 ]; then
+    [ "$HAS_DOTNET" = 1 ] && { printf '  → %-42s %s\n' "dotnet vulnerable packages" "dotnet list package --vulnerable"; PASS+=("dotnet cve"); }
+    for d in "$WEB_DIR" "$MOBILE_DIR"; do [ -n "$d" ] && { printf '  → %-42s %s\n' "npm audit ($d)" "npm --prefix $d audit --audit-level=high"; PASS+=("npm audit $d"); }; done
+  else
   [ "$HAS_DOTNET" = 1 ] && have dotnet && {
     if dotnet list package --vulnerable 2>/dev/null | grep -qi 'critical\|high'; then bad "dotnet vulnerable packages (critical/high)"; else ok "dotnet packages"; fi
   }
@@ -154,6 +158,7 @@ if [ "$TARGET" != "prod" ]; then
       rm -f /tmp/mg.$$
     else skip "npm audit ($d): npm missing"; fi
   done
+  fi
 
   say "SAST"
   if [ -n "${SAST_CMD:-}" ]; then run "SAST" bash -c "$SAST_CMD"
@@ -173,6 +178,10 @@ if [ "$TARGET" != "prod" ]; then
 
   say "e2e specs — CHECK ONLY, nothing is run here"
   missing=0
+  if [ "$LIST_ONLY" = 1 ]; then
+    printf '  → %-42s %s\n' "e2e spec check" "git diff --name-only <base>..HEAD (no e2e run)"
+    PASS+=("e2e spec check")
+  else
   if [ "$HAS_E2E_WEB" = 1 ] || [ "$HAS_E2E_MOBILE" = 1 ]; then
     base="$(git merge-base HEAD "origin/$TARGET" 2>/dev/null || git rev-parse HEAD~1 2>/dev/null)"
     changed="$(git diff --name-only "$base"..HEAD 2>/dev/null)"
@@ -191,6 +200,7 @@ if [ "$TARGET" != "prod" ]; then
   if [ "$missing" = 1 ] && [ "$TARGET" = "test" ]; then
     bad "missing e2e spec blocks the test promotion (write it, or record the reason)"
   fi
+  fi
 fi
 
 # ── prod: deployed to test, then the full e2e suite ──────────────────────────
@@ -198,6 +208,10 @@ if [ "$TARGET" = "prod" ]; then
 
   say "is this code deployed to the TEST environment?"
   HEAD_SHA="$(git rev-parse HEAD)"
+  if [ "$LIST_ONLY" = 1 ]; then
+    printf '  → %-42s %s\n' "deploy verification" "curl ${TEST_VERSION_URL:-<TEST_VERSION_URL unset>} == $(git rev-parse --short HEAD)"
+    PASS+=("deploy verification")
+  else
   if [ -n "${TEST_VERSION_URL:-}" ]; then
     deployed="$(curl -fsS --max-time 10 "$TEST_VERSION_URL" 2>/dev/null | grep -oE '[0-9a-f]{7,40}' | head -1)"
     if [ -z "$deployed" ]; then bad "could not read the deployed version from $TEST_VERSION_URL"
@@ -208,6 +222,7 @@ if [ "$TARGET" = "prod" ]; then
     fi
   else
     skip "TEST_VERSION_URL is not set — 'is it on test' CANNOT be verified"
+  fi
   fi
 
   say "full e2e suite against the test environment"
