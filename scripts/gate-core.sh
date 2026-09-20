@@ -43,6 +43,14 @@
 #   SECRET_CMD="gitleaks detect --no-banner --redact"   # default: the same
 #   LINT_CMD / TYPECHECK_CMD / BUILD_CMD / UNIT_CMD     # override the auto-detected ones
 #   SKIP_STACKS="mobile"                                # codebases this project does not have
+#   ACCEPTED_GAPS="SAST|backward"                       # gaps the USER has accepted, with a reason
+#   ACCEPTED_GAPS_REASON="no SAST tooling yet; tracked in docs/gates.md, review 01/11/2026"
+#
+# ⚠️ ACCEPTED_GAPS is the only way a missing step stops failing the gate, and it is
+# not a silence: every accepted gap is printed as an ACCEPTED GAP with its reason
+# and counted separately. A gap with no reason is not accepted — the gate still
+# fails. This is the written, time-boxed risk acceptance the security standard asks
+# for, not a switch that turns a step off.
 set -uo pipefail
 
 TARGET="${1:-}"
@@ -62,7 +70,14 @@ PASS=(); FAIL=(); SKIP=(); WARN=()
 say()  { printf '\n\033[1m▶ %s\033[0m\n' "$1"; }
 ok()   { printf '  \033[32m✓\033[0m %s\n' "$1"; PASS+=("$1"); }
 bad()  { printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL+=("$1"); }
-skip() { printf '  \033[33m·\033[0m SKIPPED: %s\n' "$1"; SKIP+=("$1"); }
+ACCEPTED=()
+skip() {
+  local what="$1"
+  if [ -n "${ACCEPTED_GAPS:-}" ] && [ -n "${ACCEPTED_GAPS_REASON:-}" ] && printf '%s' "$what" | grep -qiE "${ACCEPTED_GAPS}"; then
+    printf '  \033[33m~\033[0m ACCEPTED GAP: %s\n' "$what"; ACCEPTED+=("$what"); return 0
+  fi
+  printf '  \033[33m·\033[0m SKIPPED: %s\n' "$what"; SKIP+=("$what")
+}
 warn() { printf '  \033[33m!\033[0m %s\n' "$1"; WARN+=("$1"); }
 have() { command -v "$1" >/dev/null 2>&1; }
 run()  { # run <label> <command...>
@@ -214,9 +229,12 @@ fi
 printf '\n\033[1m── result ──\033[0m\n'
 printf '  passed  : %d\n' "${#PASS[@]}"
 printf '  warnings: %d\n' "${#WARN[@]}"
+printf '  accepted: %d\n' "${#ACCEPTED[@]}"
 printf '  skipped : %d\n' "${#SKIP[@]}"
 printf '  failed  : %d\n' "${#FAIL[@]}"
 for x in "${WARN[@]+"${WARN[@]}"}"; do printf '  ! %s\n' "$x"; done
+for x in "${ACCEPTED[@]+"${ACCEPTED[@]}"}"; do printf '  ~ ACCEPTED GAP %s\n' "$x"; done
+[ "${#ACCEPTED[@]}" -gt 0 ] && printf '    reason: %s\n' "${ACCEPTED_GAPS_REASON:-}"
 for x in "${SKIP[@]+"${SKIP[@]}"}"; do printf '  · SKIPPED %s\n' "$x"; done
 for x in "${FAIL[@]+"${FAIL[@]}"}"; do printf '  ✗ %s\n' "$x"; done
 
@@ -228,6 +246,10 @@ if [ "${#SKIP[@]}" -gt 0 ]; then
   printf '\n\033[33mGATE INCOMPLETE\033[0m — %d step(s) did not run. A step that did not run did not pass;\n' "${#SKIP[@]}"
   printf 'the result is not green. Install the tool, or record the reason and get the user to accept it.\n'
   exit 1
+fi
+if [ "${#ACCEPTED[@]}" -gt 0 ]; then
+  printf '\n\033[32mGATE GREEN\033[0m (with %d accepted gap(s)) — %s promotion is allowed.\n' "${#ACCEPTED[@]}" "$TARGET"
+  exit 0
 fi
 printf '\n\033[32mGATE GREEN\033[0m — every applicable step passed. %s promotion is allowed.\n' "$TARGET"
 exit 0
