@@ -27,6 +27,35 @@ The team modes were moved to `modes/archive/` because they **cannot be started**
 [`archive/README.md`](archive/README.md)). They are not offered as a mode; if the
 user asks, the answer is "it cannot be started today".
 
+## Role → auditor → what closes a finding
+
+Who checks each role's output, and what has to be re-run before a finding counts as
+closed (global #28: *a claim of "fixed" is not closure*). "Block" = the role closes its
+report with the §7 completeness-check block, which
+`python3 scripts/evidence-check.py <report>` validates. Sources:
+[`role-selection.md`](role-selection.md) §1–§3 and §7, and each `agents/<role>.md`.
+
+| Role | Modes | Audited by | Closed by re-running | Block |
+|---|---|---|---|---|
+| `product-manager` | C+ | **the user** — the scope is presented as one block and approved (§2a) | the user's explicit approval | yes |
+| `analyst` | B+ | the orchestrator re-runs the command the analyst returned and compares the count | the analyst's own command (`grep -rn …`, `rg -c`) | yes |
+| `architect` | C+ | not defined in the sources | — | no |
+| `designer` | C+ | not defined in the sources | — | no |
+| `developer` | C+ | `qa`, then the orchestrator verifies the critical findings | `qa`'s `Verification` command | no |
+| `test-writer` | B+ | `qa` reviews the diff in parallel (§2) | `qa`'s `Verification` command | yes |
+| `devops` | C+ | `qa` (infrastructure diffs are in scope) | `qa`'s `Verification` command | yes |
+| `doc-writer` | B+ | the orchestrator verifies the permanent decision (rule files are outside `qa`) | reading the written text against the decision | no |
+| `qa` | C+ | the orchestrator verifies the critical findings | the `Verification` line of its own block | yes |
+| `security` | D+ | the orchestrator verifies the critical findings | the finding's verification command | yes |
+| `data` | D+ | `qa` looks again along backward compatibility and data loss | `qa`'s `Verification` command | yes |
+| `coverage-auditor` | D+ | straight to the orchestrator | the coverage command **and** the mutation check (remove a test; the gate must fail) | yes |
+| `observability` | D+ | `qa` | `qa`'s `Verification` command | yes |
+| `e2e-writer` | D+ | not defined in the sources | — | yes |
+
+A "not defined" cell is a gap in the rule set, not a role that needs no check.
+Until it is closed, the orchestrator's own end-of-turn block is the only audit of that
+role's output.
+
 ## Permanent rule — agents only come with a mode
 
 **No agent is called in A; in B/C/D/E choosing the mode is the approval for that
