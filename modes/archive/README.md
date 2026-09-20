@@ -1,18 +1,17 @@
-# Arşiv — Agent Teams modları (X · Y · Z)
+# Archive — the Agent Teams modes (X · Y · Z)
 
-**20/09/2026'da arşive alındı, kullanıcı kararı.** Sebep: bu modlar bugün
-**başlatılamıyor** (`team-rules.md` §0'da iki ayrı engel ölçülmüş olarak
-duruyor) ama kuralları her oturumda bağlama giriyordu.
+**Archived.** Reason: these modes **cannot be started** today (two separate
+blockers, both measured and documented in `team-rules.md` §0), yet their rules were
+entering context in every session.
 
-- **(a)** Dokuz rolün `tools:` allowlist'inde `SendMessage`/`Task*` **yok** —
-  teammate ayağa kalkar ama kimse duymaz, görevini kapatamaz.
-- **(b)** Özellik `--agent-teams` bayrağı / `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`
-  **ve** hesap planı kapısının arkasında.
+- **(a)** The nine roles' `tools:` allowlists do **not** contain
+  `SendMessage`/`Task*` — a teammate comes up but nobody can hear it and it cannot
+  close its own task.
+- **(b)** The feature sits behind an experimental flag **and** an account-plan gate.
 
-**Geri getirme koşulu:** ikisi birden kalktığında bu dört dosya `modes/` altına
-geri taşınır, `modes/README.md`'ye tablo geri eklenir ve `working-mode`
-skill'ine X/Y/Z dalı geri konur. O zamana kadar bir mod olarak **teklif
-edilmez**; kullanıcı sorarsa "bugün başlatılamıyor" denir.
+**Condition for bringing them back:** when both blockers are gone, these four files
+move back under `modes/`, the table is restored in `modes/README.md`, and the X/Y/Z
+branch is restored in the `working-mode` skill. Until then they are **not offered**
+as a mode; if the user asks, the answer is "it cannot be started today".
 
-Eşlemeler (tarihçe): **X ≙ B · Y ≙ C · Z ≙ E** (18/09/2026'dan önce Z ≙ D idi).
-Mod D'nin (14 rol) takım karşılığı hiç olmadı.
+Mappings: **X ≙ B · Y ≙ C · Z ≙ E**. Mode D (14 roles) has no team equivalent.

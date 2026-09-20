@@ -1,45 +1,46 @@
-# Mod E — Workflow fan-out
+# Mode E — Workflow fan-out
 
-D'nin ajan setine (14 rol) ek olarak **`Workflow` aracı açıktır**: deterministik,
-paralel, çok ajanlı orkestrasyon.
+On top of D's agent set (14 roles), the **`Workflow` tool is enabled**:
+deterministic, parallel, multi-agent orchestration.
 
-## Kural
+## Rules
 
-⚠️ **Kimin ne yapacağına karar verme kuralı ayrı dosyada:**
-[`role-selection.md`](role-selection.md) — ajan mı ben mi, iş tipi → rol, sıra ve
-devir, atlama, çatışma hakemliği, durma, görünürlük. **Rol seçmeden önce oku.**
-- ⛔ **Workflow script'i yalnız bu modun 14 rol ajanını koşar.** Diskte 21 etkin
-  eklenti ajanı var (`code-reviewer`, `test-engineer`, `code-simplifier` …);
-  hiçbirinde §7 kanıt bloğu, geri gönderme ya da temiz geçiş şartı **yoktur**. Script'e
-  konursa panoda "review koştu" görünür ama denetim rejimi tek satırla düşer.
-- `Workflow` yalnız **5+ gerçekten bağımsız** iş varken kullanılır. Bağımlı
-  zincir için Workflow yazmak, sırayla ajan çağırmanın pahalı hâlidir.
-- Script `meta.phases` ile aşamalarını bildirir; ilerleme `/workflows`'tan izlenir.
-- **Uzun koşum boyunca canlı Artifact panosu zorunludur** (global kural:
-  "Uzun kapı/koşum sırasında CANLI PANO"). Ağırlıklı yüzde + ölçüm saati +
-  riskler panoda; aynı URL'e yeniden yayınlanır.
-- Workflow başlatmadan önce **ajan sayısı ve maliyet tahminini yazarım** —
-  bu mod onayı ajan başına sormayı kaldırır, ölçek beyanını değil.
-- Review: `qa` ajanı; kritik bulgular bende doğrulanır.
-- Workflow **her fazın sonunda** maliyet satırı basar (panoda da görünür) ve
-  denetçi ajanlar **eksik kontrolü** bloğunu döndürür ve **tek temiz geçiş**
-  şartı aranır (`role-selection.md` §7). Eksik bulan faz **geri gönderir ve
-  düzelttirir** (script'te retry kapısı; kapanış doğrulamanın yeniden
-  koşulmasıdır); 2 geri göndermede kapanmazsa faz durur ve açık bulgular
-  panoya yazılır.
-- Eşik (§8) mod E'de **~$200 uyarı / ~$400 durma**; aşılacaksa koşum öncesi
-  sorulur. Otonom koşumun $100 tavanı bundan bağımsızdır, hangisi önce
-  dolarsa o durdurur.
+⚠️ **The rule for deciding who does what lives in a separate file:**
+[`role-selection.md`](role-selection.md) — agent or me, work type → role, ordering
+and handoff, skipping, conflict arbitration, stopping, visibility. **Read it before
+selecting a role.**
 
-## Ne zaman
-Çok dosyalı tarama/denetim, N modülde aynı işin tekrarı, geniş refactor
-öncesi keşif. Rutin özellik geliştirme için **fazla ağır**.
+- ⛔ **A Workflow script runs only this mode's 14 role agents.** There are 21 active
+  plugin agents on disk (`code-reviewer`, `test-engineer`, `code-simplifier`, …);
+  **none** of them carries the §7 evidence block, the hand-back requirement or the
+  clean-pass condition. Put one into a script and the dashboard will show "review
+  ran" while the entire audit regime collapses in a single line.
+- `Workflow` is used only when there are **5 or more genuinely independent** pieces
+  of work. Writing a Workflow for a dependent chain is just an expensive way of
+  calling agents in sequence.
+- The script declares its stages via `meta.phases`; progress is followed from
+  `/workflows`.
+- **A live Artifact dashboard is mandatory throughout a long run** (global rule:
+  "LIVE DASHBOARD during a long gate/run"). The weighted percentage, the measurement
+  timestamp and the risks go on the dashboard, republished to the same URL.
+- Before starting a Workflow I **write down the agent count and the cost estimate** —
+  this mode removes asking per agent, not declaring the scale.
+- Review: the `qa` agent; critical findings are verified by me.
+- The Workflow prints a cost line **at the end of every phase** (visible on the
+  dashboard too), the auditing agents return the **completeness-check** block, and
+  the **one clean pass** condition is required (`role-selection.md` §7). A phase that
+  finds a gap **sends the work back and gets it fixed** (a retry gate in the script;
+  closure is re-running the verification); if it is not closed within 2 hand-backs
+  the phase stops and the open findings are written to the dashboard.
+- The threshold (§8) in mode E is **a warning at ~$200, a stop at ~$400**; if it is
+  going to be exceeded, it is asked before the run. The autonomous run's $100
+  ceiling is independent of this — whichever fills first is the one that stops.
 
-## Beklenen maliyet
-**7–14x** ⚠tahmin (eski D'de 9 rol üzerine 4–8x'ti; taban artık 14 rollü D).
-Duvar saati %50–70 kısalır. Bu mod süreyi satın alır, token'ı değil.
+## When to use it
+Multi-file scanning or auditing, repeating the same work across N modules,
+exploration before a wide refactor. **Far too heavy** for routine feature work.
 
-## Tarihçe
-18/09/2026, kullanıcı kararı: bu mod **D iken E oldu**. D harfi 14 rollü geniş
-takıma verildi ([`D-wide-team.md`](D-wide-team.md)); fan-out onun üstüne
-biner. Takım karşılığı **Z** artık E'ye denktir (eskiden D'ye).
+## Expected cost
+**7–14x** ⚠ estimated, on top of the 14-role D baseline. Wall clock shortens by
+50–70%. This mode buys time, not tokens.
+

@@ -1,45 +1,49 @@
-# Mod C — Tam takım
+# Mode C — Full team
 
-Dokuz rol ajanı açık; **ben orkestratörüm** (ayrı orkestratör ajan YOK — o
-ikinci bir soğuk prefix demek).
+Nine role agents are enabled; **I am the orchestrator** (there is NO separate
+orchestrator agent — that would mean a second cold prefix).
 
-## Ajan seti
+## The agent set
 `product-manager` · `analyst` · `architect` · `designer` · `developer` ·
 `test-writer` · `qa` · `devops` · `doc-writer`
 
-⚠️ C, **B'nin üst kümesidir** — B'de açık olan `test-writer` burada da açıktır.
-Test yazımı `developer`ye bırakılmaz: ürün kodu yazan ajanın kendi testini
-yazması, testi "geçsin diye" gevşetmenin en sessiz yoludur.
+⚠️ C is a **superset of B** — `test-writer`, enabled in B, is enabled here too. Test
+writing is not left to `developer`: letting the agent that writes the product code
+write its own tests is the quietest way to loosen a test "so it passes".
 
-## Kural
+## Rules
 
-⚠️ **Kimin ne yapacağına karar verme kuralı ayrı dosyada:**
-[`role-selection.md`](role-selection.md) — ajan mı ben mi, iş tipi → rol, sıra ve
-devir, atlama, çatışma hakemliği, durma, görünürlük. **Rol seçmeden önce oku.**
-- Sıra sabit değil; işin gerektirdiği rolleri seçerim ve **hangilerini neden
-  seçtiğimi tur başında yazarım**.
-- Bağımsız roller **aynı mesajda paralel** başlatılır (tek tur, kısa duvar saati).
-- `developer` ajanı yalnız **izole, sözleşmesi net** parçalarda kullanılır
-  (tek dosya, tanımlı imza). Çapraz-katman iş bende kalır.
-- Review: `qa` ajanı **ilk geçişi** yapar, kritik bulguları **ben doğrularım**.
-  Review kaybolmaz, iki katmanlı olur (#27).
-- Ajan çağrısı öncesi sormam; **her devirde** maliyet satırı geçerim, tur
-  sonunda toplarım (`role-selection.md` §6, §8). Eşik iki kademeli:
-  **~$75'te uyarı, ~$150'de durma** — modun kendi +$100–150 beklentisiyle uyumlu.
-- Denetçi roller **sormaz, kontrol eder**: eksik/yanlış varsa iş üretene
-  **geri gönderilir ve düzelttirilir**, kapanış aynı doğrulamanın yeniden
-  koşulmasıyla kanıtlanır; devir için **tek temiz geçiş** yeter (§7).
-  2 geri göndermede kapanmazsa zincir durur, açık bulgular listelenip sana
-  **bildirilir**.
-- `product-manager` çıktısı **senin onayına** gider (§2a); `devops` çıktısı
-  `qa`'ya girer (§3).
+⚠️ **The rule for deciding who does what lives in a separate file:**
+[`role-selection.md`](role-selection.md) — agent or me, work type → role, ordering
+and handoff, skipping, conflict arbitration, stopping, visibility. **Read it before
+selecting a role.**
 
-## Ne zaman
-Uçtan uca özellik (backend + web + mobil), 15+ dosya, ya da senin sürenin
-token maliyetinden değerli olduğu işler.
+- The order is not fixed; I select the roles the work requires and **write down at
+  the start of the turn which ones I chose and why**.
+- Independent roles are started **in parallel in the same message** (one turn, short
+  wall clock).
+- The `developer` agent is used only for **isolated pieces with a clear contract**
+  (one file, a defined signature). Cross-layer work stays with me.
+- Review: the `qa` agent makes **the first pass** and **I verify** the critical
+  findings. Review is not lost, it becomes two-layered (#27).
+- I do not ask before an agent call; I pass a cost line at **every handoff** and
+  total it at the end of the turn (`role-selection.md` §6, §8). The threshold is
+  two-stage: **a warning at ~$75, a stop at ~$150** — consistent with the mode's own
+  expectation of +$100–150.
+- The auditing roles **do not ask, they check**: if anything is missing or wrong the
+  work is **sent back to its producer and fixed**, and closure is evidenced by
+  re-running the same verification; a handoff requires **one clean pass** (§7). If
+  it is not closed within 2 hand-backs the chain stops, the open findings are listed
+  and you are **informed**.
+- `product-manager` output goes to **your approval** (§2a); `devops` output goes
+  into `qa` (§3).
 
-⚠️ İşin **güvenlik, şema/migration, kapsam eşiği ya da e2e** boyutu varsa
-C yetmez → [`D-wide-team.md`](D-wide-team.md) (14 rol).
+## When to use it
+An end-to-end feature (backend + web + mobile), 15+ files, or work where your time
+is worth more than the token cost.
 
-## Beklenen maliyet
-**2,5–4x** — özellik başına kabaca **+$100–150**. Duvar saati %20–40 kısalır.
+⚠️ If the work has a **security, schema/migration, coverage-threshold or e2e**
+dimension, C is not enough → [`D-wide-team.md`](D-wide-team.md) (14 roles).
+
+## Expected cost
+**2.5–4x** — roughly **+$100–150** per feature. Wall clock shortens by 20–40%.

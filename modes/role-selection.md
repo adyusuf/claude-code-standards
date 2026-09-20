@@ -1,443 +1,444 @@
-# Rol seçimi — kim, neye göre, ne zaman
+# Role selection — who, on what basis, when
 
-> **Rol seçimi** (§0-§4) C · D · E · **Y · Z**'de geçerlidir; B ve **X**'te §0 ve §1
-> uygulanır (ajan seti üç taneyle sınırlıdır). **§5 (durma), §6 (görünürlük+
-> maliyet), §7 (eksik kontrolü) ve §8 (eşik + ölçüm) ajan çalışan
-> HER modda geçerlidir** — B/X dahil. Daralan şey ajan seti, denetim değil.
-> A'da ajan yoktur; §0'ın "kendim yaparım" dalı işler. **A'da §7 değil, global
-> #24 geçerlidir** (tek geçişlik zihinsel kontrol) — §7'nin kanıt bloğu ve geri
-> gönderme zinciri yalnız ajan çalışan turlar içindir. (Takım modları arşivde:
+> **Role selection** (§0-§4) applies in C · D · E · **Y · Z**; in B and **X** only §0
+> and §1 apply (the agent set is limited to three). **§5 (stopping), §6 (visibility +
+> cost), §7 (the completeness check) and §8 (thresholds + measurement) apply in EVERY
+> mode that runs agents** — including B/X. What narrows is the agent set, not the
+> audit. There are no agents in A; there, §0's "I do it myself" branch applies, and
+> **global #24 applies instead of §7** (a single mental pass) — §7's evidence block and
+> hand-back chain are only for turns that run agents. (The team modes are archived:
 > [`archive/README.md`](archive/README.md).)
 
-**Kararı ORKESTRATÖR verir — yani ben.** Ajanlar birbirini çağırmaz, sıradaki
-rolü seçmez, kapsamı değiştirmez. Hiçbir ajan tanımında `Agent` aracı yoktur ve
-bu **bilinçlidir**: rol seçimi tek bir yerde kalmazsa kimin neyi neden yaptığı
-izlenemez hâle gelir ve maliyet öngörülemez büyür.
+**THE ORCHESTRATOR decides — that is, me.** Agents never call each other, never pick
+the next role, and never change scope. No agent definition contains the `Agent` tool,
+and that is **deliberate**: if role selection does not stay in one place, who did what
+and why becomes untraceable and cost grows unpredictably.
 
-⛔ **Ajan modeli YALNIZ Claude olabilir (19/09/2026, doğrulandı).** Claude
-Code'un subagent `model:` alanı Anthropic modellerini kabul eder — `sonnet`,
-`opus`, `haiku` ya da tam Claude model kimliği. Kimi, Gemini, GPT, Grok gibi
-modeller **rol ajanı olarak çalıştırılamaz**; onların kendi uygulamaları
-(Kimi Code, Gemini CLI) ayrı oturumlardır ve §7'nin kanıt bloğu · geri gönderme ·
-kapanış zinciri orada **otomatik işlemez** — elle taşınır. Üçüncü taraf model
-karşılaştırmaları bu yüzden "hangi model bu işe uygun" sorusunu yanıtlar,
-"bunu kurabilir miyim" sorusunu değil.
+⛔ **An agent's model can only be Claude (verified).** Claude Code's subagent `model:`
+field accepts Anthropic models — `sonnet`, `opus`, `haiku`, or a full Claude model id.
+Models such as Kimi, Gemini, GPT or Grok **cannot be run as role agents**; their own
+applications (Kimi Code, Gemini CLI) are separate sessions, and §7's evidence block ·
+hand-back · closure chain does **not** apply automatically there — it has to be
+carried by hand. Third-party model comparisons therefore answer "which model suits
+this work", not "can I wire this up".
 
-⚠️ **Maliyet karşılaştırmasında abonelik/API ayrımı:** Claude Code bir abonelik
-üzerinden koşuyorsa Claude token'ları sabit ücrettedir; API fiyat tablolarıyla
-yapılan model kıyasları o durumda **marjinal maliyeti abartır**. Kendi coding
-uygulaması olmayan bir model (ör. Gemini 3.8 Flash) ajan olarak kullanılırsa
-aboneliğin üstüne **ek fatura** biner — tabloda ucuz görünen seçenek pratikte
-pahalı olabilir.
+⚠️ **Subscription vs. API in cost comparisons:** if Claude Code runs on a
+subscription, Claude tokens are a fixed cost, and model comparisons made with API
+price tables **overstate the marginal cost** in that case. If a model with no coding
+application of its own is used as an agent, it adds **a separate bill** on top of the
+subscription — the option that looks cheap in the table can be expensive in practice.
 
-**Orkestratörün modeli = oturumun modeli.** Ajanların `model:` alanı vardır
-(sonnet/opus/haiku, maliyete göre); orkestratörün yoktur çünkü ayrı bir süreç
-değildir — `/model` ne seçtiyse odur. ⚠️ En pahalı koltuk budur: bütün bağlamı
-taşır, her ajan çıktısı ondan geçer, maliyeti ajanlardan değil **cache
-okumasından** gelir (05/09/2026 ölçümü: toplamın %73'ü). O kalemde Fable 5.1
-Opus'un yarısıdır (%2,5 vs %10) — ölçülen 0,90x; uzun bağlamlı orkestratör
-için Fable ucuzdur, ajanlar için ise sonnet/haiku kalır.
+**The orchestrator's model = the session's model.** Agents have a `model:` field
+(sonnet/opus/haiku, by cost); the orchestrator does not, because it is not a separate
+process — it is whatever `/model` selected. ⚠️ This is the most expensive seat: it
+carries all the context, every agent's output passes through it, and its cost comes
+from **cache reads**, not from the agents (measured: 73% of the total). On that line
+item Fable is half the cost of Opus (2.5% vs 10%) — measured at 0.90x; for a
+long-context orchestrator Fable is cheap, while sonnet/haiku remain right for agents.
 
-## §0 — Önce: ajan mı, ben mi?
+## §0 — First: an agent, or me?
 
-Rol seçmeden önce **o iş için ajan gerekip gerekmediğine** karar verilir.
+Before selecting a role, decide **whether that work needs an agent at all**.
 
-| İşin şekli | Karar | Neden |
+| The shape of the work | Decision | Why |
 |---|---|---|
-| **Çok okur, az döner** (arama, envanter, sınıflandırma, çapraz kontrol) | **Ajan** | Okuma yükü ajanın bağlamında kalır, bana yalnız sonuç gelir |
-| **Az okur, çok yazar** (kod, metin üretimi) | **Ben** | Ajanın yazdığını ben de okurum, kullanıcı da → aynı içerik iki-üç kez token olur |
-| **Kararı kullanıcıyla birlikte verilecek** | **Ben** | Ajan kullanıcıyı odadan çıkarır |
-| **Tek dosya, sözleşmesi net, keşif yok** | Ajan olabilir | Çıktı dar ve doğrulanabilir |
-| **Birkaç dakikalık, tek komutluk** | **Ben** | Ajan başına ~$5-40 sabit maliyet, iş ondan ucuz |
+| **Reads a lot, returns little** (search, inventory, classification, cross-checking) | **Agent** | The reading load stays in the agent's context; only the result comes back to me |
+| **Reads little, writes a lot** (code, prose generation) | **Me** | I re-read whatever the agent wrote, and so does the user → the same content becomes tokens two or three times |
+| **The decision will be made together with the user** | **Me** | An agent takes the user out of the room |
+| **One file, a clear contract, no exploration** | Can be an agent | The output is narrow and verifiable |
+| **A few minutes, one command** | **Me** | ~$5-40 fixed cost per agent; the work is cheaper than that |
 
-⚠️ Bu tablo maliyet ölçümünden çıktı: subagent token'ı ana konuşmadan ~4 kat
-pahalı (cache okuma/yazma oranı 14:1'e karşı 53:1), çünkü her ajan prefix'i
-sıfırdan yazar.
+⚠️ This table came out of cost measurement: a subagent token is ~4x more expensive
+than the main conversation (a cache read/write ratio of 53:1 against 14:1), because
+every agent writes its prefix from scratch.
 
-## §1 — İşin şekli → rol
+## §1 — The shape of the work → the role
 
-| Tetikleyici | Rol |
+| Trigger | Role |
 |---|---|
-| İstek belirsiz/geniş, kapsam ve kabul kriteri yok | `product-manager` → çıktısı **kullanıcı onayına** gider (§2) |
-| "Bu nasıl çalışıyor / nerede tanımlı / kaç yerde kullanılıyor" | `analyst` |
-| 10+ dosyaya dokunacak, sıra ve bağımlılık belirsiz | `architect` |
-| Ekran, akış, boş/hata durumu, erişilebilirlik | `designer` |
-| Kod: **izole + sözleşmesi net** | `developer` |
-| Kod: **çapraz katman / keşif gerekli** | **ben** |
-| Davranış değişti, test gerekiyor | `test-writer` |
-| Diff hazır, incelenecek (kod **veya** altyapı yapılandırması) | `qa` → kritik bulguları **ben doğrularım** |
-| CI, deploy, kapı, yedek, ortam | `devops` |
-| Kalıcı karar alındı, yazılacak | `doc-writer` |
-| **— aşağısı yalnız mod D/E —** | |
-| Auth, sır, yetki, enjeksiyon, CVE, OWASP eşlemesi | `security` → kritik bulguları **ben doğrularım** |
-| Şema, migration, index, transaction, veri göçü | `data` → çıktısı `qa`'ya girer |
-| Kapsam eşiği (#29) ölçülecek / payda denetlenecek | `coverage-auditor` → **doğrudan bana** |
-| E2E spec yazılacak ya da düşen koşum sınıflandırılacak | `e2e-writer` (yalnız `test` ortamına karşı) |
-| Log/metrik/trace/alarm eksiği, performans regresyonu | `observability` → çıktısı `qa`'ya girer |
+| The request is vague or broad, with no scope or acceptance criteria | `product-manager` → its output goes to **user approval** (§2) |
+| "How does this work / where is it defined / how many places use it" | `analyst` |
+| Will touch 10+ files, order and dependencies unclear | `architect` |
+| A screen, a flow, empty/error states, accessibility | `designer` |
+| Code: **isolated + clear contract** | `developer` |
+| Code: **cross-layer / needs exploration** | **me** |
+| Behaviour changed, tests are needed | `test-writer` |
+| A diff is ready for review (code **or** infrastructure configuration) | `qa` → **I verify** the critical findings |
+| CI, deploy, gates, backups, environments | `devops` |
+| A permanent decision was made and needs writing down | `doc-writer` |
+| **— below this line, modes D/E only —** | |
+| Auth, secrets, authorization, injection, CVEs, OWASP mapping | `security` → **I verify** the critical findings |
+| Schema, migrations, indexes, transactions, data migration | `data` → its output goes into `qa` |
+| The coverage threshold (#29) to measure / the denominator to audit | `coverage-auditor` → **straight to me** |
+| An e2e spec to write, or a failing run to classify | `e2e-writer` (only against the `test` environment) |
+| Missing logs/metrics/traces/alerts, a performance regression | `observability` → its output goes into `qa` |
 
-## §2 — Sıra ve devir
+## §2 — Ordering and handoff
 
-Sıra **sabit değil**; ama bir rol seçildiyse girdisi hazır olmalı:
-
-```
-urun-yoneticisi → kapsam + kabul kriteri + kenar durumlar
-        ↓
-   ⛔ KULLANICI ONAYI (otomatik akmaz — §2a)
-        ↓ (bunlar olmadan mimar plan yapamaz)
-mimar / tasarimci → dosya planı + akış (paralel koşabilirler)
-        ↓
-gelistirici | ben → kod
-        ↓
-test-yazar → test            qa → review (paralel)
-        ↓
-belge → kalıcı kararlar
-```
-
-**Bağımsız roller aynı mesajda paralel başlatılır.** Bağımlı olanlar sıraya
-girer — birinin çıktısı ötekinin girdisiyse paralel başlatmak, ikincisinin
-eksik veriyle çalışması demektir.
-
-### §2a — Kapsam kapısı (07/09/2026)
-
-`product-manager` çıktısı zincire **kendiliğinden akmaz**: kapsam, kabul
-kriterleri ve varsayımlar tek blok hâlinde **kullanıcıya sunulur ve onay
-beklenir**. Onaydan önce `architect`/`designer`/kod başlatılmaz.
-
-⚠️ Gerekçe: `product-manager`nin denetçisi yoktur ve olamaz — `qa` "yanlış
-şeyi doğru yapmışsın" demez, sözleşmeye değil koda bakar. Yanlış kapsam
-zincirin tamamına yayılır ve en pahalı hatadır. Buradaki denetçi
-**kullanıcıdır**; bir ajan daha eklemek hem pahalı hem yanlış olurdu.
-
-## §3 — Atlama (skip)
-
-Bir rol **atlanabilir**, ama atlama **sessiz olamaz**: tur başında
-"`designer` atlandı çünkü görünen arayüz değişmiyor" diye yazılır.
-
-Tipik meşru atlamalar: kapsam zaten net → `product-manager` yok · arayüz
-değişmiyor → `designer` yok · tek dosyalık iş → `architect` yok · yeni kalıcı
-karar yok → `doc-writer` yok.
-
-### Kapı-eşli roller — yön kuralı (18/09/2026, mod D/E)
-
-`security` ve `coverage-auditor` **yalnız `dev → test` ve `test → prod`
-promosyonlarında** koşar; `feature/* → dev` yönünde atlanır ve bu atlama
-**açıklama gerektirmez** (#25 `dev`'i hızlı tutar). Kapı otoritedir, ajan
-kapının göremediğini ve kapının kendi bozukluğunu arar —
-[`D-wide-team.md`](D-wide-team.md) › "Kapı mı ajan mı".
-
-⚠️ `data` bu kuralın **dışındadır ve tersi geçerlidir**: şemaya dokunan iş
-`dev`'e merge edilmeden ÖNCE `data`'den geçer. Migration geri alınamaz.
-
-⚠️ **`qa` atlanmaz.** Kod **veya altyapı yapılandırması** değiştiyse review
-vardır. Altyapı = CI iş akışı, deploy/kapı betiği, yedek betiği, Dockerfile,
-IIS/nginx yapılandırması, ortam dosyası şeması, cron. "Diff kod değil, config"
-bir atlama gerekçesi **değildir** — `devops` çıktısı da `qa`'ya girer.
-Atlanacaksa sebebi kullanıcıya söylenir, sessizce geçilmez.
-
-⚠️ Gerekçe (07/09/2026): `devops` denetimsiz tek riskli roldü; CI kapısına,
-yedeğe ve deploy yapılandırmasına dokunuyor. Denetimin kaldırıldığı yerde
-ikinci bir göz şart.
-
-#### ⚠️ #25 ile kesişim — hangisi ezer (08/09/2026 hakemliği, §4)
-
-Global #25 `feature/* → dev` yönünde review'ı (elle **ve** ajan) kaldırıyor;
-buradaki "`qa` atlanmaz" kuralı review istiyor. Çakışma gerçektir.
-**Öncelik: #25 ezer** (§4 önceliği 2 — kullanıcının açık kararı):
-
-- **`dev` yönü:** `qa` **çağrılmaz**. Bulgu görürsem merge'i bloklamam, not
-  düşerim; düzeltme `test` promosyonundan önce ele alınır (#25'in kendi kuralı).
-- **`test`/`prod` promosyonu:** `qa` **atlanmaz** ve altyapı diff'i kapsamdadır.
-- **Tek istisna (§4 önceliği 1 — güvenlik/veri kaybı her zaman kazanır):**
-  değişiklik **yedeklemeyi, sır yönetimini ya da güvenlik kapısının kendisini**
-  zayıflatıyorsa (`continue-on-error`, kapı devre dışı bırakma, gitleaks
-  kapatma, yedek/restore bozma) `dev` yönünde de `qa` koşar ve gerekçesi
-  yazılır. Sebep: #25 hızı satın alır, geri alınamaz kaybı değil — #25
-  pre-commit gitleaks'i tam bu gerekçeyle zaten açık bırakmıştır.
-
-## §4 — Çatışma
-
-İki rol çelişirse **ben hakemlik ederim** ve gerekçeyi yazarım. Öncelik sırası:
-
-1. **Güvenlik / geriye uyumluluk / veri kaybı** — her zaman kazanır.
-2. **Kullanıcının açık kararı** — "şöyle olsun" dediyse tasarım tercihi tartışılmaz.
-3. **Deponun mevcut deseni** — genel "best practice"i yener.
-4. Kalanı benim kararım, gerekçesiyle.
-
-⚠️ Hakem olamadığım çatışma **kullanıcıya gider** — kendi tercihimi
-"ajanlar öyle dedi" diye sunmam.
-
-## §5 — Durma
-
-Şu **dört** durumda zincir durur ve kullanıcıya dönerim:
-
-- **Kapsam değişti** — iş, istenenden başka bir şeye dönüşüyorsa.
-- **Geri alınamaz eylem** — deploy, `DROP`, force push, dış dünyaya gönderim.
-  Mod bunu **hiçbir zaman** gevşetmez.
-- **Ajanlar arası çözülemeyen çatışma** (§4).
-- **Maliyet durma kademesine ulaşıldı** (§8 tablosu) — uyarı kademesi durdurmaz,
-  durma kademesi durdurur.
-- **Mod kendi tur tavanını aştı** — B'de 4 ajan turu.
-- **Eksik kontrolü kapanmadı** — §7 bloğunun `Sonuç` satırı "VAR" kalmışsa ya
-  da `Kapsanmayan` alanında "doğrulanmadı" varsa **ve** iş 2 kez geri
-  gönderildiği hâlde (3 geçiş) temiz sonuca ulaşılamadıysa.
-  Tek bir bulgu **durma sebebi değildir**: o geri gönderilir ve düzelttirilir
-  (§7), kullanıcıya taşınmaz. Belirsizlikle devam etmek, belirsizliği aşağı
-  akışa taşımaktır.
-
-## §6 — Görünürlük ve maliyet (zorunlu)
-
-- **Tur başında:** hangi roller, hangi sırayla, hangileri **neden atlandı**.
-- **Her devirde** (bir rol bitip sıradakine geçilirken): tek satır maliyet
-  hatırlatması — o rolün tahmini maliyeti + turun kümülatifi + eşiğe uzaklık:
-
-      ↳ analiz bitti · eksik kontrolü ✅ temiz · ~$3 · tur toplamı ~$9 (2 ajan) · eşik ~$150 (C)
-
-- **Tur sonunda:** kaç ajan koştu + toplam tahmini maliyet + eşiğe göre durum.
-
-Bu satırlar olmadan mod C/D çalıştırılmaz — onay peşinen verildiği için
-görünürlük tek denetim mekanizmasıdır.
-
-⚠️ **Maliyet hatırlatması ertelenmez** (07/09/2026, kullanıcı kararı). Yalnız
-tur sonunda toplanan rakam, "devam etmeyelim" kararını verilemeyecek kadar geç
-verdirir. Her devirde görünür; rakamların kaynağı ve eşik §8'dedir.
-
-## §7 — Eksik kontrolü: denetçi **sorar değil; kontrol eder, geri gönderir, DÜZELTTİRİR**
-
-*(07/09/2026 kararı; 08/09/2026'da iki kez netleştirildi: "denetçi eksik var mı
-diye sormasın, kontrol etsin ve eksik varsa geri göndersin" + "eksik yanlış
-gördüğü şeyleri **düzelttirsin**".)*
-
-Denetçinin konusu yalnız **eksik** değil, **yanlış**tır da: hatalı davranış,
-yanlış varsayım, yanlış yere yazılmış kural, yanlış kanıt. İkisi de aynı yolu
-izler — bulunur, geri gönderilir, **düzeltilir**, kapanışı doğrulanır.
-
-Çıktısına başka bir rolün ya da kullanıcının güveneceği **her rol** —
-`qa`, `analyst`, `devops`, `test-writer`, `product-manager` ve mod D/E'de ayrıca
-`security`, `data`, `coverage-auditor`, `e2e-writer`, `observability` —
-raporunu şu **kanıt bloğuyla** kapatır:
+The order is **not fixed**; but once a role is selected, its input must be ready:
 
 ```
-## Eksik kontrolü — geçiş N
-- Doğrulama      → koşulan komut / okunan satır aralığı + ham sonucu
-- Madde eşlemesi → istenen her madde → karşılığı (dosya:satır)
-- Kapsanmayan    → doğrulanamayan + bilerek dışarıda bırakılan
-→ Sonuç: temiz YOK  |  VAR → GERİ: <kime> · <ne düzeltilecek> · <kapanış kanıtı>
+product-manager → scope + acceptance criteria + edge cases
+        ↓
+   ⛔ USER APPROVAL (does not flow automatically — §2a)
+        ↓ (without these, architect cannot plan)
+architect / designer → file plan + flow (can run in parallel)
+        ↓
+developer | me → code
+        ↓
+test-writer → tests          qa → review (in parallel)
+        ↓
+doc-writer → permanent decisions
 ```
 
-### Orkestratör: devirde tek satır, tam blok turun SONUNDA (20/09/2026, kullanıcı kararı)
+**Independent roles are started in parallel in the same message.** Dependent ones
+queue — if one's output is another's input, starting them in parallel means the second
+one works with incomplete data.
 
-Orkestratör her devirde tam blok **yazmaz** — rolün bloğu kanıtı zaten taşıyor,
-ikinci kopya aynı kanıtı tekrar eder. Orkestratörün yükümlülüğü:
+### §2a — The scope gate
 
-- **Her devirde tek satır** (§6'daki maliyet satırıyla aynı satır):
-  `↳ analiz bitti · ✅ temiz (`grep -rn X` → 3) · ~$3 · tur toplamı ~$9 · eşik ~$150 (C)`
-  — "temiz" **kanıtsız yazılamaz**: satır, devri geçiren doğrulamayı taşır.
-- **Tam blok iki durumda:** (a) **turun sonunda bir kez** — turun tamamı için
-  madde eşlemesi + kapsanmayan; (b) **her "VAR" kararında** — geri gönderme
-  neyin, hangi kanıtla, kime döndüğünü taşımak zorunda.
-- Rolün kendi bloğu **yutulmaz**: devir satırının yanında kullanıcıya olduğu
-  gibi geçer (aşağıdaki "Diğer kurallar").
+`product-manager` output does **not flow into the chain on its own**: the scope,
+acceptance criteria and assumptions are presented to **the user as one block and
+approval is awaited**. `architect`/`designer`/code do not start before that approval.
 
-Bu, D/E gibi 14 rollü bir turda 14 orkestratör bloğunu 1'e indirir; rolün
-bloğu ve "VAR" kararları olduğu gibi durur — yani kanıt kaybı yok, kopya yok.
+⚠️ Reason: `product-manager` has no auditor and cannot have one — `qa` will not say
+"you built the wrong thing correctly", because it looks at the code, not the contract.
+A wrong scope propagates through the entire chain and is the most expensive mistake.
+The auditor here is **the user**; adding another agent would be both expensive and wrong.
 
-⚠️ **Bu bir soru listesi değil, bir kontroldür.** Denetçi "eksik var mı?" diye
-kullanıcıya da üreten role de **sormaz** — bakar, kanıtı yazar, kararı kendisi
-verir. "Sence tamam mı?" diye devretmek denetim değil, sorumluluğu iade
-etmektir.
+## §3 — Skipping
 
-### Eksik bulunduğunda: GERİ GÖNDERME
+A role **may be skipped**, but the skip **cannot be silent**: at the start of the turn
+it is written down — "`designer` skipped because no visible interface changes".
 
-İş **devretmez**, üretene geri döner. Geri gönderme şunu içerir: **ne eksik ·
-hangi kanıtla · ne yapılacak.** Düzeltme gelince kontrol **baştan** başlar,
-sayaç sıfırlanır.
+Typical legitimate skips: the scope is already clear → no `product-manager` · the
+interface does not change → no `designer` · single-file work → no `architect` · no new
+permanent decision → no `doc-writer`.
 
-| Denetçi | Eksik bulunca geri gönderdiği yer |
+### The gate-paired roles — the direction rule (modes D/E)
+
+`security` and `coverage-auditor` run **only on the `dev → test` and `test → prod`
+promotions**; in the `feature/* → dev` direction they are skipped, and that skip
+**needs no explanation** (#25 keeps `dev` fast). The gate is the authority; the agent
+looks for what the gate cannot see and for defects in the gate itself —
+[`D-wide-team.md`](D-wide-team.md) › "Gate or agent".
+
+⚠️ `data` is **outside this rule and the opposite applies**: work that touches the
+schema passes through `data` BEFORE it is merged to `dev`. A migration cannot be undone.
+
+⚠️ **`qa` is never skipped.** If code **or infrastructure configuration** changed,
+there is a review. Infrastructure = CI workflows, deploy/gate scripts, backup scripts,
+Dockerfiles, IIS/nginx configuration, environment file schemas, cron. "The diff is
+config, not code" is **not** a reason to skip — `devops` output goes into `qa` too. If
+it is going to be skipped, the reason is told to the user; it is never passed over
+silently.
+
+⚠️ Reason: `devops` was the one risky role with no audit; it touches the CI gate, the
+backups and the deploy configuration. Where the audit has been removed, a second pair
+of eyes is essential.
+
+#### ⚠️ The intersection with #25 — which one wins
+
+Global #25 removes review (both by hand **and** by agent) in the `feature/* → dev`
+direction; the "`qa` is never skipped" rule here wants a review. The conflict is real.
+**Precedence: #25 wins** (§4 precedence 2 — an explicit user decision):
+
+- **The `dev` direction:** `qa` is **not called**. If I spot a finding I do not block
+  the merge, I leave a note; the fix is handled before the `test` promotion (#25's own
+  rule).
+- **The `test`/`prod` promotion:** `qa` is **not skipped**, and infrastructure diffs
+  are in scope.
+- **The single exception** (§4 precedence 1 — security and data loss always win): if
+  the change weakens **backups, secret management or the security gate itself**
+  (`continue-on-error`, disabling a gate, switching off gitleaks, breaking
+  backup/restore), then `qa` runs in the `dev` direction too and the reason is written
+  down. Because #25 buys speed, not irreversible loss — #25 leaves the pre-commit
+  gitleaks hook enabled for exactly this reason.
+
+## §4 — Conflict
+
+If two roles contradict each other **I arbitrate** and write down the reasoning. The
+order of precedence:
+
+1. **Security / backward compatibility / data loss** — always wins.
+2. **An explicit user decision** — if they said "do it this way", a design preference
+   is not debated.
+3. **The repository's existing pattern** — beats a general "best practice".
+4. The rest is my call, with its reasoning.
+
+⚠️ A conflict I cannot arbitrate **goes to the user** — I do not present my own
+preference as "the agents said so".
+
+## §5 — Stopping
+
+The chain stops and I come back to the user in these cases:
+
+- **The scope changed** — the work is turning into something other than what was asked.
+- **An irreversible action** — deploy, `DROP`, force push, sending anything outward.
+  The mode **never** loosens this.
+- **An unresolvable conflict between agents** (§4).
+- **The stop tier of a cost threshold was reached** (§8) — the warning tier does not
+  stop, the stop tier does.
+- **The mode exceeded its own turn ceiling** — 4 agent turns in B.
+- **A completeness check did not close** — the `Result` line of the §7 block is still
+  "YES", or `Not covered` contains "not verified", **and** the work has been sent back
+  twice (3 passes) without reaching a clean result.
+  A single finding is **not a stop reason**: it is sent back and fixed (§7), not
+  escalated. Continuing with uncertainty means carrying that uncertainty downstream.
+
+## §6 — Visibility and cost (mandatory)
+
+- **At the start of the turn:** which roles, in what order, and which were **skipped
+  and why**.
+- **At every handoff** (as one role ends and the next begins): a one-line cost
+  reminder — that role's estimated cost + the turn's running total + the distance to
+  the threshold:
+
+      ↳ analyst done · completeness check ✅ clean · ~$3 · turn total ~$9 (2 agents) · threshold ~$150 (C)
+
+- **At the end of the turn:** how many agents ran + the total estimated cost + where
+  that stands against the threshold.
+
+Modes C/D are not run without these lines — because the approval is given up front,
+visibility is the only audit mechanism left.
+
+⚠️ **The cost reminder is never deferred.** A figure totalled only at the end of the
+turn arrives too late to make a "let's not continue" decision. It is visible at every
+handoff; the source of the figures and the thresholds are in §8.
+
+## §7 — The completeness check: the auditor **does not ask; it checks, sends back, and GETS IT FIXED**
+
+The auditor's subject is not only what is **missing** but also what is **wrong**:
+incorrect behaviour, a wrong assumption, a rule written in the wrong place, wrong
+evidence. Both follow the same path — found, sent back, **fixed**, closure verified.
+
+**Every role** whose output another role or the user will rely on — `qa`, `analyst`,
+`devops`, `test-writer`, `product-manager`, and in modes D/E additionally `security`,
+`data`, `coverage-auditor`, `e2e-writer`, `observability` — closes its report with this
+**evidence block**:
+
+```
+## Completeness check — pass N
+- Verification   → command run / line range read + raw result
+- Item mapping   → each requested item → where it is (file:line)
+- Not covered    → what could not be verified + what was deliberately left out
+→ Result: clean NO  |  YES → BACK TO: <who> · <what to fix> · <closing evidence>
+```
+
+### The orchestrator: one line per handoff, the full block at the END of the turn
+
+The orchestrator does **not** write the full block at every handoff — the role's own
+block already carries the evidence, and a second copy repeats it. The orchestrator's
+obligations:
+
+- **One line per handoff** (the same line as the cost line in §6):
+  `↳ analyst done · ✅ clean (grep -rn X → 3) · ~$3 · turn total ~$9 · threshold ~$150 (C)`
+  — "clean" **cannot be written without evidence**: the line carries the verification
+  that passed the handoff.
+- **The full block in two cases:** (a) **once at the end of the turn** — item mapping
+  + not covered for the whole turn; (b) **on every "YES" decision** — the hand-back
+  must carry what, with which evidence, and to whom it returns.
+- The role's own block is **never swallowed**: it passes to the user as-is, alongside
+  the handoff line (see "Other rules" below).
+
+In a 14-role turn like D/E this reduces 14 orchestrator blocks to one; the role's block
+and the "YES" decisions stand as they are — so no evidence is lost and nothing is
+duplicated.
+
+⚠️ **This is a check, not a list of questions.** The auditor does not ask "is anything
+missing?" — not the user, not the producing role. It looks, writes the evidence, and
+decides. Handing it over as "does this look right to you?" is not auditing, it is
+returning responsibility.
+
+### When something is missing: THE HAND-BACK
+
+The work **does not move forward**, it returns to its producer. The hand-back contains:
+**what is missing · with what evidence · what to do.** When the fix arrives, the check
+starts **from the beginning** and the counter resets.
+
+| Auditor | Where it sends the work when it finds a gap |
 |---|---|
-| `qa` | Üretene — `developer` ya da ben → düzeltme → **yeniden `qa`** |
-| `analyst` | Kendine: devretmez, taramasını tamamlar |
-| `test-writer` | Kendine; eksik olan ürün kodu davranışıysa **bana** |
-| `devops` | Kendine; koşmayan kapıyı "doğrulanmadı" yazar, **yeşil demez** |
-| `product-manager` | Kendine; belirsizliği **varsayım** olarak yazar, soru bırakmaz |
-| orkestratör (ben) | İlgili role; ben ürettiysem kendime |
+| `qa` | To the producer — `developer` or me → fix → **`qa` again** |
+| `analyst` | To itself: it does not hand off, it completes its scan |
+| `test-writer` | To itself; if what is missing is product-code behaviour, **to me** |
+| `devops` | To itself; it writes "not verified" for a gate that did not run, it **does not say green** |
+| `product-manager` | To itself; it writes the ambiguity as an **assumption**, it leaves no question |
+| the orchestrator (me) | To the relevant role; to myself if I produced it |
 
-**Kullanıcıya ne zaman gider?** Yalnız §5'teki durma sebeplerinde ve aşağıdaki
-tavanda — ve o zaman da **soru değil, durum raporu**: "kapanmadı · şu eksik ·
-şunlar denendi".
+**When does it reach the user?** Only for the stop reasons in §5 and at the ceiling
+below — and even then as a **status report, not a question**: "not closed · this is
+missing · these were tried".
 
-### Düzelttirme: bulgu **kapanmadan devir yok** (08/09/2026, kullanıcı kararı)
+### Getting it fixed: **no handoff while a finding is open**
 
-Geri gönderme bir not değil, **iş emridir**. Denetçi bulduğu eksiği/yanlışı
-düzelttirmekle yükümlüdür; bulguyu rapora yazıp geçmek **kapanış sayılmaz**.
+A hand-back is not a note, it is **an order**. The auditor is obliged to get the gap or
+error fixed; writing a finding into a report and moving on **does not count as closure**.
 
-1. **Denetçi düzeltmez, düzelttirir.** `qa` hâlâ "bulur, düzeltmez" — ama
-   düzeltmeyi **takip eder ve kapanışını doğrular**. Düzelten taraf üretendir
-   (`developer` / ben); `analyst` ve `product-manager` kendi çıktısını kendi
-   düzeltir.
-2. **Kapanış kanıtla olur.** Düzeltme geldikten sonra bulguyu ortaya çıkaran
-   **aynı doğrulama tekrar koşulur** ve sonucu yazılır. "Düzeltildi" beyanı
-   tek başına kapanış değildir.
-3. **"Sonra bakarız" ile kapanmaz.** Bir bulgu ancak üç yoldan biriyle kapanır:
-   **(a)** düzeltildi + kanıtlandı · **(b)** kullanıcı açıkça "yapma" dedi ·
-   **(c)** kapsam dışı olduğu gerekçesiyle **kullanıcıya bildirildi** ve
-   raporda açık bulgu olarak listelendi. Sessizce düşen bulgu yoktur.
-4. **Kozmetik bulgular da kaybolmaz.** Devri bloklamazlar (ciddi değiller) ama
-   ya aynı turda düzelttirilir ya "açık bulgu" diye raporlanır.
-5. **Açık bulgu listesi tur boyunca taşınır.** Tur sonu raporunda "kapanan / açık
-   kalan" ayrımı görünür — global #24'ün eksik-kontrolüyle aynı hattır.
+1. **The auditor does not fix, it gets it fixed.** `qa` still "finds, does not fix" —
+   but it **tracks the fix and verifies its closure**. The fixing party is the producer
+   (`developer` / me); `analyst` and `product-manager` fix their own output themselves.
+2. **Closure happens with evidence.** After the fix arrives, **the same verification
+   that surfaced the finding is re-run** and its result written down. A claim of
+   "fixed" is not closure on its own.
+3. **It does not close with "we'll look at it later".** A finding closes in one of
+   three ways only: **(a)** fixed + evidenced · **(b)** the user explicitly said
+   "don't" · **(c)** **reported to the user** as out of scope and listed in the report
+   as an open finding. No finding is ever dropped silently.
+4. **Cosmetic findings do not get lost either.** They do not block a handoff (they are
+   not serious) but they are either fixed in the same turn or reported as an "open
+   finding".
+5. **The open-findings list is carried through the turn.** The end-of-turn report shows
+   "closed / still open" — the same line as the completeness check in global #24.
 
-### Kaç geçiş? — **1 temiz** (18/09/2026, kullanıcı kararı)
+### How many passes? — **1 clean**
 
-Devir için **bir kez** "ciddi eksik YOK" yeterlidir (`✅ temiz`).
+**One** "no serious gap" is enough for a handoff (`✅ clean`).
 
-**"Ciddi eksik" nedir?** Davranışı değiştiren, güvenliği/geriye uyumluluğu/
-veriyi etkileyen ya da **kullanıcının istediği bir maddeyi karşılıksız
-bırakan** her şey. Kozmetik notlar ve bilerek kapsam dışı bırakılanlar ciddi
-eksik değildir — raporda listelenir, devri bloklamaz.
+**What is a "serious gap"?** Anything that changes behaviour, affects
+security/backward compatibility/data, or **leaves a requested item unmet**. Cosmetic
+notes and things deliberately left out of scope are not serious gaps — they are listed
+in the report and do not block the handoff.
 
-⚠️ **Tek geçiş, kanıt bloğunu daha da bağlayıcı yapar.** İkinci geçiş yokken
-o blok tek güvencedir: kanıtsız "temiz" artık hiçbir yerde yakalanmaz. Bu
-yüzden `Doğrulama` satırı **koşulan komutu / okunan aralığı** taşımak
-zorundadır ve **doğrulanamayan şey "tamam" sayılmaz** (aşağıdaki "Diğer
-kurallar").
+⚠️ **A single pass makes the evidence block even more binding.** With no second pass,
+that block is the only safeguard: an unevidenced "clean" is caught nowhere. That is why
+the `Verification` line **must** carry the command run or the range read, and why
+**what cannot be verified does not count as fine** (see "Other rules" below).
 
-**Değişmeyenler:**
+**What does not change:**
 
-- **"VAR" çıkarsa geri gönderilir** — iş üretene döner, kullanıcıya taşınmaz (§7 başı).
-- **Düzeltme geldiğinde bulguyu ortaya çıkaran doğrulama tekrar koşulur.**
-  Bu bir "ikinci geçiş" değil, **kapanış kanıtıdır**: "düzeltildi" beyanı
-  kapanış sayılmaz.
-- **Tavan: aynı iş en çok 2 kez geri gönderilir (3 geçiş).** Sonra zincir durur
-  ve kullanıcıya **bildirilir** — soru değil, durum raporu. Kapanmamış bulgular
-  **açık bulgu** olarak tek tek listelenir; "denedim olmadı" diyip sessizce
-  devretmek yasaktır.
+- **On "YES" the work is sent back** — it returns to its producer, it is not escalated
+  to the user (§7 opening).
+- **When the fix arrives, the verification that surfaced the finding is re-run.** This
+  is not a "second pass", it is **closing evidence**: a claim of "fixed" is not closure.
+- **Ceiling: the same work is sent back at most twice (3 passes).** Then the chain stops
+  and the user is **informed** — a status report, not a question. Unclosed findings are
+  listed individually as **open findings**; saying "I tried, it didn't work" and handing
+  off silently is forbidden.
 
 <details>
-<summary><b>Opsiyon: iki ardışık temiz geçiş (2/2)</b> — kapalı</summary>
+<summary><b>Option: two consecutive clean passes (2/2)</b> — disabled</summary>
 
-Kullanıcı "iki kere baksın" derse devir için arka arkaya iki temiz sonuç
-aranır. O hâlde geçiş 2 aynı kontrolün tekrarı olamaz: geçiş 1'de
-kullanılmamış **en az bir bağımsız kanıt kaynağı** kullanır (başka komut,
-kodun karşı ucundan okuma, ya da orijinal isteğin madde madde eşlenmesi) ve
-geçiş 1'in araç çağrısı sayısının **yarısını aşmaz**, aynı turun içinde
-(+%10–20 yük). Kanıtsız "temiz" ikinci geçiş 2/2'yi törene çevirir. Tavan o
-hâlde 2 geri gönderme = 4 geçiş olur.
+If the user asks for "two looks", a handoff requires two consecutive clean results. In
+that case pass 2 cannot be a repeat of the same check: it uses **at least one
+independent evidence source** not used in pass 1 (a different command, reading from the
+other end of the code, or mapping the original request item by item) and it does not
+exceed **half** the tool-call count of pass 1, within the same turn (+10–20% overhead).
+An unevidenced "clean" turns 2/2 into a ceremony. The ceiling then becomes 2 hand-backs
+= 4 passes.
 
-Tarihçe: 07/09/2026'da sırasıyla 2 → 1 → **2**; 08/09/2026'da geçiş 2'nin
-ölçütü "sayı değil bağımsız kanıt" olarak netleştirildi; **18/09/2026'da
-kullanıcı kararıyla 1'e indirildi** ("tek bir kere eksik yoktur denmesi
-yeterli olsun"). Ölçülen gerekçe: 14 rollü bir turda ikinci geçiş tahmini
-maliyetin **~%22'siydi**.
+The measured reason this option is disabled: in a 14-role turn the second pass was
+roughly **22% of the estimated cost**.
 </details>
 
-### Diğer kurallar
+### Other rules
 
-- Blok **her seferinde** yazılır; temiz geçilse bile görünür. Görünmeyen
-  kontrol, yapılmamış kontroldür.
-- Cevap **kanıt taşır, kalıp taşımaz.** "Evet, eminim" tek başına geçersiz;
-  "3 dosyada `grep -rn X` ile doğruladım, 4. eşleşme test dosyasında" geçerli.
-- **Doğrulanamayan şey "tamam" sayılmaz.** Doğrulanamıyorsa ya doğrulama yolu
-  bulunur ya "doğrulanmadı" diye raporlanır — tahmin, temiz geçiş yerine geçmez.
-- ⚠️ Orkestratör bu bloğu **yutmaz**. Ajanın eksik kontrolü ve geri gönderme
-  kararı, devir satırıyla birlikte kullanıcıya olduğu gibi geçer.
+- The block is written **every time**; it is visible even on a clean pass. An invisible
+  check is an unperformed check.
+- The answer **carries evidence, not a template.** "Yes, I'm sure" is invalid on its
+  own; "verified with `grep -rn X` across 3 files, the 4th match is in a test file" is
+  valid.
+- **What cannot be verified does not count as fine.** If it cannot be verified, either
+  a way to verify it is found or it is reported as "not verified" — a guess does not
+  substitute for a clean pass.
+- ⚠️ The orchestrator does **not swallow** this block. The agent's completeness check
+  and its hand-back decision pass to the user as-is, alongside the handoff line.
 
-### `analyst` için ek: sonuç doğrulanabilir olmalı
+### Addition for `analyst`: the result must be verifiable
 
-`analyst` yalnız sonucu değil, **sonucu üreten komutu** da döndürür
-(`grep -rn "X" --include=*.cs`, `rg -c`, `find`). Orkestratör komutu bir
-saniyede tekrar koşar ve sayıyı karşılaştırır.
+`analyst` returns not only the result but **the command that produced it**
+(`grep -rn "X" --include=*.cs`, `rg -c`, `find`). The orchestrator re-runs the command
+in a second and compares the count.
 
-⚠️ Gerekçe: `analyst` çok okuyup kısa döner; "3 yerde kullanılıyor" deyip 4.'yü
-kaçırdığında bunu doğrulamanın tek yolu aynı taramayı baştan yapmaktır — ki o
-da ajanı kullanma sebebini yok eder. Komutu geri döndürmek tam denetimin
-büyük kısmını **sıfıra yakın maliyetle** verir. Komut döndürülmediyse bulgu
-"doğrulanmadı" sayılır.
+⚠️ Reason: `analyst` reads a lot and returns little; when it says "used in 3 places"
+and misses the 4th, the only way to verify that is to redo the whole scan — which
+destroys the reason for using the agent. Returning the command delivers most of a full
+audit at **near-zero cost**. If the command is not returned, the finding counts as
+"not verified".
 
-## §8 — Maliyet: rakamlar ve eşik
+## §8 — Cost: the figures and the threshold
 
-**Ölçülen** (05/09/2026, Proje A, 33 oturum): ajan turu başına ortalama
-**$6,9**; toplam maliyetin **%73'ü** orkestratörün cache okumasından geliyor,
-ajanlardan değil. Ajan turları toplamın %7,7'siydi.
+**Measured** (33 sessions): an average of **$6.9** per agent turn; **73%** of the
+total cost comes from the orchestrator's cache reads, not from the agents. Agent turns
+were 7.7% of the total.
 
-| Rol | Model | Tur başına tahmin |
+| Role | Model | Estimate per turn |
 |---|---|---|
-| `doc-writer` | haiku | ~$0,5–2 |
+| `doc-writer` | haiku | ~$0.5–2 |
 | `analyst` · `designer` · `product-manager` · `test-writer` · `devops` | sonnet | ~$2–6 |
-| `qa` | opus | **~$4** (ÖLÇÜLDÜ — 3 kayıt, 08/09/2026; ort. $4,10) |
-| `architect` · `developer` | opus | ~$8–20 (ÖLÇÜLMEDİ — yazan roller, `qa`'dan pahalı olması beklenir) |
-| `coverage-auditor` · `e2e-writer` · `observability` | sonnet | ~$2–6 (ÖLÇÜLMEDİ — mod D, 18/09/2026) |
-| `security` · `data` | opus | ~$4–10 (ÖLÇÜLMEDİ — `qa` sınıfı denetçiler) |
-| `Workflow` (mod E) | karışık | ajan sayısı × yukarısı + orkestrasyon payı |
+| `qa` | opus | **~$4** (MEASURED — 3 records; avg. $4.10) |
+| `architect` · `developer` | opus | ~$8–20 (NOT MEASURED — writing roles, expected to cost more than `qa`) |
+| `coverage-auditor` · `e2e-writer` · `observability` | sonnet | ~$2–6 (NOT MEASURED — mode D) |
+| `security` · `data` | opus | ~$4–10 (NOT MEASURED — auditors of the `qa` class) |
+| `Workflow` (mode E) | mixed | agent count × the above + an orchestration share |
 
-⚠️ Bu tablodaki tek **ölçülen** sayı $6,9 ortalamasıdır; model kırılımı
-fiyat oranından çıkarılmış **tahmindir** ve öyle sunulur. Gerçek fatura
-farklıysa tablo düzeltilir, tahmin savunulmaz.
+⚠️ The only **measured** number in this table is the $6.9 average; the model breakdown
+is an **estimate** derived from price ratios and is presented as such. If the real bill
+differs, the table is corrected — the estimate is not defended.
 
-### Kalibrasyon: tablo ÖLÇÜLEREK düzeltilir (08/09/2026, kullanıcı kararı)
+### Calibration: the table is corrected BY MEASUREMENT
 
-Tablo bugün tahmindir; **her gerçek ajan turunda ölçüm kaydedilir** ve yeterli
-veri birikince tablo düzeltilir. Yöntem:
+The table is an estimate today; **a measurement is recorded on every real agent turn**
+and the table is corrected once enough data accumulates. The method:
 
-1. Tur bitince görev bildirimindeki **`subagent_tokens`** okunur.
-2. **Tercih edilen yol:** `python3 ~/.claude/scripts/session-cost.py <oturum-id>`
-   — transcript'teki `usage` alanlarını toplar, **ölçer**. Oturum id'si
-   scratchpad yolunun son parçasıdır.
-   Elde yalnız `subagent_tokens` varsa modelin MTok fiyatıyla çarpılır; güncel
-   liste **bundled `claude-api` skill'indedir** (`~/.claude/skills/` altında
-   değil — `Skill` aracıyla açılır). 08/09/2026: **Opus 5** $5 girdi / $25 çıktı ·
-   **Sonnet 5** $2 / $10 · **Haiku 4.5** $1 / $5.
-3. Girdi/çıktı kırılımı bildirimde yok, o yüzden **alt-üst sınır** yazılır
-   (hepsi girdi ↔ hepsi çıktı). Gerçek değer alt sınıra yakındır: ajan turları
-   okuma ağırlıklıdır.
-4. Sonuç aşağıdaki deftere eklenir. **Tablo tek ölçümle değiştirilmez** — en az
-   3 kayıt ya da gerçek bir uçtan uca C/D özellik turu gerekir; tek bir dar
-   kapsamlı koşumdan genelleme yapmak, düzeltmeye çalıştığımız hatanın aynısıdır.
+1. After the turn, read **`subagent_tokens`** from the task notification.
+2. **The preferred route:** `python3 ~/.claude/scripts/session-cost.py <session-id>` —
+   it sums the `usage` fields in the transcript, i.e. it **measures**.
+   If only `subagent_tokens` is available, multiply by the model's per-MTok price; the
+   current list is in the bundled `claude-api` skill.
+3. The notification carries no input/output breakdown, so a **lower and upper bound**
+   is written (all input ↔ all output). The real value is near the lower bound: agent
+   turns are read-heavy.
+4. The result is added to the ledger below. **The table is never changed on a single
+   measurement** — it takes at least 3 records or one real end-to-end C/D feature turn;
+   generalising from a single narrow run is the very mistake we are trying to correct.
 
-#### Ölçüm defteri
+#### The measurement ledger
 
-| Tarih | Rol / model | İş | Ham ölçüm | Maliyet aralığı |
-|---|---|---|---|---|
-| 08/09/2026 | `qa` / opus | 17 markdown kural dosyasının 10 karara karşı denetimi (20 araç çağrısı, 355 sn) | 85.682 token | **$0,43 – $2,14** |
-| 08/09/2026 | `qa` / opus | A/B/C/D mod tanımları denetimi (28 çağrı, 633 sn) | 105.118 token | **$0,53 – $2,63** |
-| 08/09/2026 | `qa` / opus | X/Y/Z takım modları denetimi (57 çağrı, 872 sn) | 137.942 token | **$0,69 – $3,45** |
-| 08/09/2026 | **oturum toplamı** (ölçüldü, betikle) | 3 `qa` turu + orkestratör, 170 mesaj | — | **ana $26,99 + subagent $12,31 = $39,30** |
-| 13/09/2026 | `test-writer` / sonnet | Proje A: bash 3.2 e2e parça döngüsü davranış testi, 6 senaryo + 3 mutasyon (28 çağrı, 308 sn) | 99.994 token | **$0,20 – $1,00** |
-| 13/09/2026 | `qa` / opus | Proje A: iki merge kapısı düzeltmesinin incelemesi — 3 kritik bulgu, simülasyon + docker bash 5.2 (18 çağrı, 444 sn) | 114.795 token | **$0,57 – $2,87** |
-| 13/09/2026 | `test-writer` / sonnet | Proje A: qa bulguları için koşucu davranış testi (sahte npx) + kilitler, 9 mutasyon (69 çağrı, 984 sn) | 193.779 token | **$0,39 – $1,94** |
-| 13/09/2026 | `analyst` / sonnet | Proje A: test ortamında düşen 7 e2e testinin sınıflandırması (gerileme/bayat spec), git geçmişi (98 çağrı, 1222 sn) | 175.657 token | **$0,35 – $1,76** |
-| 13/09/2026 | `qa` / opus | Proje A: kapı düzeltmelerinin 2. turu — 7 bulgunun kapanış kanıtı, 6 küçük bulgu (29 çağrı, 657 sn) | 109.862 token | **$0,55 – $2,75** |
-| 13/09/2026 | `test-writer` / sonnet | Proje A: bayat ürün sihirbazı e2e spec'leri, test ortamına karşı gerçek koşum (75 çağrı, 907 sn) | 146.706 token | **$0,29 – $1,47** |
-| 13/09/2026 | `test-writer` / sonnet | Proje A: qa küçük bulguları için 3 kilit + mutasyon (43 çağrı, 435 sn) | 91.468 token | **$0,18 – $0,91** |
+Work descriptions are kept generic on purpose; the figures are what matters.
 
-| 14/09/2026 | `developer` / opus | Proje B: Android Ödeme Al web eşitleme — 18 dosya, derleme+59 test (73 çağrı, 1225 sn) | 286.217 token | **$1,43 – $7,16** |
-| 14/09/2026 | `developer` / opus | Proje B: iOS Ödeme Al web eşitleme — 21 dosya, xcodegen, 92 test (76 çağrı, 1198 sn) | 263.389 token | **$1,32 – $6,58** |
-| 14/09/2026 | `developer` / opus | Proje B: Android geri gönderme düzeltmesi (Ad soyad alanı; devam turu, kümülatif 296.818) (10 çağrı, 102 sn) | ~10.600 token (fark) | **$0,05 – $0,27** |
-| 14/09/2026 | `developer` / opus | Proje B: iOS geri gönderme düzeltmesi (tutar doğrulaması + hata başlığı; devam turu, kümülatif 276.549) (11 çağrı, 154 sn) | ~13.200 token (fark) | **$0,07 – $0,33** |
-| 14/09/2026 | `test-writer` / sonnet | Proje B: Android Ödeme Al JVM testleri, 62 test + 4 mutasyon (59 çağrı, 561 sn) | 185.031 token | **$0,37 – $1,85** |
-| 14/09/2026 | `test-writer` / sonnet | Proje B: iOS Ödeme Al ekran+kural testleri, 34 test + 5 mutasyon (104 çağrı, 1869 sn) | 358.542 token | **$0,72 – $3,59** |
-| 16/09/2026 | `qa` / opus | Proje C: `dev` öncesi 4 commit review'ı geçiş 1 — 3 yüksek bulgu, ffmpeg denemesi (26 çağrı, 216 sn) | 104.366 token | **$0,52 – $2,61** |
-| 16/09/2026 | `qa` / opus | Proje C: geçiş 2, düzeltmelerin kapanışı + yeni yüksek bulgu (HLS bsf) (devam turu, kümülatif 139.045) (7 çağrı, 124 sn) | ~34.700 token (fark) | **$0,17 – $0,87** |
-| 16/09/2026 | `qa` / opus | Proje C: geçiş 3, 1/2 temiz (devam turu, kümülatif 148.032) (2 çağrı, 49 sn) | ~9.000 token (fark) | **$0,04 – $0,22** |
-| 16/09/2026 | `qa` / opus | Proje C: geçiş 4, istek→kod eşlemesi, 2/2 temiz (devam turu, kümülatif 153.614) (3 çağrı, 106 sn) | ~5.600 token (fark) | **$0,03 – $0,14** |
+| Role / model | Work | Raw measurement | Cost range |
+|---|---|---|---|
+| `qa` / opus | audit of 17 markdown rule files against 10 decisions (20 tool calls, 355 s) | 85,682 tokens | **$0.43 – $2.14** |
+| `qa` / opus | audit of four mode definitions (28 calls, 633 s) | 105,118 tokens | **$0.53 – $2.63** |
+| `qa` / opus | audit of three team-mode definitions (57 calls, 872 s) | 137,942 tokens | **$0.69 – $3.45** |
+| **session total** (measured by script) | 3 `qa` turns + the orchestrator, 170 messages | — | **main $26.99 + subagent $12.31 = $39.30** |
+| `test-writer` / sonnet | behaviour tests for a shell loop, 6 scenarios + 3 mutations (28 calls, 308 s) | 99,994 tokens | **$0.20 – $1.00** |
+| `qa` / opus | review of two merge-gate fixes — 3 critical findings (18 calls, 444 s) | 114,795 tokens | **$0.57 – $2.87** |
+| `test-writer` / sonnet | runner behaviour tests with fakes + locks, 9 mutations (69 calls, 984 s) | 193,779 tokens | **$0.39 – $1.94** |
+| `analyst` / sonnet | classification of 7 failing e2e tests (regression/stale spec) with git history (98 calls, 1222 s) | 175,657 tokens | **$0.35 – $1.76** |
+| `qa` / opus | second pass on the gate fixes — closing evidence for 7 findings, 6 minor findings (29 calls, 657 s) | 109,862 tokens | **$0.55 – $2.75** |
+| `test-writer` / sonnet | rewriting stale e2e specs, real run against the test environment (75 calls, 907 s) | 146,706 tokens | **$0.29 – $1.47** |
+| `test-writer` / sonnet | 3 locks + mutation for minor `qa` findings (43 calls, 435 s) | 91,468 tokens | **$0.18 – $0.91** |
+| `developer` / opus | Android feature parity with web — 18 files, build + 59 tests (73 calls, 1225 s) | 286,217 tokens | **$1.43 – $7.16** |
+| `developer` / opus | iOS feature parity with web — 21 files, project generation, 92 tests (76 calls, 1198 s) | 263,389 tokens | **$1.32 – $6.58** |
+| `developer` / opus | Android hand-back fix (continuation turn) (10 calls, 102 s) | ~10,600 tokens (delta) | **$0.05 – $0.27** |
+| `developer` / opus | iOS hand-back fix (continuation turn) (11 calls, 154 s) | ~13,200 tokens (delta) | **$0.07 – $0.33** |
+| `test-writer` / sonnet | Android JVM tests, 62 tests + 4 mutations (59 calls, 561 s) | 185,031 tokens | **$0.37 – $1.85** |
+| `test-writer` / sonnet | iOS screen + rule tests, 34 tests + 5 mutations (104 calls, 1869 s) | 358,542 tokens | **$0.72 – $3.59** |
+| `qa` / opus | pre-`dev` review of 4 commits, pass 1 — 3 high findings (26 calls, 216 s) | 104,366 tokens | **$0.52 – $2.61** |
+| `qa` / opus | pass 2, closing the fixes + one new high finding (continuation turn) (7 calls, 124 s) | ~34,700 tokens (delta) | **$0.17 – $0.87** |
+| `qa` / opus | pass 3, clean (continuation turn) (2 calls, 49 s) | ~9,000 tokens (delta) | **$0.04 – $0.22** |
+| `qa` / opus | pass 4, request→code mapping, clean (continuation turn) (3 calls, 106 s) | ~5,600 tokens (delta) | **$0.03 – $0.14** |
 
-✅ **Kalibrasyon 1 yapıldı (08/09/2026):** 3 kayıt doldu ve betikle ölçülen
-oturum toplamı elde edildi — 3 `qa`/opus turu için **subagent $12,31**, tur
-başına **~$4,10**. Tablodaki eski `~$8–20` tahmini **2-5 kat yüksekti**;
-`qa` satırı ölçümle değiştirildi.
+✅ **Calibration 1 is done:** 3 records accumulated and a script-measured session total
+was obtained — **subagent $12.31** for 3 `qa`/opus turns, i.e. **~$4.10** per turn. The
+`~$8–20` estimate in the table was **2-5x too high**; the `qa` row was replaced with
+the measurement.
 
-⚠️ **Hâlâ ölçülmemiş olanlar:** `architect`/`developer` (yazan roller — üçü de
-denetim turuydu), sonnet ve haiku rolleri, ve **X/Y/Z'nin tamamı**. Eşikler
-değiştirilmedi: üç kayıt da aynı iş tipinden (kural dosyası denetimi) ve
-gerçek bir uçtan uca özellik turu hâlâ yok. Eşik düzeltmesi için o gerekir.
+⚠️ **Still unmeasured:** `architect`/`developer` (the writing roles — all three
+calibration records were auditing turns), the sonnet and haiku roles, and **all of
+X/Y/Z**. The thresholds were not changed: all three records came from the same kind of
+work (auditing rule files) and there is still no real end-to-end feature turn. That is
+what a threshold correction would require.
 
-⚠️ Orkestratör payı ölçümü doğruluyor: aynı oturumda **ana $26,99** vs
-**subagent $12,31** — yani maliyetin çoğu hâlâ ajanlarda değil, bende.
+⚠️ The orchestrator's share confirms the measurement: in the same session, **main
+$26.99** vs **subagent $12.31** — most of the cost is still not in the agents, it is in me.
 
-### Eşik: **moda bağlı, iki kademeli** (08/09/2026, kullanıcı kararı)
+### The threshold: **mode-dependent, two-stage**
 
-| Mod | Uyarı (yarısı) | **Durma** |
+| Mode | Warning (half) | **Stop** |
 |---|---|---|
-| **A** | — (ajan yok) | — |
+| **A** | — (no agents) | — |
 | **B** | ~$12 | **~$25** |
 | **C** | ~$75 | **~$150** |
 | **D** | ~$150 | **~$300** |
@@ -445,14 +446,15 @@ gerçek bir uçtan uca özellik turu hâlâ yok. Eşik düzeltmesi için o gerek
 | **Y** | ~$150 | **~$300** |
 | **Z** | ~$300 | **~$600** |
 
-- **Uyarı kademesi:** devir satırına tek kelime eklenir (`⚠ eşiğin yarısı`),
-  iş **durmaz**. Amaç sürprizi kaldırmak: tavana çarpmadan önce görürsün.
-- **Durma kademesi:** zincir durur, ne harcandığı ve ne kaldığı yazılır,
-  devam kararı kullanıcınındır.
-- ⚠️ Eşik **modun ilan ettiği maliyetle tutarlı olmalıdır.** Önceki tek-değer
-  ($40) mod C'nin kendi beklentisinin (+$100–150) dörtte birindeydi; normal
-  bir C özelliğinin **ortasında** çalıyordu — yani ya her işte gereksiz soru
-  ya ölü kural demekti. Fren, anormal durumda çalar; normalde değil.
-- Otonom koşumun kendi **$100** tavanı bundan **bağımsız** olarak geçerlidir
-  (`autonomous-run.md`) ve hangisi önce dolarsa o durdurur.
-- Eşikler kullanıcı tarafından değiştirilebilir.
+- **The warning tier:** one word is added to the handoff line (`⚠ half the threshold`)
+  and the work **does not stop**. The point is to remove the surprise: you see it
+  before hitting the ceiling.
+- **The stop tier:** the chain stops, what has been spent and what remains are written
+  down, and the decision to continue belongs to the user.
+- ⚠️ A threshold **must be consistent with the cost the mode itself declares.** A
+  single flat value set at a quarter of C's own expectation (+$100–150) would fire in
+  the **middle** of a normal C feature — which means either an unnecessary question on
+  every task or a dead rule. A brake fires in abnormal conditions, not in normal ones.
+- The autonomous run's own **$100** ceiling applies **independently** of this
+  (`autonomous-run.md`), and whichever fills first is the one that stops.
+- The thresholds can be changed by the user.

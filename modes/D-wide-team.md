@@ -1,145 +1,151 @@
-# Mod D — Geniş takım (14 rol)
+# Mode D — Wide team (14 roles)
 
-C'nin dokuz rolüne **beş denetçi rol** eklenir. Ben orkestratörüm (ayrı
-orkestratör ajan YOK — o ikinci bir soğuk prefix demek).
+C's nine roles plus **five auditing roles**. I am the orchestrator (there is NO
+separate orchestrator agent — that would mean a second cold prefix).
 
-## Ajan seti
+## The agent set
 
-**C'den gelen dokuz:** `product-manager` · `analyst` · `architect` · `designer` ·
+**The nine from C:** `product-manager` · `analyst` · `architect` · `designer` ·
 `developer` · `test-writer` · `qa` · `devops` · `doc-writer`
 
-**D'de açılan beş:** `security` · `data` · `coverage-auditor` · `e2e-writer` ·
+**The five D adds:** `security` · `data` · `coverage-auditor` · `e2e-writer` ·
 `observability`
 
-⚠️ **D, C'nin üst kümesidir** (B ⊂ C ⊂ D). Beş yeni rolün tamamı **denetçidir**:
-hiçbiri ürün kodu yazmaz, ikisi (`data`, `e2e-writer`) kendi dar alanında üretir.
+⚠️ **D is a superset of C** (B ⊂ C ⊂ D). All five new roles are **auditors**: none
+of them writes product code, and two (`data`, `e2e-writer`) produce only within
+their own narrow area.
 
-## Neden bu beş rol
+## Why these five roles
 
-Her biri **zaten yazılı bir global kuralın** sahipsiz kalan işidir:
+Each one is the unowned work of **a rule that is already written down**:
 
-| Rol | Sahipsiz kalan kural |
+| Role | The rule left unowned |
 |---|---|
-| `security` | #19 — SAST, sır taraması, CVE, ZAP, OWASP Top 10 eşlemesi |
-| `data` | #4 + #9 — additive şema evrimi, migration, index, transaction |
-| `coverage-auditor` | #29 — her kod tabanında %80 satır kapsamı, payda dürüstlüğü |
-| `e2e-writer` | #30 + #31 + #32 — e2e verisi, koşum döngüsü, sınıflandırma |
-| `observability` | #17 standardı — log, metrik, trace, alarm, performans |
+| `security` | #19 — SAST, secret scanning, CVEs, ZAP, the OWASP Top 10 mapping |
+| `data` | #4 + #9 — additive schema evolution, migrations, indexes, transactions |
+| `coverage-auditor` | #29 — 80% line coverage per codebase, denominator honesty |
+| `e2e-writer` | #30 + #31 + #32 — e2e data, the run cycle, classification |
+| `observability` | the `standards/17-observability.md` standard — logs, metrics, traces, alerts, performance |
 
-C'de bu işler ya `qa`'nın bir ekseninde sıkışıyordu ya hiç kimsede değildi.
+In C this work was either squeezed into one of `qa`'s axes or belonged to nobody.
 
-## Kural
+## Rules
 
-⚠️ **Kimin ne yapacağına karar verme kuralı ayrı dosyada:**
-[`role-selection.md`](role-selection.md) — ajan mı ben mi, iş tipi → rol, sıra ve
-devir, atlama, çatışma hakemliği, durma, görünürlük. **Rol seçmeden önce oku.**
+⚠️ **The rule for deciding who does what lives in a separate file:**
+[`role-selection.md`](role-selection.md) — agent or me, work type → role, ordering
+and handoff, skipping, conflict arbitration, stopping, visibility. **Read it before
+selecting a role.**
 
-- Sıra sabit değil; işin gerektirdiği rolleri seçerim ve **hangilerini neden
-  seçtiğimi, hangilerini neden atladığımı** tur başında yazarım. ⚠️ **On dört
-  rolün hepsini her turda koşturmak D'yi kullanmak değil, israf etmektir** —
-  tipik bir tur 5–8 rol açar.
-- Bağımsız roller **aynı mesajda paralel** başlatılır.
-- `developer` yalnız **izole, sözleşmesi net** parçalarda; çapraz-katman iş bende.
-- Ajan çağrısı öncesi sormam; **her devirde** maliyet satırı geçerim
-  (§6, §8). Eşik iki kademeli: **~$130'da uyarı, ~$260'ta durma**.
-- Denetçi roller **sormaz, kontrol eder**: eksik/yanlış varsa iş üretene
-  **geri gönderilir ve düzelttirilir**, kapanış aynı doğrulamanın yeniden
-  koşulmasıyla kanıtlanır; devir için **tek temiz geçiş** yeter (§7).
-  2 geri göndermede kapanmazsa zincir durur, açık bulgular listelenip sana
-  **bildirilir**.
+- The order is not fixed; I select the roles the work requires and write down at the
+  start of the turn **which ones I chose and why, and which ones I skipped and why**.
+  ⚠️ **Running all fourteen roles every turn is not using D, it is wasting it** — a
+  typical turn opens 5–8 roles.
+- Independent roles are started **in parallel in the same message**.
+- `developer` only for **isolated pieces with a clear contract**; cross-layer work
+  stays with me.
+- I do not ask before an agent call; I pass a cost line at **every handoff** (§6, §8).
+  The threshold is two-stage: **a warning at ~$130, a stop at ~$260**.
+- The auditing roles **do not ask, they check**: if anything is missing or wrong the
+  work is **sent back to its producer and fixed**, and closure is evidenced by
+  re-running the same verification; a handoff requires **one clean pass** (§7). If it
+  is not closed within 2 hand-backs the chain stops, the open findings are listed and
+  you are **informed**.
 
-## Denetçi haritası — kim kime bağlı
+## The auditor map — who reports to whom
 
-D'nin C'den asıl farkı budur: **`qa` tek denetçi olmaktan çıkar.**
+This is D's real difference from C: **`qa` stops being the only auditor.**
 
-| Üretici | Denetçisi |
+| Producer | Its auditor |
 |---|---|
 | `developer` · `test-writer` · `devops` | `qa` |
 | `data` · `e2e-writer` · `observability` | `qa` |
-| **`security`** | **orkestratör** (doğrudan) |
-| **`coverage-auditor`** | **orkestratör** (doğrudan) |
-| `qa` | orkestratör — kritik bulguları ben doğrularım |
-| `product-manager` | **kullanıcı** (§2a kapsam kapısı) |
-| `architect` · `designer` | orkestratör (§7 muafiyeti) |
+| **`security`** | **the orchestrator** (directly) |
+| **`coverage-auditor`** | **the orchestrator** (directly) |
+| `qa` | the orchestrator — I verify the critical findings |
+| `product-manager` | **the user** (the §2a scope gate) |
+| `architect` · `designer` | the orchestrator (the §7 exemption) |
 
-⚠️ **`security` ve `coverage-auditor` neden `qa`'ya girmez:** C'de `qa`'ya üç
-üretici bağlıydı; on dört rolde bu sekize çıkardı ve zincirin en yüklü düğümü
-aynı zamanda en az denetlenen düğüm olurdu. Bu ikisi **kendi ekseninde
-nihaidir** — `qa`'nın güvenlik ekseni `security`'te zaten daha derin işleniyor,
-kapsam ölçümünü ikinci kez ölçmek katma değer üretmiyor. Kritik olan payda ve
-saldırı senaryosu kararlarıdır; onları orkestratör doğrular.
+⚠️ **Why `security` and `coverage-auditor` do not go through `qa`:** in C three
+producers reported to `qa`; across fourteen roles that would rise to eight, and the
+busiest node in the chain would also be the least audited one. These two are **final
+on their own axis** — `qa`'s security axis is already covered more deeply by
+`security`, and measuring coverage a second time adds nothing. What matters is the
+denominator decision and the attack-scenario decision, and the orchestrator verifies
+those.
 
-⚠️ **`architect` muafiyeti D'de daha riskli:** planı artık `data`, `security` ve
-`e2e-writer`'ı da besliyor — etki alanı C'ye göre üç kat. Muafiyet sürüyor ama
-plan sapması çıktığında zincir **bana** döner, `architect`'a değil.
+⚠️ **The `architect` exemption is riskier in D:** the plan now feeds `data`,
+`security` and `e2e-writer` as well — three times the blast radius it had in C. The
+exemption stands, but when the implementation deviates from the plan the chain comes
+back to **me**, not to `architect`.
 
-## Kapı mı ajan mı — zamanlama (18/09/2026, kullanıcı kararı)
+## Gate or agent — the timing
 
-**Kapı otoritedir; ajan kapının yerine geçmez.** Kırmızı/yeşil kararını
-`scripts/ci-local.sh` ve CI verir. Ajanın "temiz" demesi kapıyı geçmiş saymaz,
-ve #19'un "koşmayan kapı geçilmiş sayılmaz" kuralı aynen durur.
+**The gate is the authority; an agent does not replace the gate.** The red/green
+decision belongs to `scripts/ci-local.sh` and CI. An agent saying "clean" does not
+make the gate passed, and #19's "a gate that did not run did not pass" stands
+unchanged.
 
-**İkisi aynı işi yapmaz — farklı şeylere bakarlar:**
+**They do not do the same job — they look at different things:**
 
-| | Kapı (betik/CI) | Ajan |
+| | Gate (script/CI) | Agent |
 |---|---|---|
-| Ne arar | Bilinen desen | Bağlam gerektiren şey |
-| Örnek | `gitleaks`: "bu string AWS anahtarına benziyor" | "bu uç yetkiyi hiç kontrol etmiyor" |
-| Çıktısı | Çıkış kodu | Bulgu + saldırı/veri kaybı senaryosu |
-| Yanılması | Yanlış pozitif | Kaçırma |
+| What it looks for | A known pattern | Something that needs context |
+| Example | `gitleaks`: "this string looks like an AWS key" | "this endpoint never checks authorization" |
+| Its output | An exit code | A finding + an attack or data-loss scenario |
+| How it errs | False positives | Misses |
 
-Üçüncü ve asıl iş: **ajan kapının kendisini denetler** — `continue-on-error`,
-yutulan çıkış kodu, koşmayan ama yeşil görünen adım. Bunu betik kendi kendine
-bulamaz (#19: "bir taramanın temiz sonucunu, bulabildiğini kanıtlayan bir
-kontrol değişkeni olmadan kabul etmezsin").
+The third and most important job: **the agent audits the gate itself** —
+`continue-on-error`, a swallowed exit code, a step that never runs but looks green. A
+script cannot find that about itself (#19: "you do not accept a scan's clean result
+without a control variable proving it can find something").
 
-### Kapı-eşli roller `dev` yönünde KOŞMAZ
+### The gate-paired roles do NOT run in the `dev` direction
 
-`security` ve `coverage-auditor` **yalnız `dev → test` ve `test → prod`
-promosyonlarında** koşar. `feature/* → dev` yönünde çağrılmazlar.
+`security` and `coverage-auditor` run **only on the `dev → test` and `test → prod`
+promotions**. They are not invoked in the `feature/* → dev` direction.
 
-- Gerekçe: #25 `dev` merge'ini bilinçli olarak hızlı tutuyor; oraya beş
-  denetçi eklemek kuralı ajan eliyle geri getirmek olurdu. Kapıların yeri
-  promosyon, ajanların yeri de orası.
-- ⚠️ Bedeli kabul edildi: güvenlik ve kapsam sorunu `dev`'de değil,
-  promosyon anında görünür. Karşılığında `dev` hızlı kalır.
-- `dev` yönünde tek istisna, #25'in kendi istisnası: **pre-commit gitleaks**
-  kancası. O bir kapıdır, ajan değildir ve açık kalır.
+- Reason: #25 deliberately keeps the `dev` merge fast; adding five auditors there
+  would reinstate the banned gates by way of agents. The gates belong at promotion,
+  and so do these agents.
+- ⚠️ The cost is accepted: a security or coverage problem becomes visible at
+  promotion time rather than on `dev`. In exchange, `dev` stays fast.
+- The single exception in the `dev` direction is #25's own exception: the
+  **pre-commit gitleaks** hook. That is a gate, not an agent, and it stays enabled.
 
-### Kapı-eşli OLMAYAN roller iş ne zaman gerekiyorsa koşar
+### The roles that are NOT gate-paired run whenever the work needs them
 
-`data` · `observability` bu kısıtın **dışındadır** — çünkü bunlar bir
-promosyon kapısının eşi değil, **kod yazılırken** gereken denetimlerdir:
+`data` and `observability` are **outside** this restriction, because they are not the
+counterpart of a promotion gate — they are audits needed **while the code is being
+written**:
 
-- ⚠️ **`data` özellikle `dev` ÖNCESİ koşar.** Migration `dev`'e girdikten sonra
-  denetlemek geçtir: yanlış bir şema değişikliği geri alınamaz ve #4'ün
-  additive kuralı ancak yazılmadan önce uygulanabilir. Şemaya dokunan bir iş
-  `data`'siz `dev`'e merge edilmez.
-- `observability` de kod yazılırken değer üretir — eksik log'u üretimde
-  fark etmek, tanım gereği geç kalmaktır.
+- ⚠️ **`data` specifically runs BEFORE `dev`.** Auditing a migration after it has
+  landed on `dev` is too late: a wrong schema change cannot be undone, and #4's
+  additive rule can only be applied before it is written. Work that touches the
+  schema is not merged to `dev` without `data`.
+- `observability` also produces value while the code is being written — noticing a
+  missing log in production is by definition too late.
 
-`e2e-writer` zaten ortam-bağlıdır: #31 gereği **yalnız `test`'e çıkmış kodla**
-koşar, bu kararın kapsamı dışında.
+`e2e-writer` is already environment-bound: per #31 it runs **only against code that
+has reached `test`**, which puts it outside the scope of this decision.
 
-## Ne zaman
-- Uçtan uca özellik **+ güvenlik/veri boyutu olan** iş (auth, ödeme, KVKK, göç)
-- `test`/`prod` promosyonu öncesi tam kapı (#19 + #29 + #31 birlikte)
-- Şema değişikliği içeren özellik — `data` olmadan geriye uyumluluğu doğrulayan yok
+## When to use it
+- An end-to-end feature **with a security or data dimension** (auth, payments, data
+  protection, migration)
+- The full gate before a `test`/`prod` promotion (#19 + #29 + #31 together)
+- A feature containing a schema change — without `data`, nobody verifies backward
+  compatibility
 
-**Ne zaman DEĞİL:** rutin özellik, tek katman iş, güvenlik/veri/kapsam boyutu
-olmayan değişiklik → **C yeter**. D'yi C'nin yerine varsayılan yapmak, beş
-denetçiyi boşa koşturmaktır.
+**When NOT to:** routine features, single-layer work, a change with no
+security/data/coverage dimension → **C is enough**. Making D the default in place of
+C means running five auditors for nothing.
 
-## Beklenen maliyet
+## Expected cost
 
-**4,5–7x** ⚠tahmin (C'nin 2,5–4x'i × ~1,75). Hesaplanan tam tur (Opus 5, 14 rol,
-denetim dahil): **~$11,4**; C'nin dokuz rolü aynı modelle ~$6,5.
+**4.5–7x** ⚠ estimated (C's 2.5–4x × ~1.75). A calculated full turn (Opus 5, 14
+roles, auditing included): **~$11.4**; C's nine roles on the same model come to ~$6.5.
 
-⚠️ Bu rakam **ölçüm değil**: token profilleri ve %35'lik geri gönderme
-olasılığı varsayımdır. Ölçülen tek sayı ajan turu başına $6,9 ortalamasıdır
-(§8). İlk gerçek D turunda **kaç bulgunun geri gönderildiğini** kaydet —
-tahminin en zayıf halkası odur.
+⚠️ That figure is **not a measurement**: the token profiles and a 35% probability of
+a hand-back are assumptions. The only measured number is the ~$6.9 average per agent
+turn (§8). On the first real D turn, record **how many findings were sent back** —
+that is the weakest link in the estimate.
 
-## Tarihçe
-18/09/2026, kullanıcı kararı: D harfi fan-out'tan alınıp geniş takıma verildi.
-Fan-out artık [`E-fanout.md`](E-fanout.md); E, D'nin üstüne biner.

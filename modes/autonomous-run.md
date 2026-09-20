@@ -1,108 +1,110 @@
-# Otonom koşum — uzun işi bırakıp gitmek
+# Autonomous runs — leaving long work to finish on its own
 
-> C ya da D modunun **üstüne** biner. Tek başına bir mod değildir: ajan setini
-> ve review'ı alttaki mod belirler, bu dosya yalnız **durmadan çalışma** ve
-> **sana ulaşma** kurallarını ekler.
+> This layers **on top of** mode C or D. It is not a mode by itself: the agent set
+> and review are decided by the mode underneath, and this file only adds the rules
+> for **running without stopping** and for **reaching you**.
 
-## Onay kaydı (global #20)
+## The approval record (global #20)
 
-Global kural #20 otonom arka plan işini **açık onay** olmadan yasaklar.
-Onay **05/09/2026'da kullanıcı tarafından verildi**: *"bir uzun iş verip
-bırakıp çalışmasını isterim, bitene kadar da durmamasını isterim, bana
-soracağı varsa da mobilden vs ulaşıp sorsun."*
+Global rule #20 forbids autonomous background work without **explicit approval**.
+Approval **has been given**: long work may be handed over and left to run without
+stopping until it is finished, and if a question comes up, the user is to be reached
+— including on mobile.
 
-⚠️ Onay **bu dosyadaki koşullara bağlıdır**. Koşullardan biri sağlanmıyorsa
-(iş listesi yok, bütçe yok, bitiş tanımı yok) koşum **başlatılmaz** — #20
-yeniden yürürlüktedir.
+⚠️ The approval is **conditional on the conditions in this file**. If one of them is
+not met (no task list, no budget, no definition of done) the run **does not start** —
+#20 applies again.
 
-## Başlamadan önce (üçü de ZORUNLU)
+## Before starting (all three are MANDATORY)
 
-1. **İş listesi + bitiş tanımı.** Her madde bir **kanıta** bağlanır: koşulmuş
-   komut, geçen test, ölçülmüş sayı. *"Baktım, vardır"* kanıt değildir (#15).
-   Liste yoksa önce `product-manager` çıkarır, sana gösteririm, sonra başlar.
-2. **Bütçe: $100 — ÖLÇÜLÜR, tahmin edilmez** (05/09/2026 kullanıcı kararı; eski
-   tavan ~$50 idi). Kurallar:
-   - **$100'e ulaşınca ya da ÇOK YAKLAŞINCA:** koşum durur, oturum durumu
-     kaydedilir (devir notu yazılır) ve kullanıcıdan **YENİ BİR OTURUM
-     AÇMASI** istenir. Aynı oturumda devam edilmez — uzun oturum hem pahalı
-     hem bağlam sıkıştırmasıyla güvenilmez.
-   - **Yeni bir işe başlamak için o işin tahmini maliyetinin ~2 katı kadar YER
-     olmalı** (ör. tahmini $10'lık madde için ≥$20 kalan pay). Kalan pay bundan
-     azsa iş başlatılmaz, izin istenir. Gerekçe: yarım bırakılan iş, hiç
-     başlanmamış işten pahalıdır.
-     ⚠️ Eski hâli sabit **$75**'ti ve tavanla çelişiyordu: $100 tavanda harcama
-     $25'i geçtiği anda **hiçbir yeni madde başlatılamıyordu** — "bırak git,
-     bitene kadar koşsun" vaadi $28'de bitiyordu (08/09/2026 denetim bulgusu).
-   - ⚠️ **Bu da bir durma sebebidir** ve aşağıdaki listede sayılır.
-   Her turun sonunda:
+1. **A task list + a definition of done.** Every item is tied to **evidence**: a
+   command that was run, a test that passed, a number that was measured. *"I looked,
+   it's fine"* is not evidence (#15). If there is no list, `product-manager` produces
+   one first, I show it to you, and only then does the run start.
+2. **Budget: $100 — MEASURED, not estimated.** The rules:
+   - **On reaching $100, or coming very close:** the run stops, the session state is
+     saved (a handover note is written) and the user is asked to **OPEN A NEW
+     SESSION**. Work does not continue in the same session — a long session is both
+     expensive and unreliable once context is compacted.
+   - **To start a new item there must be room for roughly 2x that item's estimated
+     cost** (e.g. ≥$20 remaining for an item estimated at $10). If less remains, the
+     item is not started and permission is asked. Reason: work abandoned half-done
+     costs more than work never started.
+     ⚠️ A fixed floor does not work here: with a $100 ceiling, a fixed $75 floor means
+     no new item can be started the moment spending passes $25 — the promise of "hand
+     it over and let it run to the end" would end at $28. The headroom has to scale
+     with the item.
+   - ⚠️ **This is a stop reason too** and is listed below.
+   At the end of every turn:
    ```bash
-   python3 ~/.claude/scripts/session-cost.py <oturum-id>
+   python3 ~/.claude/scripts/session-cost.py <session-id>
    ```
-   Oturum id'si sistem prompt'undaki *Scratchpad Directory* yolunun son
-   parçasıdır. ⚠️ Bu komut koşulmadan "şu ana kadar ~$X" **yazılmaz** —
-   ölçülmeyen tavan tavan değildir, bir sonraki oturum "aşağı yukarı" der geçer.
-   Çıktı API liste fiyatıdır (abonelik faturası değil, tüketim vekili).
-3. **Ulaşım yolu doğrulanır.** `PushNotification` terminale her zaman düşer;
-   **telefona yalnız Remote Control bağlıysa** düşer. Bağlı değilse bunu
-   koşumdan ÖNCE söylerim — "mobilden ulaşırım" diye başlayıp ulaşamamak,
-   sessizce bekleyen bir iş bırakmaktır.
+   ⚠️ Without running this command, "~$X so far" is **never written** —
+   an unmeasured ceiling is not a ceiling, and the next session will just say
+   "roughly" and move on. The output is API list price (a proxy for consumption, not
+   the subscription invoice).
+3. **The channel to reach you is verified.** `PushNotification` always reaches the
+   terminal; it reaches **the phone only when Remote Control is connected**. If it is
+   not, I say so BEFORE the run — starting out with "I'll reach you on mobile" and
+   then failing to means leaving work silently waiting.
 
-## Soru çıkarsa
+## If a question comes up
 
-| Karar | Davranış |
+| Decision | Behaviour |
 |---|---|
-| **Geri alınabilir** (isim, kapsam detayı, tasarım tercihi, kütüphane seçimi) | **Varsay → devam et → bildir.** Bildirimde varsayım açıkça yazılır. Döndüğünde yanlışsa o parça yeniden yapılır. |
-| **Geri alınamaz** (deploy, `DROP`, force push, dışarıya gönderim, `test`/`prod` promosyonu, dosya silme) | **DUR ve bekle.** Otonom koşum bunu **hiçbir zaman** gevşetmez. |
+| **Reversible** (a name, a scope detail, a design preference, a library choice) | **Assume → continue → report.** The assumption is written out explicitly in the notification. If it turns out wrong when you return, that piece is redone. |
+| **Irreversible** (deploy, `DROP`, force push, sending anything outward, a `test`/`prod` promotion, deleting files) | **STOP and wait.** An autonomous run **never** loosens this. |
 
-⚠️ Varsayımlar **birikir ve sonuç raporunda topluca listelenir** — tek tek
-bildirimlerde kaybolmasınlar.
+⚠️ Assumptions **accumulate and are listed together in the final report** — so they
+do not get lost among individual notifications.
 
-## Durma koşulları
+## Stop conditions
 
-Koşum şu durumlarda durur ve bildirim gönderir:
+The run stops and sends a notification when:
 
-- İş listesindeki her madde kanıta bağlandı → **bitti**.
-- **Bütçe tavanı** aşıldı.
-- **Geri alınamaz** bir eyleme gelindi.
-- **Tıkanma:** aynı hata **2 tur** üst üste tekrarlandıysa. Üçüncü kez denemek
-  öğrenmek değil, döngüdür.
-- **Kapsam değişti** — iş, istenenden başka bir şeye dönüşüyorsa.
-- Çözülemeyen ajanlar-arası çatışma (`role-selection.md` §4).
-- **Sıradaki madde için yeterli bütçe payı yok** (bkz. yukarıdaki 2 kat kuralı).
-- **Eksik kontrolü kapanmadı** — bir bulgu 2 kez geri gönderildiği hâlde
-  3 geçişte temize ulaşmadıysa (`role-selection.md` §5, §7). Kapanmamış bulgu
-  **"geri alınabilir varsayım" kovasına atılmaz**; koşum durur, açık bulgular
-  tek tek listelenir.
+- Every item on the task list is tied to evidence → **done**.
+- The **budget ceiling** is exceeded.
+- An **irreversible** action has been reached.
+- **A stall:** the same error has repeated for **2 turns** in a row. Trying a third
+  time is not learning, it is a loop.
+- **The scope changed** — the work is turning into something other than what was asked.
+- An unresolvable conflict between agents (`role-selection.md` §4).
+- **There is not enough budget headroom for the next item** (see the 2x rule above).
+- **A completeness check did not close** — a finding was sent back twice and still did
+  not reach clean in 3 passes (`role-selection.md` §5, §7). An unclosed finding is
+  **never dropped into the "reversible assumption" bucket**; the run stops and the
+  open findings are listed individually.
 
-## Mod kapsamı ve takım
+## Mode scope and teams
 
-Otonom koşum **C/D ve Y/Z**'nin üstüne biner. **A/B/X'te `/loop` otonom koşumu
-başlatılmaz** — zorunlu ilk adım (`product-manager` iş listesi çıkarır) o
-modlarda uygulanamaz: A'da ajan yasak, B/X'te o rol sette yok. Kullanıcı A/B/X'te
-otonom koşum isterse **önce mod değişikliği önerilir**, koşum kendiliğinden
-başlatılmaz (#20).
+An autonomous run layers on top of **C/D and Y/Z**. **A `/loop` autonomous run is
+not started in A/B/X** — the mandatory first step (`product-manager` producing the
+task list) cannot be performed in those modes: agents are forbidden in A, and in
+B/X that role is not in the set. If the user wants an autonomous run in A/B/X, **a
+mode change is proposed first**; the run is never started on its own (#20).
 
-**Y/Z (takım — arşivde) ek kuralı:** teammate'ler oturumlar arası yaşamaz ama takım ve
-görev listesi **diskte kalır**. Bütçe dolup yeni oturum istendiğinde devir notu
-şunları taşır: `in_progress` görev bırakılmadığı (hepsi `completed` ya da
-`pending`), takım adı (aynı ad yeniden kullanılamaz), açık bulgu listesi.
+**Extra rule for Y/Z (teams — archived):** teammates do not survive across sessions,
+but the team and the task list **persist on disk**. When the budget fills and a new
+session is requested, the handover note carries: that no task was left `in_progress`
+(all are `completed` or `pending`), the team name (the same name cannot be reused),
+and the list of open findings.
 
-## Görünürlük
+## Visibility
 
-- **Her tur:** ne yapıldı · o ana kadarki harcama · sıradaki madde.
-- **Bildirim yalnız gerekince:** varsayım yapıldığında, durulduğunda, bittiğinde.
-  Rutin ilerleme için bildirim **gönderilmez** — gereksiz bildirim, gerekli
-  olanın da okunmamasını öğretir.
-- **Sonuçta:** biten maddeler + kanıtları · **yapılan tüm varsayımlar** ·
-  yapılmayanlar ve nedeni.
+- **Every turn:** what was done · spending so far · the next item.
+- **Notifications only when needed:** when an assumption is made, when the run stops,
+  when it finishes. Routine progress produces **no** notification — unnecessary
+  notifications teach the reader to ignore the necessary ones.
+- **At the end:** the completed items with their evidence · **every assumption that
+  was made** · what was not done, and why.
 
-## Başlatma / durdurma
+## Starting / stopping
 
-Koşumu **kullanıcı başlatır** — ben kendi kendime başlatamam (#20):
+**The user starts** the run — I cannot start one myself (#20):
 
 ```
-/loop <iş tanımı>
+/loop <task description>
 ```
 
-Durdurmak: `/loop` görevini iptal et, ya da bir sonraki turda "dur" de.
-Koşum kendini durdurduğunda sebebini yukarıdaki listeden adıyla söyler.
+To stop it: cancel the `/loop` task, or say "stop" on the next turn. When the run
+stops itself, it names the reason from the list above.

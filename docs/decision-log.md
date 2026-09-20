@@ -5,7 +5,7 @@
 > measurement record and the text of retired rules all move here. The active file
 > links to this one with `§<rule number>`.
 >
-> The move cut `CLAUDE.md` from 41,363 to 22,518 bytes. Rule loss was audited with
+> The move roughly halved the size of `CLAUDE.md`. Rule loss was audited with
 > `scripts/md-rule-gate.py`.
 >
 > There are two parts: the **§N** headings hold text removed from the active file
@@ -13,26 +13,14 @@
 > that were shortened in the active file (look there for clauses dropped during
 > shortening).
 
-## §21 — [delegated to #27]
+## §21-23 — retired rules
 
-Original form: I perform review myself and no review agent is spawned. The mode now
-decides: in A/B review is **mine**; in C/D the `qa` agent makes the first pass and
-**I** verify the critical findings. The number is preserved so references do not
-break.
+These three numbers are retired: two were delegated to #27 (the operating mode now
+decides who performs review and how agent calls are approved) and one was removed
+(browser verification of live UI does not require asking first; the measure is the
+work itself — a pure logic or backend change does not need a browser).
 
-## §22 — [REMOVED]
-
-Original form: ask before verifying live UI in a browser. I now verify without
-asking when I judge it necessary; the measure is the work itself (I do not open a
-browser for a pure logic or backend change). The number is preserved.
-
-## §23 — [delegated to #27]
-
-Original form: announce every `Agent`/`Workflow` call, state the cost, and wait for
-approval. The mode now decides: **no agent is ever called in A** (if one is needed,
-a mode change is proposed), and **in B/C/D choosing the mode is the approval**; the
-agent count plus estimated cost are reported at the end of the turn. Automatic
-delegation counts as a call too — it is not permitted in A. The number is preserved.
+The numbers themselves are preserved so that references elsewhere do not break.
 
 ## §24 — Self-administered completeness check before saying "done"
 
@@ -109,12 +97,11 @@ it and merge it to `dev`, then move to the next.
 
 ## §27 — The operating mode is selectable per project; the selection is the approval
 
-- **A** Skill (no agents; no longer the default, it is chosen explicitly) ·
+- **A** Skill (no agents; chosen explicitly) ·
   **B** Selective (`analyst`/`test-writer`/`doc-writer`) — **DEFAULT** ·
   **C** Full team (9 role agents, B ⊂ C) · **D** Wide team (14 roles: C +
   `security`/`data`/`coverage-auditor`/`e2e-writer`/`observability`, C ⊂ D) ·
   **E** Fan-out (`Workflow`, layered on top of D).
-- The default used to be A; it is now **B**.
 - **Agent Teams equivalents — ⛔ CANNOT be started today** (`modes/archive/team-rules.md`
   §0): the role definitions do not carry `SendMessage`/`Task*` (a closed allowlist
   in all of them) and the feature sits behind a flag plus a plan gate. **There is no
@@ -144,10 +131,10 @@ it and merge it to `dev`, then move to the next.
   not reducing cost, it was reducing UNPREDICTABILITY. Choosing a mode delivers that
   predictability up front.
 - **How to apply:** at the start of a session read the mode **in this order**:
-  **session-scoped selection** (`<scratchpad>/mode`, written with `--tek`) → the
-  project's `.claude/mode` → **B**. ⚠️ The session-scoped selection lives in the
-  scratchpad because a skill is not reloaded when context is compacted; without that
-  line a `--tek` decision would silently revert to the project mode. Otherwise
+  **a session-scoped selection** (written with `--tek`, not to the project file) → the
+  project's `.claude/mode` → **B**. ⚠️ The session-scoped selection is kept outside the
+  project file because a skill is not reloaded when context is compacted; without that,
+  a `--tek` decision would silently revert to the project mode. Otherwise
   **start in B and, if the work deserves it, PROPOSE the lowest sufficient mode in
   one line** — do not switch on your own. ⚠️ Because B is the default, in a project
   with no mode file `analyst`/`test-writer`/`doc-writer` may be invoked without
@@ -156,7 +143,7 @@ it and merge it to `dev`, then move to the next.
 
 ## §28 — The auditor checks, sends back and gets it fixed; cost is reported at every handoff
 
-- **One clean pass is enough** (the earlier 2/2 rule was removed). A single "no
+- **One clean pass is enough.** A single "no
   serious gap" (`✅ clean`) is sufficient for a handoff. ⚠️ This does **not loosen**
   the evidence block, it makes it **the only safeguard**: with no second pass, an
   unevidenced "clean" is caught nowhere, so the `Verification` line **must** carry
@@ -479,10 +466,9 @@ The question was where the operating-mode structure and the SDLC flow were spend
 tokens unnecessarily, and which steps were being repeated when running once at the
 end would do.
 
-**Measurement (last 30 days, 333 sessions / 103,307 requests):** the median fixed
-prefix was 57,756 tokens, a **18% share** of cost; from week 24 to week 38 it grew
-27,700 → 63,500 tokens (2.3x). Across 397 subagent runs the median was 52,313
-tokens. Method and repeat instructions: `scripts/prefix-measure.py`,
+**Measurement:** the median fixed prefix was 57,756 tokens, an **18% share** of cost,
+and it had grown 27,700 → 63,500 tokens (2.3x) over fourteen weeks. Across the
+subagent runs in the same window the median was 52,313 tokens. Method and repeat instructions: `scripts/prefix-measure.py`,
 `standards/00` §6b.
 
 - **§21-23:** the X/Y/Z team modes were moved to `modes/archive/`. They cannot be
@@ -492,9 +478,8 @@ tokens. Method and repeat instructions: `scripts/prefix-measure.py`,
   `modes/archive/README.md`.
 - **§28:** the "completeness check" text in the 14 agent files was a literal copy
   (~24 KB in total); it was reduced to a single version, with the full rule in
-  `role-selection.md` §7. The orchestrator no longer writes the full block at every
-  handoff — one evidence-carrying line per handoff, the full block once at the end
-  of the turn and on every "YES". Rationale: the role's own block already carries
+  `role-selection.md` §7. The orchestrator writes one evidence-carrying line per
+  handoff, and the full block once at the end of the turn and on every "YES". Rationale: the role's own block already carries
   the evidence, and the orchestrator's copy repeated it — which in D/E meant 14
   blocks.
 - **§33:** the "was an e2e spec written" check in the `dev`/`test` direction was
@@ -507,7 +492,7 @@ tokens. Method and repeat instructions: `scripts/prefix-measure.py`,
   being re-read on every task. The scope note in `standards/13` §4 was updated
   accordingly.
 
-⚠️ In this round the `CLAUDE.md` size gate stayed red across two commits (22,611 and
-22,556 bytes against a 22,528 ceiling) and only went green on the third attempt —
-the gate itself worked, but the commit that claimed to fix it was written without
-measuring. Lesson: the size gate is run BEFORE committing.
+⚠️ In this round the `CLAUDE.md` size gate stayed red across two commits and only went
+green on the third attempt — the gate itself worked, but each commit that claimed to
+fix it was written without measuring first. Lesson: the size gate is run BEFORE
+committing.
