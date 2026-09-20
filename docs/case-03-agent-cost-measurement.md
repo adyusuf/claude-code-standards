@@ -14,13 +14,13 @@ The chain has 9 (later 14) agent roles: `analyst`, `qa`, `developer`,
 `coverage-auditor` and others. The old rule required announcing every `Agent`
 call and **waiting for approval**. The reason given was cost.
 
-## Measurement 1 — the ratio (05/09/2026, 33 sessions)
+## Measurement 1 — the ratio (33 sessions)
 
 ```mermaid
 pie showData title Where the cost actually came from
-    "Orchestrator cache reads" : 73
-    "Everything else (main session)" : 19.3
-    "Agent turns" : 7.7
+ "Orchestrator cache reads" : 73
+ "Everything else (main session)" : 19.3
+ "Agent turns" : 7.7
 ```
 
 | | | |
@@ -37,7 +37,7 @@ while slowing down the entire turn.
 for approval did not lower cost, but it did make the turn's eventual cost
 **known in advance**. The tool was wrong; the goal was not.
 
-## Measurement 2 — calibration (08/09/2026, by script)
+## Measurement 2 — calibration (by script)
 
 The estimate table listed `~$8–20` for the `qa` role. The same session was then
 measured with a script that sums the `usage` fields in the transcript:
@@ -65,28 +65,28 @@ orchestrator.
 ## Intervention
 
 1. **Operating modes (A–E).** Agent usage, who performs review, and the approval
-   policy are chosen **up front** with a single letter. **Choosing the mode is the
-   approval** — no separate question per call. Predictability is preserved and the
-   friction is gone.
+ policy are chosen **up front** with a single letter. **Choosing the mode is the
+ approval** — no separate question per call. Predictability is preserved and the
+ friction is gone.
 2. **Two-stage, mode-dependent thresholds.** A warning line at half, a **stop** at
-   the full figure:
+ the full figure:
 
-   | Mode | Warning | **Stop** |
-   |---|---|---|
-   | A (no agents) | — | — |
-   | B (selective, 3 roles) | ~$12 | **~$25** |
-   | C (full team, 9 roles) | ~$75 | **~$150** |
-   | D (wide team, 14 roles) | ~$130 | **~$260** |
-   | E (fan-out) | ~$200 | **~$400** |
+ | Mode | Warning | **Stop** |
+ |---|---|---|
+ | A (no agents) | — | — |
+ | B (selective, 3 roles) | ~$12 | **~$25** |
+ | C (full team, 9 roles) | ~$75 | **~$150** |
+ | D (wide team, 14 roles) | ~$130 | **~$260** |
+ | E (fan-out) | ~$200 | **~$400** |
 
 3. **Cost is not deferred to the end of the turn.** One line per role handoff:
-   `↳ analiz done · ✅ clean (grep -rn X → 3) · ~$3 · turn total ~$9 · threshold ~$150 (C)`
+ `↳ analiz done · ✅ clean (grep -rn X → 3) · ~$3 · turn total ~$9 · threshold ~$150 (C)`
 4. **A measurement ledger.** Every real agent turn records `subagent_tokens` ×
-   model price: role, model, description of the work, call count, duration, tokens,
-   lower/upper cost bound. The table is **never changed on a single measurement** —
-   it takes at least 3 records or one real end-to-end turn.
+ model price: role, model, description of the work, call count, duration, tokens,
+ lower/upper cost bound. The table is **never changed on a single measurement** —
+ it takes at least 3 records or one real end-to-end turn.
 5. **`MEASURED` / `NOT MEASURED` labels in the table.** An estimate is never
-   presented as a measurement.
+ presented as a measurement.
 
 ## Outcome
 
@@ -108,12 +108,12 @@ This is the most important part of the case:
 | Team modes X / Y / Z | `░░░░░░░░░░░░░░░░░░░░` never measured |
 
 - Only **two numbers in the table are measured**. Every other row is derived from
-  model price ratios and is labelled as an estimate.
+ model price ratios and is labelled as an estimate.
 - **The writing roles were never measured** — all three calibration records were
-  auditing turns, which are cheaper by nature.
+ auditing turns, which are cheaper by nature.
 - **Thresholds were not adjusted on this calibration**, because all three records
-  came from the same kind of work (reviewing rule files) and a real end-to-end
-  feature turn still has not been measured.
+ came from the same kind of work (reviewing rule files) and a real end-to-end
+ feature turn still has not been measured.
 
 ## How to verify
 

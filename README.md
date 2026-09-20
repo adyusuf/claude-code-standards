@@ -17,13 +17,13 @@ broke first.
 
 ```mermaid
 pie showData title Repository composition (files)
-    "standards/ (22 docs + 5 templates)" : 28
-    "agents/ (14 roles)" : 14
-    "modes/ (5 modes + selection guide)" : 13
-    "scripts/ (gates, cost meter)" : 8
-    "docs/ (decision log + case studies)" : 6
-    "commands/ + skills/" : 5
-    "root (CLAUDE.md, settings, license)" : 5
+ "standards/ (22 docs + 5 templates)" : 28
+ "agents/ (14 roles)" : 14
+ "modes/ (5 modes + selection guide)" : 13
+ "scripts/ (gates, cost meter)" : 8
+ "docs/ (decision log + case studies)" : 6
+ "commands/ + skills/" : 5
+ "root (CLAUDE.md, settings, license)" : 5
 ```
 
 ## Why it is measurement-driven
@@ -93,21 +93,22 @@ calibration records came from the same kind of work, and a real end-to-end
 feature turn has not been measured yet.
 
 ```mermaid
-gantt
-    title How the rule set evolved
-    dateFormat YYYY-MM-DD
-    axisFormat %b
-    section Foundations
-    Global standards extracted from one project   :done, 2026-07-01, 2026-08-13
-    Agent bans and autonomy limits                :done, 2026-08-13, 2026-08-25
-    section Measurement
-    Cost measured across 33 sessions              :done, 2026-09-05, 2026-09-08
-    Operating modes A-E introduced                :done, 2026-09-05, 2026-09-18
-    Audit protocol - evidence blocks              :done, 2026-09-07, 2026-09-18
-    section Gates
-    Coverage honesty and 80% gate                 :done, 2026-09-13, 2026-09-14
-    E2E run cycle and classification              :done, 2026-09-14, 2026-09-20
-    E2E moved to the pre-prod gate                :done, 2026-09-20, 2026-09-20
+flowchart LR
+    subgraph P1["Phase 1 · Foundations"]
+        A1[Standards extracted<br/>from one project]
+        A2[Agent bans and<br/>autonomy limits]
+    end
+    subgraph P2["Phase 2 · Measurement"]
+        B1[Cost measured<br/>across 33 sessions]
+        B2[Operating modes<br/>A-E introduced]
+        B3[Audit protocol:<br/>evidence blocks]
+    end
+    subgraph P3["Phase 3 · Gates"]
+        C1[Coverage honesty<br/>+ 80% gate]
+        C2[E2E run cycle<br/>and classification]
+        C3[E2E moved to<br/>the pre-prod gate]
+    end
+    A1 --> A2 --> B1 --> B2 --> B3 --> C1 --> C2 --> C3
 ```
 
 ## Selected rules
@@ -116,7 +117,7 @@ gantt
 - **Line coverage ≥ 80% per codebase, never averaged** — an unmeasured codebase does not count as passing (#29)
 - **Merging to `dev` is fast; heavy gates run on promotion** — the quality gate belongs where code leaves for the outside world (#25)
 - **Authorization is fail-closed** — default denied; "I forgot to configure it" must never mean "open to everyone" (#6)
-- **Search is always case- and accent-insensitive** — raw `LIKE` / `ToLower().Contains()` is banned; one central normalizer (#13)
+- **Search is always case- and accent-insensitive** — raw `LIKE` / `ToLower.Contains` is banned; one central normalizer (#13)
 - **A gate that did not run did not pass** — a skipped step is reported as skipped and the result is not green (#19)
 - **A new rule is never left verbal** — a permanent decision is written to the file in the same turn (#14)
 
@@ -125,7 +126,7 @@ gantt
 ```bash
 git clone https://github.com/<user>/claude-code-standards
 cp -r claude-code-standards/{CLAUDE.md,standards,agents,modes,commands,skills,scripts} ~/.claude/
-cp claude-code-standards/settings.example.json ~/.claude/settings.json   # review it first
+cp claude-code-standards/settings.example.json ~/.claude/settings.json # review it first
 ```
 
 You do not have to take it wholesale — the `standards/` documents read
@@ -144,7 +145,7 @@ the rationale, the names are not.
 - Secrets, tokens, connection strings, hostnames, IP addresses
 - Session transcripts, conversation history, generated artifacts
 - Personal data and real email addresses (placeholders such as
-  `<account>+<label>@gmail.com` are used instead)
+ `<account>+<label>@gmail.com` are used instead)
 
 That split is not arbitrary: the rules governing what must never be published
 are part of the set itself, in `standards/15-security.md` (security) and

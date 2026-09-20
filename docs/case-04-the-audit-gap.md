@@ -15,13 +15,13 @@ through `qa`. The output of the other eight roles was used **directly**.
 
 ```mermaid
 flowchart LR
-    subgraph before["Before — one audited path"]
-        G1[gelistirici] --> Q1[qa] --> O1[orchestrator]
-        A1[analiz] -.->|unchecked| O1
-        D1[devops] -.->|unchecked| O1
-        U1[urun-yoneticisi] -.->|unchecked| O1
-        T1[test-yazar] -.->|unchecked| O1
-    end
+ subgraph before["Before — one audited path"]
+ G1[gelistirici] --> Q1[qa] --> O1[orchestrator]
+ A1[analiz] -.->|unchecked| O1
+ D1[devops] -.->|unchecked| O1
+ U1[urun-yoneticisi] -.->|unchecked| O1
+ T1[test-yazar] -.->|unchecked| O1
+ end
 ```
 
 ## Finding
@@ -56,19 +56,19 @@ Every role whose output someone else will rely on closes its report with this:
 
 ```
 ## Completeness check — pass N
-- Verification   → command run / line range read + raw result
-- Item mapping   → each requested item → where it is (file:line)
-- Not covered    → what could not be verified + what was deliberately left out
+- Verification → command run / line range read + raw result
+- Item mapping → each requested item → where it is (file:line)
+- Not covered → what could not be verified + what was deliberately left out
 → Result: clean NO | YES → BACK TO: <who> · <what to fix> · <closing evidence>
 ```
 
 - The block is written **even when the pass is clean** — an invisible check is an
-  unperformed check.
+ unperformed check.
 - The answer **carries evidence, not a template**: "yes, I'm sure" is invalid;
-  "verified with `grep -rn X` across 3 files, the 4th match is in a test file" is
-  valid.
+ "verified with `grep -rn X` across 3 files, the 4th match is in a test file" is
+ valid.
 - **What cannot be verified does not count as fine** — it is reported as
-  "not verified."
+ "not verified."
 
 ### 2. Free auditing: return the command
 
@@ -84,49 +84,49 @@ the command is not returned, the finding counts as **"not verified."**
 
 ```mermaid
 flowchart TD
-    R[Role produces a report + evidence block] --> C{Serious gap?}
-    C -- "clean" --> H[Handoff — one line, carries the verification]
-    C -- "YES" --> B["BACK: what is missing · with what evidence · what to do"]
-    B --> F[Producer fixes it]
-    F --> V["Closing evidence:<br/>re-run the SAME verification<br/>'it's fixed' is not closure"]
-    V --> C
-    C -- "3rd pass reached" --> S["Chain stops.<br/>User is informed — a status report, not a question.<br/>Open findings listed one by one."]
+ R[Role produces a report + evidence block] --> C{Serious gap?}
+ C -- "clean" --> H[Handoff — one line, carries the verification]
+ C -- "YES" --> B["BACK: what is missing · with what evidence · what to do"]
+ B --> F[Producer fixes it]
+ F --> V["Closing evidence:<br/>re-run the SAME verification<br/>'it's fixed' is not closure"]
+ V --> C
+ C -- "3rd pass reached" --> S["Chain stops.<br/>User is informed — a status report, not a question.<br/>Open findings listed one by one."]
 ```
 
 - If something is missing, the work **does not move forward** — it returns to the
-  producer: *what is missing · with what evidence · what to do.*
+ producer: *what is missing · with what evidence · what to do.*
 - **It is not escalated to the user.** The auditor does not ask "is anything
-  missing?" — not the user, not the producing role. It looks, writes the evidence,
-  and decides. Handing it over as "does this look right to you?" is not auditing,
-  it is returning responsibility.
+ missing?" — not the user, not the producing role. It looks, writes the evidence,
+ and decides. Handing it over as "does this look right to you?" is not auditing,
+ it is returning responsibility.
 - **Closing evidence:** when a fix arrives, **the same verification that surfaced
-  the finding is re-run.** A claim of "fixed" is not closure.
+ the finding is re-run.** A claim of "fixed" is not closure.
 - **Ceiling: the same work is sent back at most twice (3 passes).** Then the chain
-  stops and the user is **informed** — a status report, not a question. Unclosed
-  findings are listed individually as **open findings**; quietly dropping one, or
-  handing off with "I tried, it didn't work," is forbidden.
+ stops and the user is **informed** — a status report, not a question. Unclosed
+ findings are listed individually as **open findings**; quietly dropping one, or
+ handing off with "I tried, it didn't work," is forbidden.
 
 ### 4. Two more gaps closed
 
 - `devops` output **goes through `qa`** — "config, not code" is not an exemption.
 - `product-manager` output does not flow into the chain automatically; it goes to
-  **user approval**.
+ **user approval**.
 
 ```mermaid
 flowchart LR
-    subgraph after["After — evidence at every edge"]
-        A2[analiz + command] --> O2[orchestrator]
-        D2[devops] --> Q2[qa] --> O2
-        G2[gelistirici] --> Q2
-        T2[test-yazar] --> Q2
-        U2[urun-yoneticisi] --> UA[user approval] --> O2
-    end
+ subgraph after["After — evidence at every edge"]
+ A2[analiz + command] --> O2[orchestrator]
+ D2[devops] --> Q2[qa] --> O2
+ G2[gelistirici] --> Q2
+ T2[test-yazar] --> Q2
+ U2[urun-yoneticisi] --> UA[user approval] --> O2
+ end
 ```
 
 ## The measured trade-off: from two clean passes to one
 
-Initially a handoff required **two consecutive clean passes**. On 18/09/2026 this
-was reduced to one. The reason was measured: in a 14-role turn, the second pass was
+Initially a handoff required **two consecutive clean passes**. This was later reduced
+to one. The reason was measured: in a 14-role turn, the second pass was
 roughly **22% of the estimated cost**.
 
 | | | |
@@ -137,7 +137,7 @@ roughly **22% of the estimated cost**.
 With no second pass, an unevidenced "clean" is caught nowhere. That is exactly why
 the `Verification` line is now **required** to carry the command that was run.
 
-The orchestrator's cadence was simplified on the same logic (20/09/2026): **one
+The orchestrator's cadence was simplified on the same logic: **one
 line per handoff**, with the full block written **once at the end of the turn** and
 on every "YES" decision. That reduced 14 orchestrator blocks in a 14-role turn to
 one — with no loss of evidence, since each role's own block and every "YES"
@@ -153,9 +153,9 @@ finding is open.
 ## Honest limits
 
 - **~22% is an estimate**, not a measurement — and the decision to drop to a single
-  clean pass rests on it.
+ clean pass rests on it.
 - The evidence block's **format** is mandatory; the **quality** of the evidence
-  still depends on the orchestrator reading it. Filling in the template and
-  mistaking it for evidence remains technically possible.
+ still depends on the orchestrator reading it. Filling in the template and
+ mistaking it for evidence remains technically possible.
 - When the ceiling (3 passes) is hit, the work stops, but the **open-findings list
-  is maintained by hand** — there is no automated tracking.
+ is maintained by hand** — there is no automated tracking.
