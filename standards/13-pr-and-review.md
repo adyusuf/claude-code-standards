@@ -58,6 +58,7 @@ Types: `feat` `fix` `refactor` `perf` `test` `docs` `chore` `build` `ci` `revert
 - [ ] Backward-compatibility scan (`08-backward-compatibility.md` §7)
 - [ ] The secret scanner (gitleaks or similar) is clean
 - [ ] The dependency security scan has no critical finding
+- [ ] `SETUP.md`, `.env.example` and the secret/token inventory exist (global #16) — a missing one fails the gate
 - [ ] If there is a migration, its reversibility is stated
 
 The gate is **never bypassed**. Loosening a test to get through it is forbidden.

@@ -176,6 +176,21 @@ if [ "$TARGET" != "prod" ]; then
   [ -f scripts/md-rule-gate.py ] && ok "md-rule-gate.py present (run by hand when splitting)" \
     || skip "md-rule-gate.py is missing"
 
+  say "project documents (rule #16 — fail closed)"
+  if [ "$LIST_ONLY" = 1 ]; then
+    printf '  → %-42s %s\n' "SETUP.md, .env.example, secret inventory" "file and heading checks"
+    PASS+=("project documents")
+  elif [ "$HAS_DOTNET" = 0 ] && [ "$HAS_NODE" = 0 ]; then
+    skip "project documents: no stack detected, nothing to check"
+  else
+    [ -f SETUP.md ] && ok "SETUP.md" || bad "SETUP.md is missing (rule #16: a clean machine must be set up from the document)"
+    [ -f .env.example ] && ok ".env.example" || bad ".env.example is missing (rule #16)"
+    if [ -f SETUP.md ]; then
+      grep -qE '^#{1,4} .*[Ii]nventory' SETUP.md && ok "secret/token inventory in SETUP.md" \
+        || bad "SETUP.md has no secret/token inventory heading (rule #16)"
+    fi
+  fi
+
   say "e2e specs — CHECK ONLY, nothing is run here"
   missing=0
   if [ "$LIST_ONLY" = 1 ]; then
