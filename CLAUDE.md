@@ -1,154 +1,159 @@
-# Global Çalışma Kuralları
+# Global Working Rules
 
-> Bu dosya **her projede, her oturumda ve her ajan turunda** bağlama girer —
-> en pahalı talimat dosyası budur. Buraya yalnız **kuralın kendisi** yazılır;
-> gerekçe/tarihçe/ölçüm `docs/decision-log.md`'ye taşınır (`standards/00` §6a).
-> Boyut kapısı: `scripts/md-budget.tsv`. Detay standartlar `~/.claude/standards/`
-> — eşleme: `standards/README.md` ya da `software-standards` skill'i.
-> Proje-özel kurallar projenin kendi `CLAUDE.md`'sindedir ve buradaki kuralı
-> **ezer** — tek istisna #29.
+> This file enters context **in every project, every session and every agent
+> turn** — it is the most expensive instruction file there is. Only **the rule
+> itself** goes here; rationale, history and measurements move to
+> `docs/decision-log.md` (`standards/00` §6a).
+> Size gate: `scripts/md-budget.tsv`. Detailed standards live in
+> `~/.claude/standards/` — index: `standards/README.md` or the
+> `software-standards` skill.
+> Project-specific rules live in the project's own `CLAUDE.md` and **override**
+> the rules here — with one exception, #29.
 
-## Dil
+## Language
 
-- **Konuşma, açıklama, commit mesajı, kod yorumu, doküman: Türkçe.**
-- **Değişken / fonksiyon / sınıf / dosya / branch adları: İngilizce.**
-- Kullanıcıya görünen metin ham string olmaz → i18n anahtarı (varsayılan `tr`, ikincil `en`).
+- **Conversation, explanations, commit messages, code comments, documentation:
+  the team's working language** (Turkish in my case — substitute your own).
+- **Variable / function / class / file / branch names: English.**
+- User-facing text is never a raw string → i18n key (default `tr`, secondary `en`).
 
-## Varsayılan stack
+## Default stack
 
-.NET (Web API) + PostgreSQL/SQLite · React + Vite + TypeScript · React Native/Expo · Playwright (web e2e) · Maestro (mobil e2e) · GitHub Actions.
+.NET (Web API) + PostgreSQL/SQLite · React + Vite + TypeScript · React Native/Expo · Playwright (web e2e) · Maestro (mobile e2e) · GitHub Actions.
 
-## Değişmez kurallar (her projede geçerli)
+## Invariant rules (apply to every project)
 
-1. **Önce küçük adım.** Büyük refactor'dan önce küçük bir patch öner, onay bekle. Talep edilmemiş "yol üstü iyileştirme" yapma.
-2. **Tek kaynak (single source of truth).** Hard-coded URL / IP / port / host / API anahtarı **yasak**. Her ayakta tek config modülü olur; diğer dosyalar `process.env` / `import.meta.env` / `IConfiguration`'ı doğrudan okumaz, o modülden named import yapar. Fallback yalnızca DEV içindir ve tek noktada tanımlanır.
-3. **Sırlar repoya girmez.** Parola, token, connection string, sertifika → env / secret store. Repoda yalnız `.env.example`. Sır sızdıysa: önce rotate, sonra temizlik.
-4. **Geriye uyumluluk zorunlu.** API ve DB **yalnız eklemeli (additive)** evrilir. Alan/endpoint silinmez, adı ve tipi değişmez; obsolete edilir ve dolu dönmeye devam eder. → `standards/08-backward-compatibility.md`
-5. **Tek API — web ve mobil aynı sözleşmeyi tüketir.** Platforma özel endpoint açılmaz; fark UI katmanında çözülür. İş mantığı **asla** istemcide durmaz. → `standards/07-api-design.md`
-6. **Yetki fail-closed.** Varsayılan KAPALI. "Tanımlamayı unuttum = herkese açık" semantiği kurma. Her endpoint yetkiyi backend'de kontrol eder; UI'daki kontrol yalnız UX'tir.
-7. **Validasyon iki yerde.** İstemcide UX için, API'de güvenlik için. İstemci validasyonu tek başına asla yeterli değildir.
-8. **Test güncellenir.** Testi olan dosyaya dokunulduysa test güncellenir. Test yoksa **açıkça söyle**. Davranış değişikliği testsiz merge edilmez.
-9. **300+ satırlık dosya bırakma.** Doğal sınırlarından (modal, liste renderer, form, alt-servis) böl. Bölme davranışı değiştirmez; ana dosya orkestratör kalır.
-10. **Bağımlılık eklemeden önce sor.** Neden gerektiğini, alternatifini ve bakım maliyetini yaz, onay bekle.
-11. **Magic string yok.** Sabit değerler enum/const. Enum switch'lerinde her zaman `default` dalı bulunur (ileri uyumluluk).
-12. **Tarih formatı `dd/mm/yyyy`.** Locale-aware `toLocaleDateString`/`Intl` ve nokta ayraçlı format yasak. Taşıma/depolama her zaman UTC ISO-8601.
-13. **Arama daima harf-boyutu ve aksan bağımsız.** "sisman" ↔ "Şişman", "istanbul" ↔ "İstanbul" eşleşir. Ham `.Contains` / `.ToLower().Contains()` / `LIKE` yasak; merkezi normalize fonksiyonu kullanılır.
-14. **Yeni kural sözlü kalmaz.** Kalıcı bir karar alındıysa **aynı turda** ilgili `CLAUDE.md`'ye (proje) veya `~/.claude/standards/`'a (genel) yaz. Bu adımı atlamadan görevi bitirme.
-15. **Doğruyu raporla.** Test kırmızıysa çıktısıyla birlikte söyle; atlanan adımı söyle. "Muhtemelen çalışır" diye tamamlandı deme.
-16. **Kurulum belgelenir.** Her projede `SETUP.md` + `.env.example` + **sır/token envanteri** (ne, nereden alınır, nerede saklanır, sahibi, rotasyon) bulunur. Yeni araç/env/sır ekleyen değişiklik **aynı PR'da** bunları günceller. Temiz bir makinede belge takip edilerek tahmin yapmadan kurulabilmeli.
-17. **Tek origin tercih edilir.** API, UI'ın alan adının **altında** yayınlanır (`app.example.com/api/*`), ayrı `api.` alt alan adı istisnadır (ADR gerektirir). SPA fallback `/api/*`'ı **kapsamaz**.
-18. **Yedek denenmişse yedektir.** 3-2-1 kuralı (biri sunucu dışında), şifreli, **ayda 1 restore provası** ve provanın kaydı. Yedeğin başarısız olması **ve hiç çalışmaması** ayrı ayrı alarma bağlanır. Sadece DB değil: kullanıcı dosyaları, konfigürasyon, sertifikalar, sırlar da kapsamda. `DROP`/toplu güncelleme öncesi elle yedek.
-19. **Güvenlik taraması otomatiktir.** Her push'ta sır taraması + bağımlılık CVE; PR'da SAST; test deploy'u sonrası **OWASP ZAP** baseline. Sürüm öncesi **OWASP Top 10 eşleme tablosu** gözden geçirilir (`standards/15-security.md` §12). Kritik/yüksek bulgu merge'i bloke eder. **SAST ve SIR TARAMASI her projede birer adımdır ve yerelde de koşar** (`scripts/codeql-scan.sh`, `gitleaks detect`); CI aynı betiği ve aynı eşiği kullanır — iki yerde iki farklı kural olmaz. Hattın bütün kapılarını yerelde koşan bir betik bulunur (`scripts/ci-local.sh`): CI kesildiğinde doğrulama durmaz. **Koşmayan kapı geçilmiş sayılmaz** — "atlandı" diye raporlanır ve sonuç yeşil olmaz. Yanlış pozitif yalnız **gerekçeli** triyajla bastırılır, kural kapatılmaz. → `standards/15-security.md` §13a-13c
-20. **Otonom arka plan ajanı sormadan başlatılmaz.** `/loop` otonom mod, `ScheduleWakeup` ile kendini yeniden tetikleyen döngü, cron/schedule tabanlı ajan gibi kullanıcı müdahalesi olmadan tur tur çalışmaya devam eden hiçbir iş **önceden açık onay alınmadan** kurulmaz. Böyle bir iş zaten çalışıyorsa **proaktif haber ver**: ne yaptığı, neyi beklediği, ne tükettiği, nasıl durdurulacağı. Sessizce bırakma.
-    - ⚠️ **ONAY VERİLDİ (05/09/2026), ama KOŞULLU.** Koşullar ve durma kuralları `~/.claude/modes/autonomous-run.md`'de — iş listesi, bitiş tanımı, **$100** bütçe tavanı, tıkanma freni, geri alınamaz eylemde DURMA. Koşullardan biri yoksa koşum başlatılmaz ve bu madde yeniden yürürlüktedir.
-21-23. **[#27'ye devredildi / kaldırıldı — 05/09/2026]** Numaralar atıflar kırılmasın diye korunuyor; eski hâlleri ve gerekçeleri `docs/decision-log.md` §21-23.
-24. **"Tamamlandı" demeden önce kendi kendine eksik-kontrolü zorunlu (2026-08-25, kullanıcı kararı, tüm projeler için geçerli).** Bir görevi "yapıldı / tamamlandı / bitti" diye raporlamadan **hemen önce**, aynı turda, kullanıcı sormadan şu kontrol listesini kendi kendime uygularım:
-    - Kullanıcının **orijinal isteğini** yeniden oku (özetlenmiş hatırlamaya güvenme) ve istekte geçen her maddenin karşılandığını tek tek doğrula.
-    - **Kenar durumlar / hata yolları** düşünüldü mü? (boş liste, null, yetkisiz erişim, eşzamanlılık, geriye uyumluluk.)
-    - **Test** (#8), **build/lint/format**, ve varsa **SETUP.md/.env.example/sır envanteri** (#16) güncellemesi gerçekten çalıştırıldı mı?
-    - Görev birden fazla dosyayı/katmanı etkiliyorsa (API + istemci, migration + kod, i18n `tr`+`en`) **hepsi** değişti mi?
-    - Bilinen ama bilerek ertelenen bir eksik varsa **sonuç raporunda açıkça listele** — sessizce atlama.
-    - Kontrolü geçtikten sonra "tamamlandı" de; kontrolü anlatma, sonucunu rapora yedir.
-    → gerekçe ve uygulama notu: `docs/decision-log.md` §24
-25. **`dev`'e merge hızlıdır: review ve ağır kapılar yalnız `test` ve `prod` promosyonlarında koşar (2026-08-30, kullanıcı kararı).**
-    - **`feature/* → dev`:** kod review **yapılmaz** (ne elle diff okuma, ne ajan), SAST/CodeQL, sır taraması (CI işi), bağımlılık CVE, ZAP, geriye uyumluluk taraması, kapsam eşiği (#29), e2e **koşmaz**. Tek istisna **pre-commit gitleaks** kancasıdır. ⚠️ **Mod D/E'de bu kısıt AJANLARA da uygulanır:** kapı-eşli roller `security` ve `coverage-auditor` `dev` yönünde çağrılmaz. `data` bunun dışındadır: şemaya dokunan iş `dev`'e merge edilmeden ÖNCE `data`'den geçer. Sadece **build + hızlı unit test** koşar; kırmızıysa merge edilmez ve #15 gereği çıktısıyla raporlanır. **Formatlayıcı/lint iş listesinin sonunda bir kez** koşar (#26).
-    - **`dev → test` ve `test → prod`:** tüm kapılar **tam** koşar — `standards/13-pr-and-review.md` §4 merge kapısı, review checklist §5, #19'daki güvenlik taramaları, e2e (#33). Burada hiçbir şey atlanmaz.
-    - `dev` merge'inde bulgu gördüysem **merge'i bloklamam**, kısa bir not olarak raporlarım; düzeltme `test` promosyonundan önce ele alınır.
-    - Bu kural #19'un kapsamını daraltır: o taramalar `test`/`prod` yönünde geçerlidir; review'ın kimde olduğunu #27 belirler. → gerekçe: `docs/decision-log.md` §25
-26. **Verilen iş planlandıktan sonra: `dev`'i pull et → `dev`'den dal/worktree aç → orada çalış → her işi AYRI AYRI `dev`'e merge et (2026-09-02, kullanıcı kararı).** Sıra bağlayıcıdır:
-    1. **Önce `git fetch` + `dev`'i güncelle.** Bayat bir tabandan dallanma.
-    2. **`dev`'den yeni bir dal (ya da worktree) aç ve orada çalış.** `dev`'in üzerinde doğrudan commit'leme.
-    3. **Her iş bitince o işi tek başına `dev`'e merge et.** Birden çok işi tek commit/merge'de toplama.
-    4. **`test` ve `prod` promosyonunu KULLANICI söyler.** Kendiliğinden `test`/`prod`'a merge YOK.
-    5. **Formatlayıcı/lint iş listesinin SONUNDA bir kez** koşar, her merge'de değil (#25).
-    - ⚠️ **`~/.claude` deposunun kendi düzeni (08/09/2026):** `dev` = çalışma dalı, `master` = yayın. Bu depoda iş `dev`'e commit'lenir; `master`'a promosyonu **kullanıcı söyler**. Uzak: `<kullanıcı>/<yapılandırma-deposu>`. Depo **paylaşımlı bir çalışma ağacıdır** — dal değiştirmeden önce `git status` doğrulanır ve yalnız kendi diff'in commit'lenir. → gerekçe: `docs/decision-log.md` §26
-27. **Çalışma modu (A/B/C/D/E) her projede seçilebilir; seçim ONAYDIR (2026-09-05, kullanıcı kararı).** Mod, ajan kullanımını + review'ı + onay politikasını birlikte belirler. Tek kaynak `~/.claude/modes/README.md`; seçim projenin `.claude/mode` dosyasında. Değiştirme: `/working-mode <harf>`.
-    - **A** Skill (ajan yok) · **B** Seçici (`analyst`/`test-writer`/`doc-writer`) — **VARSAYILAN** · **C** Tam takım (9 rol) · **D** Geniş takım (14 rol) · **E** Fan-out (`Workflow`). Agent Teams modları (X/Y/Z) **arşivde**, teklif edilmez — `modes/archive/`.
-    - ⚠️ **A'da ajan çağrılmaz; B/C/D/E'de modu seçmek onaydır** — çağrı öncesi ayrıca sorulmaz, tur sonunda ajan sayısı + tahmini maliyet **raporlanır**. Otomatik yönlendirme de çağrıdır. **C/D/E'de review iki katmanlı:** ilk geçişi `qa` ajanı yapar, kritik bulguları ben doğrularım.
-    - ⚠️ Mod **hiçbir durumda** şunları gevşetmez: geri alınamaz işte onay (deploy, `DROP`, force push, dış dünyaya gönderim), `test`/`prod` promosyonunun kullanıcıya ait olması (#26), "tamamlandı" öncesi eksik-kontrolü (#24), sırların repoya girmemesi (#3).
-    - **How to apply:** Oturum başında modu **şu öncelikle** oku: **oturumluk seçim** (`<scratchpad>/mode`, `--tek` ile yazılır) → proje `.claude/mode` → **B**. Yoksa **B'de başla ve iş hak ediyorsa en düşük yeterli modu tek satırla ÖNER** — kendin geçme. Mod dosyası olmayan projede B'nin üç ajanı ayrıca sorulmadan çağrılabilir; diğer on bir rol için C/D/E gerekir. Mod adı söylenirse `/working-mode`'yu çalıştır. → gerekçe ve ölçüm: `docs/decision-log.md` §27
-28. **Denetçi her geçişte eksik/yanlış KONTROL EDER, GERİ GÖNDERİR ve DÜZELTTİRİR; maliyet her devirde hatırlatılır (2026-09-07, kullanıcı kararı).** Ajan kullanılan her turda:
-    - **Eksik kontrolü bloğu zorunlu.** Çıktısına başkasının güveneceği her rol (`qa`, `analyst`, `devops`, `test-writer`, `product-manager`) raporunu **kanıt bloğuyla** kapatır: *Doğrulama (koşulan komut/okunan aralık) · Madde eşlemesi (istenen her madde → dosya:satır) · Kapsanmayan → Sonuç: ciddi eksik YOK | VAR.* Blok temiz geçilse bile yazılır. **Orkestratör devirde tek satır** (kanıtlı `✅ temiz` + maliyet), tam bloğu **tur sonunda** ve her **"VAR"**da yazar; rolün bloğunu yutmaz. ⚠️ **Bu bir soru değil, kontroldür:** denetçi "eksik var mı?" diye kullanıcıya da üreten role de **sormaz**. **Doğrulanamayan şey "tamam" sayılmaz.**
-    - **Eksik varsa GERİ GÖNDERİLİR, kullanıcıya taşınmaz.** İş üretene döner (`qa` → `developer`/ben → yeniden `qa`); geri gönderme **ne eksik · hangi kanıtla · ne yapılacak** taşır. Kullanıcıya gitmesi yalnız §5 durma sebeplerinde ve tavanda olur — o da **soru değil, durum raporu**.
-    - **Tek temiz geçiş yeterlidir (18/09/2026).** Devir için **bir kez** "ciddi eksik YOK" yeter. `Doğrulama` satırı koşulan komutu/okunan aralığı taşımak **zorundadır**. "VAR" çıkarsa geri gönderilir; düzeltme gelince bulguyu ortaya çıkaran **aynı doğrulama tekrar koşulur**. **Tavan: aynı iş en çok 2 kez geri gönderilir (3 geçiş)**, ulaşılamazsa durulur ve kullanıcıya **bildirilir**; kapanmamış bulgular **açık bulgu** olarak tek tek listelenir. "Ciddi eksik" = davranışı/güvenliği/geriye uyumluluğu/veriyi etkileyen ya da istenen bir maddeyi karşılıksız bırakan şey.
-    - **Bulgu kapanmadan devir yok — denetçi düzelttirir.** Geri gönderme not değil **iş emridir**. Bir bulgu ancak (a) düzeltilip kanıtlanarak, (b) kullanıcı açıkça "yapma" diyerek, (c) kapsam dışı gerekçesiyle **açık bulgu olarak raporlanarak** kapanır — sessizce düşen bulgu yoktur. Tur sonu raporunda **kapanan / açık kalan** ayrımı görünür.
-    - **Maliyet tur sonuna ertelenmez.** Her rol devrinde tek satır: o rolün tahmini maliyeti + turun kümülatifi + eşiğe uzaklık. Eşik **moda bağlı ve iki kademeli**: B ~$12/**$25** · C ~$75/**$150** · D ~$130/**$260** · E ~$200/**$400** — yarısında uyarı, tamamında **durma**. Otonom koşumun $100 tavanı bağımsızdır.
-    - **Üç denetim boşluğu kapalı:** `analyst` bulgusunu üreten **komutu** da döndürür · `devops` çıktısı **`qa`'ya girer** · `product-manager` çıktısı **kullanıcı onayına** gider. → ayrıntı `modes/role-selection.md` §2a, §3, §5-§8; gerekçe `docs/decision-log.md` §28
-29. **Test kapsamı her kod tabanında EN AZ %80 (satır) — istisnasız (13/09/2026, kullanıcı kararı).**
-    - **Ölçü:** satır kapsamı, **her kod tabanı AYRI** — backend · web · mobil Android · mobil iOS. Ortalama alınmaz. Ölçülmemiş kod tabanı "geçti" sayılmaz, **"ölçülmedi"** diye raporlanır ve promosyonu bloklar.
-    - **Payda dürüst olur:** yalnız **üretilmiş** kod çıkarılır (EF göçleri + `ModelSnapshot`, `obj/`, `*.g.cs`, `*.Designer.cs`, `.d.ts`, testler, e2e/konfig). Çıkarma listesi projede **tek yerde ve gerekçeli** durur. El yazısı ürün kodunu listeden çıkarmak eşiği gevşetmektir → **yasak**.
-    - **Kapı:** yerel kapı betiğinde (`scripts/ci-local.sh`) **promosyon modunda** koşar; eşik altı → çıkış kodu ≠ 0. **`dev → test` ve `test → prod` promosyonunu BLOKLAR**; `dev` merge'i hızlı kalır. CI aynı betiği ve aynı eşiği kullanır.
-    - **Gevşetme yok:** eşik düşürülmez, istisna verilmez. **Proje `CLAUDE.md`'si bu maddeyi EZEMEZ.**
-    - **Sahte kapsam yasak:** E2E bu sayıya girmez. Assert'sız test yazmak eşiği gevşetmekle aynıdır — eklenen test mutasyonla bir hatayı yakalamalı (`standards/10-test-strategy.md` §7).
-    - **Uyum:** bir projede açılan **ilk oturum** kapsamı **ölçer**, kapı yoksa **kurar**, açığı ve kapatma planını raporlar. Açık kapanana kadar promosyon yapılamaz. → gerekçe: `docs/decision-log.md` §29
-30. **Test verisindeki e-posta GERÇEK kutuya gider: `<hesap>+<değişken>@gmail.com` (14/09/2026, kullanıcı kararı).**
-    - **Kapsam:** sistemin ileti gönderebileceği HER test adresi — e2e (web ve mobil), test ortamındaki seed/e2e hesapları, entegrasyon ortamına elle girilen veri, davet/link alıcıları.
-    - **Yasak:** sahte alan adı — `.test`, `.local`, `example.com`, `ornek.*`.
-    - **Tek kaynak:** adres testte **tek yardımcıdan** üretilir (taban env ile ezilebilir, ör. `E2E_EMAIL_BASE`); spec'e/seed'e elle adres yazılmaz (#2).
-    - **Kapsam dışı:** göndericisi sahtelenen testler. → ayrıntı `standards/11-playwright.md` §4; gerekçe `docs/decision-log.md` §30
-31. **E2E koşum döngüsü: tam koş → düşenleri belirle → düzelt → yalnız düzeltilenleri koş → tam tekrarına ben karar veririm (14/09/2026, kullanıcı kararı).**
-    - **Önce paketin TAMAMI koşar**, ilk hatada durulmaz. Düşenler **sınıflandırılır:** ürün hatası · bayat spec · veri/fixture · ortam.
-    - **Düşenler düzeltilir** — her düzeltme kendi dalında, kendi merge'iyle (#26). Retry artırmak ya da assertion gevşetmek düzeltme sayılmaz.
-    - **Sonra YALNIZ düzeltilen testler** (ve etkilenebilecekler) koşar.
-    - ⚠️ **E2E yalnız `test` ortamına çıkmış kodla koşar.** Düzeltme `dev`'deyken doğrulama **unit test + tsc/lint**'tir (#25).
-    - ⛔ **E2E koşmadan `prod`'a çıkılmaz.** **Tek istisna hotfix'tir:** kullanıcı açıkça "hotfix" dediğinde e2e koşulmadan çıkılır ve raporda "e2e atlandı (hotfix)" yazılır — geçti sayılmaz.
-    - **Tam paketin tekrarına ben karar veririm** ve gerekçesini raporlarım: düzeltme paylaşılan bir parçaya dokunduysa · promosyon kaydı tam koşum istiyorsa · düşüşlerin bir kısmı ortam kaynaklıysa tekrarlanır; tek spec'e sınırlıysa hedefli koşum yeter.
-    - **Ortamın sınırına takılan koşum geçersizdir**; ürün hatası diye okunmaz, paralellik düşürülüp tekrarlanır. → ayrıntı `standards/11-playwright.md` §9a; gerekçe `docs/decision-log.md` §31
-32. **Sıra: önce TÜM kod → sonra unit testleri yazılır → unit testler koşulur; E2E ise `test`'e çıkınca YAZILIR ve koşulur (14/09/2026, kullanıcı kararı).**
-    - Planlanan işin kodu **bütünüyle** yazılır; her küçük değişiklikten sonra test koşulmaz.
-    - Kod bitince unit testleri yazılır (#8), sonra testler **bir kez** koşulur; kırmızı varsa düzeltilir ve yalnız ilgili testler tekrar koşar.
-    - **E2E `dev` aşamasında ne yazılır ne koşulur** — #33 bunu daralttı: e2e yazımı/koşumu `prod` öncesi kapıdadır.
-    - #26 geçerli kalır: her iş kendi dalında yazılır ve unit koşumu yeşil olunca **ayrı ayrı** `dev`'e merge edilir. → gerekçe: `docs/decision-log.md` §32
-33. **E2E'nin tek yeri `prod` öncesi kapıdır (20/09/2026, kullanıcı kararı; #31 ve #32'nin e2e zamanlamasını EZER).**
-    - **`feature → dev` ve `dev → test`:** e2e **yoktur** — koşum da, "yazıldı mı" kontrolü de, deploy/durum dosyası beklemesi de. Eksik spec'ler `prod` kapısının 2. adımında çıkarılır.
-    - **`test → prod` (kullanıcı "prod merge" dedikten sonra, promosyondan ÖNCE) sırayla:**
-      1. **Kod `test`'e çıkmış mı?** Değilse önce `test`'e çıkılır ve deploy beklenir. `prod`, `test`'te olmayan kodu taşımaz.
-      2. **Eksik e2e var mı?** Değişen davranış spec'lerle karşılaştırılır.
-      3. **Eksikse YAZILIR** (`test` ortamına karşı doğrulanarak).
-      4. **Bu kodla e2e koşulmadı mı?** `test`'te deploy olan SHA için geçerli tam koşum kaydı yoksa koşulur (#31 döngüsü).
-      5. Yeşil kayıt varsa `prod`'a çıkılır. Kırmızı/bayat/kayıtsızsa çıkılmaz.
-    - **İstisna yalnız hotfix:** rapora "e2e atlandı (hotfix)" yazılır.
-    - Merge betiği bu kuralla çelişen bir e2e adımı koşuyorsa raporla, düzeltmeyi öner. → `docs/decision-log.md` §33
+1. **Small step first.** Before a large refactor, propose a small patch and wait for approval. No unrequested "while I was in there" improvements.
+2. **Single source of truth.** Hard-coded URL / IP / port / host / API key is **forbidden**. Each tier has exactly one config module; other files never read `process.env` / `import.meta.env` / `IConfiguration` directly, they take a named import from that module. Fallbacks exist for DEV only and are defined in one place.
+3. **Secrets never enter the repository.** Passwords, tokens, connection strings, certificates → env / secret store. The repo holds only `.env.example`. If a secret leaks: rotate first, clean up second.
+4. **Backward compatibility is mandatory.** APIs and databases evolve **additively only**. Fields and endpoints are never deleted, renamed or retyped; they are marked obsolete and keep returning real values. → `standards/08-backward-compatibility.md`
+5. **One API — web and mobile consume the same contract.** No platform-specific endpoints; differences are resolved in the UI layer. Business logic **never** lives on the client. → `standards/07-api-design.md`
+6. **Authorization is fail-closed.** Default is DENIED. Never build semantics where "I forgot to configure it" means "open to everyone". Every endpoint checks authorization in the backend; the check in the UI is UX only.
+7. **Validation in two places.** On the client for UX, in the API for security. Client-side validation is never sufficient on its own.
+8. **Tests get updated.** If a file that has tests was touched, its tests are updated. If there are no tests, **say so explicitly**. A behaviour change is never merged untested.
+9. **Never leave a 300+ line file.** Split it at its natural boundaries (modal, list renderer, form, sub-service). Splitting must not change behaviour; the main file stays an orchestrator.
+10. **Ask before adding a dependency.** Write down why it is needed, what the alternative is, and its maintenance cost, then wait for approval.
+11. **No magic strings.** Constants become enums/consts. Enum switches always carry a `default` branch (forward compatibility).
+12. **Date format `dd/mm/yyyy`.** Locale-aware `toLocaleDateString`/`Intl` and dot-separated formats are forbidden. Transport and storage are always UTC ISO-8601.
+13. **Search is always case- and accent-insensitive.** "sisman" ↔ "Şişman", "istanbul" ↔ "İstanbul" must match. Raw `.Contains` / `.ToLower().Contains()` / `LIKE` is forbidden; a central normalizer is used.
+14. **A new rule is never left verbal.** Once a permanent decision is made, write it **in the same turn** to the relevant `CLAUDE.md` (project) or to `~/.claude/standards/` (global). Do not finish the task while skipping this step.
+15. **Report the truth.** If tests are red, say so with the output; name any step that was skipped. Never report completion on the basis of "it probably works".
+16. **Setup is documented.** Every project carries `SETUP.md` + `.env.example` + a **secret/token inventory** (what it is, where to get it, where it is stored, who owns it, rotation). Any change that adds a tool, env var or secret updates these **in the same PR**. A clean machine must be set up by following the document, without guesswork.
+17. **A single origin is preferred.** The API is served **under** the UI's domain (`app.example.com/api/*`); a separate `api.` subdomain is the exception and requires an ADR. The SPA fallback must **not** cover `/api/*`.
+18. **A backup is only a backup if it has been tested.** 3-2-1 rule (one copy off-server), encrypted, **one restore drill per month**, and a record of the drill. A failed backup **and** a backup that never ran are alarmed separately. Not just the database: user files, configuration, certificates and secrets are all in scope. Take a manual backup before any `DROP` or bulk update.
+19. **Security scanning is automatic.** Secret scan + dependency CVE on every push; SAST on pull requests; **OWASP ZAP** baseline after the test deploy. Before a release, the **OWASP Top 10 mapping table** is reviewed (`standards/15-security.md` §12). Critical/high findings block the merge. **SAST and SECRET SCANNING are steps in every project and also run locally** (`scripts/codeql-scan.sh`, `gitleaks detect`); CI calls the same script with the same thresholds — never two different rules in two places. A script that runs every gate in the pipeline locally must exist (`scripts/ci-local.sh`) so verification does not stop when CI is down. **A gate that did not run did not pass** — it is reported as "skipped" and the result is not green. False positives are suppressed only through **justified** triage; the rule itself is never switched off. → `standards/15-security.md` §13a-13c
+20. **An autonomous background agent is never started without asking.** Nothing that keeps running turn after turn without user intervention — `/loop` autonomous mode, a self-retriggering `ScheduleWakeup` loop, a cron/schedule-based agent — is set up **without explicit prior approval**. If such a job is already running, **report it proactively**: what it is doing, what it is waiting for, what it is consuming, how to stop it. Never leave it running silently.
+    - ⚠️ **APPROVED (05/09/2026), but CONDITIONALLY.** The conditions and stop rules are in `~/.claude/modes/autonomous-run.md` — task list, definition of done, **$100** budget ceiling, stall brake, STOP on any irreversible action. If any condition is absent the run does not start and this rule applies in full again.
+21-23. **[Delegated to #27 / removed — 05/09/2026]** The numbers are preserved so references do not break; the original text and rationale are in `docs/decision-log.md` §21-23.
+24. **A self-administered completeness check is mandatory before saying "done" (2026-08-25, user decision, applies to all projects).** Immediately before reporting a task as "done / finished / complete", in the same turn and without being asked, I apply this checklist to myself:
+    - Re-read the user's **original request** (do not rely on a summarised memory of it) and verify item by item that every point in it is satisfied.
+    - Were **edge cases and error paths** considered? (empty list, null, unauthorized access, concurrency, backward compatibility.)
+    - Were **tests** (#8), **build/lint/format**, and where relevant the **SETUP.md/.env.example/secret inventory** updates (#16) actually run?
+    - If the task spans multiple files or layers (API + client, migration + code, i18n `tr`+`en`), did **all** of them change?
+    - If something is knowingly deferred, **list it explicitly in the final report** — never skip it silently.
+    - Say "done" only after passing the check; do not narrate the check, fold its result into the report.
+    → rationale and application notes: `docs/decision-log.md` §24
+25. **Merging to `dev` is fast: review and heavy gates run only on the `test` and `prod` promotions (2026-08-30, user decision).**
+    - **`feature/* → dev`:** code review **does not happen** (neither reading the diff by hand nor by agent); SAST/CodeQL, secret scanning (a CI job), dependency CVE, ZAP, backward-compatibility scanning, the coverage threshold (#29) and e2e **do not run**. The single exception is the **pre-commit gitleaks** hook. ⚠️ **In modes D/E this restriction applies to AGENTS too:** the gate-paired roles `security` and `coverage-auditor` are not invoked in the `dev` direction. `data` is the exception to that: work touching the schema goes through `data` **before** it is merged to `dev`. Only **build + fast unit tests** run; if they are red the merge does not happen and it is reported with its output per #15. **The formatter/linter runs once at the end of the task list** (#26).
+    - **`dev → test` and `test → prod`:** every gate runs **in full** — the merge gate in `standards/13-pr-and-review.md` §4, the review checklist §5, the security scans in #19, and e2e (#33). Nothing is skipped here.
+    - If I spot a finding during a `dev` merge I **do not block the merge**; I report it as a short note and the fix is handled before the `test` promotion.
+    - This rule narrows the scope of #19: those scans apply in the `test`/`prod` direction; who performs review is decided by #27. → rationale: `docs/decision-log.md` §25
+26. **Once the work is planned: pull `dev` → branch/worktree off `dev` → work there → merge each task to `dev` SEPARATELY (2026-09-02, user decision).** The order is binding:
+    1. **First `git fetch` and update `dev`.** Do not branch from a stale base.
+    2. **Create a new branch (or worktree) off `dev` and work there.** Never commit directly on `dev`.
+    3. **When a task is finished, merge that task to `dev` on its own.** Do not collect several tasks into one commit/merge.
+    4. **The USER decides on the `test` and `prod` promotions.** There is NO self-initiated merge to `test`/`prod`.
+    5. **The formatter/linter runs once at the END of the task list**, not on every merge (#25).
+    - ⚠️ **The `~/.claude` repository's own layout (08/09/2026):** `dev` = working branch, `master` = release. Work is committed to `dev` in that repo; the **user** decides on promotion to `master`. Remote: `<user>/<config-repo>`. The repo is a **shared working tree** — verify `git status` before switching branches and commit only your own diff. → rationale: `docs/decision-log.md` §26
+27. **The operating mode (A/B/C/D/E) is selectable per project; the selection IS the approval (2026-09-05, user decision).** The mode determines agent usage, review and approval policy together. Single source: `~/.claude/modes/README.md`; the selection lives in the project's `.claude/mode` file. To change it: `/working-mode <letter>`.
+    - **A** Skill (no agents) · **B** Selective (`analyst`/`test-writer`/`doc-writer`) — **DEFAULT** · **C** Full team (9 roles) · **D** Wide team (14 roles) · **E** Fan-out (`Workflow`). The Agent Teams modes (X/Y/Z) are **archived** and not offered — `modes/archive/`.
+    - ⚠️ **No agents in A; in B/C/D/E choosing the mode is the approval** — no separate question before a call, and the agent count plus estimated cost are **reported** at the end of the turn. Automatic delegation counts as a call too. **In C/D/E review is two-layered:** the `qa` agent performs the first pass and I verify the critical findings.
+    - ⚠️ The mode **never** loosens any of these: approval on irreversible work (deploy, `DROP`, force push, sending anything to the outside world), the `test`/`prod` promotions belonging to the user (#26), the completeness check before "done" (#24), secrets staying out of the repo (#3).
+    - **How to apply:** at the start of a session read the mode **in this order**: **session-scoped selection** (`<scratchpad>/mode`, written with `--tek`) → the project's `.claude/mode` → **B**. Otherwise **start in B and, if the work deserves it, PROPOSE the lowest sufficient mode in one line** — do not switch on your own. In a project with no mode file, B's three agents may be invoked without asking; the other eleven roles require C/D/E. If a mode name is given, run `/working-mode`. → rationale and measurements: `docs/decision-log.md` §27
+28. **On every pass the auditor CHECKS for gaps and errors, SENDS WORK BACK, and GETS IT FIXED; cost is reported at every handoff (2026-09-07, user decision).** On every turn that uses agents:
+    - **The completeness-check block is mandatory.** Every role whose output someone else will rely on (`qa`, `analyst`, `devops`, `test-writer`, `product-manager`) closes its report with an **evidence block**: *Verification (command run / range read) · Item mapping (each requested item → file:line) · Not covered → Result: serious gap NO | YES.* The block is written even when the pass is clean. **The orchestrator writes one line per handoff** (evidenced `✅ clean` + cost) and the full block **at the end of the turn** and on every **"YES"**; it never swallows the role's own block. ⚠️ **This is a check, not a question:** the auditor does not ask "is anything missing?" — not the user, not the producing role. **What cannot be verified does not count as fine.**
+    - **If something is missing it is SENT BACK, not escalated to the user.** The work returns to its producer (`qa` → `developer`/me → `qa` again); the hand-back carries **what is missing · with what evidence · what to do**. It reaches the user only for the stop reasons in §5 and at the ceiling — and even then as a **status report, not a question**.
+    - **One clean pass is enough (18/09/2026).** A single "no serious gap" is sufficient for a handoff. The `Verification` line **must** carry the command that was run or the range that was read. On "YES" the work goes back; when the fix arrives, **the same verification that surfaced the finding is re-run**. **Ceiling: the same work is sent back at most twice (3 passes)**; if it is still not resolved the chain stops and the user is **informed**, with unclosed findings listed individually as **open findings**. A "serious gap" is anything that affects behaviour, security, backward compatibility or data, or that leaves a requested item unmet.
+    - **No handoff while a finding is open — the auditor gets it fixed.** A hand-back is not a note, it is **an order**. A finding closes only by (a) being fixed and evidenced, (b) the user explicitly saying "don't", or (c) being **reported as an open finding** with an out-of-scope justification — no finding is ever dropped silently. The end-of-turn report shows **closed vs. still open**.
+    - **Cost is not deferred to the end of the turn.** One line per role handoff: that role's estimated cost + the turn's running total + distance to the threshold. Thresholds are **mode-dependent and two-stage**: B ~$12/**$25** · C ~$75/**$150** · D ~$130/**$260** · E ~$200/**$400** — a warning at half, a **stop** at the full figure. The autonomous run's $100 ceiling is independent.
+    - **Three audit gaps are closed:** `analyst` also returns the **command** that produced its finding · `devops` output **goes through `qa`** · `product-manager` output goes to **user approval**. → detail `modes/role-selection.md` §2a, §3, §5-§8; rationale `docs/decision-log.md` §28
+29. **Line coverage of AT LEAST 80% in every codebase — no exceptions (13/09/2026, user decision).**
+    - **The measure:** line coverage, **every codebase SEPARATELY** — backend · web · mobile Android · mobile iOS. Never averaged. An unmeasured codebase does not count as passing; it is reported as **"not measured"** and still blocks promotion.
+    - **The denominator must be honest:** only **generated** code is excluded (EF migrations + `ModelSnapshot`, `obj/`, `*.g.cs`, `*.Designer.cs`, `.d.ts`, the tests, e2e/config). The exclusion list lives **in one place, with a reason per entry**. Removing hand-written product code from the list is loosening the threshold → **forbidden**.
+    - **The gate:** it runs in the local gate script (`scripts/ci-local.sh`) in **promotion mode**; below the threshold → exit code ≠ 0. It **BLOCKS the `dev → test` and `test → prod` promotions**; merging to `dev` stays fast. CI calls the same script with the same threshold.
+    - **No loosening:** the threshold is not lowered and no exceptions are granted. **A project's `CLAUDE.md` CANNOT override this rule.**
+    - **Fake coverage is forbidden:** e2e does not count towards this figure. Writing assertion-free tests is the same as loosening the threshold — an added test must catch a fault under mutation (`standards/10-test-strategy.md` §7).
+    - **Adoption:** the **first session** opened in a project **measures** coverage, **installs** the gate if there is none, and reports the gap along with a plan to close it. No promotion is possible until the gap is closed. → rationale: `docs/decision-log.md` §29
+30. **Email in test data goes to a REAL mailbox: `<account>+<variable>@gmail.com` (14/09/2026, user decision).**
+    - **Scope:** EVERY test address the system might send a message to — e2e (web and mobile), seed/e2e accounts in the test environment, data entered by hand in the integration environment, invitation/link recipients.
+    - **Forbidden:** fake domains — `.test`, `.local`, `example.com`, `sample.*`.
+    - **Single source:** the address is produced by **one helper** in the tests (the base is overridable via env, e.g. `E2E_EMAIL_BASE`); addresses are never written by hand into a spec or seed (#2).
+    - **Out of scope:** tests whose sender is faked. → detail `standards/11-playwright.md` §4; rationale `docs/decision-log.md` §30
+31. **The e2e run cycle: full run → identify failures → fix → run only what was fixed → I decide on a full re-run (14/09/2026, user decision).**
+    - **The WHOLE suite runs first**, without stopping at the first failure. Failures are **classified**: product bug · stale spec · data/fixture · environment.
+    - **Failures are fixed** — each fix on its own branch with its own merge (#26). Raising retries or loosening assertions does not count as a fix.
+    - **Then ONLY the fixed tests** (and those they could affect) run.
+    - ⚠️ **E2E runs only against code that has reached the `test` environment.** While a fix is on `dev`, verification means **unit tests + tsc/lint** (#25).
+    - ⛔ **Nothing ships to `prod` without e2e.** **The only exception is a hotfix:** when the user explicitly says "hotfix" it ships without e2e and the report reads "e2e skipped (hotfix)" — which does not count as passing.
+    - **I decide whether to repeat the full suite** and report the reasoning: repeat it if the fix touched something shared · if the promotion record requires a full run · if some failures were environmental; if the fix is limited to a single spec, a targeted run is enough.
+    - **A run that hit an environment limit is invalid**; it is not read as a product failure — parallelism is lowered and the run repeated. → detail `standards/11-playwright.md` §9a; rationale `docs/decision-log.md` §31
+32. **Order: ALL the code first → then unit tests are written → then unit tests run; e2e is WRITTEN and run once the code reaches `test` (14/09/2026, user decision).**
+    - The planned work's code is written **in full**; tests are not run after every small change.
+    - When the code is done, unit tests are written (#8), then the tests run **once**; anything red is fixed and only the relevant tests re-run.
+    - **E2E is neither written nor run at the `dev` stage** — #33 narrowed this further: writing and running e2e belong to the pre-production gate.
+    - #26 still holds: each task is written on its own branch and merged to `dev` **separately** once its unit run is green. → rationale: `docs/decision-log.md` §32
+33. **The only place for e2e is the pre-production gate (20/09/2026, user decision; OVERRIDES the e2e timing in #31 and #32).**
+    - **`feature → dev` and `dev → test`:** there is **no e2e** — no run, no "was a spec written" check, no waiting on a deploy/status file. Missing specs are identified in step 2 of the `prod` gate.
+    - **`test → prod` (after the user says "prod merge", BEFORE the promotion), in order:**
+      1. **Has the code reached `test`?** If not, it goes to `test` first and the deploy is awaited. `prod` never carries code that is not on `test`.
+      2. **Are any e2e specs missing?** Changed behaviour is compared against the specs.
+      3. **If any are missing they are WRITTEN** (verified against the `test` environment).
+      4. **Has e2e been run against this code?** If there is no valid full-run record for the SHA deployed on `test`, it is run (the #31 cycle).
+      5. If the record is green, it ships to `prod`. If it is red, stale or absent, it does not.
+    - **The only exception is a hotfix:** the report reads "e2e skipped (hotfix)".
+    - If the merge script runs an e2e step that contradicts this rule, report it and propose the fix. → `docs/decision-log.md` §33
 
-## Yapma listesi
+## Never-do list
 
-Numaralı kurala bağlananlar dahil tam liste: `docs/decision-log.md` § Yapma listesi.
+The full list, including the items tied to numbered rules: `docs/decision-log.md` § Never-do list.
 
-- ❌ İstemcide tek başına iş mantığı / validasyon / yetki kararı
-- ❌ İstemciden doğrudan veritabanına bağlanma
-- ❌ Yorum satırına alınmış ölü kod commit'i
-- ❌ Formatlayıcı (`dotnet format`, Prettier/ESLint) çalıştırmadan PR
-- ❌ Alan/endpoint silme veya yeniden adlandırma (= silme + ekleme)
-- ❌ `SELECT *`, N+1 sorgu, sayfalamasız liste endpoint'i
-- ❌ Yakalanıp yutulan exception (`catch {}`), log'suz hata
-- ❌ Log'a PII / token / parola yazmak
-- ❌ Testleri "geçsin diye" gevşetmek, flaky testi `retry` ile örtmek
-- ❌ `main`/`prod`'a doğrudan push
-- ❌ Kullanıcı onayı olmadan: prod deploy, DB `DROP`, `git push --force`, veri silme, dış servise mesaj/yayın gönderme
-- ❌ Denenmemiş yedek ("yedek var" demek yetmez, restore provası yapılır)
-- ❌ `test-writer` ve `migration-reviewer` subagent'larını çağırmak — kesin yasak. Asıl koruma **mod setidir**: modun rolleri dışında hiçbir ajan çağrılmaz → #27, #28
+- ❌ Business logic / validation / authorization decided on the client alone
+- ❌ Connecting to the database directly from a client
+- ❌ Committing dead code that has been commented out
+- ❌ Opening a PR without running the formatter (`dotnet format`, Prettier/ESLint)
+- ❌ Deleting or renaming a field/endpoint (= delete + add)
+- ❌ `SELECT *`, N+1 queries, a list endpoint without pagination
+- ❌ A swallowed exception (`catch {}`), an error with no log
+- ❌ Writing PII / tokens / passwords to the log
+- ❌ Loosening tests "so they pass", papering over a flaky test with `retry`
+- ❌ Pushing directly to `main`/`prod`
+- ❌ Without user approval: production deploy, DB `DROP`, `git push --force`, deleting data, sending a message or publishing to an external service
+- ❌ An untested backup ("we have backups" is not enough — a restore drill is performed)
+- ❌ Invoking the `test-writer` and `migration-reviewer` subagents — strictly forbidden. The real protection is **the mode's role set**: no agent outside the mode's roles is ever invoked → #27, #28
 
-## Çalışma düzeni (Claude için)
+## Working method (for Claude)
 
-Protokolün tamamı `standards/00-working-method.md`'dedir (plan → onay → uygula,
-doğrulama, bağlam disiplini, paralel oturum, onay gerektiren işler).
-Özet: dosyayı düzenlemeden önce oku · birden fazla dosyaya dokunan işte önce
-kısa plan sun · build + ilgili testler + lint/format koşmadan "çalışıyor" deme,
-koşmadıysan **"çalıştırmadım" de** · belirsizlikte bağımsız işleri bitir, sonra
-tek net soru sor · yalnız kendi diff'ini commit et, `--force` kullanma ·
-geri alınamaz işte (deploy, `DROP`, dış dünyaya gönderim, dosya silme) onay al.
+The full protocol is in `standards/00-working-method.md` (plan → approval →
+execute, verification, context discipline, parallel sessions, work that requires
+approval). In short: read a file before editing it · for work touching multiple
+files, present a short plan first · never say "it works" without running build +
+the relevant tests + lint/format, and if you did not run them **say "I did not
+run them"** · when uncertain, finish the independent work first, then ask one
+clear question · commit only your own diff and never use `--force` · get approval
+for irreversible work (deploy, `DROP`, sending anything outward, deleting files).
 
-## Uzun kapı/koşum sırasında CANLI PANO (KALICI, tüm projeler)
+## LIVE DASHBOARD during a long gate/run (PERMANENT, all projects)
 
-Dakikalarca süren bir kapı, koşum veya deploy başlattığında (merge kapısı, CI, test
-bataryası, deploy zinciri, migration) **bir Artifact panosu yayınla
-ve koşum boyunca AYNI URL'e yeniden yayınlayarak güncel tut.** Metin raporu
-panonun yerine geçmez; ikisini birlikte ver. Panoda **zorunlu** olanlar:
-ağırlıklı genel yüzde · madde kırılımları · canlı ölçüm (saat + ham veri) ·
-açık riskler.
+When you start a gate, run or deploy that takes minutes (merge gate, CI, test
+battery, deploy chain, migration), **publish an Artifact dashboard and keep it
+current by republishing to the SAME URL throughout the run.** A text report does
+not replace the dashboard; give both. The dashboard **must** contain: a weighted
+overall percentage · per-item breakdowns · a live measurement (timestamp + raw
+data) · open risks.
 
-⚠️ **Yüzde ÖLÇÜLÜR, uydurulmaz** — hangi sinyalden okunduğu panoda yazar;
-ölçülemiyorsa "ölçülemiyor" denir. Uzun koşumun çıktısı tamponlayan bir boruya
-(`tail`/`head`) verilmez — log dosyasına yazılır, pano ondan beslenir.
+⚠️ **The percentage is MEASURED, not invented** — the dashboard states which
+signal it was read from; if it cannot be measured, it says "cannot be measured".
+The output of a long run is never piped into something that buffers
+(`tail`/`head`) — it is written to a log file and the dashboard is fed from that.
 
-→ Ayrıntılı kurallar: `standards/00-working-method.md` §10.
+→ Detailed rules: `standards/00-working-method.md` §10.
