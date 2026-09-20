@@ -66,3 +66,25 @@ command (the body is stripped but everything after it is kept — otherwise the
 count halves) · `grep -E "dotnet|codeql"` is not a SAST run, and such mentions are
 reported separately in the `dismissed` column rather than counted · a step that
 runs from inside another script is invisible: that is **"not seen"**, not "zero".
+
+## merge-gate.sh — the shared gate
+
+One gate definition for every project: `scripts/merge-gate.sh <dev|test|prod>`.
+The canonical copy lives here; every project commits a copy, because a project's
+gate cannot depend on a path outside its repository (CI runners do not have the
+configuration checked out). The drift test in `md-hook.sh` covers it.
+
+| Target | What runs |
+|---|---|
+| `dev`, `test` | **Everything except running e2e:** formatter/linter, typecheck, build, unit tests, coverage (80% per codebase), secret scan, dependency CVE, SAST, backward-compatibility scan, the CLAUDE.md size and rule gates, and a CHECK for missing e2e specs — a warning on `dev`, blocking on `test`. |
+| `prod` | The code must already be **deployed to the test environment** (verified through the version endpoint), then the **whole** e2e suite runs against it. Only a green run allows the promotion. |
+
+Stacks are auto-detected (.NET solution, `web/`, `mobile/`, `e2e/`, `.maestro/`).
+Per-project settings are optional, in `scripts/merge-gate.conf`:
+`TEST_VERSION_URL`, `E2E_WEB_CMD`, `E2E_MOBILE_CMD`, `COVERAGE_CMD`,
+`COVERAGE_MIN`, `SKIP_STACKS`.
+
+⚠️ **A step that did not run did not pass.** A missing tool is reported SKIPPED
+and the gate exits non-zero with INCOMPLETE — never green. A project may ADD
+steps; it may never remove one.
+

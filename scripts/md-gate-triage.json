@@ -1,0 +1,12 @@
+{
+  "rule": {
+    "25. merging to dev is fast: review and heavy gates run only ": "Repealed by the user on 20/09/2026: the shared gate now runs at EVERY promotion, dev included. Only RUNNING e2e is deferred to prod (#25, #33).",
+    "- feature/ dev : code review does not happen neither reading": "Repealed: on dev the gate now runs the formatter, typecheck, build, unit tests, coverage, secret scan, dependency CVE, SAST and the backward-compatibility scan. Nothing but running e2e is skipped.",
+    "- dev test and test prod : every gate runs in full the merge": "Reworded into the new #25: the gate is one shared script and the full set runs on every promotion.",
+    "- if i spot a finding during a dev merge i do not block the ": "Repealed: dev is now a blocking gate, so a failing step stops the merge there too.",
+    "33. the only place for e2e is the pre-production gate.": "Reworded as 'E2E runs at the prod gate only, and the code must be on test first' — same intent, plus the deploy verification.",
+    "1. has the code reached test if not it goes to test first an": "Kept as step 1 of the new #33 and strengthened: the deploy is now VERIFIED through the version endpoint rather than merely awaited.",
+    "4. has e2e been run against this code if there is no valid f": "Replaced: there is no 'is there a valid record' shortcut any more. The WHOLE suite runs at the prod gate every time.",
+    "5. if the record is green it ships to prod . if it is red st": "Replaced by the new step 4: nothing red in the full run ⇒ merge; red, stale or absent ⇒ no merge."
+  }
+}

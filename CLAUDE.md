@@ -53,11 +53,11 @@
  - If something is knowingly deferred, **list it explicitly in the final report** — never skip it silently.
  - Say "done" only after passing the check; do not narrate the check, fold its result into the report.
  → rationale and application notes: `docs/decision-log.md` §24
-25. **Merging to `dev` is fast: review and heavy gates run only on the `test` and `prod` promotions.**
- - **`feature/* → dev`:** code review **does not happen** (neither reading the diff by hand nor by agent); SAST/CodeQL, secret scanning (a CI job), dependency CVE, ZAP, backward-compatibility scanning, the coverage threshold (#29) and e2e **do not run**. The single exception is the **pre-commit gitleaks** hook. ⚠️ **In modes D/E this restriction applies to AGENTS too:** the gate-paired roles `security` and `coverage-auditor` are not invoked in the `dev` direction. `data` is the exception to that: work touching the schema goes through `data` **before** it is merged to `dev`. Only **build + fast unit tests** run; if they are red the merge does not happen and it is reported with its output per #15. **The formatter/linter runs once at the end of the task list** (#26).
- - **`dev → test` and `test → prod`:** every gate runs **in full** — the merge gate in `standards/13-pr-and-review.md` §4, the review checklist §5, the security scans in #19, and e2e (#33). Nothing is skipped here.
- - If I spot a finding during a `dev` merge I **do not block the merge**; I report it as a short note and the fix is handled before the `test` promotion.
- - This rule narrows the scope of #19: those scans apply in the `test`/`prod` direction; who performs review is decided by #27. → rationale: `docs/decision-log.md` §25
+25. **The gate is SHARED and runs at every promotion; only running e2e is deferred to `prod`.** One definition: `scripts/merge-gate.sh <dev|test|prod>`. The canonical copy lives in the configuration repository and every project commits a copy — a project's gate cannot depend on a path outside the repository, because CI runners do not have the configuration checked out.
+ - **`feature/* → dev` and `dev → test`:** EVERYTHING EXCEPT RUNNING E2E — formatter/linter, typecheck, build, unit tests, **coverage: the 80% threshold per codebase (#29)**, secret scan, dependency CVE, SAST, backward-compatibility scan, the CLAUDE.md size and rule gates, and a **CHECK for missing e2e specs** (a warning on `dev`, blocking on `test`).
+ - **`test → prod`:** the code must already be **deployed to the test environment** and the **FULL e2e suite** must run green against it (#33).
+ - **A step that did not run did not pass.** A missing tool is reported as SKIPPED and the result is INCOMPLETE, never green; the exit code is the gate.
+ - A project may ADD steps to the shared gate; it may never remove one. → the step list: `standards/13-pr-and-review.md` §4; rationale: `docs/decision-log.md` §25
 26. **Once the work is planned: pull `dev` → branch/worktree off `dev` → work there → merge each task to `dev` SEPARATELY.** The order is binding:
  1. **First `git fetch` and update `dev`.** Do not branch from a stale base.
  2. **Create a new branch (or worktree) off `dev` and work there.** Never commit directly on `dev`.
@@ -80,7 +80,7 @@
 29. **Line coverage of AT LEAST 80% in every codebase — no exceptions.**
  - **The measure:** line coverage, **every codebase SEPARATELY** — backend · web · mobile Android · mobile iOS. Never averaged. An unmeasured codebase does not count as passing; it is reported as **"not measured"** and still blocks promotion.
  - **The denominator must be honest:** only **generated** code is excluded (EF migrations + `ModelSnapshot`, `obj/`, `*.g.cs`, `*.Designer.cs`, `.d.ts`, the tests, e2e/config). The exclusion list lives **in one place, with a reason per entry**. Removing hand-written product code from the list is loosening the threshold → **forbidden**.
- - **The gate:** it runs in the local gate script (`scripts/ci-local.sh`) in **promotion mode**; below the threshold → exit code ≠ 0. It **BLOCKS the `dev → test` and `test → prod` promotions**; merging to `dev` stays fast. CI calls the same script with the same threshold.
+ - **The gate:** it runs inside the shared `scripts/merge-gate.sh` at **every** promotion, `dev` included; below the threshold → exit code ≠ 0. CI calls the same script with the same threshold (#25).
  - **No loosening:** the threshold is not lowered and no exceptions are granted. **A project's `CLAUDE.md` CANNOT override this rule.**
  - **Fake coverage is forbidden:** e2e does not count towards this figure. Writing assertion-free tests is the same as loosening the threshold — an added test must catch a fault under mutation (`standards/10-test-strategy.md` §7).
  - **Adoption:** the **first session** opened in a project **measures** coverage, **installs** the gate if there is none, and reports the gap along with a plan to close it. No promotion is possible until the gap is closed. → rationale: `docs/decision-log.md` §29
@@ -102,16 +102,11 @@
  - When the code is done, unit tests are written (#8), then the tests run **once**; anything red is fixed and only the relevant tests re-run.
  - **E2E is neither written nor run at the `dev` stage** — #33 narrowed this further: writing and running e2e belong to the pre-production gate.
  - #26 still holds: each task is written on its own branch and merged to `dev` **separately** once its unit run is green. → rationale: `docs/decision-log.md` §32
-33. **The only place for e2e is the pre-production gate.**
- - **`feature → dev` and `dev → test`:** there is **no e2e** — no run, no "was a spec written" check, no waiting on a deploy/status file. Missing specs are identified in step 2 of the `prod` gate.
- - **`test → prod` (after the user says "prod merge", BEFORE the promotion), in order:**
- 1. **Has the code reached `test`?** If not, it goes to `test` first and the deploy is awaited. `prod` never carries code that is not on `test`.
- 2. **Are any e2e specs missing?** Changed behaviour is compared against the specs.
- 3. **If any are missing they are WRITTEN** (verified against the `test` environment).
- 4. **Has e2e been run against this code?** If there is no valid full-run record for the SHA deployed on `test`, it is run (the #31 cycle).
- 5. If the record is green, it ships to `prod`. If it is red, stale or absent, it does not.
- - **The only exception is a hotfix:** the report reads "e2e skipped (hotfix)".
- - If the merge script runs an e2e step that contradicts this rule, report it and propose the fix. → `docs/decision-log.md` §33
+33. **E2E runs at the `prod` gate only, and the code must be on `test` first.**
+ - **`feature → dev` and `dev → test`:** e2e is not RUN. The gate only CHECKS whether a spec is missing (#25) — no deploy wait, no status file.
+ - **`test → prod`, in order:** 1) the code is deployed to `test` and the deploy is **verified** (the version endpoint reports this SHA) · 2) any missing spec is written and verified against the test environment · 3) the **WHOLE** e2e suite runs against `test` (#31's cycle applies to failures) · 4) nothing red ⇒ merge to `prod`. Red, stale or absent ⇒ no merge.
+ - **The only exception is a hotfix:** the report reads "e2e skipped (hotfix)", which does not count as passing.
+ → `docs/decision-log.md` §33
 
 ## Never-do list
 

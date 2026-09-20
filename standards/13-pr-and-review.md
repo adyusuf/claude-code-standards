@@ -43,12 +43,12 @@ Types: `feat` `fix` `refactor` `perf` `test` `docs` `chore` `build` `ci` `revert
 
 ## 4. The merge gate (automatic — no merge without passing it)
 
-> **Scope (global rule #25):** the full gate below is for the **`dev → test` and
-> `test → prod` promotions**. On a **`feature/* → dev` merge** only **build + fast
-> unit tests** run; review, secret/SAST/CVE scanning, backward-compatibility
-> scanning, e2e and the coverage threshold **do not run**. **The formatter/linter
-> also runs once at the END of the task list**, not on every merge (global
-> #25/#26). `dev` publishes nothing outward; the gate belongs at the promotion.
+> **Scope (global rule #25):** the gate below is SHARED — `scripts/merge-gate.sh <dev|test|prod>`,
+> a copy of the canonical script committed in every project. Everything in it runs at **every**
+> promotion, `feature/* → dev` included; **the single deferred step is RUNNING e2e**, which belongs
+> to the `prod` gate (#33). On `dev` and `test` the gate also CHECKS whether an e2e spec is missing:
+> a warning on `dev`, blocking on `test`. A step whose tool is missing is reported SKIPPED and the
+> result is INCOMPLETE, never green.
 
 - [ ] Build (backend + web + mobile)
 - [ ] Unit tests green

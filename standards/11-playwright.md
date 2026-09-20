@@ -94,7 +94,7 @@ use: {
 ## 9. Run policy
 
 - Never **mixed into** the fast CI gate (unit/lint/tsc) — a separate workflow.
-- Triggers: after the `dev → test` merge and/or nightly; plus a **mandatory** check before `test → prod`.
+- Trigger: the **`prod` gate only** (`scripts/merge-gate.sh prod`), plus optionally nightly. On `dev` and `test` the gate does not run e2e; it only checks whether a spec is missing (#25, #33).
 - The last run's result (commit, time, outcome) is recorded in a file; before a prod merge that record is checked for **staleness**. If it is stale or red, nothing proceeds without approval.
 - Nothing ships to prod while e2e is red.
 
@@ -110,7 +110,7 @@ use: {
 3. **The fix.** Each fix on its own branch (off `dev`) with its own merge. Raising retries, blindly increasing a wait, or loosening an assertion does not count as a fix. For a failure in the environment class the fix is a run setting (parallelism, the wait window), not the spec.
 4. **The targeted run.** Only the fixed tests and the tests the fix could affect run (`--only-failed` where the project has it, otherwise a file/line filter).
    ⚠️ **E2E runs only against code that has reached `test`.** While a fix is on `dev`, verification means unit tests + tsc/lint. The targeted run and the full repeat happen after the fix reaches `test` and is deployed. Running a spec from the `dev` branch against the test environment is also running e2e — forbidden.
-   ⚠️ **The timing changed with #33 (and was narrowed once more the same day):** in the `dev` and `test` directions there is **no e2e at all** — no run, no "was a spec written" check, no waiting on a deploy/status file. Both the missing specs and the run belong to the gate BEFORE `prod`: is the code on `test` → are any e2e specs missing → write them → if it has not been run against this code, run it → prod. The list of gaps is produced **once**, not twice (previously it was produced in `dev`/`test` and recomputed at the prod gate). This item and the "once it reaches test" phrasing in item 4 are read in the light of that rule.
+   ⚠️ **The timing is set by #33:** in the `dev` and `test` directions e2e is never RUN — the shared gate only CHECKS for a missing spec (a warning on `dev`, blocking on `test`). The run itself belongs to the gate BEFORE `prod`, which first VERIFIES the deploy: is the code on `test` → are any e2e specs missing → write them → if it has not been run against this code, run it → prod. The list of gaps is produced **once**, not twice (previously it was produced in `dev`/`test` and recomputed at the prod gate). This item and the "once it reaches test" phrasing in item 4 are read in the light of that rule.
    ⛔ **Nothing ships to `prod` without e2e;** only work the user explicitly calls a "hotfix" ships without it, and the report then reads "e2e skipped (hotfix)".
 5. **The decision to repeat the full suite — Claude makes it and reports the reasoning.** The full run is repeated if:
    - the fix touched something shared (layout, auth/session, a common component, a fixture helper, the Playwright config);
