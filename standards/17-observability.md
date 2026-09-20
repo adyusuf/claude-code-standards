@@ -1,106 +1,107 @@
-# Gözlemlenebilirlik — Log, Metrik, Trace, Alarm
+# Observability — logs, metrics, traces, alerts
 
-> Temel soru: **"Bir şey bozulduğunda nasıl fark ederiz ve nereye bakarız?"**
-> Cevabı olmayan özellik yarım özelliktir.
+> The fundamental question: **"When something breaks, how do we notice, and where
+> do we look?"** A feature with no answer to that is half a feature.
 
-## 1. Log
+## 1. Logs
 
-- **Yapılandırılmış** (JSON/key-value). String birleştirme değil, mesaj şablonu:
-  `_log.LogInformation("Sipariş {OrderId} iptal edildi, üye {MemberId}", orderId, memberId)`
-- Seviyeler:
-  | Seviye | Ne zaman | Örnek |
+- **Structured** (JSON/key-value). Not string concatenation but a message template:
+  `_log.LogInformation("Order {OrderId} cancelled, member {MemberId}", orderId, memberId)`
+- Levels:
+  | Level | When | Example |
   |---|---|---|
-  | `Debug` | Yalnız geliştirme | Sorgu detayı |
-  | `Information` | İş olayı | "Üye oluşturuldu" |
-  | `Warning` | Beklenen ama istenmeyen | "Dış servis yavaş, retry" |
-  | `Error` | İşlem başarısız | "Sipariş kaydedilemedi" |
-  | `Critical` | Sistem tehlikede | "DB'ye bağlanılamıyor" |
-- **Log'a yazılmaz:** parola, token, kart no, TCKN, tam e-posta/telefon (maskele), tam istek gövdesi, sır.
-- Döngü içinde log yok — toplu özet.
-- Üretimde `Information` ve üstü; `Debug` kapalı (maliyet + gizlilik).
-- Log saklama süresi ve maliyeti tanımlı.
+  | `Debug` | Development only | Query detail |
+  | `Information` | A business event | "Member created" |
+  | `Warning` | Expected but unwanted | "External service slow, retrying" |
+  | `Error` | An operation failed | "Order could not be saved" |
+  | `Critical` | The system is at risk | "Cannot connect to the database" |
+- **Never written to a log:** passwords, tokens, card numbers, national ID numbers, a full email address or phone number (mask them), a full request body, any secret.
+- No logging inside a loop — log a summary instead.
+- In production, `Information` and above; `Debug` off (cost plus privacy).
+- Log retention and its cost are defined.
 
-## 2. Correlation / Trace ID
+## 2. Correlation / trace id
 
-- Her istek bir **correlation id** taşır (`traceparent` / `X-Correlation-Id`).
-- İstemciden gelen id varsa kullanılır, yoksa üretilir; **yanıtta geri döner** ve hata gövdesinde (`traceId`) yer alır.
-- Arka plan işleri ve kuyruk mesajları da id taşır (tetikleyen istekle bağlanabilsin).
-- Kullanıcı "hata aldım" dediğinde ekrandaki traceId ile log'a tek sorguda ulaşılabilmeli.
+- Every request carries a **correlation id** (`traceparent` / `X-Correlation-Id`).
+- If the client sent one it is used, otherwise one is generated; it is **returned in the response** and appears in the error body (`traceId`).
+- Background jobs and queue messages carry the id too, so they can be tied back to the triggering request.
+- When a user says "I got an error", the traceId on their screen must find the log in a single query.
 
-## 3. Metrikler
+## 3. Metrics
 
-**Altın sinyaller** (her servis için):
-- **Latency** — p50/p95/p99, endpoint bazında
-- **Traffic** — istek/saniye
-- **Errors** — 4xx / 5xx oranı
-- **Saturation** — CPU, bellek, disk, DB bağlantı havuzu, thread havuzu
+**The golden signals** (for every service):
+- **Latency** — p50/p95/p99, per endpoint
+- **Traffic** — requests per second
+- **Errors** — the 4xx / 5xx rate
+- **Saturation** — CPU, memory, disk, database connection pool, thread pool
 
-**İş metrikleri** (asıl değerli olanlar):
-- Giriş başarı oranı, kayıt sayısı, sipariş sayısı, ödeme başarısızlığı, e-posta gönderim başarısı
-- İş metriği düşerse teknik metrik yeşil olsa bile bir şey bozuktur.
+**Business metrics** (the genuinely valuable ones):
+- Login success rate, sign-ups, orders, payment failures, email delivery success
+- If a business metric drops, something is broken even when every technical metric is green.
 
-Araç: OpenTelemetry → Prometheus/Grafana veya barındırılan APM.
+Tooling: OpenTelemetry → Prometheus/Grafana, or a hosted APM.
 
-## 4. Trace
+## 4. Traces
 
-- OpenTelemetry ile uçtan uca: HTTP → servis → DB → dış çağrı.
-- Yavaş isteğin **nerede** yavaşladığı trace'ten görülmeli.
-- Örnekleme (sampling): normalde %1-10, hatalı isteklerde %100.
+- End to end with OpenTelemetry: HTTP → service → database → external call.
+- The trace must show **where** a slow request became slow.
+- Sampling: 1-10% normally, 100% for failing requests.
 
-## 5. Hata takibi
+## 5. Error tracking
 
-- Sentry / benzeri: yakalanmamış exception'lar, istemci tarafı JS hataları, mobil crash'ler.
-- Her hata: sürüm (commit SHA), ortam, kullanıcı id (PII değil), correlation id, breadcrumb.
-- Yeni sürüm sonrası hata oranı **karşılaştırmalı** izlenir (regression tespiti).
-- Gürültü temizlenir — herkesin görmezden geldiği alarm, alarm değildir.
+- Sentry or similar: uncaught exceptions, client-side JS errors, mobile crashes.
+- Every error carries: the version (commit SHA), the environment, a user id (not PII), the correlation id, and breadcrumbs.
+- After a new release the error rate is watched **comparatively** (regression detection).
+- Noise is cleaned up — an alert everyone ignores is not an alert.
 
-## 6. Health check
+## 6. Health checks
 
-- `/health` — liveness (süreç ayakta mı)
-- `/health/ready` — readiness (DB, cache, kritik dış servis erişilebilir mi)
-- `/version` — çalışan sürüm + commit SHA + build zamanı
-- Deploy sonrası smoke test bunları kullanır; load balancer readiness'a bakar.
+- `/health` — liveness (is the process up)
+- `/health/ready` — readiness (are the database, cache and critical external services reachable)
+- `/version` — the running version + commit SHA + build time
+- The post-deploy smoke test uses these; the load balancer watches readiness.
 
-## 7. Alarmlar
+## 7. Alerts
 
-**Alarm kurulması zorunlu olanlar:**
-- [ ] 5xx oranı eşiği aştı
-- [ ] p95 latency eşiği aştı
-- [ ] Uygulama ayakta değil (uptime kontrolü, dışarıdan)
-- [ ] Disk / bellek doluyor
-- [ ] **Sertifika süresi < 21 gün**
-- [ ] **Yedekleme işi başarısız oldu veya hiç çalışmadı**
-- [ ] Kuyruk birikiyor / arka plan işi takıldı
-- [ ] Kritik iş metriği anormal düştü (ör. 1 saattir hiç giriş yok)
-- [ ] Güvenlik: kısa sürede çok 403/401, tek IP'den çok hesap denemesi
+**Alerts that must exist:**
+- [ ] The 5xx rate crossed its threshold
+- [ ] p95 latency crossed its threshold
+- [ ] The application is down (an uptime check, from outside)
+- [ ] Disk / memory filling up
+- [ ] **A certificate expires in under 21 days**
+- [ ] **The backup job failed, or never ran at all**
+- [ ] A queue is backing up / a background job is stuck
+- [ ] A critical business metric dropped abnormally (e.g. no logins for an hour)
+- [ ] Security: many 403/401 in a short window, many account attempts from one IP
 
-Kurallar:
-- Alarm **eyleme çağırır**; eylem gerektirmeyen bilgi alarm değil dashboard'dur.
-- Her alarmın bir **runbook**'u vardır: ne anlama gelir, ilk ne yapılır, kime haber verilir.
-- Yanlış alarm (false positive) ya düzeltilir ya kaldırılır — alarm yorgunluğu gerçek olayı kaçırtır.
+The rules:
+- An alert **calls for action**; information that needs no action is a dashboard, not an alert.
+- Every alert has a **runbook**: what it means, what to do first, who to notify.
+- A false positive is either fixed or removed — alert fatigue makes you miss the real incident.
 
 ## 8. Dashboard
 
-Tek ekranda görülmeli: istek hacmi, hata oranı, p95 latency, aktif kullanıcı, kritik iş metriği,
-son deploy zamanı ve sürümü, yedekleme son durumu.
+One screen must show: request volume, error rate, p95 latency, active users, the
+critical business metric, the time and version of the last deploy, and the
+current backup status.
 
-Deploy sonrası **ilk 30 dakika** bu ekran izlenir.
+After a deploy, that screen is watched for **the first 30 minutes**.
 
-## 9. Olay (incident) yönetimi
+## 9. Incident management
 
-1. **Tespit** — alarm veya kullanıcı bildirimi
-2. **Değerlendirme** — etki (kaç kullanıcı, veri kaybı var mı), şiddet
-3. **Durdurma** — önce kanamayı durdur: rollback / feature flag kapat / trafiği kes. Kök neden **sonra**.
-4. **İletişim** — etkilenen kullanıcılara durum bildirimi (uzun sürecekse)
-5. **Çözüm** ve doğrulama (metrikler normale döndü mü)
-6. **Post-mortem** — 48 saat içinde, **suçlayıcı olmayan**: ne oldu, zaman çizelgesi, neden fark edilmedi, neden bu kadar sürdü, hangi 2-3 aksiyon tekrarını önler
+1. **Detection** — an alert or a user report
+2. **Assessment** — impact (how many users, is there data loss) and severity
+3. **Stop the bleeding** first: roll back / turn off the feature flag / cut the traffic. Root cause **afterwards**.
+4. **Communication** — a status notice to affected users (if it will take a while)
+5. **Resolution** and verification (did the metrics return to normal)
+6. **Post-mortem** — within 48 hours, **blameless**: what happened, the timeline, why it was not noticed, why it took this long, and which two or three actions prevent a repeat
 
-Post-mortem çıktısı **aksiyon maddesidir**; sahibi ve tarihi olmayan madde yazılmamış sayılır.
+The output of a post-mortem is **action items**; an item with no owner and no date counts as unwritten.
 
-## 10. Yeni özellik eklerken
+## 10. When adding a new feature
 
-- [ ] Kritik akışa `Information` seviyesinde iş log'u eklendi mi?
-- [ ] Hata yolları `Error` ile log'lanıyor mu (correlation id ile)?
-- [ ] İzlenmesi gereken bir iş metriği var mı?
-- [ ] Bozulduğunda hangi alarm çalacak?
-- [ ] Dashboard'a eklenecek bir şey var mı?
+- [ ] Was a business log at `Information` level added to the critical flow?
+- [ ] Are the error paths logged at `Error` (with the correlation id)?
+- [ ] Is there a business metric worth watching?
+- [ ] Which alert will fire when it breaks?
+- [ ] Is there anything to add to the dashboard?

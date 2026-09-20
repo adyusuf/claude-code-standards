@@ -1,81 +1,82 @@
-# Maestro — Mobil E2E Standartları
+# Maestro — mobile e2e standards
 
-## 1. Kapsam
+## 1. Scope
 
-Mobil e2e web'den **daha da pahalıdır** (emülatör, build, cihaz farkı). Yalnız:
+Mobile e2e is **even more expensive** than web (an emulator, a build, device
+differences). Only:
 
-- Açılış + giriş + ana akış (smoke): uygulama açılıyor mu, giriş çalışıyor mu, ana liste geliyor mu
-- Kritik iş akışı (sipariş verme, form gönderme, bildirim açma)
-- Store yayını öncesi kontrol edilen çekirdek senaryolar
+- Launch + login + the main flow (smoke): does the app open, does login work, does the main list load
+- Critical business flows (placing an order, submitting a form, opening a notification)
+- The core scenarios checked before a store release
 
-Hedef: **5–15 flow**, toplam koşum 10 dk altı. Her ekranı e2e ile test etme.
+Target: **5-15 flows**, a total run under 10 minutes. Do not e2e-test every screen.
 
-## 2. Flow yapısı
+## 2. Flow structure
 
 ```
 .maestro/
   config.yaml
   flows/
-    00-launch.yaml        → uygulama açılıyor, splash geçiyor, çökme yok
-    01-login.yaml         → giriş
-    02-members-list.yaml  → liste yükleniyor, boş durum, hata durumu
-    03-create-order.yaml  → kritik akış
+    00-launch.yaml        → the app opens, the splash clears, nothing crashes
+    01-login.yaml         → login
+    02-members-list.yaml  → the list loads, the empty state, the error state
+    03-create-order.yaml  → a critical flow
   subflows/
-    login.yaml            → runFlow ile tekrar kullanılan parçalar
+    login.yaml            → the pieces reused through runFlow
 ```
 
-- Tekrarlanan adımlar `runFlow` ile subflow'a çıkarılır (giriş, çıkış, seed).
-- Her flow **bağımsız** başlar (`launchApp: clearState: true`) — önceki flow'un bıraktığı duruma güvenilmez.
-- Flow adı ne test ettiğini söyler, numaralandırma koşum sırasını değil okuma sırasını belirtir.
+- Repeated steps are extracted into a subflow with `runFlow` (login, logout, seeding).
+- Every flow starts **independently** (`launchApp: clearState: true`) — never rely on the state a previous flow left behind.
+- A flow's name says what it tests; the numbering conveys reading order, not run order.
 
-## 3. Selector politikası
+## 3. Selector policy
 
-1. `id: "member-list-item"` → RN'de `testID` (**tercih edilen**)
-2. `text: "Kaydet"` → i18n değişince kırılır, dikkatli kullan
-3. Koordinat / index → **son çare**, kırılgan
+1. `id: "member-list-item"` → `testID` in React Native (**preferred**)
+2. `text: "Save"` → breaks when i18n changes, so use it carefully
+3. Coordinates / index → **a last resort**, fragile
 
-Kurallar:
-- Etkileşimli her öğeye **kararlı `testID`** verilir; iOS'ta `accessibilityLabel` ile birlikte.
-- `testID` üretilen değil sabit olur (`member-row-${id}` kabul, `row-3` değil).
-- `testID` silmek e2e kırar → değiştirilirken flow'lar da güncellenir.
+The rules:
+- Every interactive element gets a **stable `testID`**; on iOS together with `accessibilityLabel`.
+- A `testID` is fixed, not generated (`member-row-${id}` is fine, `row-3` is not).
+- Deleting a `testID` breaks e2e → when one changes, the flows are updated with it.
 
-## 4. Bekleme
+## 4. Waiting
 
-- `assertVisible` Maestro'da zaten bekler — elle `sleep` **kullanılmaz**.
-- Uzun süren işlemlerde `waitForAnimationToEnd` veya `extendedWaitUntil` ile **koşullu** bekleme.
-- Sabit `sleep` gören her yer flaky adayıdır.
+- `assertVisible` already waits in Maestro — a manual `sleep` is **never used**.
+- For long-running operations, wait **conditionally** with `waitForAnimationToEnd` or `extendedWaitUntil`.
+- Every fixed `sleep` you see is a flaky test in waiting.
 
-## 5. Veri ve ortam
+## 5. Data and environment
 
-- Test ortamına bağlanılır; **üretime asla**. Base URL build profili (`preview`/`development`) ile gelir.
-- Kurulum verisi API'den seed edilir (Maestro `runScript` ile veya öncesinde ayrı adım).
-- Sabit test kullanıcısı yerine benzersiz kullanıcı; paralel koşumda çakışmaz.
-- Kimlik bilgileri `env` üzerinden geçirilir, flow dosyasına yazılmaz.
+- Connect to the test environment; **never to production**. The base URL comes from the build profile (`preview`/`development`).
+- Setup data is seeded through the API (with Maestro's `runScript`, or in a separate step beforehand).
+- Use a unique user rather than a fixed test user, so parallel runs do not collide.
+- Credentials are passed through `env`, never written into a flow file.
 
-## 6. Cihaz matrisi
+## 6. Device matrix
 
-- Minimum: 1 Android (en düşük desteklenen API seviyesi) + 1 iOS (en düşük desteklenen sürüm).
-- Ek: küçük ekran + büyük ekran (layout kırılması en çok orada).
-- Cihaz farkı testte değil, kodda çözülür — flow'a `if android` dallanması serpiştirme.
+- Minimum: one Android (the lowest supported API level) + one iOS (the lowest supported version).
+- Additionally: a small screen and a large screen (that is where layouts break most).
+- Device differences are solved in the code, not in the test — do not scatter `if android` branches through a flow.
 
 ## 7. CI
 
-- Her push'ta koşmaz — build gerektirir. Tetikleme: release adayı, gecelik, veya `dev → test` promosyonu.
-- Maestro Cloud veya self-hosted emülatör; hangisi olursa olsun **artifact** (video + log) saklanır.
-- Store yayını öncesi smoke flow'ları **zorunlu geçer** (`06-mobile.md` §9 checklist).
+- It does not run on every push — it needs a build. Triggers: a release candidate, a nightly run, or the `dev → test` promotion.
+- Maestro Cloud or a self-hosted emulator; whichever it is, the **artifacts** (video + logs) are kept.
+- Before a store release the smoke flows **must pass** (`06-mobile.md` §9 checklist).
 
-## 8. Yazılırken dikkat
+## 8. Things to watch while writing
 
-- İzin diyalogları (konum, bildirim, kamera) flow'da açıkça ele alınır — aksi halde takılır.
-- Klavye açılışı sonrası öğe görünürlüğü değişir; `hideKeyboard` gerekebilir.
-- Android geri tuşu (`back`) ve iOS swipe farkı — flow ikisinde de çalışmalı.
-- Ağ yavaşsa timeout değil, gerçek bekleme koşulu.
+- Permission dialogs (location, notifications, camera) are handled explicitly in the flow — otherwise it hangs.
+- Element visibility changes once the keyboard opens; `hideKeyboard` may be needed.
+- The Android back button (`back`) differs from an iOS swipe — the flow must work on both.
+- If the network is slow, the answer is a real wait condition, not a longer timeout.
 
-## 9. Yapma listesi
+## 9. Never-do list
 
-- ❌ `sleep` ile bekleme
-- ❌ Koordinat ile tıklama (son çare dışında)
-- ❌ Üretim ortamına koşum
-- ❌ Flow içine gömülü kullanıcı adı/parola
-- ❌ Her ekran için e2e yazmak (unit/component testine ait)
-- ❌ `testID`'yi habersiz değiştirmek
+- ❌ Waiting with `sleep`
+- ❌ Tapping by coordinates (outside a genuine last resort)
+- ❌ Running against production
+- ❌ A username/password embedded in a flow
+- ❌ Writing e2e for every screen (that belongs to unit/component tests)
+- ❌ Changing a `testID` without telling anyone
