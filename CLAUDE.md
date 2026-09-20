@@ -12,10 +12,10 @@
 
 ## Language
 
-- **Conversation, explanations, commit messages, code comments, documentation:
- the team's working language** (Turkish in my case — substitute your own).
-- **Variable / function / class / file / branch names: English.**
-- User-facing text is never a raw string → i18n key (default `tr`, secondary `en`).
+- **English throughout** — prose, headings, file and folder names, identifiers,
+  commit messages and comments. There is no second language in this rule set.
+- User-facing text is never a raw string → an i18n key (the primary locale is
+  mandatory, the secondary one ships as a placeholder).
 
 ## Default stack
 
