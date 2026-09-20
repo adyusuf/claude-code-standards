@@ -1,97 +1,97 @@
-# Mobil Standartları (React Native / Expo)
+# Mobile standards (React Native / Expo)
 
-## 1. Temel ilke: tek API, iki istemci
+## 1. Core principle: one API, two clients
 
-- Mobil ve web **aynı** endpoint'leri tüketir. `/api/mobile/*` gibi platforma özel API açılmaz.
-- Fark UI/UX katmanında çözülür: mobil daha az alan gösterebilir, farklı sıralayabilir; **veri sözleşmesi aynıdır**.
-- Mobil istemci mağazada eski sürümde takılı kalabilir → **API geriye uyumluluğu mobilde hayati**. Bkz. `08-backward-compatibility.md`.
-- Ortak mantık (tarih formatı, arama normalizasyonu, yetki yardımcıları, i18n anahtarları) web ile **aynı davranışa** sahip olmalı; mümkünse paylaşılan pakette.
+- Mobile and web consume the **same** endpoints. No platform-specific API such as `/api/mobile/*` is created.
+- Differences are resolved in the UI/UX layer: mobile may show fewer fields or order them differently; **the data contract is identical**.
+- A mobile client can stay stuck on an old version in the store → **API backward compatibility is vital on mobile**. See `08-backward-compatibility.md`.
+- Shared logic (date formatting, search normalization, authorization helpers, i18n keys) must have **the same behaviour** as on web; in a shared package where possible.
 
-## 2. Yapı ve config
+## 2. Structure and configuration
 
 ```
 src/
-  api/client.ts   → TEK kaynak: BASE_URL, SIGNALR_URL, WEB_URL, timeout, interceptor
-  screens/        → ekranlar
-  components/     → paylaşılan bileşenler
-  navigation/     → navigator tanımları
+  api/client.ts   → THE single source: BASE_URL, SIGNALR_URL, WEB_URL, timeout, interceptors
+  screens/        → screens
+  components/     → shared components
+  navigation/     → navigator definitions
   hooks/ lib/ i18n/
 ```
 
-- Hard-coded URL/IP/port **yasak** — `api/client.ts`. Fallback yalnız DEV, tek noktada.
-- Ortam ayrımı `app.config.ts` + EAS profilleri (`development` / `preview` / `production`) ile.
-- Sırlar bundle'a gömülmez — mobil bundle **açılabilir**; istemci tarafında gerçek sır yoktur.
+- Hard-coded URL/IP/port is **forbidden** — it belongs in `api/client.ts`. Fallbacks are DEV-only and defined in one place.
+- Environments are separated with `app.config.ts` + EAS profiles (`development` / `preview` / `production`).
+- Secrets are never embedded in the bundle — a mobile bundle **can be opened**; there is no real secret on the client side.
 
-## 3. Navigasyon
+## 3. Navigation
 
-- Tip güvenli navigation (typed param list). String route adı serbest yazılmaz.
-- **Deep link / universal link** her ana ekrana tanımlı; web URL'iyle eşleşir.
-- Geri tuşu (Android donanım) her ekranda beklendiği gibi davranır; modal'da kapatır.
-- Derin stack yerine tab + stack kombinasyonu; kullanıcı 3 dokunuşta ana ekrana dönebilmeli.
+- Type-safe navigation (a typed param list). Route names are never written as free-form strings.
+- A **deep link / universal link** is defined for every main screen and matches the web URL.
+- The back gesture (and the Android hardware button) behaves as expected on every screen; in a modal it closes the modal.
+- Prefer a tab + stack combination over a deep stack; the user must be able to reach the main screen in three taps.
 
-## 4. Liste ve performans
+## 4. Lists and performance
 
-- Uzun liste `FlatList`/`FlashList` — `ScrollView` içinde `map` **yasak**.
-- `keyExtractor` kararlı id ile; satır bileşeni `memo`'lu ve saf.
-- `getItemLayout` mümkünse verilir; `initialNumToRender` ayarlanır.
-- Görseller boyutlandırılmış + cache'li (`expo-image`).
-- Ağır iş JS thread'ini bloklamaz; animasyonlar Reanimated ile UI thread'inde.
-- Uygulama açılış süresi ölçülür; splash arkasında gereksiz senkron iş yapılmaz.
+- A long list uses `FlatList`/`FlashList` — `map` inside a `ScrollView` is **forbidden**.
+- `keyExtractor` uses a stable id; the row component is `memo`ised and pure.
+- `getItemLayout` is provided where possible; `initialNumToRender` is tuned.
+- Images are sized and cached (`expo-image`).
+- Heavy work never blocks the JS thread; animations run on the UI thread through Reanimated.
+- Start-up time is measured; no unnecessary synchronous work happens behind the splash screen.
 
-## 5. Ağ ve offline
+## 5. Network and offline
 
-- Her istekte timeout + iptal.
-- Bağlantı yokken: net "çevrimdışısınız" durumu + tekrar dene. Sonsuz spinner yasak.
-- Kritik listeler için cache-first + arka planda tazeleme.
-- Yazma işlemleri çevrimdışıyken kuyruğa alınacaksa **idempotency key** ile gönderilir (`07-api-design.md`).
-- Token yenileme tek yerde (interceptor), eşzamanlı 401'lerde tek yenileme (mutex).
+- Every request has a timeout and can be cancelled.
+- With no connectivity: a clear "you are offline" state plus a retry. An infinite spinner is forbidden.
+- Cache-first with background refresh for critical lists.
+- If writes are to be queued while offline, they are sent with an **idempotency key** (`07-api-design.md`).
+- Token refresh lives in one place (an interceptor), and concurrent 401s trigger a single refresh (a mutex).
 
-## 6. Depolama
+## 6. Storage
 
-- Token / hassas veri → `expo-secure-store` (Keychain/Keystore). `AsyncStorage`'a token yazılmaz.
-- `AsyncStorage` yalnız hassas olmayan tercih/cache için.
-- Çıkışta (logout) tüm yerel veri temizlenir.
+- Tokens and sensitive data → `expo-secure-store` (Keychain/Keystore). A token is never written to `AsyncStorage`.
+- `AsyncStorage` is for non-sensitive preferences and cache only.
+- On logout, all local data is cleared.
 
-## 7. İzinler ve platform farkları
+## 7. Permissions and platform differences
 
-- İzin **kullanıldığı anda** ve nedeni açıklanarak istenir (açılışta toplu izin isteme).
-- İzin reddedilirse uygulama çalışmaya devam eder (bozulmuş ekran değil, açıklayıcı durum).
-- iOS/Android farkları (`Platform.select`) tek yerde toplanır, ekranlara serpiştirilmez.
-- Safe area her ekranda hesaba katılır; notch/gesture bar'ın altına içerik konmaz.
-- Klavye açıldığında input görünür kalır (`KeyboardAvoidingView` / `keyboardVerticalOffset`).
+- A permission is requested **at the moment it is used**, with its reason explained (never all permissions at start-up).
+- If a permission is denied the app keeps working (an explanatory state, not a broken screen).
+- iOS/Android differences (`Platform.select`) are collected in one place, not scattered across screens.
+- Safe areas are accounted for on every screen; no content sits under the notch or the gesture bar.
+- When the keyboard opens the input stays visible (`KeyboardAvoidingView` / `keyboardVerticalOffset`).
 
-## 8. Erişilebilirlik
+## 8. Accessibility
 
-- `accessibilityLabel` + `accessibilityRole` etkileşimli her öğede.
-- Dokunma hedefi min 44×44.
-- Dinamik font boyutuna (kullanıcı ayarı) dayanıklı layout — sabit yükseklikli metin kutusu yok.
+- `accessibilityLabel` + `accessibilityRole` on every interactive element.
+- A touch target is at least 44×44.
+- The layout survives dynamic font sizing (the user's setting) — no fixed-height text boxes.
 
-## 9. Sürüm ve yayın
+## 9. Versioning and release
 
-- Sürümleme: `version` (kullanıcıya görünen) + `buildNumber`/`versionCode` (her yüklemede artar).
-- Yayın öncesi checklist:
-  - [ ] Sürüm/build numarası arttı
-  - [ ] Değişiklikler eski API ile uyumlu (eski sürüm kullanıcıları kırılmıyor)
-  - [ ] Crash raporlama açık ve yeni sürüm etiketiyle
-  - [ ] Store metinleri + ekran görüntüleri güncel
-  - [ ] İzin açıklama metinleri (`NSCameraUsageDescription` vb.) doğru
-  - [ ] Gizlilik/veri toplama beyanı (App Privacy / Data Safety) doğru
-  - [ ] Maestro e2e smoke geçti (`12-maestro.md`)
-- Build formatı: mağaza yüklemesi **AAB** (Android) / **IPA** (iOS); cihaza kurulum için APK ayrı bir istektir.
-- Ağır build'ler **sıralı** çalıştırılır (paralel Gradle/Kotlin derlemesi OOM riski).
-- OTA güncelleme (EAS Update) yalnız JS değişikliklerinde; native değişiklik store sürümü gerektirir. OTA kanalı ile store sürümü eşleştirilir.
+- Versioning: `version` (what the user sees) + `buildNumber`/`versionCode` (incremented on every upload).
+- The pre-release checklist:
+  - [ ] Version/build number incremented
+  - [ ] The changes work with the old API (users on the previous version are not broken)
+  - [ ] Crash reporting enabled and tagged with the new version
+  - [ ] Store copy and screenshots current
+  - [ ] Permission description strings (`NSCameraUsageDescription` and friends) correct
+  - [ ] Privacy/data-collection declarations (App Privacy / Data Safety) correct
+  - [ ] The Maestro e2e smoke suite passed (`12-maestro.md`)
+- Build format: **AAB** (Android) / **IPA** (iOS) for store upload; an APK for device installation is a separate request.
+- Heavy builds run **sequentially** (parallel Gradle/Kotlin compilation risks OOM).
+- OTA updates (EAS Update) are for JS-only changes; a native change requires a store release. The OTA channel is matched to the store version.
 
-## 10. Zorunlu güncelleme stratejisi
+## 10. Forced-update strategy
 
-- API, desteklenen minimum istemci sürümünü bildirebilmeli (header veya `/config` endpoint'i).
-- Desteklenmeyen sürümde uygulama "güncelleyin" ekranı gösterir — sessizce hata vermez.
-- Bu mekanizma **kırıcı değişiklik lisansı değildir**: yine de additive evrim esastır.
+- The API must be able to report the minimum supported client version (a header or a `/config` endpoint).
+- On an unsupported version the app shows an "update required" screen — it never fails silently.
+- This mechanism is **not a licence to make breaking changes**: additive evolution still applies.
 
-## 11. Yapma listesi
+## 11. Never-do list
 
-- ❌ Platforma özel API endpoint'i açmak
-- ❌ `ScrollView` + `map` ile uzun liste
-- ❌ Token'ı `AsyncStorage`/bundle'da tutmak
-- ❌ Sabit piksel ile ekran yerleşimi (cihaz çeşitliliği)
-- ❌ Açılışta tüm izinleri istemek
-- ❌ Native modül eklemeden önce onay almamak (Expo managed'dan çıkma kararı ADR gerektirir)
+- ❌ Creating a platform-specific API endpoint
+- ❌ A long list built from `ScrollView` + `map`
+- ❌ Keeping a token in `AsyncStorage` or in the bundle
+- ❌ Laying out a screen in fixed pixels (device diversity)
+- ❌ Requesting every permission at start-up
+- ❌ Adding a native module without approval (leaving Expo managed requires an ADR)

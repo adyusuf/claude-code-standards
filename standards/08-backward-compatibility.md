@@ -1,105 +1,109 @@
-# Geriye Uyumluluk — API + DB Yalnız Eklemeli Evrilir
+# Backward compatibility — APIs and databases evolve additively only
 
-> **Neden bu kadar katı:** mobil kullanıcı eski sürümde takılı kalır, güncellemeyi
-> günlerce/haftalarca yapmayabilir. Bugün kaldırılan bir alan, yarın binlerce
-> cihazda çöken bir ekrandır. Web'de deploy anında herkes yeni sürümü alır; mobilde almaz.
+> **Why this is so strict:** a mobile user stays stuck on an old version and may
+> not update for days or weeks. A field removed today is a screen crashing on
+> thousands of devices tomorrow. On the web everyone gets the new version the
+> moment you deploy; on mobile they do not.
 
-## 1. Altın kural
+## 1. The golden rule
 
-- **Yeni alan** → nullable / opsiyonel / varsayılan değerli.
-- **Devreden çıkan alan** → silinmez, nullable yapılır + obsolete işaretlenir.
-- **Var olan alanın adı ve tipi asla değişmez.** Yeniden adlandırma = silme + ekleme = **yasak**.
-- Değişiklik gerekiyorsa: **yeni alan eklenir**, eskisi obsolete akışına girer.
+- **A new field** → nullable / optional / with a default.
+- **A field being retired** → never deleted; made nullable and marked obsolete.
+- **The name and type of an existing field never change.** Renaming = delete + add = **forbidden**.
+- If a change is needed: **a new field is added** and the old one enters the obsolete flow.
 
-## 2. Kırıcı sayılan değişiklikler (tam liste)
+## 2. Changes that count as breaking (the full list)
 
-| # | Değişiklik | Neden kırıcı |
+| # | Change | Why it breaks |
 |---|---|---|
-| 1 | Alan/endpoint silme | Eski istemci bulamaz / null patlar |
-| 2 | Alan/endpoint yeniden adlandırma | Silme + ekleme ile aynı |
-| 3 | Tip değişikliği (`int`→`string`, `string`→`object`) | Parse hatası |
-| 4 | Nullable → non-nullable (input) | Eski istemci alanı göndermiyor olabilir |
-| 5 | Non-nullable → nullable (output) | Eski istemci null kontrolü yapmıyor |
-| 6 | Yeni **zorunlu** input alanı | Eski istemcinin isteği 400 döner |
-| 7 | Validasyon sıkılaştırma (`MaxLength` düşürme, yeni `Required`, yeni `UNIQUE`) | Önce geçen veri artık geçmez |
-| 8 | Anlam/birim değişikliği (TL→kuruş, gün→saat, yerel→UTC) | Sessiz ve en tehlikeli tür |
-| 9 | Enum değerinin **sayısal** karşılığını değiştirme / araya değer ekleme | Sıralama kayar |
-| 10 | Hata/durum kodu sözleşmesi değişikliği | İstemci hata yolunu yanlış işler |
-| 11 | Route / HTTP metod değişikliği | 404/405 |
-| 12 | Global JSON serializer ayarı (casing, null handling, tarih formatı) | Tüm yanıtları birden değiştirir |
-| 13 | SignalR/WebSocket hub metod adı veya payload şekli | Canlı bağlantılar kopar |
-| 14 | Varsayılan davranış değişikliği (varsayılan sıralama, varsayılan `pageSize`) | Sessiz regresyon |
-| 15 | Yetki sıkılaştırma (önce görülen bir kayıt artık 403) | Ürün kararı gerektirir, sessizce yapılmaz |
+| 1 | Deleting a field/endpoint | The old client cannot find it / blows up on null |
+| 2 | Renaming a field/endpoint | Identical to delete + add |
+| 3 | A type change (`int`→`string`, `string`→`object`) | A parse error |
+| 4 | Nullable → non-nullable (input) | The old client may not be sending the field |
+| 5 | Non-nullable → nullable (output) | The old client does not null-check |
+| 6 | A new **required** input field | The old client's request returns 400 |
+| 7 | Tightening validation (lowering `MaxLength`, a new `Required`, a new `UNIQUE`) | Data that used to be accepted no longer is |
+| 8 | A change of meaning or unit (currency→minor units, days→hours, local→UTC) | Silent, and the most dangerous kind |
+| 9 | Changing an enum's **numeric** value, or inserting a value in the middle | The ordering shifts |
+| 10 | Changing the error/status-code contract | The client mishandles the error path |
+| 11 | Changing a route or an HTTP method | 404/405 |
+| 12 | A global JSON serializer setting (casing, null handling, date format) | It changes every response at once |
+| 13 | A SignalR/WebSocket hub method name or payload shape | Live connections drop |
+| 14 | A change of default behaviour (default sort, default `pageSize`) | A silent regression |
+| 15 | Tightening authorization (a record previously visible now returns 403) | That is a product decision; never done silently |
 
-## 3. Obsolete yaşam döngüsü
+## 3. The obsolete lifecycle
 
 ```
-1. AKTİF        → normal kullanım
-2. OBSOLETE     → yeni alan eklendi; eski alan [Obsolete] + Swagger deprecated
-                  ⚠ eski alan DOLU DÖNMEYE DEVAM EDER (null dönmek = silmek)
-                  ⚠ eski input alanı yeni alana KÖPRÜLENİR (bridge)
-3. İZLEME       → en az 4–8 hafta; erişim log'u ile gerçek kullanım ölçülür
-4. DOĞRULAMA    → grep (tüm istemciler) + üretim log'u: kullanan kalmadı mı?
-                  mobilde: eski sürüm kullanıcı sayısı ihmal edilebilir mi?
-5. KALDIRMA     → ayrı bir deploy'da, önce koddan, SONRAKİ deploy'da DB'den (DROP)
+1. ACTIVE      → normal use
+2. OBSOLETE    → the new field was added; the old one is [Obsolete] + deprecated in Swagger
+                 ⚠ the old field KEEPS RETURNING REAL VALUES (returning null = deleting it)
+                 ⚠ the old input field is BRIDGED to the new one
+3. OBSERVATION → at least 4-8 weeks; real usage is measured from access logs
+4. VERIFICATION→ grep (every client) + production logs: is anyone still using it?
+                 on mobile: is the number of users on the old version negligible?
+5. REMOVAL     → in a separate deploy: from the code first, from the database (DROP) in the NEXT deploy
 ```
 
-**Obsolete ≠ işlevsiz.** Obsolete bir alan çalışmaya devam eder; yalnız yenisi tercih edilir.
+**Obsolete ≠ non-functional.** An obsolete field keeps working; the new one is
+merely preferred.
 
-## 4. Envanter tablosu (her projede tutulur)
+## 4. The inventory table (kept in every project)
 
-`docs/backward-compatibility.md` veya proje CLAUDE.md'sinde:
+In `docs/backward-compatibility.md` or in the project's CLAUDE.md:
 
-| Alan/Endpoint | Obsolete tarihi | Yerine | Kaldırma koşulu | Durum |
+| Field/Endpoint | Obsoleted on | Replaced by | Condition for removal | Status |
 |---|---|---|---|---|
-| `Member.phone` | 2026-07-29 | `Member.phoneNumbers[]` | mobil ≤2.3 kullanıcısı %1 altına inince | İzlemede |
+| `Member.phone` | 2026-07-29 | `Member.phoneNumbers[]` | once users on mobile ≤2.3 drop below 1% | Under observation |
 
-Envantere yazılmayan obsolete = unutulmuş obsolete.
+An obsolete entry that is not in the inventory is a forgotten obsolete entry.
 
-## 5. Veritabanı: expand → migrate → contract
+## 5. The database: expand → migrate → contract
 
 ```
-EXPAND    Yeni kolon/tablo eklenir (nullable, varsayılanlı). Eski kod çalışmaya devam eder.
-          Yeni kod hem eskiyi hem yeniyi yazar (dual write) veya trigger/uygulama katmanı köprüler.
-MIGRATE   Geriye dönük veri doldurulur (batch, üretimi kilitlemeden).
-          Yeni kod yeniden okumaya başlar. Eski kolon hâlâ yazılıyor.
-CONTRACT  Kullanılmadığı doğrulandıktan sonra, AYRI bir deploy'da eski kolon DROP edilir.
+EXPAND    A new column/table is added (nullable, with a default). Old code keeps working.
+          New code writes both the old and the new (dual write), or a trigger / the
+          application layer bridges them.
+MIGRATE   Historical data is backfilled (in batches, without locking production).
+          New code starts reading the new column. The old column is still written.
+CONTRACT  Once non-use is verified, the old column is DROPped in a SEPARATE deploy.
 ```
 
-Kurallar:
-- Migration **geri alınabilir** olmalı; `Down` yazılır veya geri alma planı belgelenir.
-- `DROP` içeren migration öncesi **elle yedek** alınır ve **önce test ortamında** denenir.
-- Büyük tabloda index oluşturma `CONCURRENTLY` (Postgres) — üretimi kilitleme.
-- Tek migration'da hem şema hem büyük veri taşıma yapılmaz; ayrılır.
-- `NOT NULL` eklemek: önce nullable + varsayılan doldur → sonra ayrı adımda `NOT NULL`.
+The rules:
+- A migration must be **reversible**; write the `Down` or document the rollback plan.
+- Before a migration containing a `DROP`, take a **manual backup** and rehearse it **in the test environment first**.
+- Create an index on a large table `CONCURRENTLY` (Postgres) — never lock production.
+- Never do both a schema change and a large data move in one migration; separate them.
+- Adding `NOT NULL`: first nullable plus a backfill → then `NOT NULL` as a separate step.
 
-## 6. İstemci tarafı savunma
+## 6. Client-side defence
 
-- Enum `switch`'lerinde **her zaman `default` dalı** — sunucu yarın yeni değer gönderebilir.
-- Bilinmeyen JSON alanları yok sayılır, hata vermez (strict deserialization kapalı).
-- Yeni alanlar opsiyonel tiplenir; eksikse UI çökmez.
-- Sunucu yanıtı beklenmedik şekildeyse ekran boş/hata durumu gösterir, uygulama kapanmaz.
+- Enum `switch` statements **always have a `default` branch** — the server may send a new value tomorrow.
+- Unknown JSON fields are ignored rather than raising (strict deserialization off).
+- New fields are typed as optional; if one is absent the UI does not crash.
+- If a server response has an unexpected shape, the screen shows an empty or error state; the app does not close.
 
-## 7. Otomatik fren (CI'da taranır)
+## 7. The automatic brake (scanned in CI)
 
-Merge kapısı şu kalıpları tarar ve `--allow-breaking` olmadan geçirmez:
+The merge gate scans for these patterns and does not let them through without
+`--allow-breaking`:
 
-- Silinen `public` üye, `[HttpGet/Post/Put/Delete]`, `[Route]` satırları
-- Yeni `[Required]` / daraltılan `[MaxLength]` / yeni `[JsonIgnore]`
-- Global serializer ayar değişikliği
-- DDL'de yeni `NOT NULL` / `UNIQUE` / `CHECK`, `DROP COLUMN`, `ALTER TYPE`
+- A deleted `public` member, or deleted `[HttpGet/Post/Put/Delete]` / `[Route]` lines
+- A new `[Required]` / a narrowed `[MaxLength]` / a new `[JsonIgnore]`
+- A change to a global serializer setting
+- In DDL: a new `NOT NULL` / `UNIQUE` / `CHECK`, a `DROP COLUMN`, an `ALTER TYPE`
 
-**Otomatik tarama yakalayamaz** (elle review şart):
-- Anlam/birim değişikliği
-- Enum sayısal sıra kayması
-- Hub payload içeriği
-- Yetki sıkılaştırma
-- Varsayılan değer/sıralama değişikliği
+**What automatic scanning cannot catch** (human review is mandatory):
+- A change of meaning or unit
+- A shift in enum numeric ordering
+- The contents of a hub payload
+- Tightened authorization
+- A changed default value or sort order
 
-## 8. Kırıcı değişiklik gerçekten zorunluysa
+## 8. If a breaking change really is unavoidable
 
-1. ADR yaz: neden kaçınılmaz, alternatifler neden yetersiz.
-2. Kullanıcı onayı al (bu bir **ürün kararıdır**, teknik karar değil).
-3. Yeni versiyon (`/api/v2`) veya minimum istemci sürümü zorlaması ile yap.
-4. Geçiş takvimi + istemci sürüm dağılımı ölçümü + geri dönüş planı yaz.
-5. Eski yolu takvim boyunca **çalışır** tut.
+1. Write an ADR: why it is unavoidable, and why the alternatives are insufficient.
+2. Get the user's approval (this is a **product decision**, not a technical one).
+3. Do it through a new version (`/api/v2`) or by enforcing a minimum client version.
+4. Write the migration timetable, a measurement of client version distribution, and the rollback plan.
+5. Keep the old path **working** for the whole of that timetable.
