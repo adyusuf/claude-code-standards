@@ -127,7 +127,7 @@ def matching_line(needle: str, new_lines):
 def _triage_file():
     import pathlib
     here = pathlib.Path(__file__)
-    for name in ("md-gate-triage.json", "md-kapi-triaj.json"):   # legacy name second
+    for name in ("md-gate-triage.json",):
         candidate = here.with_name(name)
         if candidate.exists():
             return candidate
@@ -145,7 +145,7 @@ def rule_triage():
     if path is None:
         return {}
     data = json.loads(path.read_text(encoding="utf-8"))
-    return {k: v for k, v in (data.get("rule") or data.get("kural") or {}).items()
+    return {k: v for k, v in (data.get("rule") or {}).items()
             if isinstance(v, str) and v.strip()}
 
 

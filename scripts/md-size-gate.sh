@@ -18,16 +18,16 @@ set -uo pipefail
 # ROOT derived from the script's own location is wrong (it resolves to ~/.claude,
 # not the project). For the copy COPIED INTO a project the defaults are correct;
 # the hook passes MD_ROOT.
-ROOT="${MD_ROOT:-${MD_KOK:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}}"
+ROOT="${MD_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 UPDATE=0
 HOOK=0
 for arg in "$@"; do
-  { [ "$arg" = "--update" ] || [ "$arg" = "--guncelle" ]; } && UPDATE=1   # --guncelle: legacy alias
+  [ "$arg" = "--update" ] && UPDATE=1
   [ "$arg" = "--hook" ] && HOOK=1
 done
 
 # Budget file: explicit path > scripts/ > root > docs/. Most projects have no scripts/.
-if [ -n "${MD_BUDGET:-${MD_BUTCE:-}}" ]; then BUDGET="${MD_BUDGET:-$MD_BUTCE}"; else
+if [ -n "${MD_BUDGET:-}" ]; then BUDGET="$MD_BUDGET"; else
   for candidate in "$ROOT/scripts/md-budget.tsv" "$ROOT/md-budget.tsv" "$ROOT/docs/md-budget.tsv"; do
     [ -f "$candidate" ] && { BUDGET="$candidate"; break; }
   done
@@ -72,7 +72,6 @@ EXCLUDE=()
 while IFS= read -r line; do
   case "$line" in
     "# exclude:"*) d="${line#\# exclude:}" ;;
-    "# disla:"*)   d="${line#\# disla:}" ;;   # legacy directive
     *) continue ;;
   esac
   d="${d%%[[:space:]]*}"; [ -n "$d" ] && EXCLUDE+=("${d%/}")

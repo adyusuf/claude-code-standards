@@ -13,6 +13,9 @@ This script is the measurement that corrects it. Source: the `usage` fields and
 ⚠️ Prices are API LIST prices, not a subscription bill — a proxy for consumption.
 ⚠️ Step counting is based on shell command patterns: a step that runs from inside
    another script is invisible here. A missing step is "not seen", not "zero".
+⚠️ The scripts were renamed to English on 20/09/2026. Runs recorded under the
+   previous names are no longer counted, so md-gate counts from before that date
+   are not comparable with later ones.
 """
 import glob, json, os, re, sys, datetime, statistics, collections
 
@@ -39,8 +42,8 @@ STEPS = [
     ('SAST',             r'codeql|semgrep'),
     ('dependency CVE',   r'npm audit|dotnet list package --vulnerable|osv-scanner'),
     ('local ci gate',    r'ci-local\.sh'),
-    ('md size gate',     r'md-size-gate\.sh|md-boyut-kapisi\.sh'),
-    ('md rule gate',     r'md-rule-gate\.py|md-kural-kapisi\.py'),
+    ('md size gate',     r'md-size-gate\.sh'),
+    ('md rule gate',     r'md-rule-gate\.py'),
     ('git merge',        r'git merge'),
     ('git push',         r'git push'),
     ('deploy/publish',   r'dotnet publish|vercel deploy|wrangler deploy|docker push'),

@@ -24,7 +24,6 @@ to `.claude/mode`. Reason: if "apply this for this session only" relies on
 memory, it is **forgotten** after context compaction and the project file's mode
 silently takes over again. The scratchpad is session-scoped and disappears with
 the session — exactly the lifetime required.
-(`--tek` is still accepted as a legacy alias of `--once`.)
 
 ## 2. Load the mode definitions
 
