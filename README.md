@@ -464,14 +464,21 @@ Then the settings, after reading them:
 
 ```bash
 cp settings.example.json ~/.claude/settings.json   # read it first — see the warning
-python3 scripts/install-live-hooks.py --check      # report what is missing, change nothing
-python3 scripts/install-live-hooks.py              # wire the hooks
 ```
+
+That file's `hooks` block wires everything this level needs. **Do not also run
+`scripts/install-live-hooks.py`** — it wires the same two hooks through
+`~/.claude/hooks/` instead of `~/.claude/scripts/`, and because the paths differ
+neither side recognises the other as a duplicate. You would get the destructive
+-command guard and the ledger running **twice per tool call**. The installer
+belongs to Level 4, where `scripts/` is a symlink and a new file cannot be put
+there; at Level 3 `scripts/` is a real directory and the example file is enough.
 
 ⚠️ **`settings.example.json` is mine, not a template.** It carries my plugin
 selection — 27 entries, several deliberately `false` — and a marketplace pointing
 at a directory in my home folder that will not exist on your machine. Take the
-`hooks` block; decide the rest yourself.
+`hooks` block; decide the rest yourself. Keys like `autoCompactWindow` and
+`theme` are personal preference, not part of the rule set.
 
 ### Level 4 — run it live, the way I do
 
@@ -482,6 +489,19 @@ configuration only by promotion. The upside is exactly one copy of every rule.
 The cost is that a bad promotion changes my tooling mid-session, which is why the
 guidance files have their own size and rule-loss gates
 (`scripts/md-size-gate.sh`, `scripts/md-rule-gate.py`).
+
+The hooks are wired here with the installer rather than by hand, because
+`~/.claude/scripts` is itself a symlink into the checkout and a new file there
+would show up as untracked in `prod`:
+
+```bash
+python3 scripts/install-live-hooks.py --check   # report what is missing, change nothing
+python3 scripts/install-live-hooks.py          # symlinks under ~/.claude/hooks + settings entries
+python3 scripts/install-live-hooks.py --remove # take it back out
+```
+
+⚠️ This replaces the `settings.example.json` copy from Level 3, it does not
+follow it. Doing both runs two of the hooks twice.
 
 I would not start here. Start at Level 1 and come back once a rule has earned its
 place in your own week.
