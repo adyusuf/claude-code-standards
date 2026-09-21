@@ -141,7 +141,19 @@ if [ "$TARGET" != "prod" ]; then
   [ "$HAS_DOTNET" = 1 ] && { have dotnet && run "dotnet test" dotnet test ${SLN:+"$SLN"} --nologo || skip "dotnet test (dotnet missing)"; }
   for d in "$WEB_DIR" "$MOBILE_DIR"; do
     [ -n "$d" ] || continue
-    grep -q '"test"' "$d/package.json" 2>/dev/null && run "test ($d)" npm --prefix "$d" test -- --run || skip "test ($d): no test script"
+    if grep -q '"test"' "$d/package.json" 2>/dev/null; then
+      # `--run` belongs to VITEST. Handing it to a jest project fails with
+      # "Unrecognized option run", and the gate then reports a green test suite
+      # as FAILING — measured on 21/09/2026: one project's 10 mobile tests pass on
+      # their own and this step called them red, purely because of this argument.
+      # CI=true is what both runners understand: vitest does a single run instead
+      # of watching, and jest is single-run anyway.
+      if grep -qE '"test"[[:space:]]*:[[:space:]]*"[^"]*vitest' "$d/package.json"; then
+        run "test ($d)" env CI=true npm --prefix "$d" test -- --run
+      else
+        run "test ($d)" env CI=true npm --prefix "$d" test
+      fi
+    else skip "test ($d): no test script"; fi
   done
 
   say "coverage (>= ${COVERAGE_MIN}% lines, per codebase)"
