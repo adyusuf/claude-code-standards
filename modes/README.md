@@ -144,9 +144,14 @@ In every mode, on every turn that uses agents:
 | Role | Its auditor |
 |---|---|
 | `developer`, and code I write myself | **`qa`** → I verify the critical findings |
-| `qa`, `analyst`, `devops`, `test-writer`, `product-manager` | Their own **completeness-check** block (§7) + the orchestrator |
+| `analyst`, `coverage-auditor`, `data`, `devops`, `e2e-writer`, `observability`, `product-manager`, `qa`, `security`, `test-writer` | Their own **completeness-check** block (§7) + the orchestrator |
 | `product-manager`'s scope | **The user** (the §2a approval gate) |
-| `architect`, `designer`, `doc-writer` | **No separate auditor** — exempt from the completeness-check block; the orchestrator audits them |
+| `architect`, `designer`, `developer`, `doc-writer` | **No separate auditor** — exempt from the completeness-check block; the orchestrator audits them |
+
+⚠️ These two rows are the single source for who owes the block, and they used to
+disagree with the role files: the first named five roles while ten carry the block
+on disk, and the second named three while four carry the exemption. 10 + 4 = the
+14 roles in `agents/`, and `grep -l` over that folder is the check.
 
 No second auditor **agent** was added behind `qa`: subagent tokens cost ~4x more than
 the main conversation, and the gain does not cover the cost.
