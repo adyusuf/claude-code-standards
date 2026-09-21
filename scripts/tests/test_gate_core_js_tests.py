@@ -130,3 +130,35 @@ class StackDetection(unittest.TestCase):
     def test_a_repository_with_no_dotnet_is_left_alone(self):
         out = self.build(['README.md'])
         self.assertNotIn('dotnet build', out)
+
+
+class NodeDetection(unittest.TestCase):
+    """The rule-#16 document step must not skip a repository whose JS is nested."""
+
+    def tearDown(self):
+        shutil.rmtree(getattr(self, 'root', ''), ignore_errors=True)
+
+    def build(self, files):
+        root = tempfile.mkdtemp()
+        subprocess.run(['git', 'init', '-q', root], check=True)
+        os.makedirs(os.path.join(root, 'scripts'))
+        shutil.copy(os.path.join(SCRIPTS, 'gate-core.sh'), os.path.join(root, 'scripts', 'gate-core.sh'))
+        for name, text in files.items():
+            path = os.path.join(root, name)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w', encoding='utf-8') as handle:
+                handle.write(text)
+        self.root = root
+        result = subprocess.run(['bash', 'scripts/gate-core.sh', 'test'],
+                                cwd=root, capture_output=True, text=True)
+        out = ANSI.sub('', result.stdout)
+        match = re.search(r'▶ project documents[^\n]*\n(.*?)\n▶ ', out, re.S)
+        return match.group(1) if match else out
+
+    def test_a_nested_package_json_still_gets_the_document_check(self):
+        step = self.build({'frontend/package.json': '{"name":"f"}'})
+        self.assertIn('SETUP.md is missing', step, f"the step was skipped:\n{step}")
+
+    def test_a_repository_with_no_stack_is_left_alone(self):
+        step = self.build({'README.md': '# nothing here'})
+        self.assertIn('nothing to check', step)

@@ -127,7 +127,16 @@ HAS_DOTNET=0
 if [ -n "$SLN" ] || [ -n "$(find . -name '*.csproj' -not -path '*/obj/*' -not -path '*/bin/*' -not -path '*/node_modules/*' -print -quit 2>/dev/null)" ]; then
   HAS_DOTNET=1
 fi
-HAS_NODE=0;   [ -f package.json ] && HAS_NODE=1
+# Node detection is only used for the rule-#16 document step (below), and it was
+# root-only while .NET detection now looks at any depth. A repository whose only
+# JS lives in frontend/ therefore skipped that step entirely — measured
+# 21/09/2026: one repo had no SETUP.md and its gate said "no stack at the
+# repository root, nothing to check". WEB_DIR/MOBILE_DIR keep their own job of
+# deciding WHICH tier gets linted, built and tested.
+HAS_NODE=0
+if [ -f package.json ] || [ -n "$(find . -maxdepth 3 -name package.json -not -path '*/node_modules/*' -print -quit 2>/dev/null)" ]; then
+  HAS_NODE=1
+fi
 WEB_DIR=""; for d in web frontend .; do [ -f "$d/package.json" ] && { WEB_DIR="$d"; break; }; done
 MOBILE_DIR=""; for d in mobile app; do [ -f "$d/package.json" ] && { MOBILE_DIR="$d"; break; }; done
 case " ${SKIP_STACKS:-} " in *" mobile "*) MOBILE_DIR="" ;; esac
