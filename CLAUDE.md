@@ -89,7 +89,7 @@
  - **Forbidden:** fake domains — `.test`, `.local`, `example.com`, `sample.*`.
  - **Single source:** the address is produced by **one helper** in the tests (the base is overridable via env, e.g. `E2E_EMAIL_BASE`); addresses are never written by hand into a spec or seed (#2).
  - **Out of scope:** tests whose sender is faked. → detail `standards/11-playwright.md` §4; rationale `docs/decision-log.md` §30
-31. **The e2e run cycle: full run → identify failures → fix → run only what was fixed → I decide on a full re-run.**
+31. **The run cycle (e2e AND every test/gate run → `standards/00` §11; parallelism/reuse → §12): full run → identify failures → fix → run only what was fixed → I decide on a full re-run.**
  - **The WHOLE suite runs first**, without stopping at the first failure. Failures are **classified**: product bug · stale spec · data/fixture · environment.
  - **Failures are fixed** — each fix on its own branch with its own merge (#26). Raising retries or loosening assertions does not count as a fix.
  - **Then ONLY the fixed tests** (and those they could affect) run.

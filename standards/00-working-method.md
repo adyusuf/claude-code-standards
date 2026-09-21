@@ -199,3 +199,48 @@ finished into one row and give the remaining work its own rows.
   user's. "Blocked" with no owner is not a status.
 - The user sets the reporting interval; if they do not, report on state changes. Send a
   short line even on an unchanged turn — do not go silent.
+
+## 11. The failure cycle — EVERY test / gate / build run, not only e2e (PERMANENT, all projects)
+
+Generalises `CLAUDE.md` #31 (which was written for e2e). The mistake it prevents, measured on 21/09/2026: after
+each failure the whole merge gate (~30 min: backend + web + mobile + shared core) was re-run from the top —
+four times in one session — although each fix could be proven by running only the step that failed.
+
+1. **First run is FULL** and does not stop at the first failure. Read the WHOLE result before touching anything.
+2. **Classify each failure** — product bug · stale test · fixture/data · environment · gate/tooling defect.
+   One root cause often explains several red lines; find it before fixing line by line.
+3. **Fix, then re-run ONLY what failed** (that step / test file / filter), plus what the fix could affect.
+   Prefer the narrowest command that reproduces it (`dotnet test --filter`, `vitest run <file>`, one gate step,
+   one script's own test file). Evidence that the narrow run reproduces the failure comes BEFORE the fix.
+4. **Then ONE full run**, and only when the gate/merge script needs a single all-green pass to act. Repeat the
+   full run again only if the fix touched something shared (gate core, config, base branch moved) — and write
+   the reason in one line. Never use the full run as the way to "see if it works".
+5. **A moving base is not a failure:** if `dev` moved, rebase and re-run the narrow check; do not restart the world.
+6. **Never run two gates/test batteries in the same worktree at the same time** (shared ports, temp DB clusters,
+   coverage dirs, branch checkout) — the second run invalidates the first.
+
+## 12. Parallelism and reuse in test / coverage / gate runs (PERMANENT, all projects)
+
+Why: a gate that runs every tier one after another, and re-runs the same suites in three places, costs ~30 min and
+then loses the promotion to a moving base (measured 21/09/2026). Speed-ups are allowed only under these rules:
+
+1. **Parallelise by RESOURCE, not by count.** Tiers that use different resources (dotnet + a database cluster vs Node)
+   run together. Tiers that fight for the same resource (several Node suites, each defaulting to "all cores") get an
+   explicit **share** — `cores / number-of-parallel-tiers` workers each (`vitest` `VITEST_MAX_WORKERS`, `jest`
+   `--maxWorkers`) — never the default, which oversubscribes the host and makes timing-sensitive tests flaky.
+2. **A timing-sensitive suite stays alone.** If a suite already needs a raised timeout, serial file execution or
+   retries, it is NOT run alongside other heavy work. Trading minutes for flaky timeouts is a loss (a run that hit an
+   environment limit is invalid, `CLAUDE.md` #31).
+3. **Each parallel leg writes to its OWN log and the logs are printed one after another afterwards** — never
+   interleaved. A failed leg must be attributable at a glance; the exit status of every leg is collected (`wait <pid>`).
+4. **Always keep a serial switch** (`COVERAGE_SERIAL=1` style) so a suspicious result can be reproduced without the
+   parallelism as a variable.
+5. **Never measure the same thing twice in one gate run.** A later step reuses an earlier step's report ONLY when a
+   **stamp** written by the gate (the commit sha, right after it wipes the report dir) equals the current HEAD, the
+   tracked tree is clean, and the report exists. No stamp / another commit / dirty tree / `…_REUSE=0` → measure from
+   scratch. Reuse is **announced in the output**, and the decision function has its own two-way test (each refusal
+   condition tested, mutants killed). A stale report taken for this commit's measurement is the "not measured but
+   passed" defect (#29) — reuse without a stamp is forbidden.
+6. **Two gates / test batteries never share a worktree** (§11.6) — parallelism is INSIDE one run, not between runs.
+7. **Measure the gain before claiming it.** State the before/after wall-clock; a speed-up that was only reasoned about is
+   reported as an estimate, not a result.
