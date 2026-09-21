@@ -1,7 +1,10 @@
 # The Agent Teams modes (X · Y · Z) — shared rules
 
-> X/Y/Z are the **team** equivalents of B/C/D. The roles and the audit regime are the
-> same; what changes is an agent's **lifetime and communication**. Role selection is
+> X/Y/Z are the **team** equivalents of **B · C · E** — the mapping lives in
+> `README.md` in this folder, and mode **D** (14 roles) has no team equivalent at
+> all. This line read "B/C/D" until E existed; the archive's own README was already
+> right. The roles and the audit regime are the same; what changes is an
+> agent's **lifetime and communication**. Role selection is
 > still [`role-selection.md`](../role-selection.md) (all of §0-§8 applies in X/Y/Z
 > too); this file only records the team-specific differences.
 
@@ -9,14 +12,17 @@
 
 For two separate reasons; the mode does not open until both are resolved.
 
-**(a) The role definitions do not carry the team tools.** The nine roles have closed
-`tools:` allowlists and none of them contains `SendMessage`, `TaskList`, `TaskGet`,
-`TaskUpdate` or `TaskCreate` (`grep -n "^tools:" agents/*.md` → 9/9 closed,
+**(a) The role definitions do not carry the team tools.** Every role has a closed
+`tools:` allowlist and none of them contains `SendMessage`, `TaskList`, `TaskGet`,
+`TaskUpdate` or `TaskCreate` (`grep -c "^tools:" agents/*.md` → all closed,
 `SendMessage` → 0 matches). A teammate comes up but **nobody hears it**: its plain
 text is invisible, it cannot mark its task `completed`, and the leader assumes it is
 idle and assigns the same work a second time.
 → Without extending the roles, X/Y/Z **does not open**. And extending them also
-enlarges the agent permissions in B/C/D, because those are the same files.
+enlarges the agent permissions in B/C/D/E, because those are the same files.
+⚠️ This section counted "nine roles" when it was written; there are **14** in
+`agents/` now, which only makes the twin-maintenance cost in the decision below
+larger.
 
 ✅ **Decision: the tools are not being added now.** X/Y/Z already sits behind a plan
 gate; adding them today would grant B/C/D agents permissions they will not use and gain
