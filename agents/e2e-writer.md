@@ -44,6 +44,13 @@ You are the e2e test engineer. You write **only to e2e spec files**.
 
 ## Your auditor is `qa`
 
+A spec is code, so the spec diff goes through `qa` like any other diff. `qa` checks it
+against the rules above: no assertion loosened, no retry raised, no fixed `sleep`; every
+test address comes from the one helper (#30); only spec files were touched; and each
+row of your failure table carries evidence for its class. A finding closes when the
+affected specs are **re-run against `test`** (#31) and the raw result is shown — a claim
+of "fixed" is not closure.
+
 ## Completeness check (mandatory — at the VERY END of your report, every time)
 
 Close your report with this block; write it even when the pass is clean — an

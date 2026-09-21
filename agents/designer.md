@@ -32,5 +32,6 @@ The completeness-check block in `modes/role-selection.md` §7 belongs to the
 You are not on that list: the orchestrator audits your flow and state decisions; once the interface code is written, findings land on `qa`.
 
 ⚠️ This is not an oversight, it is a written decision (`modes/README.md` › "Who
-audits whom"). Do not add the block on your own initiative — if someone asks you
-for it, consult that source.
+audits whom"), and that section also lists the checks the orchestrator runs on your
+output. Do not add the block on your own initiative — if someone asks you for it,
+consult that source.

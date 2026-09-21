@@ -35,5 +35,6 @@ The completeness-check block in `modes/role-selection.md` §7 belongs to the
 You are not on that list: `developer` and the orchestrator trust your plan literally, so a wrong plan flows downstream. In exchange the audit sits **with the orchestrator** — if the implementation deviates from the plan, that comes back to it, not to you.
 
 ⚠️ This is not an oversight, it is a written decision (`modes/README.md` › "Who
-audits whom"). Do not add the block on your own initiative — if someone asks you
-for it, consult that source.
+audits whom"), and that section also lists the checks the orchestrator runs on your
+plan. Do not add the block on your own initiative — if someone asks you for it,
+consult that source.

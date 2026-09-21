@@ -27,7 +27,7 @@ The team modes were moved to `modes/archive/` because they **cannot be started**
 [`archive/README.md`](archive/README.md)). They are not offered as a mode; if the
 user asks, the answer is "it cannot be started today".
 
-## Role → auditor → what closes a finding
+## Who audits whom — role → auditor → what closes a finding
 
 Who checks each role's output, and what has to be re-run before a finding counts as
 closed (global #28: *a claim of "fixed" is not closure*). "Block" = the role closes its
@@ -39,8 +39,8 @@ report with the §7 completeness-check block, which
 |---|---|---|---|---|
 | `product-manager` | C+ | **the user** — the scope is presented as one block and approved (§2a) | the user's explicit approval | yes |
 | `analyst` | B+ | the orchestrator re-runs the command the analyst returned and compares the count | the analyst's own command (`grep -rn …`, `rg -c`) | yes |
-| `architect` | C+ | not defined in the sources | — | no |
-| `designer` | C+ | not defined in the sources | — | no |
+| `architect` | C+ | **the orchestrator** — a written exemption from the block; an implementation that deviates from the plan comes back to the orchestrator | the checks below: plan paths exist, then `git diff --name-only` against the file plan | no |
+| `designer` | C+ | **the orchestrator** audits the flow and state decisions; once the interface code exists, `qa` | the checks below, then `qa`'s `Verification` command on the diff | no |
 | `developer` | C+ | `qa`, then the orchestrator verifies the critical findings | `qa`'s `Verification` command | no |
 | `test-writer` | B+ | `qa` reviews the diff in parallel (§2) | `qa`'s `Verification` command | yes |
 | `devops` | C+ | `qa` (infrastructure diffs are in scope) | `qa`'s `Verification` command | yes |
@@ -50,11 +50,26 @@ report with the §7 completeness-check block, which
 | `data` | D+ | `qa` looks again along backward compatibility and data loss | `qa`'s `Verification` command | yes |
 | `coverage-auditor` | D+ | straight to the orchestrator | the coverage command **and** the mutation check (remove a test; the gate must fail) | yes |
 | `observability` | D+ | `qa` | `qa`'s `Verification` command | yes |
-| `e2e-writer` | D+ | not defined in the sources | — | yes |
+| `e2e-writer` | D+ | `qa` reviews the spec diff | the affected specs re-run against `test` (#31), raw result shown | yes |
 
-A "not defined" cell is a gap in the rule set, not a role that needs no check.
-Until it is closed, the orchestrator's own end-of-turn block is the only audit of that
-role's output.
+### The orchestrator's checks (`architect`, `designer`)
+
+These two roles carry no block, so the orchestrator's audit is a **command it runs**, not
+a glance. It is the thinnest audit in the table (one reader, no second pass); the
+checks exist so that "the orchestrator audits it" means something concrete.
+
+- **`architect` — before code starts:** every file the plan marks *modified* exists
+  (`git ls-files <path>`), every *new* file's parent directory exists, and no step in
+  the Order lacks a way to verify it. **After the code:** `git diff --name-only
+  <base>..HEAD` against the file-plan table — a file outside the plan, or a planned file
+  left untouched, is a deviation and goes back to whoever wrote the code.
+- **`designer` — before code starts:** every screen has all four rows (loading ·
+  empty · error · populated), every user-facing text is an i18n key, and no raw hex or
+  palette class appears. **After the code:** `qa` reviews the diff against the four-state
+  table and the accessibility notes; a state with no code path is a finding, and the
+  keys are checked in both locale files (`grep -c "<key>"` in `tr` and `en`).
+
+If either check cannot be run, the output is "not verified" (#28), never fine.
 
 ## Permanent rule — agents only come with a mode
 
