@@ -42,14 +42,14 @@ class Hook(unittest.TestCase):
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, 'w', encoding='utf-8') as handle:
             handle.write(body)
-        os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+        os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC)
         return path
 
     def on_path(self, name, body):
         path = os.path.join(self.bin, name)
         with open(path, 'w', encoding='utf-8') as handle:
             handle.write(body)
-        os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+        os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC)
 
     def stage(self, name='file.txt', text='content\n'):
         path = os.path.join(self.root, name)

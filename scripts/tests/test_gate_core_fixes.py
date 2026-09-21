@@ -53,7 +53,7 @@ def project(runner, stub):
     path = os.path.join(binary, runner)
     with open(path, 'w', encoding='utf-8') as handle:
         handle.write(stub)
-    os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+    os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC)
     with open(os.path.join(root, 'web', 'package.json'), 'w', encoding='utf-8') as handle:
         handle.write('{"name":"w","scripts":{"test":"%s"}}' % runner)
     return root

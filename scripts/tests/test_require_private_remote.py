@@ -19,7 +19,7 @@ class RequirePrivateRemote(unittest.TestCase):
         gh = os.path.join(self.bin, 'gh')
         with open(gh, 'w') as handle:
             handle.write('#!/bin/sh\necho "$@" >> "$FAKE_GH_LOG"\necho "$FAKE_GH_SAYS"\nexit "${FAKE_GH_STATUS:-0}"\n')
-        os.chmod(gh, 0o755)
+        os.chmod(gh, 0o700)
 
     def tearDown(self):
         shutil.rmtree(self.bin, ignore_errors=True)
