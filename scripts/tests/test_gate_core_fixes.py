@@ -6,6 +6,16 @@ option run", so the gate reported a PASSING suite as failing — measured on
 
 Each case installs a stub runner at web/node_modules/.bin/<name>, which is where
 `npm run` looks first, so `"test": "jest"` really resolves to the stub.
+
+The file grew past that one step: it now pins all five gate-core fixes of
+21/09/2026 — the JS test flag, the coverage refusal, .NET and Node stack
+detection, and passing the solution to dotnet as a target. Every one was
+mutation-verified; the record is in docs/decision-log.md §25.
+
+WARNING: keep the `__main__` guard at the BOTTOM of this file. It used to sit in
+the middle, above three of the five classes, so `python3 <this file>` ran 2 of
+12 tests and printed OK -- the classes below the guard were never even defined.
+pytest imports the module, so pytest was unaffected and it went unnoticed.
 """
 import os
 import re
@@ -64,9 +74,6 @@ class JsTestStep(unittest.TestCase):
         step = unit_test_step(self.root)
         self.assertNotIn('✗ test (web)', step, f"vitest did not get --run:\n{step}")
 
-
-if __name__ == '__main__':
-    unittest.main()
 
 
 class CoverageCannotBeAccepted(unittest.TestCase):
@@ -205,3 +212,98 @@ class SolutionTarget(unittest.TestCase):
         out = self.build(['src/Api/Api.csproj'])
         self.assertIn('src/Api/Api.csproj', out,
                       f"with no solution the csproj must be the target:\n{out}")
+
+
+class BuildOutputIsNotAProject(unittest.TestCase):
+    """obj/ and node_modules/ carry .csproj and package.json files of their own.
+    If detection counts those, a repository with no product code at all looks
+    like it has both stacks, and every step then runs against build output."""
+
+    def tearDown(self):
+        shutil.rmtree(getattr(self, 'root', ''), ignore_errors=True)
+
+    def test_obj_and_node_modules_are_not_mistaken_for_a_project(self):
+        root = tempfile.mkdtemp()
+        subprocess.run(['git', 'init', '-q', root], check=True)
+        os.makedirs(os.path.join(root, 'scripts'))
+        shutil.copy(os.path.join(SCRIPTS, 'gate-core.sh'), os.path.join(root, 'scripts', 'gate-core.sh'))
+        for name in ('obj/Debug/Ghost.csproj', 'web/node_modules/pkg/package.json'):
+            path = os.path.join(root, name)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w', encoding='utf-8') as handle:
+                handle.write('{}')
+        self.root = root
+        result = subprocess.run(['bash', 'scripts/gate-core.sh', 'test', '--list'],
+                                cwd=root, capture_output=True, text=True)
+        out = ANSI.sub('', result.stdout)
+        stacks = [l for l in out.splitlines() if l.startswith('stacks:')][0]
+        self.assertIn('dotnet=0', stacks, stacks)
+        self.assertIn('node=0', stacks, stacks)
+
+
+class TheBuildKeepsWarningsAsErrors(unittest.TestCase):
+    """The -warnaserror flag is what turns a NuGet advisory or a deprecation into
+    a failing gate rather than a line of scroll nobody reads."""
+
+    def tearDown(self):
+        shutil.rmtree(getattr(self, 'root', ''), ignore_errors=True)
+
+    def test_the_planned_build_asks_for_warnings_as_errors(self):
+        root = tempfile.mkdtemp()
+        subprocess.run(['git', 'init', '-q', root], check=True)
+        os.makedirs(os.path.join(root, 'scripts'))
+        shutil.copy(os.path.join(SCRIPTS, 'gate-core.sh'), os.path.join(root, 'scripts', 'gate-core.sh'))
+        with open(os.path.join(root, 'App.sln'), 'w', encoding='utf-8') as handle:
+            handle.write('')
+        self.root = root
+        result = subprocess.run(['bash', 'scripts/gate-core.sh', 'test', '--list'],
+                                cwd=root, capture_output=True, text=True)
+        out = ANSI.sub('', result.stdout)
+        build = [l for l in out.splitlines() if 'dotnet build' in l]
+        self.assertTrue(build, out)
+        self.assertIn('-warnaserror', build[0])
+
+
+class CoverageWhenItIsActuallyMeasured(unittest.TestCase):
+    """The refusal to accept the gap is only half of rule #29. The other half:
+    a project that DOES measure must pass the step, and one that measures BELOW
+    the threshold must close the gate rather than be waved through."""
+
+    DOCS = {'SETUP.md': '# Setup\n## Secret and token inventory\n', '.env.example': ''}
+
+    def tearDown(self):
+        shutil.rmtree(getattr(self, 'root', ''), ignore_errors=True)
+
+    def build(self, coverage_cmd):
+        root = tempfile.mkdtemp()
+        subprocess.run(['git', 'init', '-q', root], check=True)
+        os.makedirs(os.path.join(root, 'scripts'))
+        shutil.copy(os.path.join(SCRIPTS, 'gate-core.sh'), os.path.join(root, 'scripts', 'gate-core.sh'))
+        files = dict(self.DOCS)
+        files['scripts/merge-gate.conf'] = f'COVERAGE_CMD="{coverage_cmd}"\n'
+        for name, text in files.items():
+            path = os.path.join(root, name)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w', encoding='utf-8') as handle:
+                handle.write(text)
+        with open(os.path.join(root, 'App.sln'), 'w', encoding='utf-8') as handle:
+            handle.write('')
+        self.root = root
+        result = subprocess.run(['bash', 'scripts/gate-core.sh', 'test'],
+                                cwd=root, capture_output=True, text=True)
+        return ANSI.sub('', result.stdout), result.returncode
+
+    def test_a_measurement_above_the_threshold_passes(self):
+        out, _ = self.build('true')
+        self.assertIn('\u2713 coverage', out)
+        self.assertNotIn('CANNOT be accepted', out)
+
+    def test_a_measurement_below_the_threshold_closes_the_gate(self):
+        out, code = self.build('false')
+        self.assertIn('\u2717 coverage', out)
+        self.assertIn('GATE CLOSED', out)
+        self.assertNotEqual(0, code)
+
+
+if __name__ == '__main__':
+    unittest.main()

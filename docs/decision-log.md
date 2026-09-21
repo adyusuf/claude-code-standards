@@ -90,7 +90,7 @@ printed GREEN while nothing measured coverage at all. Rule #29 grants the
 threshold no exceptions and says a project cannot override it, so the core now
 refuses that one step by name (`NEVER_ACCEPTABLE`) and stays INCOMPLETE.
 
-**Mutation record** (`scripts/tests/test_gate_core_stacks.py`, 15 tests). Each
+**Mutation record** (`scripts/tests/test_gate_core_fixes.py`, 16 tests). Each
 fix was reverted and the suite re-run; a fix whose revert changes nothing is not
 protected by a test:
 
@@ -102,15 +102,59 @@ protected by a test:
 | `dotnet build ${SLN:+"$SLN"}` → `dotnet build` | 1 failed — the nested solution was not the target |
 | `package.json` search → root only | 1 failed — `node=0` for a repo whose JS is in `web/` |
 
-⚠️ **The propagation went the wrong way round for a day.** The fixes were written
-into the project copies and pushed there, while the **canonical** copy in this
-repository — the one this rule names as the single source — was left on the old
-version. Nothing detected it: the existing drift test compares the hook copies
-*inside* this repository and cannot see a project's committed copy. So for one
-day the single source was the stalest copy of the file, and a project adopting
-the gate fresh would have installed the buggy version. Fixed by syncing the
-canonical forward; **the detection gap itself is still open** — there is no check
-that compares a project's committed `gate-core.sh` against the canonical one.
+One mutation did NOT fail at first: dropping `.slnx` from the `ls` alone changed
+nothing, because the `find` fallback also matches it. That is the fix being
+belt-and-braces, not a test gap — reverting the block as a whole does fail the
+`.slnx` test, and that whole block is what actually shipped before.
+
+**A defect in the test file itself**, found while consolidating it: its
+`if __name__ == '__main__'` guard sat in the MIDDLE of the file, above three of
+its five classes. Run as `python3 <file>` it executed **2 of 12 tests and printed
+OK**, because the classes below the guard were never defined. pytest imports the
+module rather than running `__main__`, so pytest saw all 12 and the hole stayed
+invisible. The guard now sits at the bottom, with a warning comment saying why;
+run directly, the file reports 16 of 16. The general lesson is the one this
+section keeps repeating: **a green result from a runner that never loaded the
+checks is the failure mode to look for**, in a gate or in a test file.
+
+### ⚠️ A false claim I made about this, and how it happened
+
+While doing the above I reported two things that were **not true**, and both are
+worth keeping because the cause is a habit, not an accident:
+
+1. *"The fixes were propagated to the project copies but the canonical copy was
+   never updated — the single source was the stalest copy."*
+2. *"The tests I reported writing for those fixes do not exist anywhere on disk."*
+
+Both were wrong. The canonical **had** been updated and the test file **did**
+exist — all of it committed and pushed to `origin/dev` from a different
+worktree. What I actually measured was a **local worktree that was 8 commits
+behind**, and I read that as the state of the repository. I compounded it by
+searching the filesystem (`find`, `grep`) for the test file, which cannot see a
+commit that is not checked out here, and by comparing against the `prod`
+worktree, which is pinned to `prod` by design and is *supposed* to be behind.
+
+**How to apply:** before reporting that something is missing, stale or
+un-propagated in a repository, `git fetch` and name the ref that was measured.
+"It is not in my working tree" and "it does not exist" are different claims, and
+in a repository with several worktrees pinned to different branches the first one
+is nearly worthless on its own. Compare **blob ids against a named remote ref**,
+never files against whatever a checkout happens to hold.
+
+A second trap from the same hour, with the same shape — a measurement that was
+silently wrong rather than absent: in **zsh**, an unbraced `"$var:something"`
+is parsed as a `:s` history modifier on `$var`, so
+`git rev-parse "origin/$b:scripts/gate-core.sh"` in a loop resolved a **mangled
+ref** and returned a blob id for a path nobody asked about. Every repository
+came back "STALE" and the output looked entirely plausible. Brace it —
+`"origin/${b}:scripts/gate-core.sh"` — in every shell one-liner that joins a
+variable to a `:`-separated path.
+
+**Still open:** nothing compares a project's committed `gate-core.sh` against the
+canonical one. Today that comparison had to be done by hand, and doing it by hand
+is exactly where the two false claims above came from. A check that walks the
+known repositories and diffs blob ids against a named ref would have answered it
+in one line, and it is not built.
 
 ## §26 — Pull `dev` → branch off `dev` → work → merge each task separately
 
