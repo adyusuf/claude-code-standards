@@ -11,7 +11,7 @@ broke first.
 | Engineering standards | `standards/` | 22 documents + 6 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate and measurement scripts | `scripts/` | 14 scripts |
+| Gate and measurement scripts | `scripts/` | 15 scripts |
 | Slash commands and skills | `commands/`, `skills/` | 5 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
@@ -20,8 +20,8 @@ pie showData title Repository composition (files)
  "standards/ (22 docs + 6 templates)" : 29
  "agents/ (14 roles)" : 14
  "modes/ (5 modes + selection guide)" : 13
- "scripts/ (gates, hooks, measurement, tests)" : 27
- "docs/ (decision log + case studies + ledger)" : 9
+ "scripts/ (gates, hooks, measurement, tests)" : 28
+ "docs/ (decision log + case studies + ledger)" : 12
  "commands/ + skills/" : 5
  "root (CLAUDE.md, settings, license)" : 5
 ```
