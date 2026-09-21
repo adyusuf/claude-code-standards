@@ -29,3 +29,6 @@ config
 # Python bytecode is generated, never committed
 __pycache__/
 *.pyc
+
+# Generated and rewritten by a live hook; it stays local (see docs/README.md)
+docs/measurement-ledger.tsv

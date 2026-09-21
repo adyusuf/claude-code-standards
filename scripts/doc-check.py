@@ -10,7 +10,8 @@ Exit 0 = consistent, 1 = at least one finding (each printed as `file: message`).
 What it checks (each one is a drift the rule set actually suffers from):
   1. every relative Markdown link  [text](path)  resolves to a file;
   2. every backticked repo path under standards/ modes/ docs/ agents/ commands/ skills/
-     exists (a `~/.claude/` prefix is read as the repository root, and only checked when
+     exists (unless git ignores it: a generated, local-only file is absent in a clean clone);
+     the same holds for a relative link's target (a `~/.claude/` prefix is read as the repository root, and only checked when
      the root IS the configuration repository; `docs/...` inside standards/ names a
      PROJECT's file and is not checked);
   3. every index (standards/README.md, docs/README.md, modes/README.md) mentions every
@@ -24,6 +25,7 @@ Only the standard library; no network.
 """
 import os
 import re
+import subprocess
 import sys
 
 LINK = re.compile(r'\]\(([^)\s]+)\)')
@@ -56,6 +58,14 @@ def is_configuration_repo(root):
     return os.path.isfile(os.path.join(root, 'standards', 'README.md')) and os.path.isdir(os.path.join(root, 'modes'))
 
 
+def is_git_ignored(root, relative):
+    """True when git ignores the path: a generated, local-only file is absent in a clean clone by design."""
+    try:
+        return subprocess.run(['git', '-C', root, 'check-ignore', '-q', relative], capture_output=True).returncode == 0
+    except OSError:
+        return False
+
+
 def check_links_and_paths(root, findings):
     config_repo = is_configuration_repo(root)
     for path in markdown_files(root):
@@ -65,7 +75,8 @@ def check_links_and_paths(root, findings):
             if re.match(r'^(https?:|mailto:|#)', target):
                 continue
             file_part = target.split('#', 1)[0]
-            if file_part and not os.path.exists(os.path.normpath(os.path.join(os.path.dirname(path), file_part))):
+            resolved = os.path.normpath(os.path.join(os.path.dirname(path), file_part)) if file_part else ''
+            if file_part and not os.path.exists(resolved) and not is_git_ignored(root, os.path.relpath(resolved, root)):
                 findings.append(f'{rel}: broken link -> {target}')
         for prefix, target in set(PATH.findall(text)):
             # `~/.claude/...` is the user's configuration directory: it can be verified only
@@ -75,7 +86,7 @@ def check_links_and_paths(root, findings):
             # standards/ describes what a PROJECT's docs/ holds, not this repository's.
             if rel.startswith('standards' + os.sep) and target.startswith('docs/'):
                 continue
-            if not os.path.exists(os.path.join(root, target)):
+            if not os.path.exists(os.path.join(root, target)) and not is_git_ignored(root, target):
                 findings.append(f'{rel}: referenced path does not exist -> {target}')
 
 

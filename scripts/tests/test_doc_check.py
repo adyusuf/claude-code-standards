@@ -1,5 +1,6 @@
 import importlib.util
 import os
+import subprocess
 import tempfile
 import unittest
 
@@ -101,6 +102,22 @@ class DocCheck(unittest.TestCase):
         files['CLAUDE.md'] += 'see `~/.claude/modes/autonomous-run.md`'
         self.assertEqual(dc.run(build(files)),
                          ['CLAUDE.md: referenced path does not exist -> modes/autonomous-run.md'])
+
+    def test_a_missing_path_that_git_ignores_is_a_local_file_not_a_broken_reference(self):
+        files = consistent()
+        files['.gitignore'] = 'docs/local-ledger.tsv\n'
+        files['CLAUDE.md'] += ' see `docs/local-ledger.tsv` and [it](docs/local-ledger.tsv)'
+        root = build(files)
+        subprocess.run(['git', 'init', '-q', root], check=True)
+        self.assertEqual(dc.run(root), [])
+
+    def test_a_missing_path_that_git_does_not_ignore_is_still_found(self):
+        files = consistent()
+        files['.gitignore'] = 'docs/other.tsv\n'
+        files['CLAUDE.md'] += ' see `docs/local-ledger.tsv`'
+        root = build(files)
+        subprocess.run(['git', 'init', '-q', root], check=True)
+        self.assertEqual(dc.run(root), ['CLAUDE.md: referenced path does not exist -> docs/local-ledger.tsv'])
 
 
 if __name__ == '__main__':

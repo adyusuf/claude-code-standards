@@ -78,5 +78,5 @@ for key, values in sorted(groups.items(), key=lambda kv: -len(kv[1])):
 PY
 ```
 
-`modes/role-selection.md` §8 also holds a hand-written ledger of early `qa` turns.
+The ledger is a local, git-ignored file; back it up if the history matters. `modes/role-selection.md` §8 also holds a hand-written ledger of early `qa` turns.
 New records belong in `measurement-ledger.tsv`, which needs no hand entry.

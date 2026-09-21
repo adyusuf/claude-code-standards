@@ -344,8 +344,10 @@ that runs. What was built, and the decisions behind it:
   from the transcripts; there is no hand-filled field, and no project name, path or command
   is written (raw commands were rejected: an earlier commit already had to fix a log that
   bypassed the sanitiser). Incremental, locked, atomic, 600 s minimum interval, detached.
-  **Trade-off accepted:** it rewrites the tracked `docs/measurement-ledger.tsv` in the
-  checkout the hook points at, so that file shows as modified there until it is committed.
+  **The file is local and git-ignored.** It was first tracked and the hook rewrote it, which left the `dev`
+  and live `prod` worktrees dirty and would have blocked any promotion touching it; it was untracked
+  (history keeps the earlier rows) and `scripts/doc-check.py` no longer reports a git-ignored path as a
+  broken reference. The cost: the file is not backed up by git.
 - **Drift test (`scripts/md-hook.sh`).** It covered only three `md-*` tools while
   `gate-core.sh` and the README claimed otherwise. It now covers every copied script; the
   configuration repository itself is exempt (a dev worktree would otherwise report every

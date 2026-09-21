@@ -24,8 +24,8 @@ hand-filled column, so no row can be missing "because nobody wrote it down".
 ⚠️ --auto is INCREMENTAL and safe to fire on every turn: it reads only transcripts modified since the
    last write, skips when the last write is under --min-interval seconds old (default 600), holds a
    lock so two sessions never write at once, replaces the file atomically, never raises, and with
-   --detach returns to the caller immediately. It writes the tracked docs/measurement-ledger.tsv of
-   the repository the script lives in: that file shows as modified there until it is committed.
+   --detach returns to the caller immediately. It writes the git-ignored docs/measurement-ledger.tsv of
+   the repository the script lives in (a local file: a tracked one would leave the worktree dirty and block promotions).
 ⚠️ USD is the API LIST price, a proxy for consumption, not a bill (see step-stats.py).
 """
 import datetime

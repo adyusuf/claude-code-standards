@@ -10,6 +10,6 @@
 | `benchmark-method.md` | How the measurements are produced and compared: what is and is not measured, the comparison rules, when a comparison is invalid, the reproduce commands |
 | `coverage-gap.md` | Line coverage of this repository's own scripts against the 80% rule (#29): the measured numbers per script, the plan to close the gap, and why shell is not measured |
 | `measurement-log.md` | **Generated.** Aggregate statistics: prefix, per-role cost, how often each step ran (`scripts/step-stats.py`) |
-| `measurement-ledger.tsv` | **Generated.** One row per session or agent run (`scripts/measurement-ledger.py`) |
+| `measurement-ledger.tsv` | **Generated, local and git-ignored** (a live hook rewrites it; a tracked file would block every promotion that touches it). One row per session or agent run (`scripts/measurement-ledger.py`). Rows written before it was untracked are in git history |
 
 `scripts/doc-check.py` fails when a file in this folder is missing from this table.
