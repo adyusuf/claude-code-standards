@@ -46,7 +46,7 @@ class ProdGate(unittest.TestCase):
         path = os.path.join(self.bin, name)
         with open(path, 'w', encoding='utf-8') as handle:
             handle.write(body)
-        os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+        os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC)
 
     def write(self, relative, text):
         path = os.path.join(self.root, relative)

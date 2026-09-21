@@ -23,7 +23,7 @@ COMMIT_MSG = os.path.join(SCRIPTS, 'commit-msg.sh')
 def executable(path, body):
     with open(path, 'w', encoding='utf-8') as handle:
         handle.write(body)
-    os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC | stat.S_IXGRP | stat.S_IXOTH)
+    os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC)
     return path
 
 
@@ -168,9 +168,22 @@ class CoverageWithAFakeVenv(Repo):
         venv = os.path.join(self.root, '.venv')
         os.makedirs(os.path.join(venv, 'bin'))
         executable(os.path.join(venv, 'bin', 'coverage'), coverage_body)
-        # A real python3, because coverage.sh asks it for sysconfig's purelib.
+        # ⚠️ coverage.sh asks this python for sysconfig's purelib and WRITES a
+        # .pth file there, so a stub that forwards straight to the real
+        # interpreter makes it write into the developer's own site-packages. It
+        # did exactly that once: a stray coverage-subprocess.pth landed in an
+        # anaconda install and every later `python3` start printed
+        # "ModuleNotFoundError: No module named 'coverage'". The stub therefore
+        # answers the purelib question with a directory INSIDE the fixture, and
+        # forwards everything else.
+        purelib = os.path.join(venv, 'lib', 'site-packages')
+        os.makedirs(purelib)
         executable(os.path.join(venv, 'bin', 'python'),
-                   '#!/bin/sh\nexec ' + sys.executable + ' "$@"\n')
+                   '#!/bin/sh\n'
+                   'case "$*" in\n'
+                   '  *sysconfig*) echo "' + purelib + '"; exit 0 ;;\n'
+                   'esac\n'
+                   'exec ' + sys.executable + ' "$@"\n')
         os.makedirs(os.path.join(self.root, 'scripts', 'tests'), exist_ok=True)
         return venv
 
