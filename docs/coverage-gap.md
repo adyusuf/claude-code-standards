@@ -1,55 +1,51 @@
-# Coverage gap — this repository's own scripts (global rule #29)
+# Coverage — this repository's own scripts (global rule #29)
 
-Measured with `bash scripts/coverage.sh` (line coverage, `coverage` 7.10 in a venv outside
-the repository, subprocesses included). The denominator is every hand-written script;
-only `scripts/tests/` is omitted (`.coveragerc`). Nothing else is excluded.
+Measured with `bash scripts/coverage.sh` (line coverage, `coverage` 7.10 in a venv
+outside the repository, subprocesses included). The denominator is every hand-written
+script; only `scripts/tests/` is omitted (`.coveragerc`). Nothing else is excluded.
+
+> This file used to be a **gap** report: Python at 52% with four scripts at 0%, and
+> the shell codebase NOT MEASURED. Both are closed. It is kept as the record of what
+> closing them took, and of what is still thin.
 
 ## Where it stands
 
 | Codebase | Coverage | State |
 |---|---|---|
-| Python scripts | **52%** (607 of 1,168 statements) | **below the 80% threshold** |
-| Shell scripts | — | **not measured** (see below) |
+| Python scripts | **84%** (1,250 of 1,491 statements) | above the 80% threshold |
+| Shell scripts | **89.1%** (525 of 589 lines, 197 traced runs) | above the 80% threshold |
 
-| Script | Statements | Covered | Note |
-|---|---:|---:|---|
-| `install-live-hooks.py` | 149 | 95% | new, tested in place |
-| `doc-check.py` | 101 | 92% | new |
-| `evidence-check.py` | 117 | 85% | new |
-| `measurement-ledger.py` | 191 | 79% | new; the detached-child test runs a copy |
-| `step-stats.py` | 287 | 43% | existing |
-| `md-rule-gate.py` | 155 | **0%** | existing, no test at all |
-| `md-split.py` | 84 | **0%** | existing, no test at all |
-| `session-cost.py` | 51 | **0%** | existing, no test at all |
-| `prefix-measure.py` | 33 | **0%** | existing, no test at all |
+Neither figure is an average of the other. #29 forbids averaging codebases, and the
+gate reads them separately — either one below 80% closes it.
 
-The four scripts written in this round are at or near the bar; the gap is the four
-older scripts that never had a test.
+## What is still thin
 
-## Plan to close it
+Above the threshold is not the same as well tested. The weakest files, worth knowing
+before trusting them:
 
-80% of 1,168 statements means at most 233 uncovered; 561 are. Every line that can be
-covered in the four untested scripts plus `step-stats.py` is needed — roughly 390
-coverable, 330 required. One task, one branch, one merge each (#26), in order of yield:
+| File | Coverage | Why it matters |
+|---|---|---|
+| `scripts/merge-gate.sh` | **0%** (0 of 8 lines) | the wrapper every promotion goes through. It only calls the core and the drift check — but nothing proves it calls them |
+| `scripts/step-stats.py` | **61%** (121 statements missed) | the reporting half is untested. The sanitiser half is covered, and that is the half that must not leak |
+| `scripts/guard-destructive.sh` | **65%** | the hook that refuses `rm -rf`, force push and `DROP`. The refusal paths are covered; the pass-through variants are not |
+| `scripts/real-name-check.sh` | **75%** | the commit-message guard |
+| `scripts/coverage-shell.sh` | **77.1%** | the tracer wrapper: it measures, and is itself the least measured thing here |
 
-1. `md-rule-gate.py` (155 statements): fixtures for the three rule-loss measures
-   (❌ items, prohibition lines, backticked identifiers) and the triage path.
-2. `step-stats.py` (165 missed): `shape()` with the sanitiser canary, `count_steps` on a
-   synthetic transcript, `price`, `compare_cuts`, and `report`.
-3. `md-split.py` (84): a two-layer split of a small log, checking text moves verbatim.
-4. `session-cost.py` and `prefix-measure.py` (84): a synthetic transcript each.
-5. Wire `coverage.sh` into the promotion gate; until step 4 lands it stays red on purpose.
+## How the shell codebase became measurable
 
-Each added test must catch a fault under mutation (`standards/10-test-strategy.md` §7):
-a test that only executes lines is fake coverage and is the same as loosening the
-threshold.
+It was reported as NOT MEASURED for two separate reasons, and both had to go:
 
-## Shell scripts: not measured, and why
+- **`kcov` could not trace the macOS system bash** (`Can't find or open /bin/bash` —
+  SIP). It traces the Homebrew bash instead, and `coverage.sh` prints which
+  interpreter the number belongs to on every run.
+- **Most shell tests ran a temporary *copy*** of the script in a throwaway
+  repository, and no tracer attributes a copy back to the original. The tests were
+  changed to run the scripts **in place**; that change is what made the number exist
+  at all, and the reasoning is in `scripts/coverage-shell.sh`.
 
-`kcov` installs, but on this machine it cannot trace the macOS system bash
-(`Can't find or open /bin/bash`; SIP). Separately, most shell tests run a temporary
-*copy* of the script in a throwaway repository, which no tracer attributes to the
-original. Two ways forward, neither done yet: measure the shell scripts on a Linux CI
-runner where `kcov` works, and change the tests to run the scripts in place. Until then
-`scripts/coverage.sh` reports the shell codebase as NOT MEASURED on every run, and that
-blocks a promotion exactly as a failure would.
+## The rule that keeps it honest
+
+Each added test must catch a fault under mutation (`standards/10-test-strategy.md`
+§7). A test that only executes lines is fake coverage, and adding one is the same as
+loosening the threshold — which #29 forbids outright. The exclusion list stays in one
+place with a reason per entry, and only generated code may be on it.

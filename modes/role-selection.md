@@ -46,7 +46,7 @@ Before selecting a role, decide **whether that work needs an agent at all**.
 | **Reads little, writes a lot** (code, prose generation) | **Me** | I re-read whatever the agent wrote, and so does the user → the same content becomes tokens two or three times |
 | **The decision will be made together with the user** | **Me** | An agent takes the user out of the room |
 | **One file, a clear contract, no exploration** | Can be an agent | The output is narrow and verifiable |
-| **A few minutes, one command** | **Me** | ~$5-40 fixed cost per agent; the work is cheaper than that |
+| **A few minutes, one command** | **Me** | ~$5-40 fixed cost per agent (an **estimate**, not a measurement — the one measured role sits at ~$4.10/turn); the work is cheaper than that either way |
 
 ⚠️ This table came out of cost measurement: a subagent token is ~4x more expensive
 than the main conversation (a cache read/write ratio of 53:1 against 14:1), because
@@ -374,9 +374,11 @@ were 7.7% of the total.
 | `security` · `data` | opus | ~$4–10 (NOT MEASURED — auditors of the `qa` class) |
 | `Workflow` (mode E) | mixed | agent count × the above + an orchestration share |
 
-⚠️ The only **measured** number in this table is the $6.9 average; the model breakdown
-is an **estimate** derived from price ratios and is presented as such. If the real bill
-differs, the table is corrected — the estimate is not defended.
+⚠️ **Two** numbers here are measured: the ~$6.9 per-turn average across 33 sessions,
+and the `qa` row at ~$4.10/turn from 3 records (the calibration below). Everything
+else — the per-model breakdown — is an **estimate** derived from price ratios and is
+presented as such. If the real bill differs, the table is corrected; the estimate is
+not defended.
 
 ### Calibration: the table is corrected BY MEASUREMENT
 
