@@ -4,7 +4,15 @@ import subprocess
 import tempfile
 import unittest
 
-SCRIPTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+SCRIPTS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+
+# The shell scripts are run FROM THEIR REAL PATH, not from the copy inside the
+# throwaway repository. Both resolve their root with `git rev-parse
+# --show-toplevel`, so the cwd decides what they inspect and behaviour is
+# unchanged — but a coverage tracer attributes execution to the file it ran, so a
+# copy leaves the original at 0%. The copies stay: `pre-commit.sh --install`
+# symlinks to scripts/ inside the repository under test and needs them there.
+CHECK = os.path.join(SCRIPTS, 'real-name-check.sh')
 MAP = (
     '# comment\n'
     'Zorbexico\tryan\tzorbex\n'          # a secret name with an alias
@@ -45,7 +53,7 @@ class Repo(unittest.TestCase):
         git(self.root, 'add', path)
 
     def check(self, *args, env=None):
-        return subprocess.run(['bash', os.path.join(self.root, 'scripts', 'real-name-check.sh'), *args],
+        return subprocess.run(['bash', CHECK, *args],
                               cwd=self.root, capture_output=True, text=True, env=dict(os.environ, **(env or {})))
 
     def staged(self):
@@ -138,7 +146,7 @@ class MissingMap(Repo):
             with open(os.path.join(linked, 'leak.md'), 'w', encoding='utf-8') as handle:
                 handle.write('Zorbexico\n')
             git(linked, 'add', 'leak.md')
-            result = subprocess.run(['bash', os.path.join(linked, 'scripts', 'real-name-check.sh'), '--staged'],
+            result = subprocess.run(['bash', CHECK, '--staged'],
                                     cwd=linked, capture_output=True, text=True)
             self.assertEqual(result.returncode, 1)         # the map lives only in the main worktree
         finally:

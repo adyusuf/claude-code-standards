@@ -15,9 +15,12 @@
 # here if missing); tests that run a COPY of a script in a temporary directory are not
 # attributed to the original — measure a script through the original path.
 #
-# Shell: NOT MEASURED. `kcov` cannot trace the macOS system bash (SIP: "Can't find or open
-# /bin/bash"), and most shell tests run temporary copies of the scripts. Linux CI is the
-# place to measure it; until then it is reported here on every run, never skipped silently.
+# Shell: MEASURED via scripts/coverage-shell.sh, which runs the test suite with a `bash`
+# shim that turns each invocation of one of our scripts into a kcov run of that script.
+# It needs kcov and a bash kcov can trace (macOS /bin/bash is SIP protected — install one
+# with `brew install bash`); both are probed, and a missing tool exits 3, which blocks
+# exactly like a failure (#29). The tests must run the ORIGINAL scripts, not copies:
+# a tracer attributes execution to the file it ran, so a copied script measures 0%.
 set -uo pipefail
 
 root="$(git rev-parse --show-toplevel 2>/dev/null)" || { echo "not inside a git repository" >&2; exit 2; }
@@ -53,9 +56,15 @@ else
   rm -rf "$data"
 fi
 
-echo "▶ Shell scripts"
-echo "  NOT MEASURED: kcov cannot trace the macOS system bash and the shell tests run temporary copies"
-echo "  (see the header of this file and docs/coverage-gap.md)"
-[ "$status" = 0 ] && status=3
+# Shell: MEASURED by scripts/coverage-shell.sh (kcov). It used to be reported here
+# as permanently NOT MEASURED, which made this gate impossible to pass on macOS at
+# any Python coverage. Two things were actually in the way and both are fixed:
+# kcov could not trace the SIP-protected /bin/bash (a separate bash is installed
+# and probed for), and the tests ran COPIES of the scripts, which a tracer cannot
+# attribute to the originals. If the tooling is absent the helper still exits 3 and
+# this gate still blocks — #29 is unchanged, it is just no longer unmeasurable.
+bash scripts/coverage-shell.sh
+shell_status=$?
+if [ "$shell_status" != 0 ] && [ "$status" = 0 ]; then status="$shell_status"; fi
 
 exit "$status"

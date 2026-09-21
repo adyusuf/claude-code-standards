@@ -25,7 +25,7 @@ import subprocess
 import tempfile
 import unittest
 
-SCRIPTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+SCRIPTS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 ANSI = re.compile(r'\x1b\[[0-9;]*m')
 
 # The gate is run FROM ITS REAL PATH, never from a copy inside the throwaway
