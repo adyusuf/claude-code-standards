@@ -125,7 +125,7 @@ The full list, including the items tied to numbered rules: `docs/decision-log.md
 - ❌ Pushing directly to `main`/`prod`
 - ❌ Without user approval: production deploy, DB `DROP`, `git push --force`, deleting data, sending a message or publishing to an external service
 - ❌ An untested backup ("we have backups" is not enough — a restore drill is performed)
-- ❌ Invoking the `test-writer` and `migration-reviewer` subagents — strictly forbidden. The real protection is **the mode's role set**: no agent outside the mode's roles is ever invoked → #27, #28
+- ❌ Invoking any agent outside the active mode's role set — `migration-reviewer` (no longer on disk) and the plugin agents whose names shadow these roles (`ext:test-engineer`, `ext:code-reviewer`) included. ⚠️ `test-writer` is **not** banned: it is one of B's three pre-approved roles. The protection is the mode's role set, never a list of names → #27, #28
 
 ## Working method (for Claude)
 
