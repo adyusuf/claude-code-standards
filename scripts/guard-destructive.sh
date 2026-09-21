@@ -24,47 +24,22 @@ set -uo pipefail
 payload="$(cat 2>/dev/null || true)"
 printf '%s' "$payload" | grep -qiE 'push|drop|truncate|rm |no-verify' || exit 0
 
-message="$(printf '%s' "$payload" | python3 -c '
-import json, re, sys
-
-raw = sys.stdin.read()
-try:
-    command = json.loads(raw).get("tool_input", {}).get("command", "") or raw
-except Exception:
-    command = raw          # fail closed: judge the raw text
-
-def without_heredocs(text):
-    kept, tag = [], None
-    for line in text.splitlines():
-        if tag is not None:
-            if line.strip() == tag:
-                tag = None
-            continue
-        kept.append(line)
-        m = re.search(r"<<-?\s*[\"\x27]?([A-Za-z_][A-Za-z_0-9]*)", line)
-        if m:
-            tag = m.group(1)
-    return "\n".join(kept)
-
-GIT_RULES = (
-    (r"git\s+push([^;&|\n]*\s)?(-f|--force[a-z-]*)(\s|$)", "forced push"),
-    (r"git\s+push[^;&|\n]*(\s|:)(main|prod)(\s|$)", "push straight to main/prod"),
-    (r"git\s+(commit|push|merge)[^;&|\n]*--no-verify", "--no-verify skips the pre-commit gitleaks hook"),
-)
-ANY_RULES = (
-    (r"(drop|truncate)\s+(table|database|schema)", "DROP/TRUNCATE (take a backup and get approval first)"),
-    (r"rm\s+-[a-zA-Z]*[rR][a-zA-Z]*\s+(--\s+)?(/|~|\$HOME|\*|\.)/?\*?(\s|$)", "recursive delete of a root/home/working directory"),
-)
-git_view = without_heredocs(command)
-for view, rules in ((git_view, GIT_RULES), (command, ANY_RULES)):
-    for pattern, reason in rules:
-        if re.search(pattern, view, re.I):
-            sys.stderr.write("BLOCKED by guard-destructive.sh: %s\nAsk the user to run it themselves (never-do list).\n" % reason)
-            sys.exit(2)
-' 2>&1 >/dev/null)"
+# The judgement lives in scripts/guard-inspect.py. It used to be a ~37-line
+# Python program inline in a heredoc here, which meant it could not be tested
+# except through this wrapper, and could not be measured at all: a bash coverage
+# tracer counts a heredoc as ONE statement, so this file reported 3 of 19 lines
+# covered while every rule in it was being exercised (#29 wants an honest
+# denominator). Moved 21/09/2026, patterns byte-identical.
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+inspector="$here/guard-inspect.py"
+if [ ! -f "$inspector" ]; then
+  echo "BLOCKED by guard-destructive.sh: guard-inspect.py is missing next to this hook. Ask the user to run the command." >&2
+  exit 2
+fi
+message="$(printf '%s' "$payload" | python3 "$inspector" 2>&1 >/dev/null)"
 status=$?
-# 0 = allowed, 2 = blocked (message already printed). Anything else means the
-# inspector itself failed: fail closed rather than let the command through.
+# 0 = allowed, 2 = blocked (the inspector wrote the reason). Anything else means
+# the inspector itself failed: fail closed rather than let the command through.
 case "$status" in
   0) exit 0 ;;
   2) printf '%s\n' "$message" >&2; exit 2 ;;
