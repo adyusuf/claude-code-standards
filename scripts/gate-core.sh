@@ -78,6 +78,8 @@ esac
 
 ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 cd "$ROOT" || exit 2
+# shellcheck source=/dev/null  # the conf is per-project and may not exist; its
+# absence is handled by the [ -f ] test and by each step's own default.
 [ -f scripts/merge-gate.conf ] && . scripts/merge-gate.conf
 COVERAGE_MIN="${COVERAGE_MIN:-80}"
 
@@ -129,6 +131,9 @@ run()  { # run <label> <command...>
 #   MSBUILD : error MSB1003: Specify a project or solution file.
 # — a confusing error in place of a build. Measured 21/09/2026: four of five
 # .NET repositories here keep their solution below the root.
+# shellcheck disable=SC2012  # `ls` on a glob is intentional: it answers "is
+# there a solution AT THE ROOT" cheaply, and the `find` below covers every case
+# ls cannot — including the filenames SC2012 is about.
 SLN="$(ls ./*.sln ./*.slnx 2>/dev/null | head -1)"
 if [ -z "$SLN" ]; then
   SLN="$(find . -maxdepth 4 \( -name '*.sln' -o -name '*.slnx' \) \
@@ -168,7 +173,10 @@ echo "stacks: dotnet=$HAS_DOTNET${SLN:+ (${SLN#./})} node=$HAS_NODE web=${WEB_DI
 if [ "$TARGET" != "prod" ]; then
 
   say "formatter / linter"
-  [ "$HAS_DOTNET" = 1 ] && { have dotnet && run "dotnet format" dotnet format ${SLN:+"$SLN"} --verify-no-changes || skip "dotnet format (dotnet missing)"; }
+  if [ "$HAS_DOTNET" = 1 ]; then
+    if have dotnet; then run "dotnet format" dotnet format ${SLN:+"$SLN"} --verify-no-changes
+    else skip "dotnet format (dotnet missing)"; fi
+  fi
   for d in "$WEB_DIR" "$MOBILE_DIR"; do
     [ -n "$d" ] || continue
     if [ -f "$d/node_modules/.bin/eslint" ] || grep -q '"lint"' "$d/package.json" 2>/dev/null; then
@@ -184,14 +192,21 @@ if [ "$TARGET" != "prod" ]; then
   done
 
   say "build"
-  [ "$HAS_DOTNET" = 1 ] && { have dotnet && run "dotnet build" dotnet build ${SLN:+"$SLN"} -warnaserror || skip "dotnet build (dotnet missing)"; }
+  if [ "$HAS_DOTNET" = 1 ]; then
+    if have dotnet; then run "dotnet build" dotnet build ${SLN:+"$SLN"} -warnaserror
+    else skip "dotnet build (dotnet missing)"; fi
+  fi
   for d in "$WEB_DIR" "$MOBILE_DIR"; do
     [ -n "$d" ] || continue
-    grep -q '"build"' "$d/package.json" 2>/dev/null && run "build ($d)" npm --prefix "$d" run build || skip "build ($d): no build script"
+    if grep -q '"build"' "$d/package.json" 2>/dev/null; then run "build ($d)" npm --prefix "$d" run build
+    else skip "build ($d): no build script"; fi
   done
 
   say "unit tests"
-  [ "$HAS_DOTNET" = 1 ] && { have dotnet && run "dotnet test" dotnet test ${SLN:+"$SLN"} --nologo || skip "dotnet test (dotnet missing)"; }
+  if [ "$HAS_DOTNET" = 1 ]; then
+    if have dotnet; then run "dotnet test" dotnet test ${SLN:+"$SLN"} --nologo
+    else skip "dotnet test (dotnet missing)"; fi
+  fi
   for d in "$WEB_DIR" "$MOBILE_DIR"; do
     [ -n "$d" ] || continue
     if grep -q '"test"' "$d/package.json" 2>/dev/null; then
@@ -249,8 +264,8 @@ if [ "$TARGET" != "prod" ]; then
   say "CLAUDE.md gates"
   if [ -x scripts/md-size-gate.sh ]; then run "md-size-gate.sh" bash scripts/md-size-gate.sh
   else skip "md-size-gate.sh is missing"; fi
-  [ -f scripts/md-rule-gate.py ] && ok "md-rule-gate.py present (run by hand when splitting)" \
-    || skip "md-rule-gate.py is missing"
+  if [ -f scripts/md-rule-gate.py ]; then ok "md-rule-gate.py present (run by hand when splitting)"
+  else skip "md-rule-gate.py is missing"; fi
 
   say "project documents (rule #16 — fail closed)"
   if [ "$LIST_ONLY" = 1 ]; then
@@ -259,11 +274,13 @@ if [ "$TARGET" != "prod" ]; then
   elif [ "$HAS_DOTNET" = 0 ] && [ "$HAS_NODE" = 0 ]; then
     na "project documents: no stack at the repository root, nothing to check"
   else
-    [ -f SETUP.md ] && ok "SETUP.md" || bad "SETUP.md is missing (rule #16: a clean machine must be set up from the document)"
-    [ -f .env.example ] && ok ".env.example" || bad ".env.example is missing (rule #16)"
+    if [ -f SETUP.md ]; then ok "SETUP.md"
+    else bad "SETUP.md is missing (rule #16: a clean machine must be set up from the document)"; fi
+    if [ -f .env.example ]; then ok ".env.example"
+    else bad ".env.example is missing (rule #16)"; fi
     if [ -f SETUP.md ]; then
-      grep -qE '^#{1,4} .*[Ii]nventory' SETUP.md && ok "secret/token inventory in SETUP.md" \
-        || bad "SETUP.md has no secret/token inventory heading (rule #16)"
+      if grep -qE '^#{1,4} .*[Ii]nventory' SETUP.md; then ok "secret/token inventory in SETUP.md"
+      else bad "SETUP.md has no secret/token inventory heading (rule #16)"; fi
     fi
   fi
 
@@ -335,7 +352,11 @@ if [ "$TARGET" = "prod" ]; then
     fi
     if [ -z "$deployed" ]; then
       skip "the deployed SHA cannot be read: set TEST_VERSION_URL (a /version endpoint per standards/17 §6) or TEST_DEPLOY_SHA_CMD in scripts/merge-gate.conf"
-    elif [ "${HEAD_SHA#$deployed}" != "$HEAD_SHA" ] || [ "${deployed#${HEAD_SHA:0:7}}" != "$deployed" ]; then
+    # ⚠️ The patterns are QUOTED. Unquoted, `${HEAD_SHA#$deployed}` treats the
+    # value as a GLOB, so a `*` or `[` arriving from a project's
+    # TEST_DEPLOY_SHA_CMD would change what "is this SHA a prefix of that one"
+    # means — on the step that decides whether prod may carry this code.
+    elif [ "${HEAD_SHA#"$deployed"}" != "$HEAD_SHA" ] || [ "${deployed#"${HEAD_SHA:0:7}"}" != "$deployed" ]; then
       ok "the test environment is running this code ($deployed)"
     else
       bad "the test environment is running $deployed, not ${HEAD_SHA:0:7} — deploy to test first and wait for it"

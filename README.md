@@ -40,6 +40,16 @@ here is built for that gap: rules loaded before the work starts, gates that fail
 loudly when a step did not run, and reports that are not accepted without
 evidence.
 
+Concretely, this is what that gap looks like. One project reported **95.0% test
+coverage** — in CI, on a dashboard, undisputed. 85% of the denominator was EF
+Core migrations: generated code that executes by itself whenever the tests run,
+so it counts as covered without anyone ever asserting anything about it. The
+honest figure was **83.0%**. And because that single number averaged four
+codebases into one, it was also hiding a web client at **~14%**, where **107 of
+136 files had no test touching them at all**. Nobody lied. The number was just
+never asked the right question, and nothing was gating on the answer.
+→ [Case 01](docs/case-01-coverage-illusion.md)
+
 **This is my live configuration, running as-is.** It is not a sample, a
 write-up, or a tidied copy of something I keep privately: `~/.claude` symlinks
 straight into this repository, so every session I open — across nine
@@ -60,6 +70,41 @@ tooling.
 
 Not for you if you want a prompt pack. There are no clever prompts here. There
 are rules, gates, measurements, and the record of what each one cost.
+
+## If you take only five things
+
+These paste straight into your own `CLAUDE.md`. They are stack-agnostic, they
+do not depend on anything else in this repository, and every one of them exists
+because work was reported as finished when it was not.
+
+```markdown
+1. Report the truth. If tests are red, say so with the output; name any step
+   that was skipped. Never report completion on the basis of "it probably
+   works".
+2. Before saying "done", re-read the ORIGINAL request — not a summarised memory
+   of it — and check it item by item. Anything knowingly deferred is listed in
+   the final report, never skipped silently.
+3. A gate that did not run did not pass. A missing tool is reported as SKIPPED
+   and the result is INCOMPLETE, never green. The exit code is the gate.
+4. A new rule is never left verbal. The moment a permanent decision is made,
+   write it to the rule file in the same turn.
+5. Line coverage is measured per codebase and never averaged. Only GENERATED
+   code may leave the denominator, and the exclusion list carries a reason per
+   entry.
+```
+
+In this repository these are rules **#15, #24, #19 + #25, #14 and #29** — the
+numbering is kept stable so the decision log can be read alongside them.
+
+Why these five and not the other twenty-eight: each one closes a gap that an
+agent cannot be trusted to close on its own. An agent summarising your request
+back to itself will drop an item; an agent whose linter was not installed will
+still say the lint passed; an agent told a rule in conversation will forget it
+by the next session. Rules 1-4 are about **the report being true**, and rule 5
+is the measurement most often false in a way nobody notices.
+
+Full set: [`CLAUDE.md`](CLAUDE.md) (33 rules) · why each exists:
+[`docs/decision-log.md`](docs/decision-log.md).
 
 ## How each of those is actually done
 
@@ -159,7 +204,7 @@ because something broke first.
 | Engineering standards | `standards/` | 22 documents + 6 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate and measurement scripts | `scripts/` | 21 scripts + 332 tests |
+| Gate and measurement scripts | `scripts/` | 24 scripts + 410 tests |
 | Slash commands and skills | `commands/`, `skills/` | 5 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
@@ -378,7 +423,7 @@ flowchart LR
 ## Usage
 
 ```bash
-git clone https://github.com/<user>/claude-code-standards
+git clone https://github.com/adyusuf/claude-code-standards
 cp -r claude-code-standards/{CLAUDE.md,standards,agents,modes,commands,skills,scripts} ~/.claude/
 cp claude-code-standards/settings.example.json ~/.claude/settings.json # review it first
 ```

@@ -173,14 +173,56 @@ class WhenItCannotRun(Scan):
             shutil.rmtree(loose, ignore_errors=True)
 
 
-class WhatItDoesNotCover(Scan):
-    def test_it_says_on_every_run_that_shell_is_not_covered(self):
-        # CodeQL has no shell analyser. This repository is largely shell, so
-        # leaving that unsaid would let "SAST passed" read as "everything was
-        # scanned" — the same unstated-gap problem the coverage gate had.
+class ShellIsScannedToo(Scan):
+    """CodeQL has no shell analyser and this repository is largely shell, so for
+    one commit the script said so on every run and left it at that — "SAST
+    passed" reading as "everything was scanned" while more than half the code was
+    never looked at. ShellCheck now covers that half.
+
+    This class replaced a test that asserted the old disclaimer text. That test
+    kept passing under pytest because it was not re-run after the change, and the
+    full `unittest discover` pass caught it — the same two-runner split that hid
+    a leaked stub earlier today.
+    """
+
+    def test_the_shell_half_runs_and_is_reported(self):
         self.stub_codeql(sarif())
-        out, _ = self.run_scan()
-        self.assertIn('shell scripts are NOT covered', out)
+        with open(os.path.join(self.root, 'scripts', 'thing.sh'), 'w', encoding='utf-8') as handle:
+            handle.write('#!/usr/bin/env bash\necho hello\n')
+        out, code = self.run_scan()
+        self.assertIn('ShellCheck', out)
+        self.assertEqual(0, code, out)
+
+    def test_a_repository_with_no_shell_says_n_a(self):
+        self.stub_codeql(sarif())
+        out, code = self.run_scan()
+        self.assertIn('no shell scripts here', out)
+        self.assertEqual(0, code)
+
+    def test_a_shell_warning_blocks_the_gate(self):
+        # An unused variable is SC2034, level `warning`, and warnings block.
+        # Measured rather than assumed: the first attempt used an unquoted
+        # expansion (SC2086), which shellcheck rates `info` — it would have
+        # tested nothing while looking like a threshold test.
+        self.stub_codeql(sarif())
+        with open(os.path.join(self.root, 'scripts', 'bad.sh'), 'w', encoding='utf-8') as handle:
+            handle.write('#!/usr/bin/env bash\nunused_variable=1\n')
+        out, code = self.run_scan()
+        self.assertIn('the merge is blocked', out)
+        self.assertEqual(1, code)
+
+    def test_a_missing_shellcheck_is_NOT_RUN_and_blocks(self):
+        self.stub_codeql(sarif())
+        with open(os.path.join(self.root, 'scripts', 'thing.sh'), 'w', encoding='utf-8') as handle:
+            handle.write('#!/usr/bin/env bash\necho hello\n')
+        env = dict(os.environ)
+        env['PATH'] = os.pathsep.join(
+            [self.bin] + [entry for entry in env['PATH'].split(os.pathsep)
+                          if not os.path.exists(os.path.join(entry, 'shellcheck'))])
+        result = subprocess.run(['bash', SCAN], cwd=self.root, capture_output=True,
+                                text=True, env=env)
+        self.assertIn('NOT RUN', result.stdout + result.stderr)
+        self.assertEqual(3, result.returncode)
 
 
 if __name__ == '__main__':
