@@ -14,6 +14,8 @@ A number that breaks these rules is not reported as a finding.
 | Cost | those tokens × the **API list price** table in `scripts/step-stats.py` | ledger column `usd` |
 | Fixed prefix (system prompt + tool/skill listings + `CLAUDE.md`) | the first request of a session | `measurement-log.md`, prefix section |
 | Role of an agent run | the `subagent_type` of the `Agent` call that started it | ledger column `role` (`main` for a session) |
+| Which project a run belongs to | the transcript's folder under `~/.claude/projects` (a worktree belongs to its project), shown as a nickname | ledger column `project` |
+| When a run ended | the timestamp of the transcript's last record | ledger column `ended`; the day reports charge a run to the local day it ended, or the day it started when this is empty |
 | How often an SDLC step ran | shell-command patterns in `tool_use` blocks | ledger column `steps`, `measurement-log.md` |
 | How long an SDLC step took | the timestamp of a `tool_use` block to the timestamp of its `tool_result` | ledger column `step_seconds` (`name=seconds;…`) |
 | Configuration change points | `scripts/measurement-cuts.tsv` | ledger column `cut` |
@@ -78,5 +80,5 @@ for key, values in sorted(groups.items(), key=lambda kv: -len(kv[1])):
 PY
 ```
 
-The ledger is a local, git-ignored file; back it up if the history matters. `modes/role-selection.md` §8 also holds a hand-written ledger of early `qa` turns.
+The per-day reports (`measurement-daily-by-project|role|kind|model.md`) are generated from the ledger, charge a run whole to the day its session **ended**, and are equally local. The ledger is a local, git-ignored file; back it up if the history matters. `modes/role-selection.md` §8 also holds a hand-written ledger of early `qa` turns.
 New records belong in `measurement-ledger.tsv`, which needs no hand entry.

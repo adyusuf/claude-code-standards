@@ -128,16 +128,34 @@ class StepSeconds(unittest.TestCase):
         row = self.row([tool_call('dotnet test', '2026-09-01T10:01:00.000Z', 'a'), tool_result('2026-09-01T10:01:07.000Z', 'a')])
         self.assertEqual(ledger.problems([row]), [])
 
-    def test_a_ledger_written_before_the_column_existed_is_still_read(self):
-        old = ledger.NAMES[:-1]
+    def read_old(self, column_count, values):
         with tempfile.NamedTemporaryFile('w', suffix='.tsv', delete=False) as handle:
-            handle.write('\t'.join(old) + '\n')
-            handle.write('\t'.join(['aaaaaaaaaa', '2026-08-01T00:00', 'agent', 'qa', 'm', '1', '0', '0', '0', '0', '1.0000', '0', 'build=2']) + '\n')
+            handle.write('\t'.join(ledger.NAMES[:column_count]) + '\n')
+            handle.write('\t'.join(values[:column_count]) + '\n')
         try:
-            rows = ledger.read_ledger(handle.name)
-            self.assertEqual(rows['aaaaaaaaaa']['steps'], 'build=2')
-            self.assertEqual(rows['aaaaaaaaaa']['step_seconds'], '')
-            self.assertEqual(ledger.problems(list(rows.values())), [])
+            return ledger.read_ledger(handle.name)
+        finally:
+            os.unlink(handle.name)
+
+    OLD = ['aaaaaaaaaa', '2026-08-01T00:00', 'agent', 'qa', 'm', '1', '0', '0', '0', '0', '1.0000', '0', 'build=2']
+
+    def test_a_ledger_written_before_step_seconds_existed_is_still_read(self):
+        rows = self.read_old(13, self.OLD)
+        self.assertEqual(rows['aaaaaaaaaa']['steps'], 'build=2')
+        for missing in ('step_seconds', 'project', 'ended'):
+            self.assertEqual(rows['aaaaaaaaaa'][missing], '')
+
+    def test_a_ledger_written_before_project_and_ended_existed_is_still_read(self):
+        rows = self.read_old(14, self.OLD + ['build=42'])
+        self.assertEqual(rows['aaaaaaaaaa']['step_seconds'], 'build=42')
+        self.assertEqual((rows['aaaaaaaaaa']['project'], rows['aaaaaaaaaa']['ended']), ('', ''))
+
+    def test_the_header_decides_the_column_order_not_the_position(self):
+        with tempfile.NamedTemporaryFile('w', suffix='.tsv', delete=False) as handle:
+            handle.write('id\tusd\tkind\n' + 'bbbbbbbbbb\t2.0000\tagent\n')     # NAMES has started second and kind third
+        try:
+            row = ledger.read_ledger(handle.name)['bbbbbbbbbb']
+            self.assertEqual((row['kind'], row['usd']), ('agent', '2.0000'))
         finally:
             os.unlink(handle.name)
 
@@ -153,7 +171,7 @@ class LedgerSafety(unittest.TestCase):
     def test_a_field_that_fails_its_pattern_is_reported(self):
         row = {name: '0' for name in ledger.NAMES}
         row.update(id='abcdef0123', started='2026-09-01T10:00', kind='agent', role='qa', model='m', usd='1.0000',
-                   steps='', step_seconds='')
+                   steps='', step_seconds='', project='groot', ended='')
         self.assertEqual(ledger.problems([row]), [])
         row['role'] = '/Users/x/Project'
         self.assertEqual(ledger.problems([row]), [('abcdef0123', 'role')])
@@ -164,7 +182,8 @@ class LedgerSafety(unittest.TestCase):
 class LedgerMerge(unittest.TestCase):
     def rows(self, ident, started, usd='1.0000'):
         row = {name: '0' for name in ledger.NAMES}
-        row.update(id=ident, started=started, kind='agent', role='qa', model='m', usd=usd, steps='', step_seconds='')
+        row.update(id=ident, started=started, kind='agent', role='qa', model='m', usd=usd, steps='', step_seconds='',
+                   project='groot', ended='')
         return row
 
     def test_history_survives_and_a_running_session_is_updated(self):

@@ -32,3 +32,9 @@ __pycache__/
 
 # Generated and rewritten by a live hook; it stays local (see docs/README.md)
 docs/measurement-ledger.tsv
+# Real project keys and the per-project cost report: local only (see docs/README.md)
+docs/project-nicknames.tsv
+docs/measurement-daily-by-project.md
+docs/measurement-daily-by-role.md
+docs/measurement-daily-by-kind.md
+docs/measurement-daily-by-model.md

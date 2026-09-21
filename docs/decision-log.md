@@ -348,6 +348,14 @@ that runs. What was built, and the decisions behind it:
   and live `prod` worktrees dirty and would have blocked any promotion touching it; it was untracked
   (history keeps the earlier rows) and `scripts/doc-check.py` no longer reports a git-ignored path as a
   broken reference. The cost: the file is not backed up by git.
+- **Project nicknames and the per-day reports (`scripts/measurement-report.py`).** The ledger's
+  `project` column holds a nickname, never a folder name, and the folder-key → nickname map is a
+  local git-ignored file because it is the one place real names live; a nickname that contains a
+  real project name, or a project with no nickname, can never write a real name into the ledger
+  (unmapped ones show as `unmapped-xxxxxx`). The nicknames are association chains only their owner
+  can follow. A run is charged WHOLE to the local day its session **ended** (the last record), or
+  to the day it started when no end was recorded — a rule set by the user; an earlier design that
+  split each request across days was dropped for it. Four report files: by project, role, kind, model.
 - **Drift test (`scripts/md-hook.sh`).** It covered only three `md-*` tools while
   `gate-core.sh` and the README claimed otherwise. It now covers every copied script; the
   configuration repository itself is exempt (a dev worktree would otherwise report every

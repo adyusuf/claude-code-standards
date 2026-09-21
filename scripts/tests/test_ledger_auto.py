@@ -155,7 +155,9 @@ class Safety(Fixture):
     def test_no_temporary_file_or_lock_is_left_behind(self):
         self.session_and_agent()
         self.run_auto()
-        self.assertEqual(sorted(os.listdir(self.root)), ['ledger.tsv', 'projects'])
+        self.assertEqual(sorted(os.listdir(self.root)),
+                         ['ledger.tsv', 'measurement-daily-by-kind.md', 'measurement-daily-by-model.md',
+                          'measurement-daily-by-project.md', 'measurement-daily-by-role.md', 'projects'])
 
 
 class DetachedFromASymlink(unittest.TestCase):

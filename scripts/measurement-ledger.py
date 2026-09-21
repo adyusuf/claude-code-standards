@@ -6,6 +6,7 @@ Usage:
     python3 scripts/measurement-ledger.py --write         # merge into docs/measurement-ledger.tsv
     python3 scripts/measurement-ledger.py --days 30       # limit the transcripts read (default 30)
     python3 scripts/measurement-ledger.py --ledger PATH   # read/write another file (a trial run, a copy)
+    python3 scripts/measurement-ledger.py --nicknames PATH  # project nicknames (default: project-nicknames.tsv beside the ledger)
     python3 scripts/measurement-ledger.py --auto --detach # what the Stop hook runs: incremental, in the background
 
 Why it exists: docs/measurement-log.md is an AGGREGATE. A number in it cannot be
@@ -58,6 +59,8 @@ COLUMNS = (
     ('cut', r'\d+'),
     ('steps', rf'(|{STEP}(;{STEP})*)'),
     ('step_seconds', rf'(|{STEP}(;{STEP})*)'),
+    ('project', r'[a-z][a-z0-9-]{1,30}'),
+    ('ended', r'(|\d{4}-\d\d-\d\dT\d\d:\d\d)'),
 )
 NAMES = [name for name, _ in COLUMNS]
 
@@ -72,6 +75,9 @@ HEADER = (
     "# steps : SDLC steps this transcript RAN (step-stats.py patterns); a step run inside another script is not seen\n"
     "# step_seconds : wall-clock seconds those steps took (tool call -> its result). A command that runs several steps is\n"
     "#       split evenly; a wait for a permission prompt is INCLUDED; a call over 3600 s is dropped as a hang. Empty = not measured\n"
+    "# project : a NICKNAME from project-nicknames.tsv (local, git-ignored); unmapped-xxxxxx when no nickname is set. Never a real name\n"
+    "# ended : UTC minute of the LAST record of the transcript (the session end; a running session's moves forward). The reports\n"
+    "#       charge a row to the local day it ENDED, or to the day it started when this is empty (rows written before it existed)\n"
 )
 
 
@@ -106,6 +112,55 @@ def safe_role(role, stats):
     return 'other' if deny is not None and deny.search(role) else role
 
 
+def project_key(path, stats):
+    """The project a transcript belongs to: its folder under ~/.claude/projects, without the
+    home-directory prefix and without the worktree suffix (a worktree belongs to its project)."""
+    root = stats.TRANSCRIPTS.split('**')[0]
+    folder = os.path.relpath(path, root).split(os.sep)[0]
+    folder = re.sub(r'--claude-worktrees-.*$', '', folder)
+    return re.sub(r'^-Users-[^-]+-(?:ClaudeCode-)?', '', folder)
+
+
+def load_nicknames(path):
+    """[(key, nickname)] from a two-column TSV. A key ending in * is a prefix. Local file, never committed."""
+    pairs = []
+    if path and os.path.exists(path):
+        with open(path, encoding='utf-8') as handle:
+            for line in handle:
+                if line.startswith('#') or '\t' not in line:
+                    continue
+                key, nick = line.rstrip('\n').split('\t')[:2]
+                if key.strip() and nick.strip():
+                    pairs.append((key.strip(), nick.strip()))
+    return pairs
+
+
+def nickname_for(key, pairs):
+    lowered = key.lower()
+    for candidate, nick in pairs:
+        if not candidate.endswith('*') and candidate.lower() == lowered:
+            return nick
+    for candidate, nick in pairs:
+        if candidate.endswith('*') and lowered.startswith(candidate[:-1].lower()):
+            return nick
+    return 'unmapped-' + hashlib.sha256(key.encode()).hexdigest()[:6]
+
+
+def nickname_problems(pairs, stats):
+    """A nickname must be plain, and must not contain a real project name (fail closed)."""
+    deny = stats.deny_pattern()
+    keys = [k.lower().rstrip('*') for k, _ in pairs if len(k.rstrip('*')) > 3]
+    bad = []
+    for key, nick in pairs:
+        if not re.fullmatch(r'[a-z][a-z0-9-]{1,30}', nick):
+            bad.append((nick, 'not a lowercase a-z0-9- word'))
+        elif nick.startswith('unmapped-'):
+            bad.append((nick, 'reserved prefix'))
+        elif (deny is not None and deny.search(nick)) or any(k in nick for k in keys):
+            bad.append((nick, 'contains a real project name'))
+    return bad
+
+
 def epoch(text):
     return datetime.datetime.fromisoformat(text.replace('Z', '+00:00')).timestamp()
 
@@ -124,21 +179,23 @@ def matched_steps(command, stats):
     return matched
 
 
-def row_for(path, kind, role, stats, cuts):
+def row_for(path, kind, role, stats, cuts, nicknames=()):
     """One transcript -> one ledger row (a dict of strings), or None if it has no usage."""
     started = model = None
     requests = 0
     totals = dict(input=0, output=0, cache_write=0, cache_read=0)
     usd = 0.0
     pending, seconds = {}, collections.Counter()
+    last = None
     with open(path, errors='ignore') as handle:
         for line in handle:
             try:
                 record = json.loads(line)
             except Exception:
                 continue
-            if started is None and record.get('timestamp'):
-                started = record['timestamp']
+            if record.get('timestamp'):
+                started = started or record['timestamp']
+                last = record['timestamp']
             message = record.get('message') or {}
             content = message.get('content')
             if isinstance(content, list) and record.get('timestamp'):
@@ -187,6 +244,8 @@ def row_for(path, kind, role, stats, cuts):
         'cut': str(sum(1 for cut in cuts if cut < when.timestamp())),
         'steps': steps,
         'step_seconds': timed,
+        'project': nickname_for(project_key(path, stats), nicknames),
+        'ended': datetime.datetime.fromisoformat(last.replace('Z', '+00:00')).astimezone(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M'),
     }
 
 
@@ -201,17 +260,24 @@ def problems(rows):
 
 
 def read_ledger(path=LEDGER):
+    """Rows by id. The header line decides which column is which, so a file written with
+    fewer columns (before step_seconds, project, ended existed) is still read."""
     rows = {}
     if os.path.exists(path):
+        names = None
         with open(path, encoding='utf-8') as handle:
             for line in handle:
-                if line.startswith('#') or not line.strip() or line.startswith('id\t'):
+                if line.startswith('#') or not line.strip():
                     continue
                 cells = line.rstrip('\n').split('\t')
-                if len(cells) == len(NAMES) - 1:      # a row written before step_seconds existed
-                    cells.append('')
-                if len(cells) == len(NAMES):
-                    rows[cells[0]] = dict(zip(NAMES, cells))
+                if line.startswith('id\t'):
+                    names = cells
+                    continue
+                row = dict(zip(names or NAMES, cells))
+                for name in NAMES:
+                    row.setdefault(name, '')
+                if row['id']:
+                    rows[row['id']] = row
     return rows
 
 
@@ -227,7 +293,7 @@ def render(rows):
     return HEADER + '\t'.join(NAMES) + '\n' + ''.join('\t'.join(r[n] for n in NAMES) + '\n' for r in rows)
 
 
-def build(days, stats, only_newer_than=None, existing=None):
+def build(days, stats, only_newer_than=None, existing=None, nicknames=()):
     """Rows for the transcripts in the window; with `only_newer_than`, only recently modified ones."""
     sessions, agents = stats.collect(days)
     if only_newer_than is not None:
@@ -243,10 +309,10 @@ def build(days, stats, only_newer_than=None, existing=None):
     cuts = read_cuts()
     rows = []
     for path in sessions:
-        rows.append(row_for(path, 'session', None, stats, cuts))
+        rows.append(row_for(path, 'session', None, stats, cuts, nicknames))
     for path in agents:
         role = roles.get(os.path.basename(path)[6:14])
-        row = row_for(path, 'agent', role, stats, cuts)
+        row = row_for(path, 'agent', role, stats, cuts, nicknames)
         if row and role is None and row['id'] in existing:
             row['role'] = existing[row['id']]['role']          # keep the role an earlier run resolved
         rows.append(row)
@@ -293,7 +359,19 @@ def release_lock(ledger_path):
         pass
 
 
-def auto_update(ledger_path, stats, days=30, min_interval=600, now=None):
+def nicknames_path_for(ledger_path):
+    return os.path.join(os.path.dirname(ledger_path), 'project-nicknames.tsv')
+
+
+def regenerate_report(ledger_path):
+    """Rewrite the day-by-project and day-by-role reports beside the ledger."""
+    spec = importlib.util.spec_from_file_location('measurement_report', os.path.join(HERE, 'measurement-report.py'))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module.write_reports(ledger_path)
+
+
+def auto_update(ledger_path, stats, days=30, min_interval=600, now=None, nicknames_path=None):
     """Incremental refresh. Returns the number of rows written, or None when it did nothing."""
     now = time.time() if now is None else now
     existed = os.path.exists(ledger_path)
@@ -304,10 +382,17 @@ def auto_update(ledger_path, stats, days=30, min_interval=600, now=None):
     try:
         existing = read_ledger(ledger_path)
         since = os.path.getmtime(ledger_path) - 300 if existed else None     # 5 min of overlap
-        fresh = build(days, stats, only_newer_than=since, existing=existing)
+        pairs = load_nicknames(nicknames_path or nicknames_path_for(ledger_path))
+        if nickname_problems(pairs, stats):
+            return None                                    # a nickname that could leak a name: write nothing
+        fresh = build(days, stats, only_newer_than=since, existing=existing, nicknames=pairs)
         if not fresh or problems(fresh):
             return None
         write_atomically(ledger_path, render(merge(existing, fresh)))
+        try:
+            regenerate_report(ledger_path)
+        except Exception:
+            pass
         return len(fresh)
     finally:
         release_lock(ledger_path)
@@ -337,7 +422,11 @@ def main(argv):
             pass                                    # a hook must never break the session
         return 0
     stats = load_stats()
-    fresh = build(days, stats)
+    pairs = load_nicknames(argv[argv.index('--nicknames') + 1] if '--nicknames' in argv else nicknames_path_for(ledger_path))
+    leaks = nickname_problems(pairs, stats)
+    if leaks:
+        sys.exit(f'refusing to write — unsafe nickname(s): {leaks[:5]}')
+    fresh = build(days, stats, nicknames=pairs)
     bad = problems(fresh)
     if bad:
         sys.exit(f'refusing to write — {len(bad)} field(s) failed their pattern: {bad[:5]}')
@@ -347,6 +436,10 @@ def main(argv):
     if '--write' in argv:
         write_atomically(ledger_path, render(merged))
         print('written:', ledger_path)
+        try:
+            print('reports:', ', '.join(regenerate_report(ledger_path)))
+        except Exception as error:
+            print('report not written:', error)
     return 0
 
 
