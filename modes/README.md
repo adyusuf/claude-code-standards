@@ -130,7 +130,10 @@ In every mode, on every turn that uses agents:
    exceed half the call count of pass 1 (+10–20% overhead).
    If the same work is sent back twice and still does not close, the chain stops and
    the user is **informed** — a status report, not a question.
-   → [`role-selection.md`](role-selection.md) §7
+   → [`role-selection.md`](role-selection.md) §7, and the block's canonical wording in
+   [`completeness-check-core.md`](completeness-check-core.md) — it is copied verbatim
+   into every role that owes it, and `scripts/doc-check.py` fails if a copy reworded a
+   line (adding one of its own is allowed, and five roles do).
 2. **Cost is reported at every handoff**, never deferred to the end of the turn:
    `↳ analyst done · ~$3 · turn total ~$9 (2 agents) · threshold ~$150 (C)`.
    The threshold is **mode-dependent and two-stage**: a warning at half, a stop at
