@@ -583,6 +583,23 @@ Templates: `standards/templates/` — project CLAUDE.md, **SETUP.md**, PR, ADR, 
   anything outward, deleting files.
 - Detail: `standards/00-working-method.md`
 
+### ⚠️ Commit c68fbf1 bundled two unrelated tasks
+
+Its message describes only the reporting change, but it also carried the first
+half of the shell-coverage work: `scripts/tests/test_gate_core_fixes.py` and
+`test_gate_core_docs.py` were changed to run **the real `scripts/gate-core.sh`**
+instead of copying it into each throwaway repository. That is a real change with
+its own reason (a coverage tracer attributes execution to the file it actually
+ran, so a copy leaves the script at 0% however many tests exercise it), and it
+belonged in its own commit per #26 step 3. `git add -A` swept it in.
+
+The change is correct and verified — the two invocations produce byte-identical
+output, because gate-core.sh resolves its root with `git rev-parse
+--show-toplevel` and cd's there, so the cwd decides what it inspects and not
+where the file sits; 31 tests pass against the real path. It is recorded here
+rather than rewritten out of history, because amending a pushed commit needs a
+force push.
+
 ## STATUS REPORTING during a long gate/run — the dashboard was removed (21/09/2026)
 
 **The rule now:** report a long gate, run or deploy as a **short markdown table in the
