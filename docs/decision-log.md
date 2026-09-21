@@ -309,6 +309,55 @@ rule (e.g. selective e2e on `dev → test`), report it and propose updating the 
 to match; until the script is updated, tell the user in advance that "the gate will
 run e2e".
 
+## §16 · §28 · never-do list — the enforcement tooling
+
+Rules that stayed prose were the ones that failed silently, so each was given a check
+that runs. What was built, and the decisions behind it:
+
+- **#16 fail-closed (`scripts/gate-core.sh`).** A missing `SETUP.md`, `.env.example` or
+  secret-inventory heading now FAILS the gate. A repository with no stack at its root
+  reports **n/a**, not SKIPPED: "nothing to check here" is not "the check did not run".
+  Known limit: in a monorepo whose stacks live in `web/` and `mobile/` the documents are
+  not verified at all.
+- **#28 machine-checkable evidence block (`scripts/evidence-check.py`).** A report with
+  no block fails; a clean result may not say "not verified"; a YES must carry
+  `BACK TO: <who> · <what> · <closing evidence>`. The agent prompts were deliberately NOT
+  changed (they are loaded per call; growing them costs tokens) — the schema lives
+  beside the script. The role → auditor table is `modes/README.md` › "Who audits whom".
+  `architect` and `designer` are audited by the orchestrator (a written exemption from
+  the block), so that audit is a command it runs, not a glance. **Correction:** an
+  earlier version of the table called three auditors "not defined"; that was a misreading
+  — the sources defined them, but `e2e-writer.md`'s auditor section was empty.
+- **Never-do list as a hook (`scripts/guard-destructive.sh`).** Blocks forced push, push
+  straight to `main`/`prod`, `--no-verify`, DROP/TRUNCATE and `rm -rf` on a root/home
+  directory. **No environment-variable bypass** — a switch the agent can set is not a
+  guard; the user runs the command themselves. Measured on 64,297 real Bash commands:
+  6.8% reach the pattern stage, and of the first 2,500 of those 4% were blocked, most
+  correctly. A first version blocked heredocs that merely *wrote* the text "--no-verify"
+  (13 of 16 such commands); the git rules now ignore heredoc bodies, the SQL and `rm`
+  rules do not (a `psql <<EOF` heredoc executes).
+- **Activation (`scripts/install-live-hooks.py`).** Symlinks live in `~/.claude/hooks`,
+  not `~/.claude/scripts`: `scripts` points into the PROD worktree, so a new file there
+  would be untracked in prod and collide with the next promotion. The links point into
+  the `dev` checkout; after a promotion `--repo <prod checkout>` re-points them.
+- **Automatic ledger (`scripts/measurement-ledger.py --auto`).** Every column is derived
+  from the transcripts; there is no hand-filled field, and no project name, path or command
+  is written (raw commands were rejected: an earlier commit already had to fix a log that
+  bypassed the sanitiser). Incremental, locked, atomic, 600 s minimum interval, detached.
+  **Trade-off accepted:** it rewrites the tracked `docs/measurement-ledger.tsv` in the
+  checkout the hook points at, so that file shows as modified there until it is committed.
+- **Drift test (`scripts/md-hook.sh`).** It covered only three `md-*` tools while
+  `gate-core.sh` and the README claimed otherwise. It now covers every copied script; the
+  configuration repository itself is exempt (a dev worktree would otherwise report every
+  unpromoted change as drift).
+- **Documentation drift (`scripts/doc-check.py`, pre-commit step 3).** Links, referenced
+  paths, indexes and the counts `README.md` states. Its first run found five mode files
+  no index linked and a README claiming "7 scripts" for 13.
+- **Not measured (#29):** line coverage of these scripts. Python tested through
+  subprocesses is invisible to an in-process tracer and shell scripts need a different
+  tool; a proposal is open and no dependency was added (#10). Until then it is "not
+  measured", not "passing".
+
 ## Never-do list (full)
 
 - ❌ Fake-domain email in test data (`.test` / `.local` / `example.com`) or an address written by hand into a spec — the real mailbox is `<account>+<variable>@gmail.com`, from one helper → #30
