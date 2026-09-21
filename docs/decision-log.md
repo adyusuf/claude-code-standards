@@ -67,6 +67,51 @@ Additional detail shortened out of the active file:
 - On the `dev → test` and `test → prod` promotions nothing is skipped — and the
   promotion is performed with the user's approval anyway.
 
+### The five fixes of 21/09/2026, and how each one is pinned
+
+The shared core had been carrying bugs that made it report **GREEN while whole
+tiers went unchecked**. They were found by running the gate in every repository
+that carries it rather than by reading it. The worst one: a repository with a
+`.slnx` solution, 673 backend tests, a **red build** and two high-severity
+advisories printed GATE GREEN, because stack detection came out `dotnet=0` and
+not one .NET step ran — and a promotion had already been made on that basis.
+
+| # | The bug | Why it was silent |
+|---|---|---|
+| 1 | `ls ./*.sln` did not match the newer `.slnx` | detection returned 0, so the tier was skipped, not failed |
+| 2 | `ls ./**/*.csproj` is one level deep without `globstar` | a project at `src/Api/Api.csproj` was invisible |
+| 3 | Node detection was root-only while .NET looked deeper | a repo whose JS lives in `frontend/` skipped the rule-#16 document step entirely |
+| 4 | The solution was detected but never passed to `dotnet` | `MSBUILD : error MSB1003` in place of a build — four of five .NET repos keep their solution below the root |
+| 5 | `npm test -- --run` was passed unconditionally | `--run` is vitest's flag; jest fails on it for a reason unrelated to the tests |
+
+And one that was not a code bug but a policy hole: **`coverage` could be listed
+in `ACCEPTED_GAPS`**, and several projects had done exactly that, so their gates
+printed GREEN while nothing measured coverage at all. Rule #29 grants the
+threshold no exceptions and says a project cannot override it, so the core now
+refuses that one step by name (`NEVER_ACCEPTABLE`) and stays INCOMPLETE.
+
+**Mutation record** (`scripts/tests/test_gate_core_stacks.py`, 15 tests). Each
+fix was reverted and the suite re-run; a fix whose revert changes nothing is not
+protected by a test:
+
+| Reverted | Result |
+|---|---|
+| the whole detection block, back to its pre-fix three lines | 5 failed — `.slnx`, nested csproj, nested `package.json`, the dotnet target, `-warnaserror` |
+| `NEVER_ACCEPTABLE` guard → `if false` | 1 failed — coverage was accepted and the gate went green |
+| the vitest condition → `if true` | 1 failed — jest received `--run` |
+| `dotnet build ${SLN:+"$SLN"}` → `dotnet build` | 1 failed — the nested solution was not the target |
+| `package.json` search → root only | 1 failed — `node=0` for a repo whose JS is in `web/` |
+
+⚠️ **The propagation went the wrong way round for a day.** The fixes were written
+into the project copies and pushed there, while the **canonical** copy in this
+repository — the one this rule names as the single source — was left on the old
+version. Nothing detected it: the existing drift test compares the hook copies
+*inside* this repository and cannot see a project's committed copy. So for one
+day the single source was the stalest copy of the file, and a project adopting
+the gate fresh would have installed the buggy version. Fixed by syncing the
+canonical forward; **the detection gap itself is still open** — there is no check
+that compares a project's committed `gate-core.sh` against the canonical one.
+
 ## §26 — Pull `dev` → branch off `dev` → work → merge each task separately
 
 Additional detail shortened out of the active file:
