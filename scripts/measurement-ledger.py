@@ -5,6 +5,7 @@ Usage:
     python3 scripts/measurement-ledger.py                 # summarise, write nothing
     python3 scripts/measurement-ledger.py --write         # merge into docs/measurement-ledger.tsv
     python3 scripts/measurement-ledger.py --days 30       # limit the transcripts read (default 30)
+    python3 scripts/measurement-ledger.py --auto --detach # what the Stop hook runs: incremental, in the background
 
 Why it exists: docs/measurement-log.md is an AGGREGATE. A number in it cannot be
 re-derived or compared later. The ledger keeps the rows it was computed from.
@@ -19,6 +20,11 @@ hand-filled column, so no row can be missing "because nobody wrote it down".
    is a hash, the role is a fixed vocabulary, the steps are the names from step-stats.py.
    Every field is checked against a strict pattern before anything is written; a
    value that does not match refuses the whole write (fail closed).
+⚠️ --auto is INCREMENTAL and safe to fire on every turn: it reads only transcripts modified since the
+   last write, skips when the last write is under --min-interval seconds old (default 600), holds a
+   lock so two sessions never write at once, replaces the file atomically, never raises, and with
+   --detach returns to the caller immediately. It writes the tracked docs/measurement-ledger.tsv of
+   the repository the script lives in: that file shows as modified there until it is committed.
 ⚠️ USD is the API LIST price, a proxy for consumption, not a bill (see step-stats.py).
 """
 import datetime
@@ -28,8 +34,9 @@ import json
 import os
 import re
 import sys
+import time
 
-HERE = os.path.dirname(os.path.abspath(__file__))
+HERE = os.path.dirname(os.path.realpath(__file__))     # resolves a symlink: the ledger lands in the repository the script really lives in
 LEDGER = os.path.join(os.path.dirname(HERE), 'docs', 'measurement-ledger.tsv')
 CUTS = os.path.join(HERE, 'measurement-cuts.tsv')
 
@@ -127,7 +134,7 @@ def row_for(path, kind, role, stats, cuts):
     counts, _examples, _dismissed = stats.count_steps([path])
     steps = ';'.join(f'{name}={counts[name]}' for name, _ in stats.STEPS if counts.get(name))
     return {
-        'id': hashlib.sha256(os.path.basename(path).encode()).hexdigest()[:10],
+        'id': hash_id(path),
         'started': when.astimezone(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M'),
         'kind': kind,
         'role': 'main' if kind == 'session' else safe_role(role, stats),
@@ -176,20 +183,114 @@ def render(rows):
     return HEADER + '\t'.join(NAMES) + '\n' + ''.join('\t'.join(r[n] for n in NAMES) + '\n' for r in rows)
 
 
-def build(days, stats):
+def build(days, stats, only_newer_than=None, existing=None):
+    """Rows for the transcripts in the window; with `only_newer_than`, only recently modified ones."""
     sessions, agents = stats.collect(days)
+    if only_newer_than is not None:
+        sessions = [p for p in sessions if os.path.getmtime(p) > only_newer_than]
+        agents = [p for p in agents if os.path.getmtime(p) > only_newer_than]
     roles = stats.role_ids(sessions)
+    existing = existing or {}
+    unresolved_new = [a for a in agents if os.path.basename(a)[6:14] not in roles
+                      and hash_id(a) not in existing]
+    if only_newer_than is not None and unresolved_new:
+        # A new agent whose parent session did not change: find the parent among all sessions.
+        roles.update(stats.role_ids(stats.collect(days)[0]))
     cuts = read_cuts()
     rows = []
     for path in sessions:
         rows.append(row_for(path, 'session', None, stats, cuts))
     for path in agents:
-        rows.append(row_for(path, 'agent', roles.get(os.path.basename(path)[6:14]), stats, cuts))
+        role = roles.get(os.path.basename(path)[6:14])
+        row = row_for(path, 'agent', role, stats, cuts)
+        if row and role is None and row['id'] in existing:
+            row['role'] = existing[row['id']]['role']          # keep the role an earlier run resolved
+        rows.append(row)
     return [r for r in rows if r]
+
+
+def hash_id(path):
+    return hashlib.sha256(os.path.basename(path).encode()).hexdigest()[:10]
+
+
+def write_atomically(path, text):
+    temporary = f'{path}.{os.getpid()}.tmp'
+    with open(temporary, 'w', encoding='utf-8') as handle:
+        handle.write(text)
+    os.replace(temporary, path)
+
+
+LOCK_STALE_SECONDS = 900
+
+
+def take_lock(ledger_path, now):
+    """True when this process holds the lock; a lock older than LOCK_STALE_SECONDS is a crashed run."""
+    lock = ledger_path + '.lock'
+    try:
+        os.mkdir(lock)
+        return True
+    except FileExistsError:
+        try:
+            if now - os.path.getmtime(lock) > LOCK_STALE_SECONDS:
+                os.rmdir(lock)
+                os.mkdir(lock)
+                return True
+        except OSError:
+            pass
+        return False
+    except OSError:
+        return False
+
+
+def release_lock(ledger_path):
+    try:
+        os.rmdir(ledger_path + '.lock')
+    except OSError:
+        pass
+
+
+def auto_update(ledger_path, stats, days=30, min_interval=600, now=None):
+    """Incremental refresh. Returns the number of rows written, or None when it did nothing."""
+    now = time.time() if now is None else now
+    existed = os.path.exists(ledger_path)
+    if existed and now - os.path.getmtime(ledger_path) < min_interval:
+        return None
+    if not take_lock(ledger_path, now):
+        return None
+    try:
+        existing = read_ledger(ledger_path)
+        since = os.path.getmtime(ledger_path) - 300 if existed else None     # 5 min of overlap
+        fresh = build(days, stats, only_newer_than=since, existing=existing)
+        if not fresh or problems(fresh):
+            return None
+        write_atomically(ledger_path, render(merge(existing, fresh)))
+        return len(fresh)
+    finally:
+        release_lock(ledger_path)
+
+
+def detach():
+    """Return in the caller at once; the work continues in a child with no terminal."""
+    if os.fork() > 0:
+        return False
+    os.setsid()
+    devnull = os.open(os.devnull, os.O_RDWR)
+    for descriptor in (0, 1, 2):
+        os.dup2(devnull, descriptor)
+    return True
 
 
 def main(argv):
     days = int(argv[argv.index('--days') + 1]) if '--days' in argv else 30
+    if '--auto' in argv:
+        if '--detach' in argv and not detach():
+            return 0
+        try:
+            min_interval = int(argv[argv.index('--min-interval') + 1]) if '--min-interval' in argv else 600
+            auto_update(LEDGER, load_stats(), days, min_interval)
+        except Exception:
+            pass                                    # a hook must never break the session
+        return 0
     stats = load_stats()
     fresh = build(days, stats)
     bad = problems(fresh)
@@ -199,8 +300,7 @@ def main(argv):
     print(f'{len(fresh)} row(s) read from the last {days} days · ledger would hold {len(merged)} row(s) '
           f'· est. ${sum(float(r["usd"]) for r in merged):,.2f} list price')
     if '--write' in argv:
-        with open(LEDGER, 'w', encoding='utf-8') as handle:
-            handle.write(render(merged))
+        write_atomically(LEDGER, render(merged))
         print('written:', LEDGER)
     return 0
 
