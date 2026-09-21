@@ -16,11 +16,11 @@ through `qa`. The output of the other eight roles was used **directly**.
 ```mermaid
 flowchart LR
  subgraph before["Before — one audited path"]
- G1[gelistirici] --> Q1[qa] --> O1[orchestrator]
- A1[analiz] -.->|unchecked| O1
+ G1[developer] --> Q1[qa] --> O1[orchestrator]
+ A1[analyst] -.->|unchecked| O1
  D1[devops] -.->|unchecked| O1
- U1[urun-yoneticisi] -.->|unchecked| O1
- T1[test-yazar] -.->|unchecked| O1
+ U1[product-manager] -.->|unchecked| O1
+ T1[test-writer] -.->|unchecked| O1
  end
 ```
 
@@ -115,11 +115,11 @@ flowchart TD
 ```mermaid
 flowchart LR
  subgraph after["After — evidence at every edge"]
- A2[analiz + command] --> O2[orchestrator]
+ A2[analyst + command] --> O2[orchestrator]
  D2[devops] --> Q2[qa] --> O2
- G2[gelistirici] --> Q2
- T2[test-yazar] --> Q2
- U2[urun-yoneticisi] --> UA[user approval] --> O2
+ G2[developer] --> Q2
+ T2[test-writer] --> Q2
+ U2[product-manager] --> UA[user approval] --> O2
  end
 ```
 

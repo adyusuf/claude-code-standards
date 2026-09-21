@@ -91,7 +91,7 @@ each resolves to, and runs nothing — use it when rolling the gate into a proje
 
 | Target | What runs |
 |---|---|
-| `dev`, `test` | **Everything except running e2e:** formatter/linter, typecheck, build, unit tests, coverage (80% per codebase), secret scan, dependency CVE, SAST, backward-compatibility scan, the **project documents check** (`SETUP.md`, `.env.example`, the secret inventory heading — missing ones FAIL, rule #16), the CLAUDE.md size and rule gates, and a CHECK for missing e2e specs — a warning on `dev`, blocking on `test`. |
+| `dev`, `test` | **Everything except running e2e:** formatter/linter, typecheck, build, unit tests, coverage (80% per codebase), secret scan, dependency CVE, SAST, backward-compatibility scan, the **project documents check** (`SETUP.md`, `.env.example`, the secret inventory heading — missing ones FAIL, rule #16), the CLAUDE.md size and rule gates, and a CHECK for missing e2e specs — a warning in BOTH directions, never blocking; the gaps are written at the `test → prod` gate (#33 step 2). |
 | `prod` | The code must already be **deployed to the test environment** (verified through the version endpoint), then the **whole** e2e suite runs against it. Only a green run allows the promotion. |
 
 Stacks are auto-detected (.NET solution, `web/`, `mobile/`, `e2e/`, `.maestro/`).

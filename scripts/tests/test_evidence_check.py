@@ -2,11 +2,11 @@ import os
 import sys
 import unittest
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, os.path.normpath(os.path.join(os.path.dirname(__file__), '..')))
 import importlib.util
 
 spec = importlib.util.spec_from_file_location(
-    'evidence_check', os.path.join(os.path.dirname(__file__), '..', 'evidence-check.py'))
+    'evidence_check', os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'evidence-check.py')))
 ev = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ev)
 

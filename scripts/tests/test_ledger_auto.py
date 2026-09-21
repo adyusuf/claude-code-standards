@@ -8,7 +8,7 @@ import tempfile
 import time
 import unittest
 
-SCRIPTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+SCRIPTS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 spec = importlib.util.spec_from_file_location('ledger', os.path.join(SCRIPTS, 'measurement-ledger.py'))
 ledger = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(ledger)

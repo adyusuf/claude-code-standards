@@ -54,7 +54,7 @@
  - Say "done" only after passing the check; do not narrate the check, fold its result into the report.
  → rationale and application notes: `docs/decision-log.md` §24
 25. **The gate is SHARED and runs at every promotion; only running e2e is deferred to `prod`.** Two layers: `scripts/gate-core.sh <dev|test|prod>` owns the SHARED STEP SET (canonical copy in the configuration repository, a committed copy in every project), and the project's own `scripts/merge-gate.sh` stays the orchestrator (pull, merge, push, project extras) and CALLS the core. A project's gate cannot depend on a path outside the repository, because CI runners do not have the configuration checked out. `gate-core.sh <target> --list` prints what would run without running it.
- - **`feature/* → dev` and `dev → test`:** EVERYTHING EXCEPT RUNNING E2E — formatter/linter, typecheck, build, unit tests, **coverage: the 80% threshold per codebase (#29)**, secret scan, dependency CVE, SAST, backward-compatibility scan, the CLAUDE.md size and rule gates, and a **CHECK for missing e2e specs** (a warning on `dev`, blocking on `test`).
+ - **`feature/* → dev` and `dev → test`:** EVERYTHING EXCEPT RUNNING E2E — formatter/linter, typecheck, build, unit tests, **coverage: the 80% threshold per codebase (#29)**, secret scan, dependency CVE, SAST, backward-compatibility scan, the CLAUDE.md size and rule gates, and a **CHECK for missing e2e specs** — a **warning in both directions**, never blocking; the gaps it lists are written at the `test → prod` gate (#33 step 2).
  - **`test → prod`:** the code must already be **deployed to the test environment** and the **FULL e2e suite** must run green against it (#33).
  - **A step that did not run did not pass.** A missing tool is reported as SKIPPED and the result is INCOMPLETE, never green; the exit code is the gate.
  - A project may ADD steps to the shared gate; it may never remove one. → the step list: `standards/13-pr-and-review.md` §4; rationale: `docs/decision-log.md` §25
@@ -89,7 +89,7 @@
  - **Forbidden:** fake domains — `.test`, `.local`, `example.com`, `sample.*`.
  - **Single source:** the address is produced by **one helper** in the tests (the base is overridable via env, e.g. `E2E_EMAIL_BASE`); addresses are never written by hand into a spec or seed (#2).
  - **Out of scope:** tests whose sender is faked. → detail `standards/11-playwright.md` §4; rationale `docs/decision-log.md` §30
-31. **The e2e run cycle: full run → identify failures → fix → run only what was fixed → I decide on a full re-run.**
+31. **The run cycle (e2e AND every test/gate run → `standards/00` §11; parallelism/reuse → §12): full run → identify failures → fix → run only what was fixed → I decide on a full re-run.**
  - **The WHOLE suite runs first**, without stopping at the first failure. Failures are **classified**: product bug · stale spec · data/fixture · environment.
  - **Failures are fixed** — each fix on its own branch with its own merge (#26). Raising retries or loosening assertions does not count as a fix.
  - **Then ONLY the fixed tests** (and those they could affect) run.
@@ -105,6 +105,7 @@
 33. **E2E runs at the `prod` gate only, and the code must be on `test` first.**
  - **`feature → dev` and `dev → test`:** e2e is not RUN. The gate only CHECKS whether a spec is missing (#25) — no deploy wait, no status file.
  - **`test → prod`, in order:** 1) the code is deployed to `test` and the deploy is **verified** (the version endpoint reports this SHA) · 2) any missing spec is written and verified against the test environment · 3) the **WHOLE** e2e suite runs against `test` (#31's cycle applies to failures) · 4) nothing red ⇒ merge to `prod`. Red, stale or absent ⇒ no merge.
+ - **No test environment (`E2E_BASE_URL` unset):** start the app locally (API + web, own test DB) and run the FULL suite there — this is the fallback, not a skip. The report reads "e2e ran locally (no test env)"; the version check is against the local SHA.
  - **The only exception is a hotfix:** the report reads "e2e skipped (hotfix)", which does not count as passing.
  → `docs/decision-log.md` §33
 
@@ -137,18 +138,19 @@ run them"** · when uncertain, finish the independent work first, then ask one
 clear question · commit only your own diff and never use `--force` · get approval
 for irreversible work (deploy, `DROP`, sending anything outward, deleting files).
 
-## LIVE DASHBOARD during a long gate/run (PERMANENT, all projects)
+## STATUS REPORTING during a long gate/run (PERMANENT, all projects)
 
-When you start a gate, run or deploy that takes minutes (merge gate, CI, test
-battery, deploy chain, migration), **publish an Artifact dashboard and keep it
-current by republishing to the SAME URL throughout the run.** A text report does
-not replace the dashboard; give both. The dashboard **must** contain: a weighted
-overall percentage · per-item breakdowns · a live measurement (timestamp + raw
-data) · open risks.
+Report progress as a **short markdown table in the reply** — what the job is,
+where it stands, what is left. **No Artifact dashboard, no published board.** A
+table in the conversation is the whole deliverable.
 
-⚠️ **The percentage is MEASURED, not invented** — the dashboard states which
-signal it was read from; if it cannot be measured, it says "cannot be measured".
-The output of a long run is never piped into something that buffers
-(`tail`/`head`) — it is written to a log file and the dashboard is fed from that.
+The table carries: the item · its state · **the measured figure, with the signal
+it was read from** · what it is waiting on. Keep it to the rows that matter; a
+blocked row states the reason, not a percentage.
+
+⚠️ **Every figure is MEASURED, never invented** — if it cannot be measured, the
+row says "cannot be measured". A long run's output is never piped into something
+that buffers (`tail`/`head`): write it to a log file and read the table from
+that. **A step that did not run is reported as "did not run", never as passing.**
 
 → Detailed rules: `standards/00-working-method.md` §10.

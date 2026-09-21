@@ -112,7 +112,12 @@ done < "$BUDGET"
 # boundary, the loop collapses and the gate says "green" again (bash -n does NOT
 # catch this).
 while IFS= read -r file; do
-  rel="${file#$ROOT/}"
+  # ⚠️ QUOTED: unquoted, $ROOT is a GLOB here. A repository checked out under a
+  # path containing `[`, `*` or `?` — a worktree name, a branch slug — would then
+  # fail to strip the prefix, so `rel` kept the absolute path, the exclusion
+  # patterns below stopped matching, and a budget-less CLAUDE.md passed. Same
+  # class as the worktree blind spot recorded above, different mechanism.
+  rel="${file#"$ROOT"/}"
   case "$rel" in .claude/*|**/node_modules/*|docs/claude-md-archive/*) continue ;; esac
   skip=0; for d in "${EXCLUDE[@]+"${EXCLUDE[@]}"}"; do case "$rel" in "$d"/*|"$d") skip=1 ;; esac; done
   [ "$skip" -eq 1 ] && continue
