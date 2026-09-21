@@ -146,12 +146,16 @@ def check_counts(root, findings):
     modes = len([n for n in os.listdir(modes_dir) if re.match(r'[A-Z]-.*\.md$', n)]) if os.path.isdir(modes_dir) else 0
     roles_dir = os.path.join(root, 'agents')
     roles = len([n for n in os.listdir(roles_dir) if n.endswith('.md')]) if os.path.isdir(roles_dir) else 0
-    claims = (('rules', r'(\d+) rules', rule_count(root)),
-              ('standards documents', r'(\d+) documents \+ \d+ templates', standards),
-              ('templates', r'\d+ documents \+ (\d+) templates', templates),
-              ('agent roles', r'(\d+) roles', roles),
-              ('scripts', r'(\d+) scripts', scripts),
-              ('modes', r'(\d+) modes', modes))
+    # (?<!\w) so a digit glued to a word is not read as a count: `python3 scripts/x.py`
+    # was reported as "states 3 scripts", and the finding was unfixable without
+    # rewording a correct shell command. A count is always preceded by a space,
+    # a pipe or the start of a line.
+    claims = (('rules', r'(?<!\w)(\d+) rules', rule_count(root)),
+              ('standards documents', r'(?<!\w)(\d+) documents \+ \d+ templates', standards),
+              ('templates', r'\d+ documents \+ (?<!\w)(\d+) templates', templates),
+              ('agent roles', r'(?<!\w)(\d+) roles', roles),
+              ('scripts', r'(?<!\w)(\d+) scripts', scripts),
+              ('modes', r'(?<!\w)(\d+) modes', modes))
     for label, pattern, actual in claims:
         for stated in re.findall(pattern, text):
             if int(stated) != actual:
