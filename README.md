@@ -1,22 +1,53 @@
 # claude-code-standards
 
-**An SDLC discipline that an AI coding agent cannot skip, argue with, or quietly
-forget — and that does not cost a fortune to run.**
+**AI changed our lives — at least the lives of those of us who write software.**
 
-AI changed how we write software. It did not change what makes software safe to
-ship. The practices we always knew we *should* follow — a real coverage
-threshold, a secret scan on every push, backward-compatible schema changes, a
-setup document someone else can follow, an e2e suite before production — were
-mostly aspirations, because doing them by hand on every change was too
-expensive in attention.
+The coding world will not be what it was. But the real question is not whether
+the tools got better. It is this: in a world this vast, **how do we get the most
+out of it without losing our way in it?**
 
-An agent will happily do all of it. An agent will just as happily tell you it
-did.
+My answer turned out to be boring, and it is this repository. Not a prompt
+collection and not a framework — a rule set, a gate, and an audit protocol that
+together do the things I always knew I should do and mostly could not:
 
-That difference is what this repository is about. Everything here exists to make
-the discipline **mechanical**: rules an agent reads before it starts, gates that
-fail loudly when a step did not run, and audits that assume the agent — and the
-person supervising it — will make mistakes.
+- **Apply the SDLC / SSDLC practices we could never really do by hand.** A real
+  coverage threshold per codebase. A secret scan on every push. Schema changes
+  that stay backward compatible. A setup document a stranger can follow. An e2e
+  suite before production. Not once a quarter — on every change.
+- **Enforce them when a rule is not enough.** Some of it cannot be left to good
+  intentions, so it is a gate with an exit code.
+- **Keep the cost as low as it can be.** Agent teams get expensive fast, and
+  most of the spend is not where it looks like it is.
+- **Still scale to agent teams when I want them.** One file in the project
+  switches between no agents and fourteen roles.
+- **Run fast, and repeat as little as possible.** The heavy checks belong where
+  code leaves for the outside world, not on every commit.
+- **Shape the flows around SDLC roles** — analyst, architect, developer, qa,
+  devops, security, data, e2e — rather than one agent doing everything.
+- **Not let the role agents get away with mistakes.** The auditors assume the
+  agents will be wrong, and assume the person supervising them will be too.
+
+**Agentic coding, not just an AI coding tool** — that was a choice, and here is
+the reasoning: a tool that answers questions cannot run a gate, and rules nobody
+executes are documentation. The discipline only becomes real when something
+*acts* on it per change. That said, the lowest mode (`A`) uses no agents at all,
+so a plain coding assistant gets the same rules and the same gate; the agents
+are how it scales, not how it works.
+
+There is one thing behind all of it. An agent will happily apply every practice
+on that list. **An agent will just as happily tell you that it did.** Everything
+here is built for that gap: rules loaded before the work starts, gates that fail
+loudly when a step did not run, and reports that are not accepted without
+evidence.
+
+**This is my live configuration, running as-is.** It is not a sample, a
+write-up, or a tidied copy of something I keep privately: `~/.claude` symlinks
+straight into this repository, so every session I open — across nine
+repositories, .NET and TypeScript, web and mobile — loads exactly the files you
+are reading. When a rule here is wrong, it is wrong in my own working day first.
+That is also why it changes so often: `prod` is the live branch, work happens on
+`dev`, and promoting between them is a decision I have to make about my own
+tooling.
 
 ## Who this is for
 
@@ -30,40 +61,77 @@ person supervising it — will make mistakes.
 Not for you if you want a prompt pack. There are no clever prompts here. There
 are rules, gates, measurements, and the record of what each one cost.
 
-## What it actually does
+## How each of those is actually done
 
-**1. Makes best practice mechanical.** 33 invariant rules load into every
-session; 22 standards documents carry the detail. The agent does not decide
-whether backward compatibility matters this time.
+The list above is the promise. This is the mechanism, in the same order.
 
-**2. Enforces it when the rule is not enough.** A shared gate
+**1. The practices become rules, not intentions.** 33 invariant rules load into
+every session; 22 standards documents carry the detail. The agent does not get
+to decide whether backward compatibility matters this time.
+
+**2. Where a rule is not enough, a gate has an exit code.** A shared gate
 (`scripts/gate-core.sh`) runs the same step set in every repository: formatter,
 typecheck, build, unit tests, **coverage per codebase**, secret scan,
 dependency CVE, SAST, backward-compatibility scan, guidance-file budget, and a
 missing-e2e-spec check. One step cannot be waived at all — coverage — because a
 threshold with an exception is a suggestion.
 
-**3. Keeps the cost down, on measurement rather than feel.** Agent teams can be
-very expensive: a subagent's tokens cost roughly **4x** an orchestrator turn,
-and the fixed prompt prefix is re-read on every request — across the records in
-this repository that is **~11.1 billion tokens**. So the default mode uses
-almost no agents, the expensive modes are opt-in, and the audit protocol buys
-its rigour through the *shape of the output* instead of another agent:
-a role returns the **command that produced its finding**, and re-running that
-command costs about nothing.
+**3. The cost is cut where the measurement says it is, not where it feels like
+it is.** A subagent's tokens run roughly **4x** an orchestrator turn, and the
+fixed prompt prefix is re-read on every single request — across the records here
+that is **~11.1 billion tokens**. So the default mode uses almost no agents, the
+expensive modes are opt-in, and the audit protocol buys its rigour from the
+*shape of the output* rather than from another agent: a role returns the
+**command that produced its finding**, and re-running that command costs about
+nothing.
 
 **4. Scales up to agent teams when you want them.** Five operating modes, A to
 E: no agents, three agents, nine roles, fourteen roles, fan-out. The mode is one
 file in the project; choosing it *is* the approval, so there is no per-call
 friction. Nothing else in the rule set changes with the mode.
 
-**5. Runs fast, with as little repetition as possible.** Merging to `dev` is
+The roles are **subagents**, not personas in a prompt. Each one is spawned by
+the orchestrator with its own context window, its own tool allow-list and **its
+own model** — and that is exactly why the bill behaves the way it does: a
+subagent starts by reading the whole fixed prefix again, which is what makes its
+tokens run about **4x** an orchestrator turn. So the model is assigned per role
+by what the role actually has to do, not uniformly:
+
+| Role | Model | Why that tier | Tools it may use |
+|---|---|---|---|
+| `architect` | opus | designs a change across many files; a wrong plan costs more than the model does | read-only + shell |
+| `developer` | opus | writes product code against a fixed contract | read/write + shell |
+| `qa` | opus | the first review pass — correctness, security, backward compatibility | read-only + shell |
+| `security` | opus | OWASP, secret leakage, authorization, gate integrity | read-only + shell |
+| `data` | opus | schema, migrations, data loss risk — the least reversible work there is | read-only + shell |
+| `analyst` | sonnet | reads a lot, returns little; must also return the command that produced the finding | read-only + shell |
+| `test-writer` | sonnet | tests for a stated behaviour, scope already decided | read/write + shell |
+| `e2e-writer` | sonnet | Playwright/Maestro specs against the test environment only | read/write + shell |
+| `devops` | sonnet | CI, deploy, gate and backup configuration — its output still goes through `qa` | read/write + shell |
+| `coverage-auditor` | sonnet | measures the per-codebase threshold; writes no tests | read-only + shell |
+| `observability` | sonnet | logging, metrics, tracing, alerting gaps | read-only + shell |
+| `designer` | sonnet | flow, states, accessibility, empty and error states | read-only |
+| `product-manager` | sonnet | scope and acceptance criteria; output goes to human approval | read-only |
+| `doc-writer` | haiku | writes a decided rule into the right file | read/write, no shell |
+
+⚠️ **The orchestrator has no `model:` field** — it is whatever `/model` selected
+for the session, and it is the most expensive seat at the table, because its
+context is re-read on every single request. Across the records in this
+repository that is where the money went: **73%** of total spend was orchestrator
+cache reads and **7.7%** was agent turns. Choosing cheaper agents while leaving
+the orchestrator unexamined optimises the small half.
+
+Every model here is a Claude model on purpose, and the reason is written down
+rather than assumed: a subagent's `model:` field only accepts Anthropic models,
+so a third-party comparison would answer a question this system cannot act on.
+
+**5. Speed comes from where the checks sit, not from skipping them.** Merging to `dev` is
 deliberately fast — build and unit tests only. The heavy gates run where code
 leaves for the outside world. The formatter runs once at the end of a task list,
 not per commit. E2E belongs to the pre-production gate alone, not to every
 branch.
 
-**6. Does not trust the role agents.** Every role whose output someone relies on
+**6. The auditors assume the agents are wrong.** Every role whose output someone relies on
 closes its report with an evidence block: the command it ran, each requested
 item mapped to `file:line`, and what it could not verify. A report with no
 evidence is not accepted. **What cannot be verified does not count as fine.** If
@@ -314,6 +382,15 @@ git clone https://github.com/<user>/claude-code-standards
 cp -r claude-code-standards/{CLAUDE.md,standards,agents,modes,commands,skills,scripts} ~/.claude/
 cp claude-code-standards/settings.example.json ~/.claude/settings.json # review it first
 ```
+
+I run it one step further than copying: `~/.claude/CLAUDE.md`, `standards`,
+`agents`, `modes`, `commands`, `scripts` and `docs` are **symlinks into a
+checkout of this repository**, pinned to `prod`. Nothing is edited in place —
+work happens in a `dev` worktree and reaches the live configuration only by
+promotion. The upside is that there is exactly one copy of every rule; the cost
+is that a bad promotion changes my tooling mid-session, which is why the
+guidance files have their own size and rule-loss gates (`scripts/md-size-gate.sh`,
+`scripts/md-rule-gate.py`).
 
 You do not have to take it wholesale — the `standards/` documents read
 independently. Rule numbers are linked between `CLAUDE.md` and the decision
