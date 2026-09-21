@@ -75,7 +75,7 @@ Additional detail shortened out of the active file:
 - On the `dev → test` and `test → prod` promotions nothing is skipped — and the
   promotion is performed with the user's approval anyway.
 
-### The e2e spec check warns, and blocks nothing (21/09/2026)
+### The e2e spec check warns, and blocks nothing
 
 `dev → test` used to FAIL when behaviour changed and no e2e spec was touched.
 Two things were wrong with that. It put the entire e2e backlog in front of an
@@ -105,7 +105,7 @@ rule text still said the opposite — which is exactly the state #25 forbids, si
 a project may add a step but never remove one. The right fix was the rule text,
 not reverting the project.
 
-### The five fixes of 21/09/2026, and how each one is pinned
+### The five fixes, and how each one is pinned
 
 The shared core had been carrying bugs that made it report **GREEN while whole
 tiers went unchecked**. They were found by running the gate in every repository
@@ -601,7 +601,7 @@ where the file sits; 31 tests pass against the real path. It is recorded here
 rather than rewritten out of history, because amending a pushed commit needs a
 force push.
 
-## STATUS REPORTING during a long gate/run — the dashboard was removed (21/09/2026)
+## STATUS REPORTING during a long gate/run — the dashboard was removed
 
 **The rule now:** report a long gate, run or deploy as a **short markdown table in the
 reply**. No Artifact dashboard, no published board. The table carries the item, its
@@ -614,7 +614,7 @@ replace the dashboard". That cost a round of work per report and, worse, **split
 record in two**: the moment one side was updated and the other was not, the reply and
 the page disagreed, and the reader had no way to tell which was current. The table in
 the conversation is the thing the user actually reads, so it is now the whole
-deliverable. User decision, 21/09/2026.
+deliverable. User decision.
 
 **What was kept, because it was never about the dashboard:** figures are measured and
 name their signal; an unmeasurable figure says "cannot be measured"; a step that did
@@ -623,7 +623,7 @@ goes to a log file instead of a buffering pipe (`tail`/`head`); an inferred stat
 it is inferred; an over-optimistic estimate is corrected downward out loud.
 
 <details>
-<summary>The retired dashboard rule, as it stood until 21/09/2026</summary>
+<summary>The retired dashboard rule, as it stood until recently</summary>
 
 ### LIVE DASHBOARD during a long gate/run (RETIRED)
 

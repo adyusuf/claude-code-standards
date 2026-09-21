@@ -23,7 +23,7 @@ selecting a role.**
 - **A status table is reported throughout a long run** (global rule: "STATUS
   REPORTING during a long gate/run"). The measured figures, the signal each was read
   from and the open risks go in a markdown table in the reply. ⚠️ No Artifact
-  dashboard — it was removed from the flow on 21/09/2026.
+  dashboard — it was removed from the flow.
 - Before starting a Workflow I **write down the agent count and the cost estimate** —
   this mode removes asking per agent, not declaring the scale.
 - Review: the `qa` agent; critical findings are verified by me.

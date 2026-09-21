@@ -13,7 +13,7 @@ This script is the measurement that corrects it. Source: the `usage` fields and
 ⚠️ Prices are API LIST prices, not a subscription bill — a proxy for consumption.
 ⚠️ Step counting is based on shell command patterns: a step that runs from inside
    another script is invisible here. A missing step is "not seen", not "zero".
-⚠️ The scripts were renamed to English on 20/09/2026. Runs recorded under the
+⚠️ The scripts were renamed to English. Runs recorded under the
    previous names are no longer counted, so md-gate counts from before that date
    are not comparable with later ones.
 """
@@ -145,7 +145,7 @@ def shape(command, deny=None):
 # ⚠️ Every marker in LEAK_MARKERS must actually OCCUR here, or the gate passes
 # by accident for that marker. `/home/` was listed and missing from the canary,
 # so a Linux home path was never exercised by the self-check — found by a test
-# that compares the two lists, 21/09/2026. If a marker is added below, add a
+# that compares the two lists. If a marker is added below, add a
 # token carrying it here.
 CANARY = ("L=/private/tmp/sess-AcmeCorp/run.log; dotnet build AcmeCorp.Tests/x.csproj "
           "&& cd /Users/zzz/Code/AcmeCorp && cp /home/zzz/.env . "
@@ -286,7 +286,7 @@ def role_label(role):
 
     A plugin-provided agent's subagent_type is `<plugin>:<agent>` and the plugin
     part is a machine identifier — exactly what the sanitiser refuses to publish,
-    so it would block the whole write (measured 21/09/2026: one `agent-skills`
+    so it would block the whole write (measured: one `agent-skills`
     run made `--write` impossible). Only the agent part is printed, marked
     `ext:` so it is never confused with a mode role.
     """
@@ -340,7 +340,7 @@ MIN_CUT_ROWS = 3   # docs/benchmark-method.md: a side with fewer than three rows
 def cut_delta(before_median, before_n, after_median, after_n):
     """The delta cell of one cut row. Pure, so it can be tested.
 
-    Two rules this used to break, both measured on 21/09/2026:
+    Two rules this used to break, both measured:
       · the sign was hard-coded to '-', so a prefix that GREW was published as a
         saving ("--8,598 (--10%)" for +8,598);
       · a delta was published from a single session after the cut, although
