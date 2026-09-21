@@ -130,7 +130,10 @@ In every mode, on every turn that uses agents:
    exceed half the call count of pass 1 (+10–20% overhead).
    If the same work is sent back twice and still does not close, the chain stops and
    the user is **informed** — a status report, not a question.
-   → [`role-selection.md`](role-selection.md) §7
+   → [`role-selection.md`](role-selection.md) §7, and the block's canonical wording in
+   [`completeness-check-core.md`](completeness-check-core.md) — it is copied verbatim
+   into every role that owes it, and `scripts/doc-check.py` fails if a copy reworded a
+   line (adding one of its own is allowed, and five roles do).
 2. **Cost is reported at every handoff**, never deferred to the end of the turn:
    `↳ analyst done · ~$3 · turn total ~$9 (2 agents) · threshold ~$150 (C)`.
    The threshold is **mode-dependent and two-stage**: a warning at half, a stop at
@@ -144,9 +147,14 @@ In every mode, on every turn that uses agents:
 | Role | Its auditor |
 |---|---|
 | `developer`, and code I write myself | **`qa`** → I verify the critical findings |
-| `qa`, `analyst`, `devops`, `test-writer`, `product-manager` | Their own **completeness-check** block (§7) + the orchestrator |
+| `analyst`, `coverage-auditor`, `data`, `devops`, `e2e-writer`, `observability`, `product-manager`, `qa`, `security`, `test-writer` | Their own **completeness-check** block (§7) + the orchestrator |
 | `product-manager`'s scope | **The user** (the §2a approval gate) |
-| `architect`, `designer`, `doc-writer` | **No separate auditor** — exempt from the completeness-check block; the orchestrator audits them |
+| `architect`, `designer`, `developer`, `doc-writer` | **No separate auditor** — exempt from the completeness-check block; the orchestrator audits them |
+
+⚠️ These two rows are the single source for who owes the block, and they used to
+disagree with the role files: the first named five roles while ten carry the block
+on disk, and the second named three while four carry the exemption. 10 + 4 = the
+14 roles in `agents/`, and `grep -l` over that folder is the check.
 
 No second auditor **agent** was added behind `qa`: subagent tokens cost ~4x more than
 the main conversation, and the gain does not cover the cost.

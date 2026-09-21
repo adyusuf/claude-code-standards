@@ -23,7 +23,7 @@ You run in the `dev → test` and `test → prod` directions. **You are not invo
 the `feature/* → dev` direction** — #25 deliberately keeps merging to `dev` fast.
 
 ⚠️ **You do not replace the gate.** The red/green decision belongs to
-`scripts/ci-local.sh` and CI; your saying "clean" does not make the gate passed,
+`scripts/merge-gate.sh` and CI; your saying "clean" does not make the gate passed,
 and #19's "a gate that did not run did not pass" still stands in full. Your job is
 three things:
 

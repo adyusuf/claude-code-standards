@@ -95,6 +95,47 @@ class DocCheck(unittest.TestCase):
         self.assertEqual(sorted(f.split(': ')[1] for f in found), [
             'states 3 scripts, the repository has 2', 'states 5 modes, the repository has 1'])
 
+    # The completeness-check block is copied into every role that owes it, so the
+    # copies are held together by a canonical file rather than by good intentions.
+    CORE = ('## Completeness check (mandatory)\n\n'
+            '- Verification → the command you ran\n'
+            '- Item mapping → each item to a file:line\n'
+            '- One "no serious gap" is enough for a handoff.\n')
+
+    def with_core(self, role_block):
+        files = consistent()
+        files['modes/completeness-check-core.md'] = self.CORE
+        files['modes/README.md'] += '\n[core](completeness-check-core.md)'
+        files['agents/qa.md'] = role_block
+        return files
+
+    def test_a_role_carrying_the_canonical_core_verbatim_is_clean(self):
+        self.assertEqual(dc.run(build(self.with_core(self.CORE))), [])
+
+    def test_a_role_may_add_a_line_of_its_own(self):
+        extended = self.CORE + '- You do not fix it, you get it fixed.\n'
+        self.assertEqual(dc.run(build(self.with_core(extended))), [])
+
+    def test_a_role_that_rewords_a_core_line_is_found(self):
+        reworded = self.CORE.replace('the command you ran', 'whatever you feel')
+        found = dc.run(build(self.with_core(reworded)))
+        self.assertEqual(len(found), 1, found)
+        self.assertIn('no longer carries the canonical core', found[0])
+
+    def test_a_role_that_drops_a_core_line_is_found(self):
+        dropped = self.CORE.replace('- Item mapping → each item to a file:line\n', '')
+        found = dc.run(build(self.with_core(dropped)))
+        self.assertEqual(len(found), 1, found)
+        self.assertIn('agents/qa.md', found[0])
+
+    def test_the_core_is_read_from_the_file_not_derived_from_the_roles(self):
+        # Deriving the core as the intersection of the copies cannot work: an edit
+        # drops the line out of the intersection and every copy still matches. With
+        # one role file and no source file there is nothing to compare against.
+        files = consistent()
+        files['agents/qa.md'] = self.CORE.replace('the command you ran', 'anything')
+        self.assertEqual(dc.run(build(files)), [])
+
     def test_a_digit_glued_to_a_word_is_not_read_as_a_count(self):
         # `python3 scripts/x.py` was reported as "states 3 scripts": a finding with no
         # fix except rewording a correct shell command. A count is never glued to a word.
