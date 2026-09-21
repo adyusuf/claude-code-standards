@@ -79,8 +79,7 @@ adds whatever that project needs — and CALLS the core for the shared steps. So
 step definition lives in one place while a project can ADD steps without forking
 it. The canonical copy lives here; every project commits a copy, because a
 project's gate cannot depend on a path outside its repository (CI runners do not
-have the configuration checked out). `md-hook.sh`'s drift test covers only the three `md-*` tools,
-**not** this file: compare a project's copy by hand with `cmp`.
+have the configuration checked out). The drift test in `md-hook.sh` covers it.
 
 `gate-core.sh <target> --list` prints the steps that WOULD run and the command
 each resolves to, and runs nothing — use it when rolling the gate into a project.
@@ -110,7 +109,7 @@ Not everything here is meant to be copied, and some copied files must be edited.
 | `gate-core.sh` | **Copy as is** | Configure it through `scripts/merge-gate.conf`, never by editing the copy. |
 | `merge-gate.sh` | **Write your own** | The project's orchestrator: pull, merge, push, and a call to `gate-core.sh`. This repository ships no template for it. |
 | `merge-gate.conf` | **Create, values are yours** | The commands, `TEST_VERSION_URL`, `ACCEPTED_GAPS` with a written reason. The values shown in `gate-core.sh`'s header are examples, not defaults to keep. |
-| `md-size-gate.sh`, `md-rule-gate.py`, `md-split.py` | **Copy as is** | Drift-checked against `~/.claude/scripts/` by `md-hook.sh`. |
+| `md-size-gate.sh`, `md-rule-gate.py`, `md-split.py` | **Copy as is** | |
 | `md-budget.tsv` | **Copy, then `md-size-gate.sh --update`** | The ceilings are this repository's. Yours become your files' size today. |
 | `pre-commit.sh` | **Copy as is, then `--install` in every clone** | A git hook is per clone; it is not committed. |
 | `guard-destructive.sh` | **Copy as is; register it** | In `.claude/settings.json` (shared) with `"$CLAUDE_PROJECT_DIR/scripts/guard-destructive.sh"`, or in your user settings. See `standards/18-setup-and-environment.md` §11. |
@@ -119,6 +118,8 @@ Not everything here is meant to be copied, and some copied files must be edited.
 | `tests/` | **Copy only the tests of the scripts you copied** | |
 | `md-hook.sh` | **Do not copy** | A user-level hook wired in `~/.claude/settings.json` (`settings.example.json`). |
 | `step-stats.py`, `measurement-ledger.py`, `session-cost.py`, `prefix-measure.py`, `measurement-cuts.tsv` | **Do not copy** | They read the transcripts of *all* projects under `~/.claude/projects`; there is one canonical copy, here. |
+
+Every file marked **copy as is** is drift-checked against `~/.claude/scripts/` by `md-hook.sh` (the list is its `TWINS` variable; the configuration repository itself is exempt, since it is the canonical set).
 
 After copying, run `python3 scripts/doc-check.py` and `bash scripts/gate-core.sh dev --list`:
 the second prints every step that would run and the command it resolves to, without running any.

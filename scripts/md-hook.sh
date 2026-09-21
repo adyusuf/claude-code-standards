@@ -60,20 +60,26 @@ if printf '%s' "$output" | grep -qi 'CEILING EXCEEDED\|NO BUDGET\|FILE MISSING';
 fi
 
 # ── Twin drift ───────────────────────────────────────────────────────────────
-# These three tools are deliberate TWINS: the canonical copy lives under
+# Every script a project COPIES is a deliberate TWIN: the canonical copy lives under
 # ~/.claude/scripts/, and every project takes a COPY into its own scripts/ and
 # commits it (a project's gate cannot depend on a path outside the repository).
 # Where there are twins there must also be a DRIFT TEST — this repository does
 # exactly that for its other twins. Drift did happen once: the canonical copy was
 # updated, the project copy stayed behind, and it was only noticed by comparing
 # them by hand.
+TWINS="md-size-gate.sh md-rule-gate.py md-split.py gate-core.sh pre-commit.sh guard-destructive.sh doc-check.py evidence-check.py evidence-block.schema.json"
 drifted=""
-for tool in md-size-gate.sh md-rule-gate.py md-split.py; do
-  [ -f "$root/scripts/$tool" ] || continue
-  cmp -s "$root/scripts/$tool" "$HOME/.claude/scripts/$tool" || drifted="$drifted $tool"
-done
+# The configuration repository IS the canonical set: comparing one of its worktrees
+# with the live copy would report every not-yet-promoted change as drift.
+if ! { [ -f "$root/standards/README.md" ] && [ -d "$root/modes" ]; }; then
+  for tool in $TWINS; do
+    [ -f "$root/scripts/$tool" ] || continue          # this project did not copy it
+    [ -f "$HOME/.claude/scripts/$tool" ] || continue   # no canonical copy to compare with
+    cmp -s "$root/scripts/$tool" "$HOME/.claude/scripts/$tool" || drifted="$drifted $tool"
+  done
+fi
 if [ -n "$drifted" ]; then
-  echo "⚠️ The MD tools have DRIFTED from the canonical copy:$drifted"
+  echo "⚠️ The copied scripts have DRIFTED from the canonical copy:$drifted"
   echo "   Canonical: ~/.claude/scripts/  ·  This project: $root/scripts/"
   echo "   Which one is current? Compare first, then bring BOTH into line:"
   echo "   diff ~/.claude/scripts/<tool> scripts/<tool>"

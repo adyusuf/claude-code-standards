@@ -13,8 +13,7 @@
 # ⚠️ The canonical copy lives in the configuration repository; every project takes
 # a COPY into its own scripts/ and commits it. A project's gate cannot depend on a
 # path outside the repository — CI runners do not have the configuration checked
-# out. md-hook.sh's drift test covers only the three md-* tools, NOT this file:
-# compare a project's copy by hand (`cmp scripts/gate-core.sh ~/.claude/scripts/gate-core.sh`).
+# out. The drift test in md-hook.sh covers this file too.
 #
 # What runs where:
 #
