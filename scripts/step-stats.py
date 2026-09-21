@@ -91,7 +91,7 @@ def deny_pattern():
         except OSError:
             pass
     for path in glob.glob(os.path.expanduser('~/.claude/projects/*')):
-        # '-Users-me-ClaudeCode-project-f' → only the last segment is the project name;
+        # '-Users-me-ClaudeCode-acme' → only the last segment is the project name;
         # splitting on every '-' produced generic words and blocked the gate on prose.
         segments = [seg for seg in os.path.basename(path).split('-') if seg]
         if segments:
