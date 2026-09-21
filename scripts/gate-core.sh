@@ -34,7 +34,16 @@
 # Per-project settings are optional and live in scripts/merge-gate.conf (sourced
 # if present); everything else is auto-detected:
 #
-#   TEST_VERSION_URL=https://test.example.com/version   # must report the deployed SHA
+#   TEST_VERSION_URL="https://test.example.com/version https://admin.test.example.com/version"
+#                                                       # one or more; EVERY site must report the
+#                                                       # deployed SHA, and a project with several
+#                                                       # sites on test counts as deployed only when
+#                                                       # all of them do. HTML back = the SPA fallback
+#                                                       # is swallowing it (standards/14 §8).
+#   TEST_DEPLOY_SHA_CMD="ssh deploy@host cat /srv/app/REVISION"
+#                                                       # alternative source when there is no
+#                                                       # /version endpoint yet
+#   TEST_BASE_URL=https://test.example.com              # documentation + the e2e base URL
 #   E2E_WEB_CMD="npx playwright test"                   # default when e2e/ exists
 #   E2E_MOBILE_CMD="bash scripts/mobile-e2e.sh"         # default when .maestro/ exists
 #   COVERAGE_CMD="node scripts/coverage-budget.cjs"     # must exit non-zero below the threshold
@@ -227,20 +236,37 @@ if [ "$TARGET" = "prod" ]; then
   say "is this code deployed to the TEST environment?"
   HEAD_SHA="$(git rev-parse HEAD)"
   if [ "$LIST_ONLY" = 1 ]; then
-    printf '  → %-42s %s\n' "deploy verification" "curl ${TEST_VERSION_URL:-<TEST_VERSION_URL unset>} == $(git rev-parse --short HEAD)"
+    if [ -n "${TEST_DEPLOY_SHA_CMD:-}" ]; then printf '  → %-42s %s\n' "deploy verification" "$TEST_DEPLOY_SHA_CMD"
+    elif [ -n "${TEST_VERSION_URL:-}" ]; then printf '  → %-42s %s\n' "deploy verification" "curl ${TEST_VERSION_URL} == ${HEAD_SHA:0:7}"
+    else printf '  → %-42s %s\n' "deploy verification" "<no source configured — would block>"; fi
     PASS+=("deploy verification")
   else
-  if [ -n "${TEST_VERSION_URL:-}" ]; then
-    deployed="$(curl -fsS --max-time 10 "$TEST_VERSION_URL" 2>/dev/null | grep -oE '[0-9a-f]{7,40}' | head -1)"
-    if [ -z "$deployed" ]; then bad "could not read the deployed version from $TEST_VERSION_URL"
+    deployed=""
+    if [ -n "${TEST_DEPLOY_SHA_CMD:-}" ]; then
+      # A project-specific command that prints the SHA deployed to test, e.g. a
+      # deploy record on the server or a GitHub deployment API query.
+      deployed="$(bash -c "$TEST_DEPLOY_SHA_CMD" 2>/dev/null | grep -oE '[0-9a-f]{7,40}' | head -1)"
+    elif [ -n "${TEST_VERSION_URL:-}" ]; then
+      # Every URL in the list must report the same SHA: a project with several
+      # sites on test is only "deployed" when all of them are.
+      allsame=1
+      for u in $TEST_VERSION_URL; do
+        body="$(curl -fsS --max-time 10 "$u" 2>/dev/null)"
+        case "$body" in *'<!doctype'*|*'<!DOCTYPE'*) bad "$u returned HTML, not a version — the SPA fallback is swallowing it (standards/14 §8)"; allsame=0; continue ;; esac
+        one="$(printf '%s' "$body" | grep -oE '[0-9a-f]{7,40}' | head -1)"
+        if [ -z "$one" ]; then bad "$u reports no commit SHA"; allsame=0; continue; fi
+        [ -z "$deployed" ] && deployed="$one"
+        [ "$one" != "$deployed" ] && { bad "$u reports $one while another site reports $deployed"; allsame=0; }
+      done
+      [ "$allsame" = 0 ] && deployed=""
+    fi
+    if [ -z "$deployed" ]; then
+      skip "the deployed SHA cannot be read: set TEST_VERSION_URL (a /version endpoint per standards/17 §6) or TEST_DEPLOY_SHA_CMD in scripts/merge-gate.conf"
     elif [ "${HEAD_SHA#$deployed}" != "$HEAD_SHA" ] || [ "${deployed#${HEAD_SHA:0:7}}" != "$deployed" ]; then
       ok "the test environment is running this code ($deployed)"
     else
       bad "the test environment is running $deployed, not ${HEAD_SHA:0:7} — deploy to test first and wait for it"
     fi
-  else
-    skip "TEST_VERSION_URL is not set — 'is it on test' CANNOT be verified"
-  fi
   fi
 
   say "full e2e suite against the test environment"
