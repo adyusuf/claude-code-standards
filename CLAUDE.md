@@ -80,7 +80,7 @@
 29. **Line coverage of AT LEAST 80% in every codebase — no exceptions.**
  - **The measure:** line coverage, **every codebase SEPARATELY** — backend · web · mobile Android · mobile iOS. Never averaged. An unmeasured codebase does not count as passing; it is reported as **"not measured"** and still blocks promotion.
  - **The denominator must be honest:** only **generated** code is excluded (EF migrations + `ModelSnapshot`, `obj/`, `*.g.cs`, `*.Designer.cs`, `.d.ts`, the tests, e2e/config). The exclusion list lives **in one place, with a reason per entry**. Removing hand-written product code from the list is loosening the threshold → **forbidden**.
- - **The gate:** it runs inside the shared `scripts/merge-gate.sh` at **every** promotion, `dev` included; below the threshold → exit code ≠ 0. CI calls the same script with the same threshold (#25).
+ - **The gate:** the coverage step is in the shared `scripts/gate-core.sh` (#25) and runs at **every** promotion, `dev` included; below the threshold → exit code ≠ 0. CI calls the same core with the same threshold.
  - **No loosening:** the threshold is not lowered and no exceptions are granted. **A project's `CLAUDE.md` CANNOT override this rule.**
  - **Fake coverage is forbidden:** e2e does not count towards this figure. Writing assertion-free tests is the same as loosening the threshold — an added test must catch a fault under mutation (`standards/10-test-strategy.md` §7).
  - **Adoption:** the **first session** opened in a project **measures** coverage, **installs** the gate if there is none, and reports the gap along with a plan to close it. No promotion is possible until the gap is closed. → rationale: `docs/decision-log.md` §29
@@ -125,7 +125,7 @@ The full list, including the items tied to numbered rules: `docs/decision-log.md
 - ❌ Pushing directly to `main`/`prod`
 - ❌ Without user approval: production deploy, DB `DROP`, `git push --force`, deleting data, sending a message or publishing to an external service
 - ❌ An untested backup ("we have backups" is not enough — a restore drill is performed)
-- ❌ Invoking any agent outside the active mode's role set — `migration-reviewer` (no longer on disk) and the plugin agents whose names shadow these roles (`ext:test-engineer`, `ext:code-reviewer`) included. ⚠️ `test-writer` is **not** banned: it is one of B's three pre-approved roles. The protection is the mode's role set, never a list of names → #27, #28
+- ❌ Invoking any agent outside the active mode's role set — including `migration-reviewer` and the plugin agents that shadow these role names. ⚠️ `test-writer` is **not** banned: it is one of B's three roles. The protection is the role set, never a name list → #27, #28
 
 ## Working method (for Claude)
 
