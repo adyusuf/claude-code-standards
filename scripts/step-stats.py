@@ -142,8 +142,13 @@ def shape(command, deny=None):
 
 # Every shape that actually occurs must appear here: a var-assignment prefix hid a
 # path tail from an earlier version of this gate.
+# ⚠️ Every marker in LEAK_MARKERS must actually OCCUR here, or the gate passes
+# by accident for that marker. `/home/` was listed and missing from the canary,
+# so a Linux home path was never exercised by the self-check — found by a test
+# that compares the two lists, 21/09/2026. If a marker is added below, add a
+# token carrying it here.
 CANARY = ("L=/private/tmp/sess-AcmeCorp/run.log; dotnet build AcmeCorp.Tests/x.csproj "
-          "&& cd /Users/zzz/Code/AcmeCorp "
+          "&& cd /Users/zzz/Code/AcmeCorp && cp /home/zzz/.env . "
           "&& git push origin d401a71eefa6e931dfad5828b0c4825f33dfea20 # pw=hunter2")
 LEAK_MARKERS = ('/Users/', '/home/', '/private/tmp', 'zzz', 'AcmeCorp',
                 'd401a71', 'hunter2', '.csproj')

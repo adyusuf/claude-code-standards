@@ -224,5 +224,112 @@ class CoverageWithAFakeVenv(Repo):
         self.assertEqual(1, code, 'a red suite must not pass on a 100% report')
 
 
+class ShellCoverageRunsEndToEnd(Repo):
+    """coverage-shell.sh's BODY, which nothing reached before.
+
+    It measured 2 of 35 lines — every test stopped at one of its two probes, so
+    the shim it writes, the run it drives, the merge and the report were all
+    untested. The reason it is awkward is real: when it runs for real it is the
+    OUTER process, not a script invoked through its own shim, so it cannot trace
+    itself. That does not stop a TEST from driving it to completion with a stub
+    `kcov` and a tiny suite, which is what this does.
+
+    The stub kcov is the interesting part. The real one is asked two different
+    questions: "can you trace this bash" (the probe) and "trace this script"
+    (each run), and it answers both by writing a report directory. The stub does
+    the same, so the script's own merge and threshold logic — the part that
+    decides PASS or FAIL — runs against real files.
+    """
+
+    COBERTURA = (
+        '<?xml version="1.0"?>\n'
+        '<coverage><packages><package><classes>'
+        '<class filename="{path}"><lines>'
+        '<line number="1" hits="1"/><line number="2" hits="{second}"/>'
+        '</lines></class>'
+        '</classes></package></packages></coverage>\n')
+
+    def build(self, hits_second_line):
+        """A repo with one shell script, one trivial test, and a stub kcov whose
+        reports cover 1 or 2 of that script's 2 lines."""
+        # ⚠️ realpath, not the tempfile path. On macOS /var is a symlink to
+        # /private/var, so `git rev-parse --show-toplevel` inside the script
+        # reports the physical path while tempfile hands out the logical one —
+        # the shim's `$root/scripts/*.sh` pattern then matches nothing and the
+        # script correctly reports "the shim was never reached". Correct
+        # behaviour, wrong fixture: a mismatch here looks exactly like a script
+        # that does not work.
+        root = os.path.realpath(self.root)
+        self.bin = os.path.join(root, '.stubbin')
+        os.makedirs(self.bin, exist_ok=True)
+        os.makedirs(os.path.join(root, 'scripts', 'tests'), exist_ok=True)
+        target = os.path.join(root, 'scripts', 'thing.sh')
+        with open(target, 'w', encoding='utf-8') as handle:
+            handle.write('#!/usr/bin/env bash\ntrue\ntrue\n')
+        # ⚠️ NOT copied. The original is run with the temp repo as cwd — it
+        # resolves its root with `git rev-parse --show-toplevel` and cd's there,
+        # so behaviour is identical, and a tracer then attributes the run to the
+        # real file. Copying it left scripts/coverage-shell.sh at 2/35 while
+        # these very tests drove it end to end: the same mistake this script's
+        # own header warns about, made in the test for it.
+        # A test that invokes the script through `bash <path>`, which is what the
+        # shim intercepts.
+        with open(os.path.join(root, 'scripts', 'tests', 'test_x.py'), 'w', encoding='utf-8') as handle:
+            handle.write(
+                'import subprocess, unittest\n'
+                'class T(unittest.TestCase):\n'
+                '    def test_it(self):\n'
+                f'        subprocess.run(["bash", {target!r}], check=True)\n')
+        report = self.COBERTURA.format(path=target, second=hits_second_line)
+        report_file = os.path.join(root, 'report.xml')
+        with open(report_file, 'w', encoding='utf-8') as handle:
+            handle.write(report)
+        # kcov <flags> <outdir> <target> [args...] — the stub finds the outdir as
+        # the first argument that is not a flag, and writes a cobertura report
+        # into it, then runs the target so the suite still passes.
+        executable(os.path.join(self.bin, 'kcov'),
+                   '#!/bin/sh\n'
+                   'out=""\n'
+                   'for a in "$@"; do\n'
+                   '  case "$a" in --*) ;; *) if [ -z "$out" ]; then out="$a"; else target="$a"; fi ;; esac\n'
+                   'done\n'
+                   'mkdir -p "$out/run"\n'
+                   # BOTH files: the probe looks for coverage.json to decide
+                   # whether this bash is traceable, while the report is read
+                   # from cobertura.xml. A stub that writes only one of them
+                   # fails the probe and the script correctly reports NOT
+                   # MEASURED — which is how this fixture was wrong at first.
+                   'printf \'{"percent_covered":100}\' > "$out/run/coverage.json"\n'
+                   f'cp {report_file} "$out/run/cobertura.xml"\n'
+                   '[ -n "$target" ] && [ -f "$target" ] && sh "$target" >/dev/null 2>&1\n'
+                   'exit 0\n')
+        env = {'PATH': self.bin + os.pathsep + os.environ['PATH'],
+               'COVERAGE_BASH': '/bin/sh'}
+        result = subprocess.run(['bash', SHELL_COVERAGE],
+                                cwd=root, capture_output=True, text=True,
+                                env=dict(os.environ, **env))
+        return result.stdout + result.stderr, result.returncode
+
+    def test_full_coverage_passes_the_threshold(self):
+        out, code = self.build(hits_second_line=1)
+        self.assertIn('thing.sh', out)
+        self.assertIn('100.0%', out)
+        self.assertIn('at or above', out)
+        self.assertEqual(0, code, out)
+
+    def test_half_coverage_fails_the_threshold(self):
+        # 1 of 2 lines = 50%, under 80: the gate must close on it.
+        out, code = self.build(hits_second_line=0)
+        self.assertIn('50.0%', out)
+        self.assertIn('below 80%', out)
+        self.assertEqual(1, code)
+
+    def test_the_traced_run_count_is_reported(self):
+        # It is the evidence that the shim was actually reached. A report with no
+        # runs behind it would be a number with nothing under it.
+        out, _ = self.build(hits_second_line=1)
+        self.assertRegex(out, r'\(\d+ traced runs\)')
+
+
 if __name__ == '__main__':
     unittest.main()
