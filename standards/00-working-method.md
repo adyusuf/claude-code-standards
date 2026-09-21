@@ -202,9 +202,9 @@ finished into one row and give the remaining work its own rows.
 
 ## 11. The failure cycle — EVERY test / gate / build run, not only e2e (PERMANENT, all projects)
 
-Generalises `CLAUDE.md` #31 (which was written for e2e). The mistake it prevents, measured on 21/09/2026: after
-each failure the whole merge gate (~30 min: backend + web + mobile + shared core) was re-run from the top —
-four times in one session — although each fix could be proven by running only the step that failed.
+Generalises `CLAUDE.md` #31 (which was written for e2e). The mistake it prevents: after
+each failure the whole merge gate (tens of minutes: every tier plus the shared core) was re-run from the top,
+repeatedly, although each fix could be proven by running only the step that failed.
 
 1. **First run is FULL** and does not stop at the first failure. Read the WHOLE result before touching anything.
 2. **Classify each failure** — product bug · stale test · fixture/data · environment · gate/tooling defect.
@@ -221,8 +221,8 @@ four times in one session — although each fix could be proven by running only 
 
 ## 12. Parallelism and reuse in test / coverage / gate runs (PERMANENT, all projects)
 
-Why: a gate that runs every tier one after another, and re-runs the same suites in three places, costs ~30 min and
-then loses the promotion to a moving base (measured 21/09/2026). Speed-ups are allowed only under these rules:
+Why: a gate that runs every tier one after another, and re-runs the same suites in three places, costs tens of minutes and
+then loses the promotion to a moving base. Speed-ups are allowed only under these rules:
 
 1. **Parallelise by RESOURCE, not by count.** Tiers that use different resources (dotnet + a database cluster vs Node)
    run together. Tiers that fight for the same resource (several Node suites, each defaulting to "all cores") get an
