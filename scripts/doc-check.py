@@ -21,9 +21,16 @@ What it checks (each one is a drift the rule set actually suffers from):
      "N scripts", "N modes")
      equal what is on disk;
   5. no `#NN` rule reference in CLAUDE.md / standards / modes / agents points past the
-     last numbered rule.
+     last numbered rule;
+  6. the SHARED CORE of the completeness-check block is identical in every role that
+     owes it. The block is copied into each role file on purpose — the file is what
+     enters that agent's context, and an agent cannot be relied on to go and read a
+     reference — so the copies have to be held together by something. Five roles add
+     one line of their own, which is allowed: additions are free, edits to the shared
+     part are not.
 Only the standard library; no network.
 """
+import difflib
 import os
 import re
 import subprocess
@@ -175,12 +182,81 @@ def check_rule_refs(root, findings):
                 findings.append(f'{rel}: refers to rule #{number}, but the last rule is #{last}')
 
 
+BLOCK_HEADING = '## Completeness check'
+
+
+def evidence_block(text):
+    """The completeness-check block of a role file, or None when it has no block.
+
+    From its heading to the next top-level heading. The block is deliberately
+    INLINE in every role file that owes it rather than behind a reference: the file
+    is what enters that agent's context, and an agent cannot be relied on to go and
+    read a second document. The cost of inlining is drift, which is what this
+    reads for.
+    """
+    lines = text.splitlines()
+    start = next((i for i, l in enumerate(lines) if l.startswith(BLOCK_HEADING)), None)
+    if start is None:
+        return None
+    # The block PRINTS a '## Completeness check — pass N' heading inside a fenced
+    # example, so the end cannot be found by looking for the next '## ' — that hit
+    # the fence and cut the block to its first four lines, which is how the first
+    # version of this check passed a mutation it should have caught.
+    out, fenced = [], False
+    for line in lines[start:]:
+        if line.startswith('```'):
+            fenced = not fenced
+        elif line.startswith('## ') and out and not fenced:
+            break
+        out.append(line)
+    return '\n'.join(out).strip()
+
+
+def check_evidence_block_drift(root, findings):
+    """The SHARED CORE of the completeness-check block must be identical everywhere.
+
+    Not the whole block: five roles deliberately add one line of their own (`qa`
+    does not fix what it finds, `test-writer` does not bend a test to a product
+    gap, and so on). Demanding byte-identity would report those as drift, and a
+    check that fires on correct files is a check that gets switched off. So the
+    invariant is the one that matters: every line of the shared core is present, in
+    order, in every role that owes the block. Additions are free; edits are not.
+    """
+    roles_dir = os.path.join(root, 'agents')
+    source = os.path.join(root, 'modes', 'completeness-check-core.md')
+    if not (os.path.isdir(roles_dir) and os.path.isfile(source)):
+        return
+    # ⚠️ The core is read from a FILE, not derived from the role files. Deriving it as
+    # the intersection of the copies was the first attempt and it cannot work: edit a
+    # line in one copy and that line simply drops out of the intersection, so every
+    # copy still "matches" the smaller core. A check whose reference comes from the
+    # data it validates cannot detect a change in that data.
+    core = [l for l in evidence_block(read(source)).splitlines() if l.strip()]
+    if not core:
+        return
+    for name in sorted(os.listdir(roles_dir)):
+        if not name.endswith('.md'):
+            continue
+        block = evidence_block(read(os.path.join(roles_dir, name)))
+        if block is None:
+            continue
+        lines = [l for l in block.splitlines() if l.strip()]
+        matcher = difflib.SequenceMatcher(None, core, lines, autojunk=False)
+        kept = sum(size for _, _, size in matcher.get_matching_blocks())
+        if kept != len(core):
+            findings.append(
+                f'agents/{name}: the completeness-check block no longer carries the canonical core '
+                f'({len(core) - kept} of {len(core)} lines missing or reworded) — a role may ADD a '
+                f'line of its own, it may not change one from modes/completeness-check-core.md')
+
+
 def run(root):
     findings = []
     check_links_and_paths(root, findings)
     check_indexes(root, findings)
     check_counts(root, findings)
     check_rule_refs(root, findings)
+    check_evidence_block_drift(root, findings)
     return sorted(set(findings))
 
 

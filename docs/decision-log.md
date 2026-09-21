@@ -46,6 +46,14 @@ checklist is run deliberately.
 
 ## §25 — Merging to `dev` is fast; heavy gates run on promotion
 
+> ⛔ **SUPERSEDED — this section records the original design, not the active rule.**
+> The active #25 runs the SHARED STEP SET at **every** promotion, `dev` included:
+> formatter, typecheck, build, unit tests, coverage per codebase, secret scan,
+> dependency CVE, SAST, backward-compatibility scan, the guidance-file gates, and a
+> missing-e2e-spec check. Only **running** e2e is deferred to the `prod` gate (#33).
+> Everything below describes the earlier "light gate on `dev`" arrangement and is
+> kept because the reasoning is why the rule moved, not because it still applies.
+
 **Why:** the instruction was to skip review and gates when merging to `dev` so that
 work moves without losing time. `dev` is an integration branch and publishes
 nothing outward; the real place for a quality gate is the `test`/`prod` promotion,
@@ -399,11 +407,15 @@ including tsc/lint, after the code and the tests are written.
 
 ## §33 — The only place for e2e is the pre-production gate
 
-- **`feature → dev` and `dev → test`:** e2e **does not run**. Earlier this stage
-  carried a "was a spec written" check; that check was **removed** — it blocked
-  nothing, and the list of missing specs it produced was **recomputed** at step 2 of
-  the `prod` gate, i.e. an output produced twice and used once. There is no run, no
+- **`feature → dev` and `dev → test`:** e2e **does not run**. There is no run, no
   waiting on a deploy, no reading a status file.
+  > ⛔ **This bullet used to say the "was a spec written" check had been REMOVED.
+  > That is wrong and was wrong when written:** the check is a step in
+  > `gate-core.sh` today (it appears in every gate run as `e2e spec check`), and
+  > active #25 requires it — a warning on `dev`, blocking on `test`. What is
+  > deferred to the `prod` gate is *running* the suite, not looking for gaps. The
+  > argument below — that the gap list gets recomputed at step 2 and so is produced
+  > twice and used once — is the case that was made for removing it; it did not win.
 - **`test → prod` (after the user says "prod merge", BEFORE the promotion), in order:**
   1. **Has the code reached `test`?** If the code destined for `prod` is not on
      `test`, it goes to `test` first (rules #26/#25, with the user's approval) and
@@ -519,10 +531,10 @@ that runs. What was built, and the decisions behind it:
 - ❌ Shipping to `prod` without e2e — only work the user explicitly calls a "hotfix" ships without it → #31
 - ❌ Starting a test run after every small change before the code is finished; writing or running an e2e spec before the code reaches `test` — all the code first, then write and run unit tests, e2e once it reaches test → #32
 - ❌ Starting an autonomous background agent or loop without asking the user → #20
-- ❌ Invoking the `test-writer` and `migration-reviewer` subagents — strictly forbidden. ⚠️ The ban is tied to **names** and those names are not on disk today; the real protection is **the mode's role set**: no agent outside the mode's roles is called (including the 21 active plugin agents) → #27, #28
+- ❌ Invoking any agent outside the active mode's role set — `migration-reviewer` (no longer on disk) and the plugin agents whose names shadow these roles (`ext:test-engineer`, `ext:code-reviewer`) included. ⚠️ The ban used to name `test-writer`, and that was a contradiction: `agents/test-writer.md` is on disk and B — the default mode — pre-approves it. A ban tied to names rots the moment a role file is added; the protection is **the mode's role set**, and no agent outside it is called (including the 21 active plugin agents) → #27, #28
 - ❌ Starting an agent in mode A; calling an agent outside the mode's set in B/C/D/E. ⚠️ With no mode file, **B** now applies — B's three agents are free, a fourth is not → #27
 - ❌ Ending a turn without reporting the agent count and estimated cost (B/C/D/E) → #27
-- ❌ Slowing down a `dev` merge with review/scanning gates → #25 (but skipping the gate on the `test`/`prod` promotion is equally forbidden)
+- ❌ Skipping the shared step set on ANY promotion, `dev` included → #25. ⚠️ This item used to forbid the opposite — "slowing down a `dev` merge with review/scanning gates" — which is how the rule read before the gate moved to every promotion; the superseded design is recorded in §25
 - ❌ Working or committing directly ON `dev`, or pushing several tasks to `dev` in one merge → #26
 - ❌ Merging to `test`/`prod` without the user saying so → #26
 - ❌ Accepting an auditing role's report **without the completeness-check block**, or swallowing that block instead of passing it to the user → #28
@@ -567,23 +579,12 @@ Templates: `standards/templates/` — project CLAUDE.md, **SETUP.md**, PR, ADR, 
 
 ## Working method (for Claude)
 
-- **Gather context first.** Read a file before editing it; scan the project's own
-  `CLAUDE.md` and its `docs/` if present. Do not write code on assumptions.
-- **Plan → approval → execute.** For work touching multiple files, present a short
-  plan first (which file, what changes, why).
-- **Verify what you did.** Build + the relevant tests + lint/format. If you did not
-  run them, say "I did not run them".
-- **When uncertain:** finish the independent work, then ask one clear question. Do
-  not stop at every assumption; but do ask if a wrong assumption would throw the
-  work away.
-- **Parallel-session awareness.** Other sessions may be working in the same repo:
-  commit only your own diff, verify `git status`/`git diff` before committing, and
-  never use `--force`.
-- **Get approval for irreversible work.** Deploys, a migration `DROP`, sending
-  anything outward, deleting files.
-- Detail: `standards/00-working-method.md`
+The method itself is **not repeated here.** It is in `CLAUDE.md` › "Working method
+(for Claude)", in full, and in `standards/00-working-method.md` in detail. A copy in
+the log would be a third place for the same seven bullets to drift in — and this
+section exists for what the log is for: the incidents that produced them.
 
-### ⚠️ Commit c68fbf1 bundled two unrelated tasks
+### ⚠️ A commit that bundled two unrelated tasks
 
 Its message describes only the reporting change, but it also carried the first
 half of the shell-coverage work: `scripts/tests/test_gate_core_fixes.py` and

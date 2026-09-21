@@ -218,7 +218,13 @@ reason.
 
 When CI is down (billing, quota, the network, a provider outage), verification
 must not stop. Every project carries a single script that runs **the same gates in
-the same order** as the pipeline (`scripts/ci-local.sh`).
+the same order** as the pipeline: `scripts/merge-gate.sh <dev|test|prod>`, which
+calls the shared `scripts/gate-core.sh` (#25). `gate-core.sh <target> --list`
+prints the step list without running anything.
+
+⚠️ This was called `scripts/ci-local.sh` while it was still a plan, and nothing by
+that name was ever written: the local runner and the merge gate turned out to be
+the same script. Two names for one file is how a reference goes dead.
 
 - The local run **may not be weaker** than the pipeline; two different rules in two places is where "it worked on my machine" comes from.
 - It may be **stronger** locally: dependencies the pipeline does not install (a browser, say) are often present locally, so those tests run too.

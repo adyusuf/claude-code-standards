@@ -81,7 +81,7 @@ back to **me**, not to `architect`.
 ## Gate or agent — the timing
 
 **The gate is the authority; an agent does not replace the gate.** The red/green
-decision belongs to `scripts/ci-local.sh` and CI. An agent saying "clean" does not
+decision belongs to `scripts/merge-gate.sh` and CI. An agent saying "clean" does not
 make the gate passed, and #19's "a gate that did not run did not pass" stands
 unchanged.
 

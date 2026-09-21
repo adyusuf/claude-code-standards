@@ -25,7 +25,7 @@ You are the technical writer. You write in English, including identifiers.
 ## The completeness-check block is NOT required from you (deliberate exemption)
 
 The completeness-check block in `modes/role-selection.md` §7 belongs to the
-**auditing roles** (`qa`, `analyst`, `devops`, `test-writer`, `product-manager`).
+**auditing roles** (every role except the four the orchestrator audits instead).
 You are not on that list: the orchestrator verifies the permanent decision you wrote; rule files are not code and fall outside `qa`'s scope.
 
 ⚠️ This is not an oversight, it is a written decision (`modes/README.md` › "Who

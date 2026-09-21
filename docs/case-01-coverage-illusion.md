@@ -8,7 +8,7 @@
 
 ## Context
 
-Project B is a production system: a.NET backend, a React (Vite) web client, and
+Project B is a production system: a .NET backend, a React (Vite) web client, and
 Android and iOS mobile clients. The coverage figure appeared in CI output and on
 a dashboard, and nobody disputed it: **95.0%**. The assumption that "testing is
 in good shape" was built on that number.
@@ -115,7 +115,7 @@ level.
 ## How to verify
 
 ```bash
-#.NET — coverlet, cobertura output
+# .NET — coverlet, cobertura output
 dotnet test <sln> --collect:"XPlat Code Coverage" --results-directory <dir>
 # ⚠️ two test projects produce separate files; the same line may appear in both →
 # take the UNION of lines, not the sum

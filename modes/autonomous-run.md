@@ -75,19 +75,19 @@ The run stops and sends a notification when:
   **never dropped into the "reversible assumption" bucket**; the run stops and the
   open findings are listed individually.
 
-## Mode scope and teams
+## Mode scope
 
-An autonomous run layers on top of **C/D and Y/Z**. **A `/loop` autonomous run is
-not started in A/B/X** — the mandatory first step (`product-manager` producing the
-task list) cannot be performed in those modes: agents are forbidden in A, and in
-B/X that role is not in the set. If the user wants an autonomous run in A/B/X, **a
-mode change is proposed first**; the run is never started on its own (#20).
+An autonomous run layers on top of **C, D and E**. **A `/loop` autonomous run is not
+started in A or B** — the mandatory first step (`product-manager` producing the task
+list) cannot be performed there: agents are forbidden in A, and in B that role is not
+in the set. If the user wants an autonomous run in A or B, **a mode change is proposed
+first**; the run is never started on its own (#20).
 
-**Extra rule for Y/Z (teams — archived):** teammates do not survive across sessions,
-but the team and the task list **persist on disk**. When the budget fills and a new
-session is requested, the handover note carries: that no task was left `in_progress`
-(all are `completed` or `pending`), the team name (the same name cannot be reused),
-and the list of open findings.
+⛔ The Y/Z handover rules that used to sit here have moved to the archive
+(`modes/archive/team-rules.md` §9). X/Y/Z are not offered and cannot be started (that
+file's §0), so a rule for them in an active document is a rule that can never fire,
+and a reader looking up autonomous runs had to work out which half applied. If the
+team modes ever open, §9 comes back with them.
 
 ## Visibility
 

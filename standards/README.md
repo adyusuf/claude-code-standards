@@ -38,5 +38,10 @@ token cost stays low.
 3. `~/.claude/CLAUDE.md`
 4. The standards in this folder
 
+⛔ **One exception, and it is absolute: rule #29.** The 80% line-coverage threshold
+per codebase grants no exceptions and **a project's `CLAUDE.md` cannot override it** —
+level 2 does not beat it. `gate-core.sh` enforces this by refusing `coverage` as an
+accepted gap by name, so the rule survives a conf file that tries to waive it.
+
 If you are deliberately violating a standard, **write the reason in the code or the
 PR**. No silent exceptions.
