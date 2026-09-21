@@ -34,7 +34,8 @@ root="$(git rev-parse --show-toplevel 2>/dev/null)" || { echo "not inside a git 
 cd "$root" || exit 2
 min="${COVERAGE_MIN:-80}"
 
-command -v kcov >/dev/null 2>&1 || {
+kcov_bin="$(command -v kcov 2>/dev/null)" || true
+[ -n "$kcov_bin" ] || {
   echo "  NOT MEASURED: kcov is not installed (brew install kcov)"; exit 3; }
 
 # A traceable bash: the first candidate kcov can actually run.
@@ -43,7 +44,7 @@ for candidate in "${COVERAGE_BASH:-}" /opt/homebrew/bin/bash /usr/local/bin/bash
   [ -n "$candidate" ] && [ -x "$candidate" ] || continue
   probe="$(mktemp -d)"
   printf '#!%s\ntrue\n' "$candidate" > "$probe/p.sh"; chmod +x "$probe/p.sh"
-  if kcov --include-path="$probe/p.sh" "$probe/out" "$probe/p.sh" >/dev/null 2>&1 \
+  if "$kcov_bin" --include-path="$probe/p.sh" "$probe/out" "$probe/p.sh" >/dev/null 2>&1 \
      && [ -n "$(find "$probe/out" -name coverage.json -print -quit 2>/dev/null)" ]; then
     trace_bash="$candidate"; rm -rf "$probe"; break
   fi
@@ -67,7 +68,12 @@ for arg in "\$@"; do
   case "\$arg" in
     $root/scripts/*.sh)
       if [ -f "\$arg" ]; then
-        exec kcov --include-path="$root/scripts" --exclude-pattern=/tests/ \\
+        # ⚠️ An ABSOLUTE path to kcov, not a PATH lookup. A test that legitimately
+        # strips a directory from PATH (to prove a missing tool is announced) also
+        # strips kcov when they share a directory, and the shim then died with
+        # "exec: kcov: not found" — turning a passing suite red only under
+        # measurement.
+        exec "$kcov_bin" --include-path="$root/scripts" --exclude-pattern=/tests/ \\
                   "$work/out/\$(date +%s%N)-\$\$" "\$@"
       fi
       ;;

@@ -69,6 +69,19 @@ class RequirePrivateRemote(unittest.TestCase):
                 self.assertEqual(self.push(url).returncode, 0)
                 self.assertIn('repos/me/cfg', self.asked())
 
+    def test_a_github_url_with_no_repo_part_is_refused(self):
+        # The visibility question is asked about owner/repo. A URL that yields no
+        # slash cannot be asked about, and "cannot be asked" must refuse rather
+        # than fall through — this hook exists to keep real project names off a
+        # public remote, so an unanswerable case is the dangerous one.
+        result = self.push('https://github.com/onlyowner')
+        self.assertEqual(1, result.returncode)
+        self.assertIn('could not read owner/repo', result.stderr)
+
+    def test_a_trailing_dot_git_and_slash_are_stripped_before_asking(self):
+        self.push('https://github.com/acme/widgets.git/')
+        self.assertIn('repos/acme/widgets', self.asked())
+
 
 if __name__ == '__main__':
     unittest.main()

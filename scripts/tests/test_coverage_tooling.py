@@ -10,6 +10,7 @@ import os
 import shutil
 import stat
 import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -150,6 +151,64 @@ class CommitMsgHook(Repo):
             self.assertEqual(0, code)
         finally:
             shutil.rmtree(loose, ignore_errors=True)
+
+
+class CoverageWithAFakeVenv(Repo):
+    """coverage.sh's measurement path, which nothing reached before: every test
+    stopped at "no coverage in <venv>". A fake venv gets past that, so the parts
+    that decide PASS vs FAIL vs "the tests are red" are exercised.
+
+    The distinction that matters: a RED suite must not be reported as a coverage
+    figure at all. A percentage computed from a suite that failed measures
+    nothing, and treating it as a measurement would let a broken test file raise
+    the number.
+    """
+
+    def venv(self, coverage_body):
+        venv = os.path.join(self.root, '.venv')
+        os.makedirs(os.path.join(venv, 'bin'))
+        executable(os.path.join(venv, 'bin', 'coverage'), coverage_body)
+        # A real python3, because coverage.sh asks it for sysconfig's purelib.
+        executable(os.path.join(venv, 'bin', 'python'),
+                   '#!/bin/sh\nexec ' + sys.executable + ' "$@"\n')
+        os.makedirs(os.path.join(self.root, 'scripts', 'tests'), exist_ok=True)
+        return venv
+
+    def run_coverage(self, coverage_body):
+        venv = self.venv(coverage_body)
+        # A stub shell-coverage helper: this test is about the Python half.
+        executable(os.path.join(self.root, 'scripts', 'coverage-shell.sh'),
+                   '#!/usr/bin/env bash\necho "  shell: stubbed"\nexit 0\n')
+        return self.run_in(COVERAGE, env={'COVERAGE_VENV': venv})
+
+    @staticmethod
+    def stub(run_exit, report_line, report_exit):
+        return (
+            '#!/bin/sh\n'
+            'case "$1" in\n'
+            f'  run) {run_exit} ;;\n'
+            '  combine) exit 0 ;;\n'
+            f'  report) echo "{report_line}"; exit {report_exit} ;;\n'
+            'esac\n'
+            'exit 0\n')
+
+    def test_a_passing_suite_at_the_threshold_passes(self):
+        out, code = self.run_coverage(self.stub('exit 0', 'TOTAL 100 0 100%', 0))
+        self.assertIn('at or above', out)
+        self.assertEqual(0, code, out)
+
+    def test_below_the_threshold_fails_and_points_at_the_plan(self):
+        out, code = self.run_coverage(self.stub('exit 0', 'TOTAL 100 50 50%', 1))
+        self.assertIn('below 80%', out)
+        self.assertIn('coverage-gap.md', out)
+        self.assertEqual(1, code)
+
+    def test_a_RED_suite_is_not_reported_as_a_coverage_figure(self):
+        out, code = self.run_coverage(
+            self.stub('echo "FAILED (failures=1)"; exit 1', 'TOTAL 100 0 100%', 0))
+        self.assertIn('the tests are red', out)
+        self.assertNotIn('at or above', out)
+        self.assertEqual(1, code, 'a red suite must not pass on a 100% report')
 
 
 if __name__ == '__main__':
