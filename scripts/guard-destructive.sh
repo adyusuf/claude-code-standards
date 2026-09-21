@@ -29,7 +29,7 @@ printf '%s' "$payload" | grep -qiE 'push|drop|truncate|rm |no-verify' || exit 0
 # except through this wrapper, and could not be measured at all: a bash coverage
 # tracer counts a heredoc as ONE statement, so this file reported 3 of 19 lines
 # covered while every rule in it was being exercised (#29 wants an honest
-# denominator). Moved 21/09/2026, patterns byte-identical.
+# denominator). Moved, patterns byte-identical.
 # ⚠️ THE SYMLINK MUST BE RESOLVED FIRST. This hook is installed as a SYMLINK at
 # ~/.claude/hooks/guard-destructive.sh pointing into the repository's scripts/,
 # and $BASH_SOURCE is the path bash was INVOKED with — the link, not the target.
