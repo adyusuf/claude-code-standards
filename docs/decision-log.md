@@ -579,23 +579,12 @@ Templates: `standards/templates/` — project CLAUDE.md, **SETUP.md**, PR, ADR, 
 
 ## Working method (for Claude)
 
-- **Gather context first.** Read a file before editing it; scan the project's own
-  `CLAUDE.md` and its `docs/` if present. Do not write code on assumptions.
-- **Plan → approval → execute.** For work touching multiple files, present a short
-  plan first (which file, what changes, why).
-- **Verify what you did.** Build + the relevant tests + lint/format. If you did not
-  run them, say "I did not run them".
-- **When uncertain:** finish the independent work, then ask one clear question. Do
-  not stop at every assumption; but do ask if a wrong assumption would throw the
-  work away.
-- **Parallel-session awareness.** Other sessions may be working in the same repo:
-  commit only your own diff, verify `git status`/`git diff` before committing, and
-  never use `--force`.
-- **Get approval for irreversible work.** Deploys, a migration `DROP`, sending
-  anything outward, deleting files.
-- Detail: `standards/00-working-method.md`
+The method itself is **not repeated here.** It is in `CLAUDE.md` › "Working method
+(for Claude)", in full, and in `standards/00-working-method.md` in detail. A copy in
+the log would be a third place for the same seven bullets to drift in — and this
+section exists for what the log is for: the incidents that produced them.
 
-### ⚠️ Commit c68fbf1 bundled two unrelated tasks
+### ⚠️ A commit that bundled two unrelated tasks
 
 Its message describes only the reporting change, but it also carried the first
 half of the shell-coverage work: `scripts/tests/test_gate_core_fixes.py` and
