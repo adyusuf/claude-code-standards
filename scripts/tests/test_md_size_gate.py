@@ -206,5 +206,44 @@ class UpdateIsARatchet(Gate):
         self.assertNotIn('\t5\t', kept)
 
 
+class AGlobInTheRepositoryPATH(Gate):
+    """A repository path containing glob characters must not change the verdict.
+
+    `rel="${file#$ROOT/}"` strips the repository prefix so the exclusion patterns
+    can be matched RELATIVE to the root. Unquoted, $ROOT is a GLOB: under a path
+    containing `[`, `*` or `?` — a worktree directory, a branch slug — the prefix
+    does not strip, `rel` keeps the absolute path, the exclusions stop matching,
+    and a budget-less CLAUDE.md passes. Found by ShellCheck (SC2295), pinned here
+    because "the fix is obvious" is how the previous worktree blind spot in this
+    same loop survived a full day.
+    """
+
+    def setUp(self):
+        # A directory name with a bracket expression in it, which is exactly what
+        # an unquoted pattern would treat as a character class.
+        self.parent = tempfile.mkdtemp()
+        self.root = os.path.join(self.parent, 'repo[1]-x')
+        os.makedirs(self.root)
+
+    def tearDown(self):
+        shutil.rmtree(self.parent, ignore_errors=True)
+
+    def test_an_unbudgeted_file_is_still_found_under_a_glob_path(self):
+        self.write('CLAUDE.md', 'x')
+        self.write('backend/CLAUDE.md', 'x')
+        self.budget('CLAUDE.md\t1\t1\treason')
+        out, code = self.run_gate()
+        self.assertIn('NO BUDGET', out, f'discovery broke under a glob path:\n{out}')
+        self.assertEqual(1, code)
+
+    def test_an_exclusion_still_applies_under_a_glob_path(self):
+        self.write('CLAUDE.md', 'x')
+        self.write('vendor/thing/CLAUDE.md', 'x')
+        self.budget('# exclude:vendor', 'CLAUDE.md\t1\t1\treason')
+        out, code = self.run_gate()
+        self.assertNotIn('NO BUDGET', out, f'the exclusion stopped matching:\n{out}')
+        self.assertEqual(0, code, out)
+
+
 if __name__ == '__main__':
     unittest.main()
