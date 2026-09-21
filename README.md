@@ -21,7 +21,7 @@ pie showData title Repository composition (files)
  "agents/ (14 roles)" : 14
  "modes/ (5 modes + selection guide)" : 13
  "scripts/ (gates, hooks, measurement, tests)" : 28
- "docs/ (decision log + case studies + ledger)" : 12
+ "docs/ (decision log + case studies + ledger)" : 10
  "commands/ + skills/" : 5
  "root (CLAUDE.md, settings, license)" : 5
 ```
