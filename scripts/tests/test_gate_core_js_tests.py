@@ -67,3 +67,32 @@ class JsTestStep(unittest.TestCase):
 
 if __name__ == '__main__':
     unittest.main()
+
+
+class CoverageCannotBeAccepted(unittest.TestCase):
+    """Rule #29 grants no exceptions, so ACCEPTED_GAPS must not waive coverage."""
+
+    def tearDown(self):
+        shutil.rmtree(getattr(self, 'root', ''), ignore_errors=True)
+
+    def build(self, accepted):
+        root = tempfile.mkdtemp()
+        subprocess.run(['git', 'init', '-q', root], check=True)
+        os.makedirs(os.path.join(root, 'scripts'))
+        shutil.copy(os.path.join(SCRIPTS, 'gate-core.sh'), os.path.join(root, 'scripts', 'gate-core.sh'))
+        with open(os.path.join(root, 'scripts', 'merge-gate.conf'), 'w', encoding='utf-8') as handle:
+            handle.write(f'ACCEPTED_GAPS="{accepted}"\nACCEPTED_GAPS_REASON="a written reason"\n')
+        self.root = root
+        result = subprocess.run(['bash', 'scripts/gate-core.sh', 'test'],
+                                cwd=root, capture_output=True, text=True)
+        return ANSI.sub('', result.stdout), result.returncode
+
+    def test_coverage_is_not_accepted_even_when_listed(self):
+        out, code = self.build('coverage|SAST')
+        self.assertIn('CANNOT be accepted', out)
+        self.assertNotIn('ACCEPTED GAP: coverage', out)
+        self.assertNotEqual(0, code, 'an unmeasured coverage gate must not exit 0')
+
+    def test_another_gap_is_still_acceptable(self):
+        out, _ = self.build('coverage|SAST')
+        self.assertIn('ACCEPTED GAP', out)  # SAST still accepted

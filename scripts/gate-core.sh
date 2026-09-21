@@ -60,6 +60,11 @@
 # and counted separately. A gap with no reason is not accepted — the gate still
 # fails. This is the written, time-boxed risk acceptance the security standard asks
 # for, not a switch that turns a step off.
+#
+# ⚠️ ONE STEP CANNOT BE ACCEPTED AT ALL: coverage. Rule #29 grants it no
+# exceptions and says a project cannot override it, so listing it in
+# ACCEPTED_GAPS does nothing but print that it cannot be accepted, and the gate
+# stays INCOMPLETE. Install the measurement (scripts/coverage.sh) instead.
 set -uo pipefail
 
 TARGET="${1:-}"
@@ -82,9 +87,18 @@ bad()  { printf '  \033[31m✗\033[0m %s\n' "$1"; FAIL+=("$1"); }
 NA=()
 na()   { printf '  \033[90m–\033[0m n/a: %s\n' "$1"; NA+=("$1"); }   # nothing to check here — not a gap
 ACCEPTED=()
+# Rule #29 grants the coverage threshold NO exceptions and says a project cannot
+# override it — so ACCEPTED_GAPS cannot waive it either. That was where the rule
+# was quietly losing: several projects listed `coverage` as an accepted gap and
+# their gates printed GREEN while nothing measured coverage at all. Measured on
+# 21/09/2026 across the projects carrying this gate.
+NEVER_ACCEPTABLE='coverage'
 skip() {
   local what="$1"
   if [ -n "${ACCEPTED_GAPS:-}" ] && [ -n "${ACCEPTED_GAPS_REASON:-}" ] && printf '%s' "$what" | grep -qiE "${ACCEPTED_GAPS}"; then
+    if printf '%s' "$what" | grep -qiE "$NEVER_ACCEPTABLE"; then
+      printf '  \033[33m·\033[0m SKIPPED (this gap CANNOT be accepted — rule #29): %s\n' "$what"; SKIP+=("$what"); return 0
+    fi
     printf '  \033[33m~\033[0m ACCEPTED GAP: %s\n' "$what"; ACCEPTED+=("$what"); return 0
   fi
   printf '  \033[33m·\033[0m SKIPPED: %s\n' "$what"; SKIP+=("$what")
