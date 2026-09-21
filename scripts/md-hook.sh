@@ -67,7 +67,7 @@ fi
 # exactly that for its other twins. Drift did happen once: the canonical copy was
 # updated, the project copy stayed behind, and it was only noticed by comparing
 # them by hand.
-TWINS="md-size-gate.sh md-rule-gate.py md-split.py gate-core.sh pre-commit.sh guard-destructive.sh doc-check.py evidence-check.py evidence-block.schema.json"
+TWINS="md-size-gate.sh md-rule-gate.py md-split.py gate-core.sh pre-commit.sh guard-destructive.sh doc-check.py evidence-check.py evidence-block.schema.json real-name-check.sh commit-msg.sh"
 drifted=""
 # The configuration repository IS the canonical set: comparing one of its worktrees
 # with the live copy would report every not-yet-promoted change as drift.

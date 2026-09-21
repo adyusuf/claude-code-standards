@@ -357,6 +357,20 @@ that runs. What was built, and the decisions behind it:
   user, who changed it twice (first end day, then start day); the first design split each request
   across days and was dropped. `ended` is still recorded, as information. Four report files: by project,
   role, kind, model.
+- **Real names in commits (`scripts/real-name-check.sh`, `commit-msg.sh`).** Real project names
+  reached history three times, always through a place nothing looked at: a comment in a script, a
+  generated log, and three commit messages. The check reads the local nickname map, so the names
+  are never written into a tracked file, and it covers file names, added lines and the message.
+  Two of its tests found real bugs on the first run (a result set in a pipeline's subshell never
+  reached the caller, so the check printed the leak and still exited 0; a non-GitHub remote
+  slipped through the visibility hook). History was audited too: only two files and three
+  messages ever held a name, and a scrubbed candidate history exists for the day this repository
+  is made public.
+- **`~/.claude` (claude-config) stays private, with names.** Its memory folders are named after
+  real projects because Claude Code finds a project's memory by the folder's real path, and the
+  notes are only useful with the real names in them — nicknames would break both. So it is kept
+  private on purpose and `require-private-remote.sh` makes that a check: a push to a repository
+  GitHub does not report as private is refused, and so is one whose visibility cannot be read.
 - **Drift test (`scripts/md-hook.sh`).** It covered only three `md-*` tools while
   `gate-core.sh` and the README claimed otherwise. It now covers every copied script; the
   configuration repository itself is exempt (a dev worktree would otherwise report every

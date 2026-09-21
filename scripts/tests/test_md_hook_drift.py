@@ -43,11 +43,13 @@ class MdHookDrift(unittest.TestCase):
         self.assertEqual(self.stop_event(), '')
 
     def test_every_copied_script_is_compared_not_only_the_md_tools(self):
-        for name in ('gate-core.sh', 'guard-destructive.sh', 'doc-check.py', 'evidence-block.schema.json'):
+        for name in ('gate-core.sh', 'guard-destructive.sh', 'doc-check.py', 'evidence-block.schema.json', 'real-name-check.sh',
+                     'commit-msg.sh'):
             self.write(self.canonical(name), 'canonical\n')
             self.write(self.copy(name), 'edited in the project\n')
         output = self.stop_event()
-        for name in ('gate-core.sh', 'guard-destructive.sh', 'doc-check.py', 'evidence-block.schema.json'):
+        for name in ('gate-core.sh', 'guard-destructive.sh', 'doc-check.py', 'evidence-block.schema.json', 'real-name-check.sh',
+                     'commit-msg.sh'):
             self.assertIn(name, output)
         self.assertIn('DRIFTED', output)
 

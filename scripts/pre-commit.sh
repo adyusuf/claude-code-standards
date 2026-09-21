@@ -7,12 +7,14 @@
 # measuring first. A ceiling nobody measures is not a ceiling; the gate belongs
 # on the commit itself.
 #
-# Three steps, all in seconds, so the "merging into dev is fast" rule still holds:
+# Four steps, all in seconds, so the "merging into dev is fast" rule still holds:
 #   1. CLAUDE.md size budget   (scripts/md-size-gate.sh)
 #   2. gitleaks — secret scan over the staged content (pre-commit gitleaks is
 #      the one gate that stays on in the dev direction)
 #   3. documentation consistency (scripts/doc-check.py, ~0.1 s) — only when the
 #      project carries that script
+#   4. real project names (scripts/real-name-check.sh) — file names and added lines;
+#      the commit MESSAGE is checked by the commit-msg hook this file also installs
 #
 # Install:            bash scripts/pre-commit.sh --install
 # Deliberate bypass:  git commit --no-verify   (write the reason in the message)
@@ -25,6 +27,10 @@ if [ "${1:-}" = "--install" ]; then
   mkdir -p "$root/.git/hooks"
   ln -sf ../../scripts/pre-commit.sh "$root/.git/hooks/pre-commit"
   echo "installed: $root/.git/hooks/pre-commit -> scripts/pre-commit.sh"
+  if [ -f "$root/scripts/commit-msg.sh" ]; then
+    ln -sf ../../scripts/commit-msg.sh "$root/.git/hooks/commit-msg"
+    echo "installed: $root/.git/hooks/commit-msg -> scripts/commit-msg.sh"
+  fi
   exit 0
 fi
 
@@ -59,6 +65,14 @@ if [ -f "$root/scripts/doc-check.py" ]; then
     echo "✗ commit STOPPED — documentation drift (a broken link, a missing index entry, a stale count)."
     failed=1
   fi
+fi
+
+# --- 4. real project names in the staged change --------------------------------
+if [ -f "$root/scripts/real-name-check.sh" ]; then
+  bash "$root/scripts/real-name-check.sh" --staged || {
+    echo "✗ commit STOPPED — a real project name (see above)."
+    failed=1
+  }
 fi
 
 exit "$failed"
