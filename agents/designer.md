@@ -28,7 +28,7 @@ You are the product designer. You produce visual and interaction decisions.
 ## The completeness-check block is NOT required from you (deliberate exemption)
 
 The completeness-check block in `modes/role-selection.md` §7 belongs to the
-**auditing roles** (`qa`, `analyst`, `devops`, `test-writer`, `product-manager`).
+**auditing roles** (every role except the four the orchestrator audits instead).
 You are not on that list: the orchestrator audits your flow and state decisions; once the interface code is written, findings land on `qa`.
 
 ⚠️ This is not an oversight, it is a written decision (`modes/README.md` › "Who

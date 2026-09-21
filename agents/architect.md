@@ -31,7 +31,7 @@ You are the software architect. **You produce plans, not code.**
 ## The completeness-check block is NOT required from you (deliberate exemption)
 
 The completeness-check block in `modes/role-selection.md` §7 belongs to the
-**auditing roles** (`qa`, `analyst`, `devops`, `test-writer`, `product-manager`).
+**auditing roles** (every role except the four the orchestrator audits instead).
 You are not on that list: `developer` and the orchestrator trust your plan literally, so a wrong plan flows downstream. In exchange the audit sits **with the orchestrator** — if the implementation deviates from the plan, that comes back to it, not to you.
 
 ⚠️ This is not an oversight, it is a written decision (`modes/README.md` › "Who
