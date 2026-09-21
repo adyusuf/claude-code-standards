@@ -160,10 +160,27 @@ class E2eIsRequired(ProdGate):
         self.assertIn('deploy verification', out)
         self.assertNotIn('SHOULD_NOT_RUN', out)
 
-    def test_the_list_mode_says_when_nothing_is_configured(self):
+    def test_the_list_mode_reaches_the_same_verdict_as_the_real_run(self):
+        # --list used to print "<no source configured — would block>" and then count
+        # the step as PASS, so the dry run said GATE GREEN while the real run said
+        # INCOMPLETE. The dry run is what gets read before asking for a promotion, so
+        # a disagreement there is worse than having no dry run at all.
         self.setup_project()
+        listed, list_code = self.run_gate('--list')
+        real, real_code = self.run_gate()
+        self.assertIn('the deployed SHA cannot be read', listed)
+        self.assertIn('GATE INCOMPLETE', listed)
+        self.assertNotEqual(0, list_code)
+        for verdict in ('GATE INCOMPLETE', 'the deployed SHA cannot be read'):
+            self.assertEqual(verdict in listed, verdict in real, verdict)
+
+    def test_the_list_mode_still_passes_the_step_when_a_source_is_configured(self):
+        self.stub('curl', '#!/bin/sh\necho SHOULD_NOT_RUN\n')
+        self.setup_project(conf='TEST_VERSION_URL="http://test.example/version"\n')
         out, _ = self.run_gate('--list')
-        self.assertIn('no source configured', out)
+        self.assertIn('deploy verification', out)
+        self.assertNotIn('the deployed SHA cannot be read', out)
+        self.assertNotIn('SHOULD_NOT_RUN', out)
 
 
 if __name__ == '__main__':

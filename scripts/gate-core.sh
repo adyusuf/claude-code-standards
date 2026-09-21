@@ -326,10 +326,18 @@ if [ "$TARGET" = "prod" ]; then
   say "is this code deployed to the TEST environment?"
   HEAD_SHA="$(git rev-parse HEAD)"
   if [ "$LIST_ONLY" = 1 ]; then
-    if [ -n "${TEST_DEPLOY_SHA_CMD:-}" ]; then printf '  → %-42s %s\n' "deploy verification" "$TEST_DEPLOY_SHA_CMD"
-    elif [ -n "${TEST_VERSION_URL:-}" ]; then printf '  → %-42s %s\n' "deploy verification" "curl ${TEST_VERSION_URL} == ${HEAD_SHA:0:7}"
-    else printf '  → %-42s %s\n' "deploy verification" "<no source configured — would block>"; fi
-    PASS+=("deploy verification")
+    if [ -n "${TEST_DEPLOY_SHA_CMD:-}" ]; then
+      printf '  → %-42s %s\n' "deploy verification" "$TEST_DEPLOY_SHA_CMD"; PASS+=("deploy verification")
+    elif [ -n "${TEST_VERSION_URL:-}" ]; then
+      printf '  → %-42s %s\n' "deploy verification" "curl ${TEST_VERSION_URL} == ${HEAD_SHA:0:7}"; PASS+=("deploy verification")
+    else
+      # ⚠️ This used to count as PASS whatever was configured, so --list printed
+      # "<no source configured — would block>" and then reported GATE GREEN while
+      # the real run reported INCOMPLETE. A dry run that disagrees with the gate is
+      # worse than no dry run: it is the one people read before asking for a
+      # promotion. It now skips exactly as the real run does.
+      skip "the deployed SHA cannot be read: set TEST_VERSION_URL (a /version endpoint per standards/17 §6) or TEST_DEPLOY_SHA_CMD in scripts/merge-gate.conf"
+    fi
   else
     deployed=""
     if [ -n "${TEST_DEPLOY_SHA_CMD:-}" ]; then
