@@ -95,6 +95,19 @@ class DocCheck(unittest.TestCase):
         self.assertEqual(sorted(f.split(': ')[1] for f in found), [
             'states 3 scripts, the repository has 2', 'states 5 modes, the repository has 1'])
 
+    def test_a_digit_glued_to_a_word_is_not_read_as_a_count(self):
+        # `python3 scripts/x.py` was reported as "states 3 scripts": a finding with no
+        # fix except rewording a correct shell command. A count is never glued to a word.
+        files = consistent()
+        files['README.md'] += '\n```bash\npython3 scripts/install-live-hooks.py --check\n```\n'
+        self.assertEqual(dc.run(build(files)), [])
+
+    def test_a_real_count_is_still_caught_beside_a_glued_digit(self):
+        files = consistent()
+        files['README.md'] += '\npython3 scripts/x.py runs 9 scripts\n'
+        self.assertEqual([f.split(': ')[1] for f in dc.run(build(files))],
+                         ['states 9 scripts, the repository has 2'])
+
     def test_home_config_references_are_only_checked_in_the_configuration_repository(self):
         project = {'CLAUDE.md': 'see `~/.claude/standards/15-security.md` and `docs/glossary.md`'}
         self.assertEqual(dc.run(build(project)), ['CLAUDE.md: referenced path does not exist -> docs/glossary.md'])

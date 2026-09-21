@@ -420,38 +420,142 @@ flowchart LR
 - **A gate that did not run did not pass** — a skipped step is reported as skipped and the result is not green (#19)
 - **A new rule is never left verbal** — a permanent decision is written to the file in the same turn (#14)
 
-## Usage
+## How to use this
+
+Take the smallest amount that is useful to you. Each level works on its own, and
+nothing later is required to make an earlier one pay off.
+
+### Level 0 — read it, install nothing
+
+`CLAUDE.md` is the whole rule set in one file, and
+[`docs/decision-log.md`](docs/decision-log.md) says why each rule exists and what
+was measured. Those two answer most of what a configuration repository can teach
+you. If you stop here you still got the useful part.
+
+### Level 1 — take the five rules
+
+Paste the block from **If you take only five things** above into your own
+`~/.claude/CLAUDE.md`. No files, no scripts, no gate. This is the level I would
+pick if I were reading someone else's config.
+
+### Level 2 — take the standards that match your stack
+
+The `standards/` documents read independently: nothing in `05-react.md` needs
+`04-dotnet.md` to be present.
 
 ```bash
 git clone https://github.com/adyusuf/claude-code-standards
-cp -r claude-code-standards/{CLAUDE.md,standards,agents,modes,commands,skills,scripts} ~/.claude/
-cp claude-code-standards/settings.example.json ~/.claude/settings.json # review it first
+cp claude-code-standards/standards/{05-react,10-test-strategy}.md ~/.claude/standards/
 ```
 
-I run it one step further than copying: `~/.claude/CLAUDE.md`, `standards`,
-`agents`, `modes`, `commands`, `scripts` and `docs` are **symlinks into a
-checkout of this repository**, pinned to `prod`. Nothing is edited in place —
-work happens in a `dev` worktree and reaches the live configuration only by
-promotion. The upside is that there is exactly one copy of every rule; the cost
-is that a bad promotion changes my tooling mid-session, which is why the
-guidance files have their own size and rule-loss gates (`scripts/md-size-gate.sh`,
-`scripts/md-rule-gate.py`).
+⚠️ Keep the rule numbers if you edit. `CLAUDE.md`, the standards and the decision
+log all cross-reference by number, so renumbering breaks every reference at once
+and breaks it silently.
 
-You do not have to take it wholesale — the `standards/` documents read
-independently. Rule numbers are linked between `CLAUDE.md` and the decision
-log, so keep the numbering if you edit.
-
-To put the gate into a project of your own, copy `scripts/gate-core.sh` beside
-your own `scripts/merge-gate.sh` wrapper and run it once in list mode — it
-prints the steps it would run without running them:
+### Level 3 — take the whole configuration
 
 ```bash
-bash scripts/gate-core.sh test --list
+git clone https://github.com/adyusuf/claude-code-standards
+cd claude-code-standards
+cp -r CLAUDE.md standards agents modes commands skills scripts ~/.claude/
 ```
 
-A step it cannot run is reported as **skipped**, and a skipped step means the
-result is not green. That is the whole design: you are told what was not
-checked, every time.
+Then the settings, after reading them:
+
+```bash
+cp settings.example.json ~/.claude/settings.json   # read it first — see the warning
+python3 scripts/install-live-hooks.py --check      # report what is missing, change nothing
+python3 scripts/install-live-hooks.py              # wire the hooks
+```
+
+⚠️ **`settings.example.json` is mine, not a template.** It carries my plugin
+selection — 27 entries, several deliberately `false` — and a marketplace pointing
+at a directory in my home folder that will not exist on your machine. Take the
+`hooks` block; decide the rest yourself.
+
+### Level 4 — run it live, the way I do
+
+`~/.claude/CLAUDE.md`, `standards`, `agents`, `modes`, `commands`, `scripts` and
+`docs` are **symlinks into a checkout of this repository**, pinned to `prod`.
+Nothing is edited in place: work happens in a `dev` worktree and reaches the live
+configuration only by promotion. The upside is exactly one copy of every rule.
+The cost is that a bad promotion changes my tooling mid-session, which is why the
+guidance files have their own size and rule-loss gates
+(`scripts/md-size-gate.sh`, `scripts/md-rule-gate.py`).
+
+I would not start here. Start at Level 1 and come back once a rule has earned its
+place in your own week.
+
+## Putting the gate in a project of your own
+
+This is the part that does the work — a rule nothing executes is documentation.
+
+**1. Copy the core into the project.** A committed copy, not a symlink and not a
+path into your home folder:
+
+```bash
+cp ~/.claude/scripts/gate-core.sh your-project/scripts/
+```
+
+The reason is CI. A runner checks out your project and nothing else, so a gate
+that reads `$HOME/.claude` passes on your laptop and dies in the pipeline.
+
+**2. Write `scripts/merge-gate.conf` beside it** — this is where the gate learns
+your project:
+
+```sh
+COVERAGE_MIN=80
+SAST_CMD="bash scripts/codeql-scan.sh"
+ACCEPTED_GAPS="dependency CVE"
+ACCEPTED_GAPS_REASON="no lockfile in this repository yet; tracked in docs/gates.md"
+```
+
+`ACCEPTED_GAPS` is the **only** way a missing step stops failing the gate, and it
+is ignored unless a reason string is set with it. `coverage` cannot be accepted at
+all — the core refuses it by name (#29).
+
+**3. Dry-run it before you trust it.**
+
+```bash
+bash scripts/gate-core.sh dev --list    # prints every step, runs none of them
+bash scripts/gate-core.sh dev           # the real thing; the exit code is the gate
+```
+
+**4. Install the commit hooks** — the `CLAUDE.md` size gate plus a secret scan
+over staged content:
+
+```bash
+bash scripts/pre-commit.sh --install
+```
+
+**5. Prove the gate is real.** Break something on purpose: add two hundred lines
+to a budgeted `CLAUDE.md`, or stage a fake-looking key, and confirm the commit is
+*refused*. A gate you have never watched fail is a gate you do not yet know is
+wired up. That check is the whole reason #19 is worded the way it is.
+
+## What this does to your machine
+
+Installing someone else's hooks means running their code on your tool calls, so
+here is the inventory:
+
+| Hook | Script | What it does |
+|---|---|---|
+| `PreToolUse` (Bash) | `guard-destructive.sh` | refuses the never-do commands — `rm -rf`, force push, `DROP` — before they run |
+| `PostToolUse` (Edit/Write) and `Stop` | `md-hook.sh` | checks a touched `CLAUDE.md` against its size budget and for dropped rules |
+| `Stop` | `measurement-ledger.py --auto --detach` | appends this session's token and cost figures to a local, git-ignored ledger |
+
+**No telemetry, and nothing is uploaded.** The only outbound request anywhere in
+the repository is one optional `curl` in `gate-core.sh`, aimed at a test-deploy
+URL that *you* set (`TEST_VERSION_URL`); leave it unset and there is none. The
+secret scan and the SAST step shell out to `gitleaks` and `codeql` on your own
+machine — install them yourself, and until you do the gate reports those steps as
+skipped and refuses to call the result green.
+
+To take it all back out:
+
+```bash
+python3 scripts/install-live-hooks.py --remove
+```
 
 ## Anonymization
 
