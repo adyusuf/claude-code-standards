@@ -199,6 +199,15 @@ finished into one row and give the remaining work its own rows.
   user's. "Blocked" with no owner is not a status.
 - The user sets the reporting interval; if they do not, report on state changes. Send a
   short line even on an unchanged turn — do not go silent.
+- ⚠️ **A wait loop must not match itself.** `until [ "$(pgrep -f 'coverage.sh' | wc -l)"
+  = 0 ]; do sleep 20; done` never finishes: the shell running the loop carries
+  `coverage.sh` in its own command line, so `pgrep -f` counts it and the condition can
+  never be met. It looks exactly like a job that is still running — and it was reported
+  to the user as one, repeatedly, while the actual measurement had already finished
+  (21/09/2026). Match on something the waiter cannot contain: `pgrep -f '[c]overage.sh'`,
+  or `pgrep -x`, or wait on the writer's own PID (`kill -0 "$pid"`), or check the output
+  file for its final line. **Before reporting "still running", verify with `ps` that a
+  REAL process is there and not just the waiter.**
 
 ## 11. The failure cycle — EVERY test / gate / build run, not only e2e (PERMANENT, all projects)
 
