@@ -15,13 +15,14 @@ A number that breaks these rules is not reported as a finding.
 | Fixed prefix (system prompt + tool/skill listings + `CLAUDE.md`) | the first request of a session | `measurement-log.md`, prefix section |
 | Role of an agent run | the `subagent_type` of the `Agent` call that started it | ledger column `role` (`main` for a session) |
 | How often an SDLC step ran | shell-command patterns in `tool_use` blocks | ledger column `steps`, `measurement-log.md` |
+| How long an SDLC step took | the timestamp of a `tool_use` block to the timestamp of its `tool_result` | ledger column `step_seconds` (`name=seconds;…`) |
 | Configuration change points | `scripts/measurement-cuts.tsv` | ledger column `cut` |
 
 ## What is NOT measured
 
 - **A bill.** `usd` is a list-price proxy for consumption. A subscription, a
   discount or a price change makes it differ from what anyone paid.
-- **Wall-clock time.** The mode documents' speed claims (C 20–40%, E 50–70%) are estimates.
+- **End-to-end wall-clock time.** Only the time *inside* SDLC steps is measured (`step_seconds`). It includes a wait for a permission prompt, splits a command that runs several steps evenly, and drops a call over 3600 s as a hang. Time the model spends thinking, and a person's review time, are not measured. The mode documents' speed claims (C 20–40%, E 50–70%) are estimates.
 - **Quality.** No column says whether an agent's output was right. Cost is not value.
 - **The mode multipliers** in `modes/README.md` (1.15x … 14x). No mode comparison
   has been measured; they are labelled estimates there and stay estimates here.

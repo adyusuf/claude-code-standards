@@ -25,6 +25,15 @@ def usage(ts, i=100, o=10, cw=1000, cr=5000, model='claude-sonnet-5'):
         'input_tokens': i, 'output_tokens': o, 'cache_creation_input_tokens': cw, 'cache_read_input_tokens': cr}}}
 
 
+def tool_call(command, at, ident):
+    return {'timestamp': at, 'message': {'content': [
+        {'type': 'tool_use', 'name': 'Bash', 'id': ident, 'input': {'command': command}}]}}
+
+
+def tool_result(at, ident):
+    return {'timestamp': at, 'message': {'content': [{'type': 'tool_result', 'tool_use_id': ident, 'content': 'ok'}]}}
+
+
 def bash(command):
     return {'timestamp': '2026-09-01T10:00:05.000Z', 'message': {'content': [
         {'type': 'tool_use', 'name': 'Bash', 'id': 'x', 'input': {'command': command}}]}}
@@ -75,6 +84,64 @@ class LedgerRow(unittest.TestCase):
         self.assertNotIn(first['id'], os.path.basename(self.path))
 
 
+class StepSeconds(unittest.TestCase):
+    def row(self, records):
+        path = transcript([usage('2026-09-01T10:00:00.000Z')] + records)
+        try:
+            return ledger.row_for(path, 'agent', 'qa', STATS, [])
+        finally:
+            os.unlink(path)
+
+    def test_a_step_is_timed_from_the_call_to_its_result(self):
+        row = self.row([tool_call('dotnet build x', '2026-09-01T10:01:00.000Z', 'a'), tool_result('2026-09-01T10:01:42.000Z', 'a')])
+        self.assertEqual(row['step_seconds'], 'build=42')
+        self.assertEqual(row['steps'], 'build=1')
+
+    def test_the_same_step_run_twice_adds_up(self):
+        row = self.row([tool_call('npm run build', '2026-09-01T10:01:00.000Z', 'a'), tool_result('2026-09-01T10:01:10.000Z', 'a'),
+                        tool_call('npm run build', '2026-09-01T10:02:00.000Z', 'b'), tool_result('2026-09-01T10:02:30.000Z', 'b')])
+        self.assertEqual(row['step_seconds'], 'build=40')
+
+    def test_a_command_that_runs_two_steps_is_split_evenly(self):
+        row = self.row([tool_call('npm run build && npm test', '2026-09-01T10:01:00.000Z', 'a'), tool_result('2026-09-01T10:01:20.000Z', 'a')])
+        self.assertEqual(row['step_seconds'], 'build=10;unit test=10')
+
+    def test_a_call_over_an_hour_is_dropped_as_a_hang(self):
+        row = self.row([tool_call('dotnet build x', '2026-09-01T10:01:00.000Z', 'a'), tool_result('2026-09-01T12:30:00.000Z', 'a')])
+        self.assertEqual(row['step_seconds'], '')
+
+    def test_a_call_with_no_result_and_a_non_step_command_add_nothing(self):
+        row = self.row([tool_call('dotnet build x', '2026-09-01T10:01:00.000Z', 'a'),
+                        tool_call('ls -la', '2026-09-01T10:02:00.000Z', 'b'), tool_result('2026-09-01T10:02:05.000Z', 'b')])
+        self.assertEqual(row['step_seconds'], '')
+
+    def test_a_command_that_only_mentions_a_step_is_not_timed(self):
+        row = self.row([tool_call('grep -n "dotnet build" README.md', '2026-09-01T10:01:00.000Z', 'a'), tool_result('2026-09-01T10:01:09.000Z', 'a')])
+        self.assertEqual(row['step_seconds'], '')
+
+    def test_a_command_that_talks_about_step_stats_is_not_timed(self):
+        row = self.row([tool_call('python3 scripts/step-stats.py && dotnet build x', '2026-09-01T10:01:00.000Z', 'a'),
+                        tool_result('2026-09-01T10:01:30.000Z', 'a')])
+        self.assertEqual(row['step_seconds'], '')
+
+    def test_the_timed_row_passes_every_column_pattern(self):
+        row = self.row([tool_call('dotnet test', '2026-09-01T10:01:00.000Z', 'a'), tool_result('2026-09-01T10:01:07.000Z', 'a')])
+        self.assertEqual(ledger.problems([row]), [])
+
+    def test_a_ledger_written_before_the_column_existed_is_still_read(self):
+        old = ledger.NAMES[:-1]
+        with tempfile.NamedTemporaryFile('w', suffix='.tsv', delete=False) as handle:
+            handle.write('\t'.join(old) + '\n')
+            handle.write('\t'.join(['aaaaaaaaaa', '2026-08-01T00:00', 'agent', 'qa', 'm', '1', '0', '0', '0', '0', '1.0000', '0', 'build=2']) + '\n')
+        try:
+            rows = ledger.read_ledger(handle.name)
+            self.assertEqual(rows['aaaaaaaaaa']['steps'], 'build=2')
+            self.assertEqual(rows['aaaaaaaaaa']['step_seconds'], '')
+            self.assertEqual(ledger.problems(list(rows.values())), [])
+        finally:
+            os.unlink(handle.name)
+
+
 class LedgerSafety(unittest.TestCase):
     def test_a_role_that_is_not_a_plain_name_becomes_other(self):
         for role in ('../../etc/passwd', 'a b', '', None, 'x' * 60):
@@ -86,7 +153,7 @@ class LedgerSafety(unittest.TestCase):
     def test_a_field_that_fails_its_pattern_is_reported(self):
         row = {name: '0' for name in ledger.NAMES}
         row.update(id='abcdef0123', started='2026-09-01T10:00', kind='agent', role='qa', model='m', usd='1.0000',
-                   steps='')
+                   steps='', step_seconds='')
         self.assertEqual(ledger.problems([row]), [])
         row['role'] = '/Users/x/Project'
         self.assertEqual(ledger.problems([row]), [('abcdef0123', 'role')])
@@ -97,7 +164,7 @@ class LedgerSafety(unittest.TestCase):
 class LedgerMerge(unittest.TestCase):
     def rows(self, ident, started, usd='1.0000'):
         row = {name: '0' for name in ledger.NAMES}
-        row.update(id=ident, started=started, kind='agent', role='qa', model='m', usd=usd, steps='')
+        row.update(id=ident, started=started, kind='agent', role='qa', model='m', usd=usd, steps='', step_seconds='')
         return row
 
     def test_history_survives_and_a_running_session_is_updated(self):

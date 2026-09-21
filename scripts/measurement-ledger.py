@@ -5,6 +5,7 @@ Usage:
     python3 scripts/measurement-ledger.py                 # summarise, write nothing
     python3 scripts/measurement-ledger.py --write         # merge into docs/measurement-ledger.tsv
     python3 scripts/measurement-ledger.py --days 30       # limit the transcripts read (default 30)
+    python3 scripts/measurement-ledger.py --ledger PATH   # read/write another file (a trial run, a copy)
     python3 scripts/measurement-ledger.py --auto --detach # what the Stop hook runs: incremental, in the background
 
 Why it exists: docs/measurement-log.md is an AGGREGATE. A number in it cannot be
@@ -29,6 +30,7 @@ hand-filled column, so no row can be missing "because nobody wrote it down".
 """
 import datetime
 import hashlib
+import collections
 import importlib.util
 import json
 import os
@@ -55,9 +57,11 @@ COLUMNS = (
     ('usd', r'\d+\.\d{4}'),
     ('cut', r'\d+'),
     ('steps', rf'(|{STEP}(;{STEP})*)'),
+    ('step_seconds', rf'(|{STEP}(;{STEP})*)'),
 )
 NAMES = [name for name, _ in COLUMNS]
 
+STEP_SECONDS_CAP = 3600
 HEADER = (
     "# Measurement ledger — one row per session or agent run. GENERATED: do not edit by hand.\n"
     "# Regenerate: python3 scripts/measurement-ledger.py --write   (merges; rows are never dropped)\n"
@@ -66,6 +70,8 @@ HEADER = (
     "# cut : how many configuration cuts (scripts/measurement-cuts.tsv) preceded this row — compare rows with\n"
     "#       the SAME cut only (docs/benchmark-method.md)\n"
     "# steps : SDLC steps this transcript RAN (step-stats.py patterns); a step run inside another script is not seen\n"
+    "# step_seconds : wall-clock seconds those steps took (tool call -> its result). A command that runs several steps is\n"
+    "#       split evenly; a wait for a permission prompt is INCLUDED; a call over 3600 s is dropped as a hang. Empty = not measured\n"
 )
 
 
@@ -100,12 +106,31 @@ def safe_role(role, stats):
     return 'other' if deny is not None and deny.search(role) else role
 
 
+def epoch(text):
+    return datetime.datetime.fromisoformat(text.replace('Z', '+00:00')).timestamp()
+
+
+def matched_steps(command, stats):
+    """The SDLC steps a shell command runs, judged exactly as step-stats.count_steps judges them."""
+    raw = str(command or '')
+    if not raw or stats.NOISE_COMMAND.search(raw):
+        return []
+    command = stats.command_part(raw)
+    matched = []
+    for name, pattern in stats.STEPS:
+        found = re.search(pattern, command, re.I)
+        if found and not stats.NOISE_PREFIX.search(command[max(0, found.start() - 60):found.start()]):
+            matched.append(name)
+    return matched
+
+
 def row_for(path, kind, role, stats, cuts):
     """One transcript -> one ledger row (a dict of strings), or None if it has no usage."""
     started = model = None
     requests = 0
     totals = dict(input=0, output=0, cache_write=0, cache_read=0)
     usd = 0.0
+    pending, seconds = {}, collections.Counter()
     with open(path, errors='ignore') as handle:
         for line in handle:
             try:
@@ -115,6 +140,21 @@ def row_for(path, kind, role, stats, cuts):
             if started is None and record.get('timestamp'):
                 started = record['timestamp']
             message = record.get('message') or {}
+            content = message.get('content')
+            if isinstance(content, list) and record.get('timestamp'):
+                for block in content:
+                    if not isinstance(block, dict):
+                        continue
+                    if block.get('type') == 'tool_use' and block.get('name') == 'Bash':
+                        steps_run = matched_steps((block.get('input') or {}).get('command'), stats)
+                        if steps_run:
+                            pending[block.get('id')] = (steps_run, epoch(record['timestamp']))
+                    elif block.get('type') == 'tool_result' and block.get('tool_use_id') in pending:
+                        steps_run, began = pending.pop(block['tool_use_id'])
+                        took = epoch(record['timestamp']) - began
+                        if 0 <= took <= STEP_SECONDS_CAP:
+                            for name in steps_run:
+                                seconds[name] += took / len(steps_run)
             usage = message.get('usage')
             if not usage:
                 continue
@@ -133,6 +173,7 @@ def row_for(path, kind, role, stats, cuts):
     when = datetime.datetime.fromisoformat(started.replace('Z', '+00:00'))
     counts, _examples, _dismissed = stats.count_steps([path])
     steps = ';'.join(f'{name}={counts[name]}' for name, _ in stats.STEPS if counts.get(name))
+    timed = ';'.join(f'{name}={round(seconds[name])}' for name, _ in stats.STEPS if round(seconds.get(name, 0)) > 0)
     return {
         'id': hash_id(path),
         'started': when.astimezone(datetime.timezone.utc).strftime('%Y-%m-%dT%H:%M'),
@@ -145,6 +186,7 @@ def row_for(path, kind, role, stats, cuts):
         'usd': f'{usd:.4f}',
         'cut': str(sum(1 for cut in cuts if cut < when.timestamp())),
         'steps': steps,
+        'step_seconds': timed,
     }
 
 
@@ -166,6 +208,8 @@ def read_ledger(path=LEDGER):
                 if line.startswith('#') or not line.strip() or line.startswith('id\t'):
                     continue
                 cells = line.rstrip('\n').split('\t')
+                if len(cells) == len(NAMES) - 1:      # a row written before step_seconds existed
+                    cells.append('')
                 if len(cells) == len(NAMES):
                     rows[cells[0]] = dict(zip(NAMES, cells))
     return rows
@@ -282,12 +326,13 @@ def detach():
 
 def main(argv):
     days = int(argv[argv.index('--days') + 1]) if '--days' in argv else 30
+    ledger_path = argv[argv.index('--ledger') + 1] if '--ledger' in argv else LEDGER
     if '--auto' in argv:
         if '--detach' in argv and not detach():
             return 0
         try:
             min_interval = int(argv[argv.index('--min-interval') + 1]) if '--min-interval' in argv else 600
-            auto_update(LEDGER, load_stats(), days, min_interval)
+            auto_update(ledger_path, load_stats(), days, min_interval)
         except Exception:
             pass                                    # a hook must never break the session
         return 0
@@ -296,12 +341,12 @@ def main(argv):
     bad = problems(fresh)
     if bad:
         sys.exit(f'refusing to write — {len(bad)} field(s) failed their pattern: {bad[:5]}')
-    merged = merge(read_ledger(), fresh)
+    merged = merge(read_ledger(ledger_path), fresh)
     print(f'{len(fresh)} row(s) read from the last {days} days · ledger would hold {len(merged)} row(s) '
           f'· est. ${sum(float(r["usd"]) for r in merged):,.2f} list price')
     if '--write' in argv:
-        write_atomically(LEDGER, render(merged))
-        print('written:', LEDGER)
+        write_atomically(ledger_path, render(merged))
+        print('written:', ledger_path)
     return 0
 
 
