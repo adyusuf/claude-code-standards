@@ -41,7 +41,7 @@ STEPS = [
     ('secret scan',      r'gitleaks|trufflehog'),
     ('SAST',             r'codeql|semgrep'),
     ('dependency CVE',   r'npm audit|dotnet list package --vulnerable|osv-scanner'),
-    ('local ci gate',    r'ci-local\.sh'),
+    ('local ci gate',    r'merge-gate\.sh|gate-core\.sh|ci-local\.sh'),
     ('md size gate',     r'md-size-gate\.sh'),
     ('md rule gate',     r'md-rule-gate\.py'),
     ('git merge',        r'git merge'),
