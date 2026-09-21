@@ -190,5 +190,31 @@ class Hooks(Repo):
         self.assertEqual(self.commit('roll out to project A').returncode, 0)
 
 
+class Usage(Repo):
+    """The argument handling. It matters more than it looks: this script is wired
+    into two git hooks, and a mode it does not recognise must FAIL LOUDLY rather
+    than fall through to "nothing to check", which a hook would read as a pass."""
+
+    def run_raw(self, *args):
+        result = subprocess.run(['bash', CHECK, *args], cwd=self.root,
+                                capture_output=True, text=True)
+        return result.stdout + result.stderr, result.returncode
+
+    def test_no_mode_at_all_is_a_usage_error(self):
+        out, code = self.run_raw()
+        self.assertIn('usage:', out)
+        self.assertEqual(2, code, 'an unrecognised invocation must not look like a pass')
+
+    def test_an_unknown_mode_is_a_usage_error(self):
+        out, code = self.run_raw('--everything')
+        self.assertIn('usage:', out)
+        self.assertEqual(2, code)
+
+    def test_message_mode_without_a_file_is_a_usage_error(self):
+        out, code = self.run_raw('--message')
+        self.assertIn('--message FILE', out)
+        self.assertEqual(2, code)
+
+
 if __name__ == '__main__':
     unittest.main()
