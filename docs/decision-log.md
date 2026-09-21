@@ -366,6 +366,14 @@ that runs. What was built, and the decisions behind it:
   slipped through the visibility hook). History was audited too: only two files and three
   messages ever held a name, and a scrubbed candidate history exists for the day this repository
   is made public.
+- **The live configuration repository is exempt from doc-check and the real-name check.** A
+  regression of this round: `~/.claude/scripts` is a symlink into the configuration repository, so
+  `pre-commit.sh` found `doc-check.py` there and ran it over `~/.claude`, blocking an ordinary memory
+  commit with 104 false findings. 31 of the 39 files were in git-IGNORED plugin caches (doc-check now
+  reads only files git does not ignore); the other 8 were memory notes that point at OTHER projects'
+  files, correct there and "broken" from here. Steps 1 and 2 (size budget, gitleaks) still apply to
+  it; steps 3 and 4 do not, and the real-name check would be wrong anyway — the real names are what
+  make that memory usable. Found by the first commit made in that repository after the step landed.
 - **`~/.claude` (claude-config) stays private, with names.** Its memory folders are named after
   real projects because Claude Code finds a project's memory by the folder's real path, and the
   notes are only useful with the real names in them — nicknames would break both. So it is kept

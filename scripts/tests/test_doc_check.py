@@ -119,6 +119,30 @@ class DocCheck(unittest.TestCase):
         subprocess.run(['git', 'init', '-q', root], check=True)
         self.assertEqual(dc.run(root), ['CLAUDE.md: referenced path does not exist -> docs/local-ledger.tsv'])
 
+    def test_inside_a_git_repository_a_markdown_file_in_an_ignored_tree_is_never_read(self):
+        files = consistent()
+        files['.gitignore'] = 'plugins/\n'
+        files['plugins/cache/x/README.md'] = 'see [gone](nowhere.md) and `docs/missing.md`'
+        root = build(files)
+        subprocess.run(['git', 'init', '-q', root], check=True)
+        self.assertEqual(dc.run(root), [])
+
+    def test_inside_a_git_repository_a_new_unstaged_file_is_still_checked(self):
+        files = consistent()
+        files['notes.md'] = 'see [gone](nowhere.md)'
+        root = build(files)
+        subprocess.run(['git', 'init', '-q', root], check=True)
+        self.assertEqual(dc.run(root), ['notes.md: broken link -> nowhere.md'])
+
+    def test_a_tracked_file_deleted_from_disk_is_not_read_and_does_not_crash(self):
+        files = consistent()
+        files['gone.md'] = 'see [missing](nowhere.md)'
+        root = build(files)
+        subprocess.run(['git', 'init', '-q', root], check=True)
+        subprocess.run(['git', '-C', root, 'add', '-A'], check=True)
+        os.remove(os.path.join(root, 'gone.md'))
+        self.assertEqual(dc.run(root), [])
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -109,5 +109,54 @@ class PreCommitDocCheck(unittest.TestCase):
         self.assertEqual(self.commit_gate({'a.md': 'see [gone](missing.md)'}).returncode, 0)
 
 
+class LiveConfigExemption(unittest.TestCase):
+    """~/.claude is exempt from steps 3 (doc-check) and 4 (real names); every other repository is not."""
+
+    def setUp(self):
+        self.home = tempfile.mkdtemp()
+        self.other = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.home, ignore_errors=True)
+        shutil.rmtree(self.other, ignore_errors=True)
+
+    def repo(self, root):
+        os.makedirs(root, exist_ok=True)
+        subprocess.run(['git', 'init', '-q', root], check=True)
+        os.makedirs(os.path.join(root, 'scripts'), exist_ok=True)
+        os.makedirs(os.path.join(root, 'docs'), exist_ok=True)
+        for name in ('pre-commit.sh', 'doc-check.py', 'real-name-check.sh'):
+            shutil.copy(os.path.join(SCRIPTS, name), os.path.join(root, 'scripts', name))
+        with open(os.path.join(root, 'docs', 'project-nicknames.tsv'), 'w') as handle:
+            handle.write('Zorbexico\tryan\n')
+        with open(os.path.join(root, 'notes.md'), 'w') as handle:
+            handle.write('a broken [link](missing.md) and the name Zorbexico\n')
+        subprocess.run(['git', '-C', root, 'add', 'scripts', 'notes.md'], check=True)
+        return root
+
+    def run_hook(self, root):
+        return subprocess.run(['bash', os.path.join(root, 'scripts', 'pre-commit.sh')], cwd=root, capture_output=True,
+                              text=True, env=dict(os.environ, HOME=self.home))
+
+    def test_the_live_config_repository_is_not_blocked_by_doc_check_or_real_names(self):
+        root = self.repo(os.path.join(self.home, '.claude'))
+        result = self.run_hook(root)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertNotIn('documentation drift', result.stdout)
+
+    def test_the_same_content_in_any_other_repository_is_blocked_by_both_steps(self):
+        root = self.repo(os.path.join(self.other, 'proj'))
+        result = self.run_hook(root)
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('documentation drift', result.stdout)
+        self.assertIn('real project name', result.stdout + result.stderr)
+
+    def test_a_symlinked_home_directory_is_still_recognised(self):
+        real = os.path.join(self.home, 'real-config')
+        self.repo(real)
+        os.symlink(real, os.path.join(self.home, '.claude'))
+        self.assertEqual(self.run_hook(real).returncode, 0)
+
+
 if __name__ == '__main__':
     unittest.main()

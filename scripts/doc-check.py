@@ -10,7 +10,8 @@ Exit 0 = consistent, 1 = at least one finding (each printed as `file: message`).
 What it checks (each one is a drift the rule set actually suffers from):
   1. every relative Markdown link  [text](path)  resolves to a file;
   2. every backticked repo path under standards/ modes/ docs/ agents/ commands/ skills/
-     exists (unless git ignores it: a generated, local-only file is absent in a clean clone);
+     exists (unless git ignores it: a generated, local-only file is absent in a clean clone; and
+     inside a git repository only files git does not ignore are read at all);
      the same holds for a relative link's target (a `~/.claude/` prefix is read as the repository root, and only checked when
      the root IS the configuration repository; `docs/...` inside standards/ names a
      PROJECT's file and is not checked);
@@ -36,7 +37,28 @@ INDEXES = {'standards/README.md': 'standards', 'docs/README.md': 'docs', 'modes/
 SKIP_DIRS = {'.git', 'node_modules', '__pycache__', 'archive'}
 
 
+def git_markdown_files(root):
+    """Markdown files git tracks or would track (not ignored), or None when root is not a repository."""
+    try:
+        result = subprocess.run(['git', '-C', root, 'ls-files', '-c', '-o', '--exclude-standard', '-z', '--', '*.md'],
+                                capture_output=True)
+    except OSError:
+        return None
+    if result.returncode != 0:
+        return None
+    found = []
+    for name in result.stdout.decode('utf-8', 'replace').split('\0'):
+        parts = name.split('/')
+        if name and os.path.exists(os.path.join(root, name)) and not any(p in SKIP_DIRS or p.startswith('.') for p in parts[:-1]):
+            found.append(os.path.join(root, name))
+    return found
+
+
 def markdown_files(root):
+    tracked = git_markdown_files(root)
+    if tracked is not None:          # a cache, a vendored tree or a plugin folder that git ignores is not documentation
+        yield from tracked
+        return
     for base, dirs, names in os.walk(root):
         dirs[:] = [d for d in dirs if d not in SKIP_DIRS and not d.startswith('.')]
         for name in names:
