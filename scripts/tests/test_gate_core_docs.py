@@ -8,13 +8,15 @@ import unittest
 SCRIPTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 ANSI = re.compile(r'\x1b\[[0-9;]*m')
 
+# Run the gate from its real path, not a copy — see the note in
+# test_gate_core_fixes.py: a copy is invisible to a coverage tracer.
+GATE = os.path.join(SCRIPTS, 'gate-core.sh')
+
 
 def project(files):
     root = tempfile.mkdtemp()
     subprocess.run(['git', 'init', '-q', root], check=True)
     os.makedirs(os.path.join(root, 'scripts'))
-    for name in ('gate-core.sh',):
-        shutil.copy(os.path.join(SCRIPTS, name), os.path.join(root, 'scripts', name))
     for name, text in files.items():
         path = os.path.join(root, name)
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -24,7 +26,7 @@ def project(files):
 
 
 def gate(root, *args):
-    result = subprocess.run(['bash', 'scripts/gate-core.sh', 'dev', *args], cwd=root, capture_output=True, text=True)
+    result = subprocess.run(['bash', GATE, 'dev', *args], cwd=root, capture_output=True, text=True)
     return ANSI.sub('', result.stdout)
 
 
@@ -67,7 +69,7 @@ class ProjectDocumentsStep(unittest.TestCase):
 
     def test_a_missing_document_closes_the_gate(self):
         self.root = project({'package.json': '{}'})
-        result = subprocess.run(['bash', 'scripts/gate-core.sh', 'dev'], cwd=self.root, capture_output=True, text=True)
+        result = subprocess.run(['bash', GATE, 'dev'], cwd=self.root, capture_output=True, text=True)
         self.assertEqual(result.returncode, 1)
         self.assertIn('GATE CLOSED', ANSI.sub('', result.stdout))
 

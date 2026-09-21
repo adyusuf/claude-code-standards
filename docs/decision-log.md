@@ -583,7 +583,31 @@ Templates: `standards/templates/` — project CLAUDE.md, **SETUP.md**, PR, ADR, 
   anything outward, deleting files.
 - Detail: `standards/00-working-method.md`
 
-## LIVE DASHBOARD during a long gate/run
+## STATUS REPORTING during a long gate/run — the dashboard was removed (21/09/2026)
+
+**The rule now:** report a long gate, run or deploy as a **short markdown table in the
+reply**. No Artifact dashboard, no published board. The table carries the item, its
+state, the measured figure **with the signal it was read from**, and what it is waiting
+on — plus a time estimate split into what is mine and what is the user's.
+
+**Why the dashboard went.** It was published, kept current at the same URL, and then
+the same content was repeated as text in the reply because "a text report does not
+replace the dashboard". That cost a round of work per report and, worse, **split the
+record in two**: the moment one side was updated and the other was not, the reply and
+the page disagreed, and the reader had no way to tell which was current. The table in
+the conversation is the thing the user actually reads, so it is now the whole
+deliverable. User decision, 21/09/2026.
+
+**What was kept, because it was never about the dashboard:** figures are measured and
+name their signal; an unmeasurable figure says "cannot be measured"; a step that did
+not run is reported as "did not run" and never folded into a pass; a long run's output
+goes to a log file instead of a buffering pipe (`tail`/`head`); an inferred state says
+it is inferred; an over-optimistic estimate is corrected downward out loud.
+
+<details>
+<summary>The retired dashboard rule, as it stood until 21/09/2026</summary>
+
+### LIVE DASHBOARD during a long gate/run (RETIRED)
 
 When you start a gate, run or deploy that takes minutes (merge gate, CI, test
 battery, publish/deploy chain, migration), **publish an Artifact dashboard and keep
@@ -622,6 +646,8 @@ not replace the dashboard; give both.
   keeping the tab open.
 - The user sets the reporting interval; if they do not, report on stage changes.
   Pass a short line even on unchanged turns — do not go silent.
+
+</details>
 
 ## Appendix — the fuller original wording of rules that were shortened
 
