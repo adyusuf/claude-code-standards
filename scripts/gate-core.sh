@@ -122,7 +122,24 @@ run()  { # run <label> <command...>
 # Measured on 21/09/2026: a repository with a .slnx, 673 backend tests, a build
 # that was RED and two high-severity advisories reported GATE GREEN, because
 # HAS_DOTNET came out 0 and not one .NET step ran.
+# The build target. Detection finding a project is not enough: `dotnet build`
+# with no argument builds the CURRENT directory, so in a repository whose
+# solution lives under api/ or backend/ it failed with
+#   MSBUILD : error MSB1003: Specify a project or solution file.
+# — a confusing error in place of a build. Measured 21/09/2026: four of five
+# .NET repositories here keep their solution below the root.
 SLN="$(ls ./*.sln ./*.slnx 2>/dev/null | head -1)"
+if [ -z "$SLN" ]; then
+  SLN="$(find . -maxdepth 4 \( -name '*.sln' -o -name '*.slnx' \) \
+          -not -path '*/obj/*' -not -path '*/bin/*' -not -path '*/node_modules/*' \
+          -print 2>/dev/null | sort | head -1)"
+fi
+if [ -z "$SLN" ]; then
+  # No solution anywhere: build the project itself rather than the directory.
+  SLN="$(find . -maxdepth 4 -name '*.csproj' \
+          -not -path '*/obj/*' -not -path '*/bin/*' -not -path '*/node_modules/*' \
+          -print 2>/dev/null | sort | head -1)"
+fi
 HAS_DOTNET=0
 if [ -n "$SLN" ] || [ -n "$(find . -name '*.csproj' -not -path '*/obj/*' -not -path '*/bin/*' -not -path '*/node_modules/*' -print -quit 2>/dev/null)" ]; then
   HAS_DOTNET=1
@@ -144,13 +161,13 @@ HAS_E2E_WEB=0;    [ -d e2e ] || [ -d tests/e2e ] && HAS_E2E_WEB=1
 HAS_E2E_MOBILE=0; [ -d .maestro ] || [ -d "${MOBILE_DIR:-mobile}/.maestro" ] && HAS_E2E_MOBILE=1
 
 echo "merge gate → $TARGET   ($(git rev-parse --short HEAD), $ROOT)"
-echo "stacks: dotnet=$HAS_DOTNET node=$HAS_NODE web=${WEB_DIR:-none} mobile=${MOBILE_DIR:-none} e2e=web:$HAS_E2E_WEB/mobile:$HAS_E2E_MOBILE"
+echo "stacks: dotnet=$HAS_DOTNET${SLN:+ (${SLN#./})} node=$HAS_NODE web=${WEB_DIR:-none} mobile=${MOBILE_DIR:-none} e2e=web:$HAS_E2E_WEB/mobile:$HAS_E2E_MOBILE"
 
 # ── Everything except e2e: dev and test ──────────────────────────────────────
 if [ "$TARGET" != "prod" ]; then
 
   say "formatter / linter"
-  [ "$HAS_DOTNET" = 1 ] && { have dotnet && run "dotnet format" dotnet format --verify-no-changes || skip "dotnet format (dotnet missing)"; }
+  [ "$HAS_DOTNET" = 1 ] && { have dotnet && run "dotnet format" dotnet format ${SLN:+"$SLN"} --verify-no-changes || skip "dotnet format (dotnet missing)"; }
   for d in "$WEB_DIR" "$MOBILE_DIR"; do
     [ -n "$d" ] || continue
     if [ -f "$d/node_modules/.bin/eslint" ] || grep -q '"lint"' "$d/package.json" 2>/dev/null; then
@@ -203,11 +220,11 @@ if [ "$TARGET" != "prod" ]; then
 
   say "dependency CVE"
   if [ "$LIST_ONLY" = 1 ]; then
-    [ "$HAS_DOTNET" = 1 ] && { printf '  → %-42s %s\n' "dotnet vulnerable packages" "dotnet list package --vulnerable"; PASS+=("dotnet cve"); }
+    [ "$HAS_DOTNET" = 1 ] && { printf '  → %-42s %s\n' "dotnet vulnerable packages" "dotnet list package --vulnerable${SLN:+ ($SLN)}"; PASS+=("dotnet cve"); }
     for d in "$WEB_DIR" "$MOBILE_DIR"; do [ -n "$d" ] && { printf '  → %-42s %s\n' "npm audit ($d)" "npm --prefix $d audit --audit-level=high"; PASS+=("npm audit $d"); }; done
   else
   [ "$HAS_DOTNET" = 1 ] && have dotnet && {
-    if dotnet list package --vulnerable 2>/dev/null | grep -qi 'critical\|high'; then bad "dotnet vulnerable packages (critical/high)"; else ok "dotnet packages"; fi
+    if dotnet list ${SLN:+"$SLN"} package --vulnerable 2>/dev/null | grep -qi 'critical\|high'; then bad "dotnet vulnerable packages (critical/high)"; else ok "dotnet packages"; fi
   }
   for d in "$WEB_DIR" "$MOBILE_DIR"; do
     [ -n "$d" ] || continue

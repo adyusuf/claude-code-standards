@@ -162,3 +162,46 @@ class NodeDetection(unittest.TestCase):
     def test_a_repository_with_no_stack_is_left_alone(self):
         step = self.build({'README.md': '# nothing here'})
         self.assertIn('nothing to check', step)
+
+
+class SolutionTarget(unittest.TestCase):
+    """`dotnet build` needs a TARGET, not just a detected stack.
+
+    Detection finding a nested project made HAS_DOTNET=1 while the build command
+    still ran with no argument, so in a repository whose solution lives under
+    api/ or backend/ the step failed with "MSBUILD : error MSB1003: Specify a
+    project or solution file" — measured 21/09/2026 in one repository, and four
+    of five .NET repositories here keep their solution below the root.
+    """
+
+    def tearDown(self):
+        shutil.rmtree(getattr(self, 'root', ''), ignore_errors=True)
+
+    def build(self, files):
+        root = tempfile.mkdtemp()
+        subprocess.run(['git', 'init', '-q', root], check=True)
+        os.makedirs(os.path.join(root, 'scripts'))
+        shutil.copy(os.path.join(SCRIPTS, 'gate-core.sh'), os.path.join(root, 'scripts', 'gate-core.sh'))
+        for name in files:
+            path = os.path.join(root, name)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w', encoding='utf-8') as handle:
+                handle.write('<Project />')
+        self.root = root
+        result = subprocess.run(['bash', 'scripts/gate-core.sh', 'test', '--list'],
+                                cwd=root, capture_output=True, text=True)
+        return ANSI.sub('', result.stdout)
+
+    def test_a_nested_solution_becomes_the_build_target(self):
+        out = self.build(['api/App.sln'])
+        self.assertIn('api/App.sln', out, f"the nested solution was not passed to dotnet:\n{out}")
+
+    def test_a_root_solution_still_wins(self):
+        out = self.build(['App.slnx', 'api/Other.sln'])
+        self.assertIn('App.slnx', out)
+        self.assertNotIn('api/Other.sln', out)
+
+    def test_with_no_solution_the_project_itself_is_the_target(self):
+        out = self.build(['src/Api/Api.csproj'])
+        self.assertIn('src/Api/Api.csproj', out,
+                      f"with no solution the csproj must be the target:\n{out}")
