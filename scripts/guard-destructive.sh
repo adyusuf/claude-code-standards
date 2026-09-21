@@ -30,7 +30,24 @@ printf '%s' "$payload" | grep -qiE 'push|drop|truncate|rm |no-verify' || exit 0
 # tracer counts a heredoc as ONE statement, so this file reported 3 of 19 lines
 # covered while every rule in it was being exercised (#29 wants an honest
 # denominator). Moved 21/09/2026, patterns byte-identical.
-here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# ⚠️ THE SYMLINK MUST BE RESOLVED FIRST. This hook is installed as a SYMLINK at
+# ~/.claude/hooks/guard-destructive.sh pointing into the repository's scripts/,
+# and $BASH_SOURCE is the path bash was INVOKED with — the link, not the target.
+# `dirname` on it gives ~/.claude/hooks/, where guard-inspect.py does not exist,
+# so the fail-closed branch below fired and a plainly allowed command came back
+# BLOCKED. Caught by invoking this file through a symlink on purpose; the direct
+# call worked perfectly and hid it completely. Fail-closed turned what would have
+# been a security hole into a total work stoppage instead — better, but still the
+# whole hook.
+src="${BASH_SOURCE[0]}"
+while [ -L "$src" ]; do
+  target="$(readlink "$src")"
+  case "$target" in
+    /*) src="$target" ;;
+    *)  src="$(cd "$(dirname "$src")" && pwd)/$target" ;;
+  esac
+done
+here="$(cd "$(dirname "$src")" && pwd)"
 inspector="$here/guard-inspect.py"
 if [ ! -f "$inspector" ]; then
   echo "BLOCKED by guard-destructive.sh: guard-inspect.py is missing next to this hook. Ask the user to run the command." >&2
