@@ -444,10 +444,16 @@ $26.99** vs **subagent $12.31** — most of the cost is still not in the agents,
 | **A** | — (no agents) | — |
 | **B** | ~$12 | **~$25** |
 | **C** | ~$75 | **~$150** |
-| **D** | ~$150 | **~$300** |
-| **X** | ~$25 | **~$50** |
-| **Y** | ~$150 | **~$300** |
-| **Z** | ~$300 | **~$600** |
+| **D** | ~$130 | **~$260** |
+| **E** | ~$200 | **~$400** |
+| **X** (archived) | ~$25 | **~$50** |
+| **Y** (archived) | ~$150 | **~$300** |
+| **Z** (archived) | ~$300 | **~$600** |
+
+⚠️ D read ~$150/$300 here while `CLAUDE.md` #28, `modes/README.md` and
+`D-wide-team.md` all said ~$130/$260, and **E was missing from the table
+entirely** while three archived modes had rows. The active figures are the ones
+in #28; this table follows them rather than the other way round.
 
 - **The warning tier:** one word is added to the handoff line (`⚠ half the threshold`)
   and the work **does not stop**. The point is to remove the surprise: you see it
