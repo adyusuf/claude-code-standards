@@ -67,6 +67,36 @@ Additional detail shortened out of the active file:
 - On the `dev → test` and `test → prod` promotions nothing is skipped — and the
   promotion is performed with the user's approval anyway.
 
+### The e2e spec check warns, and blocks nothing (21/09/2026)
+
+`dev → test` used to FAIL when behaviour changed and no e2e spec was touched.
+Two things were wrong with that. It put the entire e2e backlog in front of an
+**integration** merge, so work with no e2e dimension at all was stopped by it.
+And it asked for specs to be written at the wrong moment: #33 requires a spec to
+be verified against a **deployed test environment**, so a spec written to satisfy
+a `dev → test` gate is written blind — and a blind spec is the thing #31 later
+classifies as a "stale spec" failure.
+
+So the check is now a **warning in both directions**. What keeps it from becoming
+a silent hole is that the gap is not dropped, only moved: **step 2 of the
+`test → prod` gate writes every missing spec before the suite runs, and that gate
+does block.** The warning is also printed on every single run, with the changed
+files listed, so the backlog stays in front of whoever runs the gate.
+
+Pinned by `MissingE2eSpecOnlyWarns` in `scripts/tests/test_gate_core_fixes.py` —
+three tests, holding both halves together: the promotion is not blocked, and the
+gap is still said out loud. Mutation-verified: putting `bad` back in place of
+`warn` fails two of the three.
+
+Text updated in the same turn (#14) in all five places that had claimed
+"blocking on test": `CLAUDE.md` #25, `standards/13-pr-and-review.md` §4,
+`standards/11-playwright.md`, `scripts/README.md`, and the header comment of
+`scripts/gate-core.sh`. The contradiction was found because a project had already
+made the change locally on the strength of the user's decision, while the shared
+rule text still said the opposite — which is exactly the state #25 forbids, since
+a project may add a step but never remove one. The right fix was the rule text,
+not reverting the project.
+
 ### The five fixes of 21/09/2026, and how each one is pinned
 
 The shared core had been carrying bugs that made it report **GREEN while whole

@@ -305,5 +305,66 @@ class CoverageWhenItIsActuallyMeasured(unittest.TestCase):
         self.assertNotEqual(0, code)
 
 
+class MissingE2eSpecOnlyWarns(unittest.TestCase):
+    """A missing e2e spec warns in BOTH directions and blocks neither.
+
+    It used to fail `dev -> test`, which put the whole e2e backlog in front of an
+    integration merge. #33 moved the writing to the pre-prod gate, where a spec
+    can be verified against a deployed test environment instead of written blind.
+    The two things this test holds together: the promotion is not blocked, AND
+    the gap is still SAID out loud, so it cannot go silent.
+    """
+
+    DOCS = {'SETUP.md': '# Setup\n## Secret and token inventory\n', '.env.example': ''}
+
+    def tearDown(self):
+        shutil.rmtree(getattr(self, 'root', ''), ignore_errors=True)
+
+    def build(self, target):
+        """A repo with an e2e suite, plus a commit that changes behaviour and
+        touches no spec — which is exactly the condition the check fires on."""
+        root = tempfile.mkdtemp()
+        subprocess.run(['git', 'init', '-q', root], check=True)
+        subprocess.run(['git', 'config', 'user.email', 't@t'], cwd=root, check=True)
+        subprocess.run(['git', 'config', 'user.name', 't'], cwd=root, check=True)
+        os.makedirs(os.path.join(root, 'scripts'))
+        shutil.copy(os.path.join(SCRIPTS, 'gate-core.sh'), os.path.join(root, 'scripts', 'gate-core.sh'))
+        files = dict(self.DOCS)
+        files['e2e/smoke.spec.ts'] = "test('smoke', () => {})\n"
+        files['scripts/merge-gate.conf'] = 'COVERAGE_CMD="true"\n'
+        for name, text in files.items():
+            path = os.path.join(root, name)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w', encoding='utf-8') as handle:
+                handle.write(text)
+        subprocess.run(['git', 'add', '-A'], cwd=root, check=True)
+        subprocess.run(['git', 'commit', '-qm', 'base'], cwd=root, check=True)
+        # Behaviour changes, no spec touched.
+        os.makedirs(os.path.join(root, 'src'), exist_ok=True)
+        with open(os.path.join(root, 'src', 'thing.ts'), 'w', encoding='utf-8') as handle:
+            handle.write('export const x = 1\n')
+        subprocess.run(['git', 'add', '-A'], cwd=root, check=True)
+        subprocess.run(['git', 'commit', '-qm', 'behaviour change, no spec'], cwd=root, check=True)
+        self.root = root
+        result = subprocess.run(['bash', 'scripts/gate-core.sh', target],
+                                cwd=root, capture_output=True, text=True)
+        return ANSI.sub('', result.stdout), result.returncode
+
+    def test_the_test_promotion_is_not_blocked(self):
+        out, _ = self.build('test')
+        self.assertNotIn('missing e2e spec blocks', out)
+        self.assertNotIn('GATE CLOSED', out, f"dev -> test was blocked by the spec check:\n{out}")
+
+    def test_the_gap_is_still_said_out_loud(self):
+        out, _ = self.build('test')
+        self.assertIn('no e2e spec was touched', out)
+        self.assertIn('test -> prod gate', out)
+
+    def test_dev_says_it_too_and_does_not_block(self):
+        out, _ = self.build('dev')
+        self.assertIn('no e2e spec was touched', out)
+        self.assertNotIn('GATE CLOSED', out)
+
+
 if __name__ == '__main__':
     unittest.main()
