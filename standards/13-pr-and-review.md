@@ -48,7 +48,8 @@ Types: `feat` `fix` `refactor` `perf` `test` `docs` `chore` `build` `ci` `revert
 > own `scripts/merge-gate.sh` orchestrator. Everything in it runs at **every**
 > promotion, `feature/* → dev` included; **the single deferred step is RUNNING e2e**, which belongs
 > to the `prod` gate (#33). On `dev` and `test` the gate also CHECKS whether an e2e spec is missing:
-> a warning on `dev`, blocking on `test`. A step whose tool is missing is reported SKIPPED and the
+> a warning in BOTH directions, never blocking — the gaps are written at the `test → prod` gate
+> (#33 step 2). A step whose tool is missing is reported SKIPPED and the
 > result is INCOMPLETE, never green.
 
 - [ ] Build (backend + web + mobile)

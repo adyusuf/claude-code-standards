@@ -5,16 +5,19 @@ import subprocess
 import tempfile
 import unittest
 
-SCRIPTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+SCRIPTS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 ANSI = re.compile(r'\x1b\[[0-9;]*m')
+
+# Run the gate from its real path, not a copy — see the note in
+# test_gate_core_fixes.py: a copy is invisible to a coverage tracer.
+GATE = os.path.join(SCRIPTS, 'gate-core.sh')
+PRE_COMMIT = os.path.join(SCRIPTS, 'pre-commit.sh')
 
 
 def project(files):
     root = tempfile.mkdtemp()
     subprocess.run(['git', 'init', '-q', root], check=True)
     os.makedirs(os.path.join(root, 'scripts'))
-    for name in ('gate-core.sh',):
-        shutil.copy(os.path.join(SCRIPTS, name), os.path.join(root, 'scripts', name))
     for name, text in files.items():
         path = os.path.join(root, name)
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -24,7 +27,7 @@ def project(files):
 
 
 def gate(root, *args):
-    result = subprocess.run(['bash', 'scripts/gate-core.sh', 'dev', *args], cwd=root, capture_output=True, text=True)
+    result = subprocess.run(['bash', GATE, 'dev', *args], cwd=root, capture_output=True, text=True)
     return ANSI.sub('', result.stdout)
 
 
@@ -67,7 +70,7 @@ class ProjectDocumentsStep(unittest.TestCase):
 
     def test_a_missing_document_closes_the_gate(self):
         self.root = project({'package.json': '{}'})
-        result = subprocess.run(['bash', 'scripts/gate-core.sh', 'dev'], cwd=self.root, capture_output=True, text=True)
+        result = subprocess.run(['bash', GATE, 'dev'], cwd=self.root, capture_output=True, text=True)
         self.assertEqual(result.returncode, 1)
         self.assertIn('GATE CLOSED', ANSI.sub('', result.stdout))
 
@@ -93,7 +96,7 @@ class PreCommitDocCheck(unittest.TestCase):
         for name, text in files.items():
             with open(os.path.join(self.root, name), 'w', encoding='utf-8') as handle:
                 handle.write(text)
-        return subprocess.run(['bash', 'scripts/pre-commit.sh'], cwd=self.root, capture_output=True, text=True)
+        return subprocess.run(['bash', PRE_COMMIT], cwd=self.root, capture_output=True, text=True)
 
     def test_consistent_documentation_lets_the_commit_through(self):
         self.assertEqual(self.commit_gate({'a.md': 'see [b](b.md)', 'b.md': 'x'}).returncode, 0)
@@ -135,7 +138,7 @@ class LiveConfigExemption(unittest.TestCase):
         return root
 
     def run_hook(self, root):
-        return subprocess.run(['bash', os.path.join(root, 'scripts', 'pre-commit.sh')], cwd=root, capture_output=True,
+        return subprocess.run(['bash', PRE_COMMIT], cwd=root, capture_output=True,
                               text=True, env=dict(os.environ, HOME=self.home))
 
     def test_the_live_config_repository_is_not_blocked_by_doc_check_or_real_names(self):

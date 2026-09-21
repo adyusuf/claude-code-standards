@@ -21,7 +21,8 @@
 #               build, unit tests, coverage (the 80% threshold per codebase),
 #               secret scan, dependency CVE, SAST, backward-compatibility scan,
 #               the CLAUDE.md size and rule gates, and a CHECK for missing e2e
-#               specs (a warning on dev, blocking on test).
+#               specs (a WARNING in both directions — it never blocks; the gaps
+#               are written at the test -> prod gate, #33 step 2).
 #   prod      : the code must already be deployed to the TEST environment, the
 #               FULL e2e suite runs against it, and only a completely green run
 #               allows the promotion.
@@ -287,8 +288,17 @@ if [ "$TARGET" != "prod" ]; then
   else
     skip "e2e spec check: this project has no e2e suite"
   fi
+  # A missing spec is a WARNING in both directions and blocks nothing. It used to
+  # fail the dev -> test promotion, which put the whole e2e backlog in front of an
+  # integration merge and stopped work that had nothing to do with e2e. #33 moved
+  # the writing to the pre-prod gate, where a spec can actually be verified
+  # against a deployed test environment — writing it earlier means writing it
+  # blind. The gap is NOT dropped: step 2 of the test -> prod gate writes every
+  # missing spec before the suite runs, and that gate does block. The gate still
+  # SAYS it on every run, so the backlog stays visible rather than silent.
+  # User decision, 21/09/2026.
   if [ "$missing" = 1 ] && [ "$TARGET" = "test" ]; then
-    bad "missing e2e spec blocks the test promotion (write it, or record the reason)"
+    warn "the missing spec(s) above are written at the test -> prod gate (#33 step 2); dev -> test is not blocked"
   fi
   fi
 fi

@@ -6,7 +6,7 @@ import sys
 import tempfile
 import unittest
 
-SCRIPTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+SCRIPTS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 INSTALLER = os.path.join(SCRIPTS, 'install-live-hooks.py')
 REAL_REPO = os.path.dirname(os.path.realpath(SCRIPTS))
 

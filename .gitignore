@@ -1,5 +1,5 @@
-# Bu depo YALNIZ elle yazılmış yöntem katmanını taşır.
-# Aşağıdakiler Claude Code'un çalışma zamanı verisidir ve buraya ASLA girmez.
+# This repository carries ONLY the hand-written method layer.
+# Everything below is Claude Code runtime data and NEVER enters it.
 projects/
 sessions/
 session-env/
@@ -23,7 +23,7 @@ settings.local.json
 *.key
 .DS_Store
 
-# Canlı yapılandırmaya sembolik bağ (yereldir, depoya girmez)
+# Symlink to the live configuration (local; never committed)
 config
 
 # Python bytecode is generated, never committed
@@ -38,3 +38,4 @@ docs/measurement-daily-by-project.md
 docs/measurement-daily-by-role.md
 docs/measurement-daily-by-kind.md
 docs/measurement-daily-by-model.md
+.codeql/

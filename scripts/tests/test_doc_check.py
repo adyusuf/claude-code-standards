@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 import unittest
 
-spec = importlib.util.spec_from_file_location('doc_check', os.path.join(os.path.dirname(__file__), '..', 'doc-check.py'))
+spec = importlib.util.spec_from_file_location('doc_check', os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'doc-check.py')))
 dc = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(dc)
 

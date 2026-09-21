@@ -4,7 +4,10 @@ import subprocess
 import tempfile
 import unittest
 
-HOOK = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'require-private-remote.sh')
+# normpath, not just join: the path is handed to a coverage tracer's filter, and
+# `.../tests/../require-private-remote.sh` does not match a scripts/ pattern even
+# though it resolves to the same file.
+HOOK = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'require-private-remote.sh'))
 
 
 class RequirePrivateRemote(unittest.TestCase):
@@ -16,14 +19,18 @@ class RequirePrivateRemote(unittest.TestCase):
         gh = os.path.join(self.bin, 'gh')
         with open(gh, 'w') as handle:
             handle.write('#!/bin/sh\necho "$@" >> "$FAKE_GH_LOG"\necho "$FAKE_GH_SAYS"\nexit "${FAKE_GH_STATUS:-0}"\n')
-        os.chmod(gh, 0o755)
+        os.chmod(gh, 0o700)
 
     def tearDown(self):
         shutil.rmtree(self.bin, ignore_errors=True)
 
     def push(self, url, says='true', status='0', path=None):
-        env = dict(os.environ, PATH=path or f'{self.bin}:/usr/bin:/bin', FAKE_GH_SAYS=says, FAKE_GH_STATUS=status,
-                   FAKE_GH_LOG=self.log)
+        # The fake `gh` goes FIRST so the real one is never reached, but the rest of
+        # PATH is kept. Replacing PATH wholesale also dropped the coverage shim
+        # (scripts/coverage-shell.sh), so this hook measured 0% while being fully
+        # exercised — the tests were fine, the measurement could not see them.
+        env = dict(os.environ, PATH=path or f'{self.bin}:' + os.environ.get('PATH', '/usr/bin:/bin'),
+                   FAKE_GH_SAYS=says, FAKE_GH_STATUS=status, FAKE_GH_LOG=self.log)
         return subprocess.run(['bash', HOOK, 'origin', url], capture_output=True, text=True, env=env)
 
     def asked(self):
@@ -61,6 +68,19 @@ class RequirePrivateRemote(unittest.TestCase):
                     os.remove(self.log)
                 self.assertEqual(self.push(url).returncode, 0)
                 self.assertIn('repos/me/cfg', self.asked())
+
+    def test_a_github_url_with_no_repo_part_is_refused(self):
+        # The visibility question is asked about owner/repo. A URL that yields no
+        # slash cannot be asked about, and "cannot be asked" must refuse rather
+        # than fall through — this hook exists to keep real project names off a
+        # public remote, so an unanswerable case is the dangerous one.
+        result = self.push('https://github.com/onlyowner')
+        self.assertEqual(1, result.returncode)
+        self.assertIn('could not read owner/repo', result.stderr)
+
+    def test_a_trailing_dot_git_and_slash_are_stripped_before_asking(self):
+        self.push('https://github.com/acme/widgets.git/')
+        self.assertIn('repos/acme/widgets', self.asked())
 
 
 if __name__ == '__main__':

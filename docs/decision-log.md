@@ -67,6 +67,125 @@ Additional detail shortened out of the active file:
 - On the `dev → test` and `test → prod` promotions nothing is skipped — and the
   promotion is performed with the user's approval anyway.
 
+### The e2e spec check warns, and blocks nothing (21/09/2026)
+
+`dev → test` used to FAIL when behaviour changed and no e2e spec was touched.
+Two things were wrong with that. It put the entire e2e backlog in front of an
+**integration** merge, so work with no e2e dimension at all was stopped by it.
+And it asked for specs to be written at the wrong moment: #33 requires a spec to
+be verified against a **deployed test environment**, so a spec written to satisfy
+a `dev → test` gate is written blind — and a blind spec is the thing #31 later
+classifies as a "stale spec" failure.
+
+So the check is now a **warning in both directions**. What keeps it from becoming
+a silent hole is that the gap is not dropped, only moved: **step 2 of the
+`test → prod` gate writes every missing spec before the suite runs, and that gate
+does block.** The warning is also printed on every single run, with the changed
+files listed, so the backlog stays in front of whoever runs the gate.
+
+Pinned by `MissingE2eSpecOnlyWarns` in `scripts/tests/test_gate_core_fixes.py` —
+three tests, holding both halves together: the promotion is not blocked, and the
+gap is still said out loud. Mutation-verified: putting `bad` back in place of
+`warn` fails two of the three.
+
+Text updated in the same turn (#14) in all five places that had claimed
+"blocking on test": `CLAUDE.md` #25, `standards/13-pr-and-review.md` §4,
+`standards/11-playwright.md`, `scripts/README.md`, and the header comment of
+`scripts/gate-core.sh`. The contradiction was found because a project had already
+made the change locally on the strength of the user's decision, while the shared
+rule text still said the opposite — which is exactly the state #25 forbids, since
+a project may add a step but never remove one. The right fix was the rule text,
+not reverting the project.
+
+### The five fixes of 21/09/2026, and how each one is pinned
+
+The shared core had been carrying bugs that made it report **GREEN while whole
+tiers went unchecked**. They were found by running the gate in every repository
+that carries it rather than by reading it. The worst one: a repository with a
+`.slnx` solution, 673 backend tests, a **red build** and two high-severity
+advisories printed GATE GREEN, because stack detection came out `dotnet=0` and
+not one .NET step ran — and a promotion had already been made on that basis.
+
+| # | The bug | Why it was silent |
+|---|---|---|
+| 1 | `ls ./*.sln` did not match the newer `.slnx` | detection returned 0, so the tier was skipped, not failed |
+| 2 | `ls ./**/*.csproj` is one level deep without `globstar` | a project at `src/Api/Api.csproj` was invisible |
+| 3 | Node detection was root-only while .NET looked deeper | a repo whose JS lives in `frontend/` skipped the rule-#16 document step entirely |
+| 4 | The solution was detected but never passed to `dotnet` | `MSBUILD : error MSB1003` in place of a build — four of five .NET repos keep their solution below the root |
+| 5 | `npm test -- --run` was passed unconditionally | `--run` is vitest's flag; jest fails on it for a reason unrelated to the tests |
+
+And one that was not a code bug but a policy hole: **`coverage` could be listed
+in `ACCEPTED_GAPS`**, and several projects had done exactly that, so their gates
+printed GREEN while nothing measured coverage at all. Rule #29 grants the
+threshold no exceptions and says a project cannot override it, so the core now
+refuses that one step by name (`NEVER_ACCEPTABLE`) and stays INCOMPLETE.
+
+**Mutation record** (`scripts/tests/test_gate_core_fixes.py`, 16 tests). Each
+fix was reverted and the suite re-run; a fix whose revert changes nothing is not
+protected by a test:
+
+| Reverted | Result |
+|---|---|
+| the whole detection block, back to its pre-fix three lines | 5 failed — `.slnx`, nested csproj, nested `package.json`, the dotnet target, `-warnaserror` |
+| `NEVER_ACCEPTABLE` guard → `if false` | 1 failed — coverage was accepted and the gate went green |
+| the vitest condition → `if true` | 1 failed — jest received `--run` |
+| `dotnet build ${SLN:+"$SLN"}` → `dotnet build` | 1 failed — the nested solution was not the target |
+| `package.json` search → root only | 1 failed — `node=0` for a repo whose JS is in `web/` |
+
+One mutation did NOT fail at first: dropping `.slnx` from the `ls` alone changed
+nothing, because the `find` fallback also matches it. That is the fix being
+belt-and-braces, not a test gap — reverting the block as a whole does fail the
+`.slnx` test, and that whole block is what actually shipped before.
+
+**A defect in the test file itself**, found while consolidating it: its
+`if __name__ == '__main__'` guard sat in the MIDDLE of the file, above three of
+its five classes. Run as `python3 <file>` it executed **2 of 12 tests and printed
+OK**, because the classes below the guard were never defined. pytest imports the
+module rather than running `__main__`, so pytest saw all 12 and the hole stayed
+invisible. The guard now sits at the bottom, with a warning comment saying why;
+run directly, the file reports 16 of 16. The general lesson is the one this
+section keeps repeating: **a green result from a runner that never loaded the
+checks is the failure mode to look for**, in a gate or in a test file.
+
+### ⚠️ A false claim I made about this, and how it happened
+
+While doing the above I reported two things that were **not true**, and both are
+worth keeping because the cause is a habit, not an accident:
+
+1. *"The fixes were propagated to the project copies but the canonical copy was
+   never updated — the single source was the stalest copy."*
+2. *"The tests I reported writing for those fixes do not exist anywhere on disk."*
+
+Both were wrong. The canonical **had** been updated and the test file **did**
+exist — all of it committed and pushed to `origin/dev` from a different
+worktree. What I actually measured was a **local worktree that was 8 commits
+behind**, and I read that as the state of the repository. I compounded it by
+searching the filesystem (`find`, `grep`) for the test file, which cannot see a
+commit that is not checked out here, and by comparing against the `prod`
+worktree, which is pinned to `prod` by design and is *supposed* to be behind.
+
+**How to apply:** before reporting that something is missing, stale or
+un-propagated in a repository, `git fetch` and name the ref that was measured.
+"It is not in my working tree" and "it does not exist" are different claims, and
+in a repository with several worktrees pinned to different branches the first one
+is nearly worthless on its own. Compare **blob ids against a named remote ref**,
+never files against whatever a checkout happens to hold.
+
+A second trap from the same hour, with the same shape — a measurement that was
+silently wrong rather than absent: in **zsh**, an unbraced `"$var:something"`
+is parsed as a `:s` history modifier on `$var`, so
+`git rev-parse "origin/$b:scripts/gate-core.sh"` in a loop resolved a **mangled
+ref** and returned a blob id for a path nobody asked about. Every repository
+came back "STALE" and the output looked entirely plausible. Brace it —
+`"origin/${b}:scripts/gate-core.sh"` — in every shell one-liner that joins a
+variable to a `:`-separated path.
+
+**Still open:** nothing compares a project's committed `gate-core.sh` against the
+canonical one. Today that comparison had to be done by hand, and doing it by hand
+is exactly where the two false claims above came from. A check that walks the
+known repositories and diffs blob ids against a named ref would have answered it
+in one line, and it is not built.
+
 ## §26 — Pull `dev` → branch off `dev` → work → merge each task separately
 
 Additional detail shortened out of the active file:
@@ -464,7 +583,48 @@ Templates: `standards/templates/` — project CLAUDE.md, **SETUP.md**, PR, ADR, 
   anything outward, deleting files.
 - Detail: `standards/00-working-method.md`
 
-## LIVE DASHBOARD during a long gate/run
+### ⚠️ Commit c68fbf1 bundled two unrelated tasks
+
+Its message describes only the reporting change, but it also carried the first
+half of the shell-coverage work: `scripts/tests/test_gate_core_fixes.py` and
+`test_gate_core_docs.py` were changed to run **the real `scripts/gate-core.sh`**
+instead of copying it into each throwaway repository. That is a real change with
+its own reason (a coverage tracer attributes execution to the file it actually
+ran, so a copy leaves the script at 0% however many tests exercise it), and it
+belonged in its own commit per #26 step 3. `git add -A` swept it in.
+
+The change is correct and verified — the two invocations produce byte-identical
+output, because gate-core.sh resolves its root with `git rev-parse
+--show-toplevel` and cd's there, so the cwd decides what it inspects and not
+where the file sits; 31 tests pass against the real path. It is recorded here
+rather than rewritten out of history, because amending a pushed commit needs a
+force push.
+
+## STATUS REPORTING during a long gate/run — the dashboard was removed (21/09/2026)
+
+**The rule now:** report a long gate, run or deploy as a **short markdown table in the
+reply**. No Artifact dashboard, no published board. The table carries the item, its
+state, the measured figure **with the signal it was read from**, and what it is waiting
+on — plus a time estimate split into what is mine and what is the user's.
+
+**Why the dashboard went.** It was published, kept current at the same URL, and then
+the same content was repeated as text in the reply because "a text report does not
+replace the dashboard". That cost a round of work per report and, worse, **split the
+record in two**: the moment one side was updated and the other was not, the reply and
+the page disagreed, and the reader had no way to tell which was current. The table in
+the conversation is the thing the user actually reads, so it is now the whole
+deliverable. User decision, 21/09/2026.
+
+**What was kept, because it was never about the dashboard:** figures are measured and
+name their signal; an unmeasurable figure says "cannot be measured"; a step that did
+not run is reported as "did not run" and never folded into a pass; a long run's output
+goes to a log file instead of a buffering pipe (`tail`/`head`); an inferred state says
+it is inferred; an over-optimistic estimate is corrected downward out loud.
+
+<details>
+<summary>The retired dashboard rule, as it stood until 21/09/2026</summary>
+
+### LIVE DASHBOARD during a long gate/run (RETIRED)
 
 When you start a gate, run or deploy that takes minutes (merge gate, CI, test
 battery, publish/deploy chain, migration), **publish an Artifact dashboard and keep
@@ -503,6 +663,8 @@ not replace the dashboard; give both.
   keeping the tab open.
 - The user sets the reporting interval; if they do not, report on stage changes.
   Pass a short line even on unchanged turns — do not go silent.
+
+</details>
 
 ## Appendix — the fuller original wording of rules that were shortened
 
