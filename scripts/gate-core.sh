@@ -113,8 +113,20 @@ run()  { # run <label> <command...>
 }
 
 # ── Stack detection ──────────────────────────────────────────────────────────
-SLN="$(ls ./*.sln 2>/dev/null | head -1)"
-HAS_DOTNET=0; [ -n "$SLN" ] || ls ./**/*.csproj >/dev/null 2>&1 && HAS_DOTNET=1
+#
+# ⚠️ This block decides whether a whole tier is checked AT ALL, so a miss here is
+# silent and total. Both halves used to miss:
+#   · `ls ./*.sln` did not know about `.slnx`, the newer solution format;
+#   · `ls ./**/*.csproj` is ONE level deep in a plain shell (globstar is off), so
+#     a project at src/Api/X.csproj was invisible.
+# Measured on 21/09/2026: a repository with a .slnx, 673 backend tests, a build
+# that was RED and two high-severity advisories reported GATE GREEN, because
+# HAS_DOTNET came out 0 and not one .NET step ran.
+SLN="$(ls ./*.sln ./*.slnx 2>/dev/null | head -1)"
+HAS_DOTNET=0
+if [ -n "$SLN" ] || [ -n "$(find . -name '*.csproj' -not -path '*/obj/*' -not -path '*/bin/*' -not -path '*/node_modules/*' -print -quit 2>/dev/null)" ]; then
+  HAS_DOTNET=1
+fi
 HAS_NODE=0;   [ -f package.json ] && HAS_NODE=1
 WEB_DIR=""; for d in web frontend .; do [ -f "$d/package.json" ] && { WEB_DIR="$d"; break; }; done
 MOBILE_DIR=""; for d in mobile app; do [ -f "$d/package.json" ] && { MOBILE_DIR="$d"; break; }; done

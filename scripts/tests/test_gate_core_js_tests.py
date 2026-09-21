@@ -96,3 +96,37 @@ class CoverageCannotBeAccepted(unittest.TestCase):
     def test_another_gap_is_still_acceptable(self):
         out, _ = self.build('coverage|SAST')
         self.assertIn('ACCEPTED GAP', out)  # SAST still accepted
+
+
+class StackDetection(unittest.TestCase):
+    """Whether a tier is checked at all. A miss here is silent and total."""
+
+    def tearDown(self):
+        shutil.rmtree(getattr(self, 'root', ''), ignore_errors=True)
+
+    def build(self, files):
+        root = tempfile.mkdtemp()
+        subprocess.run(['git', 'init', '-q', root], check=True)
+        os.makedirs(os.path.join(root, 'scripts'))
+        shutil.copy(os.path.join(SCRIPTS, 'gate-core.sh'), os.path.join(root, 'scripts', 'gate-core.sh'))
+        for name in files:
+            path = os.path.join(root, name)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w', encoding='utf-8') as handle:
+                handle.write('<Project />')
+        self.root = root
+        result = subprocess.run(['bash', 'scripts/gate-core.sh', 'test', '--list'],
+                                cwd=root, capture_output=True, text=True)
+        return ANSI.sub('', result.stdout)
+
+    def test_a_slnx_solution_is_detected(self):
+        out = self.build(['App.slnx'])
+        self.assertIn('dotnet build', out, f".slnx was not detected:\n{out}")
+
+    def test_a_csproj_two_levels_down_is_detected(self):
+        out = self.build(['src/Api/Api.csproj'])
+        self.assertIn('dotnet build', out, f"a nested csproj was not detected:\n{out}")
+
+    def test_a_repository_with_no_dotnet_is_left_alone(self):
+        out = self.build(['README.md'])
+        self.assertNotIn('dotnet build', out)
