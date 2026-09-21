@@ -35,7 +35,7 @@
 10. **Ask before adding a dependency.** Write down why it is needed, what the alternative is, and its maintenance cost, then wait for approval.
 11. **No magic strings.** Constants become enums/consts. Enum switches always carry a `default` branch (forward compatibility).
 12. **Date format `dd/mm/yyyy`.** Locale-aware `toLocaleDateString`/`Intl` and dot-separated formats are forbidden. Transport and storage are always UTC ISO-8601.
-13. **Search is always case- and accent-insensitive.** "sisman" ↔ "Şişman", "istanbul" ↔ "İstanbul" must match. Raw `.Contains` / `.ToLower.Contains` / `LIKE` is forbidden; a central normalizer is used.
+13. **Search is always case- and accent-insensitive.** "sisman" ↔ "Şişman", "istanbul" ↔ "İstanbul" must match. Raw `.Contains` / `.ToLower().Contains()` / `LIKE` is forbidden; a central normalizer is used.
 14. **A new rule is never left verbal.** Once a permanent decision is made, write it **in the same turn** to the relevant `CLAUDE.md` (project) or to `~/.claude/standards/` (global). Do not finish the task while skipping this step.
 15. **Report the truth.** If tests are red, say so with the output; name any step that was skipped. Never report completion on the basis of "it probably works".
 16. **Setup is documented.** Every project carries `SETUP.md` + `.env.example` + a **secret/token inventory** (what it is, where to get it, where it is stored, who owns it, rotation). Any change that adds a tool, env var or secret updates these **in the same PR**. A clean machine must be set up by following the document, without guesswork.

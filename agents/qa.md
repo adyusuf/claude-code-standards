@@ -1,6 +1,6 @@
 ---
 name: qa
-description: Reviews a change for correctness, security, backward compatibility and test coverage. The first review pass in modes C/D. Does NOT change code.
+description: Reviews a change for correctness, security, backward compatibility and test coverage. The first review pass in modes C/D/E. Does NOT change code.
 tools: Read, Grep, Glob, Bash
 model: opus
 ---
