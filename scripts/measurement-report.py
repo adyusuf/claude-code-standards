@@ -19,10 +19,8 @@ as fresh as the ledger.
 
 ⚠️ Projects appear only under their NICKNAME (project-nicknames.tsv, local and git-ignored);
    a project without one shows as unmapped-xxxxxx. The report holds no real project name.
-⚠️ A day is a LOCAL calendar day, and a row is charged WHOLE to the day its session ENDED (the
-   last record of the transcript). A session that runs past midnight therefore lands on its last
-   day, and a session still running moves forward with it. A row with no recorded end (written
-   before the ledger kept one) is charged to the day it STARTED and marked ≈.
+⚠️ A day is a LOCAL calendar day, and a row is charged WHOLE to the day its session STARTED. A
+   session that runs past midnight stays on the day it began, however long it ran.
 ⚠️ USD is the API LIST price, a proxy for consumption, not a bill.
 """
 import collections
@@ -47,11 +45,9 @@ def load_ledger_module():
 
 
 def charged_day(row):
-    """(local calendar day, guessed?) a row is charged to: the day the session ENDED; if the ledger
-    did not record an end (older rows), the day it started, and the day is marked as a guess."""
-    stamp, guessed = (row['ended'], False) if row.get('ended') else (row['started'], True)
-    when = datetime.datetime.strptime(stamp, '%Y-%m-%dT%H:%M').replace(tzinfo=datetime.timezone.utc)
-    return when.astimezone().strftime('%Y-%m-%d'), guessed
+    """The local calendar day a row is charged to: the day its session STARTED (always recorded)."""
+    when = datetime.datetime.strptime(row['started'], '%Y-%m-%dT%H:%M').replace(tzinfo=datetime.timezone.utc)
+    return when.astimezone().strftime('%Y-%m-%d')
 
 
 def step_hours(row):
@@ -75,21 +71,16 @@ def dmy(day):
 
 def aggregate(rows, key=lambda row: row.get('project') or 'unknown'):
     cost = collections.defaultdict(lambda: collections.defaultdict(float))
-    approx = set()
     sessions = collections.defaultdict(lambda: collections.Counter())
     agents = collections.defaultdict(lambda: collections.Counter())
     per_project = collections.defaultdict(lambda: collections.Counter())
-    approx_rows = 0
     runs = collections.defaultdict(list)
     for row in rows:
         project = key(row)
-        day, guessed = charged_day(row)
+        day = charged_day(row)
         value = float(row['usd'])
-        approx_rows += guessed
         cost[day][project] += value
         (sessions if row['kind'] == 'session' else agents)[day][project] += 1
-        if guessed:
-            approx.add((day, project))
         totals = per_project[project]
         totals['usd'] += value
         totals['requests'] += int(row['requests'])
@@ -97,11 +88,11 @@ def aggregate(rows, key=lambda row: row.get('project') or 'unknown'):
         totals['sessions' if row['kind'] == 'session' else 'agents'] += 1
         totals['agent_usd' if row['kind'] == 'agent' else 'session_usd'] += value
         runs[project].append(value)
-    return cost, approx, sessions, agents, per_project, approx_rows, runs
+    return cost, sessions, agents, per_project, runs
 
 
 def render(rows, now=None):
-    cost, approx, sessions, agents, per_project, approx_rows, _runs = aggregate(rows)
+    cost, sessions, agents, per_project, _runs = aggregate(rows)
     now = now or datetime.datetime.now()
     days = sorted(cost, reverse=True)
     projects = sorted(per_project, key=lambda p: -per_project[p]['usd'])
@@ -110,12 +101,9 @@ def render(rows, now=None):
         '# Measurement report — cost by day and project',
         '',
         f'> Generated {now.strftime("%d/%m/%Y %H:%M")} from {len(rows)} ledger rows · list-price USD, a proxy not a bill · '
-        'nicknames only · a day is the local calendar day a session ENDED.',
+        'nicknames only · a day is the local calendar day a session STARTED.',
         '> Generated file, local and git-ignored: do not edit.',
     ]
-    if approx_rows:
-        out.append(f'> {approx_rows} of {len(rows)} rows have no recorded end time: each is charged to the day it '
-                   'started and marked ≈. Rebuild them with `measurement-ledger.py --write --days N` while their transcripts exist.')
     unmapped = [p for p in projects if p.startswith('unmapped-') or p == 'unknown']
     if unmapped:
         out.append(f'> ⚠️ No nickname for: {", ".join(unmapped)} — add `<real folder key><TAB><nickname>` to `project-nicknames.tsv`.')
@@ -131,21 +119,20 @@ def render(rows, now=None):
     out += ['', '## Day × project ($)', '', '| day | ' + ' | '.join(projects) + ' | **day total** |',
             '|---|' + '---:|' * (len(projects) + 1)]
     for day in days:
-        cells = [('≈' if (day, p) in approx and cost[day].get(p) else '') + money(cost[day].get(p, 0)) for p in projects]
+        cells = [money(cost[day].get(p, 0)) for p in projects]
         out.append(f'| {dmy(day)} | ' + ' | '.join(cells) + f' | **{money(sum(cost[day].values()))}** |')
     out.append('| **project total** | ' + ' | '.join(f'**{money(per_project[p]["usd"])}**' for p in projects) + f' | **{money(total)}** |')
     out += ['', '## By day']
     for day in days:
         out += ['', f'### {dmy(day)} — {money(sum(cost[day].values()))}', '', '| project | $ | sessions | agent runs |', '|---|---:|---:|---:|']
         for project in sorted(cost[day], key=lambda p: -cost[day][p]):
-            mark = '≈' if (day, project) in approx else ''
-            out.append(f'| {project} | {mark}{money(cost[day][project])} | {sessions[day][project]} | {agents[day][project]} |')
+            out.append(f'| {project} | {money(cost[day][project])} | {sessions[day][project]} | {agents[day][project]} |')
     return '\n'.join(out) + '\n'
 
 
 def render_by(rows, noun, key, extra_note, now=None):
     """One day x <noun> report; `key` picks the group of a row."""
-    cost, approx, _sessions, _agents, per_role, approx_rows, runs = aggregate(rows, key=key)
+    cost, _sessions, _agents, per_role, runs = aggregate(rows, key=key)
     now = now or datetime.datetime.now()
     days = sorted(cost, reverse=True)
     roles = sorted(per_role, key=lambda r: -per_role[r]['usd'])
@@ -154,12 +141,9 @@ def render_by(rows, noun, key, extra_note, now=None):
         f'# Measurement report — cost by day and {noun}',
         '',
         f'> Generated {now.strftime("%d/%m/%Y %H:%M")} from {len(rows)} ledger rows · list-price USD, a proxy not a bill · '
-        'a day is the local calendar day a run ENDED.',
+        'a day is the local calendar day a run STARTED.',
         f'> {extra_note}Generated file, local and git-ignored: do not edit.',
     ]
-    if approx_rows:
-        out.append(f'> {approx_rows} of {len(rows)} rows have no recorded end time: each is charged to the day it '
-                   'started and marked ≈. Rebuild them with `measurement-ledger.py --write --days N` while their transcripts exist.')
     out += ['', f'## Cost by {noun} — ${total:,.0f} over {len(days)} day(s)', '',
             f'| {noun} | $ | share | days | runs | median $/run | requests | step hours |', '|---|---:|---:|---:|---:|---:|---:|---:|']
     for role in roles:
@@ -171,15 +155,14 @@ def render_by(rows, noun, key, extra_note, now=None):
                    f'| {role} | · | · | 0 | {count} | · | {t["requests"]:,} | {t["step_hours"]:.1f} |')
     out += ['', f'## Day × {noun} ($)', '', '| day | ' + ' | '.join(roles) + ' | **day total** |', '|---|' + '---:|' * (len(roles) + 1)]
     for day in days:
-        cells = [('≈' if (day, r) in approx and cost[day].get(r) else '') + money(cost[day].get(r, 0)) for r in roles]
+        cells = [money(cost[day].get(r, 0)) for r in roles]
         out.append(f'| {dmy(day)} | ' + ' | '.join(cells) + f' | **{money(sum(cost[day].values()))}** |')
     out.append(f'| **{noun} total** | ' + ' | '.join(f'**{money(per_role[r]["usd"])}**' for r in roles) + f' | **{money(total)}** |')
     out += ['', '## By day']
     for day in days:
         out += ['', f'### {dmy(day)} — {money(sum(cost[day].values()))}', '', f'| {noun} | $ | runs |', '|---|---:|---:|']
         for role in sorted(cost[day], key=lambda r: -cost[day][r]):
-            mark = '≈' if (day, role) in approx else ''
-            out.append(f'| {role} | {mark}{money(cost[day][role])} | {_sessions[day][role] + _agents[day][role]} |')
+            out.append(f'| {role} | {money(cost[day][role])} | {_sessions[day][role] + _agents[day][role]} |')
     return '\n'.join(out) + '\n'
 
 

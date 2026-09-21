@@ -353,9 +353,10 @@ that runs. What was built, and the decisions behind it:
   local git-ignored file because it is the one place real names live; a nickname that contains a
   real project name, or a project with no nickname, can never write a real name into the ledger
   (unmapped ones show as `unmapped-xxxxxx`). The nicknames are association chains only their owner
-  can follow. A run is charged WHOLE to the local day its session **ended** (the last record), or
-  to the day it started when no end was recorded — a rule set by the user; an earlier design that
-  split each request across days was dropped for it. Four report files: by project, role, kind, model.
+  can follow. A run is charged WHOLE to the local day its session **started** — a rule set by the
+  user, who changed it twice (first end day, then start day); the first design split each request
+  across days and was dropped. `ended` is still recorded, as information. Four report files: by project,
+  role, kind, model.
 - **Drift test (`scripts/md-hook.sh`).** It covered only three `md-*` tools while
   `gate-core.sh` and the README claimed otherwise. It now covers every copied script; the
   configuration repository itself is exempt (a dev worktree would otherwise report every

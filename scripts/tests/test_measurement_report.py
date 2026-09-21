@@ -137,22 +137,25 @@ def ledger_row(**fields):
 
 
 class Report(Timezone):
-    def test_a_row_is_charged_whole_to_the_local_day_its_session_ended(self):
-        # started on the 1st, ended 21:30Z = 00:30 on the 2nd in UTC+3: the whole $9 belongs to the 2nd.
-        text = report.render([ledger_row(started='2026-09-01T08:00', ended='2026-09-01T21:30', usd='9.0000')])
-        self.assertIn('| 02/09/2026 | $9.0 |', text)
-        self.assertNotIn('01/09/2026', text)
+    def test_a_row_is_charged_whole_to_the_local_day_its_session_started(self):
+        # started 20:30Z = 23:30 on the 1st (UTC+3), ended the next morning: the whole $9 stays on the 1st.
+        text = report.render([ledger_row(started='2026-09-01T20:30', ended='2026-09-02T09:00', usd='9.0000')])
+        self.assertIn('| 01/09/2026 | $9.0 |', text)
+        self.assertNotIn('02/09/2026', text)
+
+    def test_the_start_day_is_the_local_day_not_the_utc_day(self):
+        text = report.render([ledger_row(started='2026-09-01T22:00', usd='4.0000')])       # 22:00Z = 01:00 on the 2nd in UTC+3
+        self.assertIn('| 02/09/2026 | $4.0 |', text)
+
+    def test_a_row_without_an_end_time_is_charged_the_same_way_and_needs_no_marker(self):
+        text = report.render([ledger_row(started='2026-09-01T10:00', ended='', usd='4.0000')])
+        self.assertIn('| 01/09/2026 | $4.0 |', text)
         self.assertNotIn('≈', text)
 
-    def test_a_row_with_no_recorded_end_falls_back_to_its_start_day_and_is_marked(self):
-        text = report.render([ledger_row(started='2026-09-01T22:00', ended='', usd='4.0000')])       # 22:00Z = 01:00 on the 2nd
-        self.assertIn('| 02/09/2026 | ≈$4.0 |', text)
-        self.assertIn('1 of 1 rows have no recorded end time', text)
-
     def test_projects_are_grouped_and_sorted_by_cost_with_totals_that_add_up(self):
-        rows = [ledger_row(id='aaaaaaaaaa', project='groot', usd='10.0000', ended='2026-09-01T10:00'),
-                ledger_row(id='bbbbbbbbbb', project='ryan', usd='30.0000', ended='2026-09-01T11:00'),
-                ledger_row(id='cccccccccc', project='ryan', kind='agent', role='qa', usd='5.0000', ended='2026-09-02T10:00')]
+        rows = [ledger_row(id='aaaaaaaaaa', project='groot', usd='10.0000', started='2026-09-01T10:00'),
+                ledger_row(id='bbbbbbbbbb', project='ryan', usd='30.0000', started='2026-09-01T11:00'),
+                ledger_row(id='cccccccccc', project='ryan', kind='agent', role='qa', usd='5.0000', started='2026-09-02T10:00')]
         text = report.render(rows)
         matrix = text[text.index('## Day × project'):text.index('## By day')]
         self.assertLess(matrix.index('ryan'), matrix.index('groot'))          # the dearer project comes first
@@ -175,7 +178,7 @@ class Report(Timezone):
         try:
             path = os.path.join(folder, 'ledger.tsv')
             with open(path, 'w', encoding='utf-8') as handle:
-                handle.write(ledger.render([ledger_row(ended='2026-09-01T10:00')]))
+                handle.write(ledger.render([ledger_row(started='2026-09-01T10:00')]))
             written = report.write_report(path)
             self.assertEqual(written, os.path.join(folder, 'measurement-daily-by-project.md'))
             with open(written, encoding='utf-8') as handle:
@@ -203,9 +206,9 @@ class Report(Timezone):
 
 
 class OtherGroupings(Timezone):
-    ROWS = [ledger_row(id='aaaaaaaaaa', kind='session', role='main', model='claude-opus-5', usd='10.0000', ended='2026-09-01T10:00'),
-            ledger_row(id='bbbbbbbbbb', kind='agent', role='qa', model='claude-sonnet-5', usd='4.0000', ended='2026-09-01T11:00'),
-            ledger_row(id='cccccccccc', kind='agent', role='qa', model='claude-sonnet-5', usd='6.0000', ended='2026-09-02T09:00')]
+    ROWS = [ledger_row(id='aaaaaaaaaa', kind='session', role='main', model='claude-opus-5', usd='10.0000', started='2026-09-01T10:00'),
+            ledger_row(id='bbbbbbbbbb', kind='agent', role='qa', model='claude-sonnet-5', usd='4.0000', started='2026-09-01T11:00'),
+            ledger_row(id='cccccccccc', kind='agent', role='qa', model='claude-sonnet-5', usd='6.0000', started='2026-09-02T09:00')]
 
     def test_the_role_report_groups_by_role_and_gives_the_median_cost_per_run(self):
         text = report.render_by_role(self.ROWS)
@@ -226,7 +229,7 @@ class OtherGroupings(Timezone):
         self.assertIn('| claude-sonnet-5 | $10.0 | 50% | 2 | 2 |', text)
         self.assertIn('the first the run used', text)
 
-    def test_every_grouping_totals_to_the_same_amount_and_uses_the_same_end_day_rule(self):
+    def test_every_grouping_totals_to_the_same_amount_and_uses_the_same_start_day_rule(self):
         for render in (report.render, report.render_by_role, report.render_by_kind, report.render_by_model):
             text = render(self.ROWS)
             self.assertIn('$20 over 2 day(s)', text)
@@ -248,7 +251,7 @@ class OtherGroupings(Timezone):
             shutil.rmtree(folder, ignore_errors=True)
 
     def test_a_run_with_no_role_or_model_is_grouped_as_unknown_not_dropped(self):
-        text = report.render_by_role([ledger_row(role='', usd='3.0000', ended='2026-09-01T10:00')])
+        text = report.render_by_role([ledger_row(role='', usd='3.0000', started='2026-09-01T10:00')])
         self.assertIn('| unknown |', text)
 
 

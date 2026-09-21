@@ -76,8 +76,8 @@ HEADER = (
     "# step_seconds : wall-clock seconds those steps took (tool call -> its result). A command that runs several steps is\n"
     "#       split evenly; a wait for a permission prompt is INCLUDED; a call over 3600 s is dropped as a hang. Empty = not measured\n"
     "# project : a NICKNAME from project-nicknames.tsv (local, git-ignored); unmapped-xxxxxx when no nickname is set. Never a real name\n"
-    "# ended : UTC minute of the LAST record of the transcript (the session end; a running session's moves forward). The reports\n"
-    "#       charge a row to the local day it ENDED, or to the day it started when this is empty (rows written before it existed)\n"
+    "# ended : UTC minute of the LAST record of the transcript (the session end; a running session's moves forward). Information\n"
+    "#       only: the reports charge a row to the local day it STARTED. Empty on rows written before it existed\n"
 )
 
 
