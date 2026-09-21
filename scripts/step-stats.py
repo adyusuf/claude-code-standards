@@ -276,6 +276,20 @@ ROLE_ALIASES = {'analiz': 'analyst', 'belge': 'doc-writer', 'e2e-yazar': 'e2e-wr
                 'urun-yoneticisi': 'product-manager', 'veri': 'data'}
 
 
+def role_label(role):
+    """How a role is PRINTED.
+
+    A plugin-provided agent's subagent_type is `<plugin>:<agent>` and the plugin
+    part is a machine identifier — exactly what the sanitiser refuses to publish,
+    so it would block the whole write (measured 21/09/2026: one `agent-skills`
+    run made `--write` impossible). Only the agent part is printed, marked
+    `ext:` so it is never confused with a mode role.
+    """
+    if ':' in role:
+        return 'ext:' + role.split(':', 1)[1]
+    return ROLE_ALIASES.get(role, role)
+
+
 def role_ids(sessions):
     """agentId (8 hex) -> the role named in the Agent call that started it."""
     id_to_role = {}
@@ -313,6 +327,31 @@ def map_roles(sessions, agents):
         row[1] += first or 0
         row[2] += cost
     return stats
+
+
+MIN_CUT_ROWS = 3   # docs/benchmark-method.md: a side with fewer than three rows makes the comparison invalid
+
+
+def cut_delta(before_median, before_n, after_median, after_n):
+    """The delta cell of one cut row. Pure, so it can be tested.
+
+    Two rules this used to break, both measured on 21/09/2026:
+      · the sign was hard-coded to '-', so a prefix that GREW was published as a
+        saving ("--8,598 (--10%)" for +8,598);
+      · a delta was published from a single session after the cut, although
+        docs/benchmark-method.md calls a side with fewer than three rows invalid.
+    """
+    if not after_n:
+        return "**not measured** — needs a new session"
+    if before_n < MIN_CUT_ROWS or after_n < MIN_CUT_ROWS:
+        side = 'after' if after_n < MIN_CUT_ROWS else 'before'
+        return (f"**not measured** — only {min(before_n, after_n)} session(s) {side} the cut, "
+                f"{MIN_CUT_ROWS} needed (docs/benchmark-method.md)")
+    if not before_median:
+        return "**not measured** — no before median"
+    diff = after_median - before_median
+    sign = '+' if diff > 0 else ''
+    return f"**{sign}{diff:,} ({sign}{100 * diff / before_median:.0f}%)**"
 
 
 def compare_cuts():
@@ -359,7 +398,7 @@ def compare_cuts():
         after = [value for when, value in rows if when > cut]
         b = int(statistics.median(before)) if before else 0
         a = int(statistics.median(after)) if after else 0
-        delta = f"**-{b - a:,} (-{100 * (b - a) / b:.0f}%)**" if (b and a) else "**not measured** — needs a new session"
+        delta = cut_delta(b, len(before), a, len(after))
         after_cell = f"{a:,} · {len(after)}" if a else "—"
         # The cut's timestamp stays in the local tsv; the published table shows its order.
         out.append(f"| cut {index} | {label} | {b:,} · {len(before)} | {after_cell} | {delta} |")
@@ -392,9 +431,16 @@ def report(days=None):
                      f"of total spend\n")
     lines.append("| role | runs | starting prefix (total) | estimated $ |")
     lines.append("|---|---:|---:|---:|")
-    for role, (runs, prefix_tokens, cost) in sorted(map_roles(sessions, agents).items(), key=lambda x: -x[1][0]):
-        # Historical transcripts carry the old role names; report them as they are called today.
-        lines.append(f"| `{ROLE_ALIASES.get(role, role)}` | {runs} | {prefix_tokens:,} "
+    # Historical transcripts carry the old role names; report them as they are called
+    # today, and SUM the rows that end up with the same label — two plugins can both
+    # provide a `code-reviewer`, and two rows with one name cannot be told apart.
+    by_label = {}
+    for role, (runs, prefix_tokens, cost) in map_roles(sessions, agents).items():
+        label = role_label(role)
+        was = by_label.get(label, (0, 0, 0.0))
+        by_label[label] = (was[0] + runs, was[1] + prefix_tokens, was[2] + cost)
+    for label, (runs, prefix_tokens, cost) in sorted(by_label.items(), key=lambda x: -x[1][0]):
+        lines.append(f"| `{label}` | {runs} | {prefix_tokens:,} "
                      f"| ${cost:,.2f} |")
     lines.append("")
     lines.append("## SDLC steps — how many times each one ran\n")
