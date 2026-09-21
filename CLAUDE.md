@@ -138,18 +138,19 @@ run them"** · when uncertain, finish the independent work first, then ask one
 clear question · commit only your own diff and never use `--force` · get approval
 for irreversible work (deploy, `DROP`, sending anything outward, deleting files).
 
-## LIVE DASHBOARD during a long gate/run (PERMANENT, all projects)
+## STATUS REPORTING during a long gate/run (PERMANENT, all projects)
 
-When you start a gate, run or deploy that takes minutes (merge gate, CI, test
-battery, deploy chain, migration), **publish an Artifact dashboard and keep it
-current by republishing to the SAME URL throughout the run.** A text report does
-not replace the dashboard; give both. The dashboard **must** contain: a weighted
-overall percentage · per-item breakdowns · a live measurement (timestamp + raw
-data) · open risks.
+Report progress as a **short markdown table in the reply** — what the job is,
+where it stands, what is left. **No Artifact dashboard, no published board.** A
+table in the conversation is the whole deliverable.
 
-⚠️ **The percentage is MEASURED, not invented** — the dashboard states which
-signal it was read from; if it cannot be measured, it says "cannot be measured".
-The output of a long run is never piped into something that buffers
-(`tail`/`head`) — it is written to a log file and the dashboard is fed from that.
+The table carries: the item · its state · **the measured figure, with the signal
+it was read from** · what it is waiting on. Keep it to the rows that matter; a
+blocked row states the reason, not a percentage.
+
+⚠️ **Every figure is MEASURED, never invented** — if it cannot be measured, the
+row says "cannot be measured". A long run's output is never piped into something
+that buffers (`tail`/`head`): write it to a log file and read the table from
+that. **A step that did not run is reported as "did not run", never as passing.**
 
 → Detailed rules: `standards/00-working-method.md` §10.

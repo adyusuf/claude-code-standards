@@ -28,6 +28,16 @@ import unittest
 SCRIPTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
 ANSI = re.compile(r'\x1b\[[0-9;]*m')
 
+# The gate is run FROM ITS REAL PATH, never from a copy inside the throwaway
+# repository. Two reasons. It behaves identically — gate-core.sh resolves its
+# root with `git rev-parse --show-toplevel` and cd's there, so the cwd decides
+# what it inspects, not where the file sits (verified: the two runs produce
+# byte-identical output). And a coverage tracer attributes execution to the file
+# it actually ran: with a copy, scripts/gate-core.sh measures 0% however many
+# tests exercise it — which is precisely why shell coverage was unmeasurable
+# here and reported as a blocking gap (#29).
+GATE = os.path.join(SCRIPTS, 'gate-core.sh')
+
 # Fails when it IS given --run, the way jest does.
 JEST_STUB = '#!/bin/sh\nfor a in "$@"; do [ "$a" = "--run" ] && { echo "Unrecognized option run" >&2; exit 1; }; done\necho ran\n'
 # Fails when it is NOT given --run, the way a watching vitest would never return.
@@ -38,7 +48,6 @@ def project(runner, stub):
     root = tempfile.mkdtemp()
     subprocess.run(['git', 'init', '-q', root], check=True)
     os.makedirs(os.path.join(root, 'scripts'))
-    shutil.copy(os.path.join(SCRIPTS, 'gate-core.sh'), os.path.join(root, 'scripts', 'gate-core.sh'))
     binary = os.path.join(root, 'web', 'node_modules', '.bin')
     os.makedirs(binary)
     path = os.path.join(binary, runner)
@@ -52,7 +61,7 @@ def project(runner, stub):
 
 def unit_test_step(root):
     """Only the lines of the 'unit tests' step."""
-    result = subprocess.run(['bash', 'scripts/gate-core.sh', 'dev'],
+    result = subprocess.run(['bash', GATE, 'dev'],
                             cwd=root, capture_output=True, text=True)
     out = ANSI.sub('', result.stdout)
     match = re.search(r'▶ unit tests[^\n]*\n(.*?)\n▶ ', out, re.S)
@@ -86,11 +95,10 @@ class CoverageCannotBeAccepted(unittest.TestCase):
         root = tempfile.mkdtemp()
         subprocess.run(['git', 'init', '-q', root], check=True)
         os.makedirs(os.path.join(root, 'scripts'))
-        shutil.copy(os.path.join(SCRIPTS, 'gate-core.sh'), os.path.join(root, 'scripts', 'gate-core.sh'))
         with open(os.path.join(root, 'scripts', 'merge-gate.conf'), 'w', encoding='utf-8') as handle:
             handle.write(f'ACCEPTED_GAPS="{accepted}"\nACCEPTED_GAPS_REASON="a written reason"\n')
         self.root = root
-        result = subprocess.run(['bash', 'scripts/gate-core.sh', 'test'],
+        result = subprocess.run(['bash', GATE, 'test'],
                                 cwd=root, capture_output=True, text=True)
         return ANSI.sub('', result.stdout), result.returncode
 
@@ -115,14 +123,13 @@ class StackDetection(unittest.TestCase):
         root = tempfile.mkdtemp()
         subprocess.run(['git', 'init', '-q', root], check=True)
         os.makedirs(os.path.join(root, 'scripts'))
-        shutil.copy(os.path.join(SCRIPTS, 'gate-core.sh'), os.path.join(root, 'scripts', 'gate-core.sh'))
         for name in files:
             path = os.path.join(root, name)
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, 'w', encoding='utf-8') as handle:
                 handle.write('<Project />')
         self.root = root
-        result = subprocess.run(['bash', 'scripts/gate-core.sh', 'test', '--list'],
+        result = subprocess.run(['bash', GATE, 'test', '--list'],
                                 cwd=root, capture_output=True, text=True)
         return ANSI.sub('', result.stdout)
 
@@ -149,14 +156,13 @@ class NodeDetection(unittest.TestCase):
         root = tempfile.mkdtemp()
         subprocess.run(['git', 'init', '-q', root], check=True)
         os.makedirs(os.path.join(root, 'scripts'))
-        shutil.copy(os.path.join(SCRIPTS, 'gate-core.sh'), os.path.join(root, 'scripts', 'gate-core.sh'))
         for name, text in files.items():
             path = os.path.join(root, name)
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, 'w', encoding='utf-8') as handle:
                 handle.write(text)
         self.root = root
-        result = subprocess.run(['bash', 'scripts/gate-core.sh', 'test'],
+        result = subprocess.run(['bash', GATE, 'test'],
                                 cwd=root, capture_output=True, text=True)
         out = ANSI.sub('', result.stdout)
         match = re.search(r'▶ project documents[^\n]*\n(.*?)\n▶ ', out, re.S)
@@ -188,14 +194,13 @@ class SolutionTarget(unittest.TestCase):
         root = tempfile.mkdtemp()
         subprocess.run(['git', 'init', '-q', root], check=True)
         os.makedirs(os.path.join(root, 'scripts'))
-        shutil.copy(os.path.join(SCRIPTS, 'gate-core.sh'), os.path.join(root, 'scripts', 'gate-core.sh'))
         for name in files:
             path = os.path.join(root, name)
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, 'w', encoding='utf-8') as handle:
                 handle.write('<Project />')
         self.root = root
-        result = subprocess.run(['bash', 'scripts/gate-core.sh', 'test', '--list'],
+        result = subprocess.run(['bash', GATE, 'test', '--list'],
                                 cwd=root, capture_output=True, text=True)
         return ANSI.sub('', result.stdout)
 
@@ -226,14 +231,13 @@ class BuildOutputIsNotAProject(unittest.TestCase):
         root = tempfile.mkdtemp()
         subprocess.run(['git', 'init', '-q', root], check=True)
         os.makedirs(os.path.join(root, 'scripts'))
-        shutil.copy(os.path.join(SCRIPTS, 'gate-core.sh'), os.path.join(root, 'scripts', 'gate-core.sh'))
         for name in ('obj/Debug/Ghost.csproj', 'web/node_modules/pkg/package.json'):
             path = os.path.join(root, name)
             os.makedirs(os.path.dirname(path), exist_ok=True)
             with open(path, 'w', encoding='utf-8') as handle:
                 handle.write('{}')
         self.root = root
-        result = subprocess.run(['bash', 'scripts/gate-core.sh', 'test', '--list'],
+        result = subprocess.run(['bash', GATE, 'test', '--list'],
                                 cwd=root, capture_output=True, text=True)
         out = ANSI.sub('', result.stdout)
         stacks = [l for l in out.splitlines() if l.startswith('stacks:')][0]
@@ -252,11 +256,10 @@ class TheBuildKeepsWarningsAsErrors(unittest.TestCase):
         root = tempfile.mkdtemp()
         subprocess.run(['git', 'init', '-q', root], check=True)
         os.makedirs(os.path.join(root, 'scripts'))
-        shutil.copy(os.path.join(SCRIPTS, 'gate-core.sh'), os.path.join(root, 'scripts', 'gate-core.sh'))
         with open(os.path.join(root, 'App.sln'), 'w', encoding='utf-8') as handle:
             handle.write('')
         self.root = root
-        result = subprocess.run(['bash', 'scripts/gate-core.sh', 'test', '--list'],
+        result = subprocess.run(['bash', GATE, 'test', '--list'],
                                 cwd=root, capture_output=True, text=True)
         out = ANSI.sub('', result.stdout)
         build = [l for l in out.splitlines() if 'dotnet build' in l]
@@ -278,7 +281,6 @@ class CoverageWhenItIsActuallyMeasured(unittest.TestCase):
         root = tempfile.mkdtemp()
         subprocess.run(['git', 'init', '-q', root], check=True)
         os.makedirs(os.path.join(root, 'scripts'))
-        shutil.copy(os.path.join(SCRIPTS, 'gate-core.sh'), os.path.join(root, 'scripts', 'gate-core.sh'))
         files = dict(self.DOCS)
         files['scripts/merge-gate.conf'] = f'COVERAGE_CMD="{coverage_cmd}"\n'
         for name, text in files.items():
@@ -289,7 +291,7 @@ class CoverageWhenItIsActuallyMeasured(unittest.TestCase):
         with open(os.path.join(root, 'App.sln'), 'w', encoding='utf-8') as handle:
             handle.write('')
         self.root = root
-        result = subprocess.run(['bash', 'scripts/gate-core.sh', 'test'],
+        result = subprocess.run(['bash', GATE, 'test'],
                                 cwd=root, capture_output=True, text=True)
         return ANSI.sub('', result.stdout), result.returncode
 
@@ -328,7 +330,6 @@ class MissingE2eSpecOnlyWarns(unittest.TestCase):
         subprocess.run(['git', 'config', 'user.email', 't@t'], cwd=root, check=True)
         subprocess.run(['git', 'config', 'user.name', 't'], cwd=root, check=True)
         os.makedirs(os.path.join(root, 'scripts'))
-        shutil.copy(os.path.join(SCRIPTS, 'gate-core.sh'), os.path.join(root, 'scripts', 'gate-core.sh'))
         files = dict(self.DOCS)
         files['e2e/smoke.spec.ts'] = "test('smoke', () => {})\n"
         files['scripts/merge-gate.conf'] = 'COVERAGE_CMD="true"\n'
@@ -346,7 +347,7 @@ class MissingE2eSpecOnlyWarns(unittest.TestCase):
         subprocess.run(['git', 'add', '-A'], cwd=root, check=True)
         subprocess.run(['git', 'commit', '-qm', 'behaviour change, no spec'], cwd=root, check=True)
         self.root = root
-        result = subprocess.run(['bash', 'scripts/gate-core.sh', target],
+        result = subprocess.run(['bash', GATE, target],
                                 cwd=root, capture_output=True, text=True)
         return ANSI.sub('', result.stdout), result.returncode
 

@@ -157,40 +157,45 @@ When the user says "from now on, always do it this way":
    gets reverted by accident later.
 4. Write it in the same turn; never say "I'll add it later".
 
-## 10. The live dashboard — during a long gate or run (PERMANENT, all projects)
+## 10. Status reporting — during a long gate or run (PERMANENT, all projects)
 
-When you start a gate, run or deploy that takes minutes (merge gate, CI, test battery,
-publish/deploy chain, migration), **publish an Artifact dashboard and keep it current by
-republishing to the SAME URL throughout the run.** A text report does not replace the
-dashboard; give both.
+When a gate, run or deploy takes minutes (merge gate, CI, test battery, publish/deploy
+chain, migration), report it as a **short markdown table in the reply itself**.
 
-### 10a. What the dashboard MUST contain
+⚠️ **No Artifact dashboard and no published board — they were REMOVED from the flow**
+(user decision, 21/09/2026). Publishing a page, keeping it current at the same URL and
+then repeating the same content as text cost a round of work per report and split the
+record in two: the reply and the page disagreed as soon as one of them was updated. The
+table in the conversation is now the whole deliverable, and it is what the user reads.
 
-1. **A weighted overall percentage.** Break the work into items, weight each by the
-   *effort remaining* (totalling 100), and sum the weights of what is complete. An
-   unweighted "5 of 10 items done" is misleading — a review of 473 commits and a one-line
-   config change are not the same thing.
-2. **Per-item breakdowns.** The sub-steps of the running item must be individually
-   visible; the percentage is computed from the breakdown, not from a guess.
-3. **A live measurement.** The time of the last measurement, the raw data measured
-   (processes, memory, SHA, file timestamps) and which stage it corresponds to.
-4. **Open risks and blockers.** Every item awaiting a decision or blocking the next one,
-   with its reasoning.
+### 10a. What the table contains
+
+One row per item that matters, and these columns:
+
+| Column | What goes in it |
+|---|---|
+| The item | the job, named as the user would name it |
+| State | done · running · blocked · did not run |
+| Measured figure | the number **and the signal it was read from** (`983 tests`, `460/565 = 81.4%`, `exit 1`) |
+| Waiting on | what has to happen next, or who owns it |
+
+Keep it short. A twenty-row table is not a report, it is a dump — collapse what is
+finished into one row and give the remaining work its own rows.
 
 ### 10b. Permanent rules
 
-- ⚠️ **The percentage is MEASURED, not invented.** State on the dashboard which signal
-  you read it from (process signature, file timestamp, API result). If you cannot measure
-  it, give a range and say "cannot be measured".
-- ⚠️ **An over-optimistic estimate is an ERROR and gets corrected.** If the percentage
-  drops once you produce the breakdown, drop it and say why — never round quietly upward.
+- ⚠️ **Every figure is MEASURED, not invented.** Name the signal it came from. If it
+  cannot be measured, the row says "cannot be measured" — never a plausible-looking guess.
+- ⚠️ **A step that did not run is reported as "did not run"**, never folded into a pass.
+  The same rule as the gate's own (#25): a step that did not run did not pass.
+- ⚠️ **An over-optimistic estimate is an ERROR and gets corrected.** If the figure drops
+  once the breakdown exists, drop it and say why — never round quietly upward.
 - ⚠️ **Never pipe a long run's output into something that buffers** (`tail`/`head`): no
-  intermediate progress can be read until the job finishes. Write to a log file and feed
-  the dashboard from that.
-- ⚠️ **If stage detection is indirect, SAY SO** ("I am inferring it from the process
-  count"). An indirect measurement can be wrong; the reader must know what they are
-  looking at.
-- ⚠️ **Republish to the same file path** — do not produce a new URL, the user is keeping
-  the tab open.
-- The user sets the reporting interval; if they do not, report on stage changes. Pass a
-  short line even on unchanged turns — do not go silent.
+  intermediate progress can be read until the job finishes. Write to a log file and read
+  the table from that.
+- ⚠️ **If a state is inferred rather than observed, SAY SO** ("inferred from the process
+  count"). An indirect reading can be wrong and the reader must know which kind they have.
+- **Give a time estimate for what is left**, split into what is yours and what is the
+  user's. "Blocked" with no owner is not a status.
+- The user sets the reporting interval; if they do not, report on state changes. Send a
+  short line even on an unchanged turn — do not go silent.
