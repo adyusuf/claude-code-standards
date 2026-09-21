@@ -30,6 +30,14 @@
             "command": "bash \"$HOME/.claude/scripts/md-hook.sh\""
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/scripts/measurement-ledger.py\" --auto --detach"
+          }
+        ]
       }
     ]
   },
