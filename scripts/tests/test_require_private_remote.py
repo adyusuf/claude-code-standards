@@ -4,7 +4,10 @@ import subprocess
 import tempfile
 import unittest
 
-HOOK = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'require-private-remote.sh')
+# normpath, not just join: the path is handed to a coverage tracer's filter, and
+# `.../tests/../require-private-remote.sh` does not match a scripts/ pattern even
+# though it resolves to the same file.
+HOOK = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'require-private-remote.sh'))
 
 
 class RequirePrivateRemote(unittest.TestCase):
@@ -22,8 +25,12 @@ class RequirePrivateRemote(unittest.TestCase):
         shutil.rmtree(self.bin, ignore_errors=True)
 
     def push(self, url, says='true', status='0', path=None):
-        env = dict(os.environ, PATH=path or f'{self.bin}:/usr/bin:/bin', FAKE_GH_SAYS=says, FAKE_GH_STATUS=status,
-                   FAKE_GH_LOG=self.log)
+        # The fake `gh` goes FIRST so the real one is never reached, but the rest of
+        # PATH is kept. Replacing PATH wholesale also dropped the coverage shim
+        # (scripts/coverage-shell.sh), so this hook measured 0% while being fully
+        # exercised — the tests were fine, the measurement could not see them.
+        env = dict(os.environ, PATH=path or f'{self.bin}:' + os.environ.get('PATH', '/usr/bin:/bin'),
+                   FAKE_GH_SAYS=says, FAKE_GH_STATUS=status, FAKE_GH_LOG=self.log)
         return subprocess.run(['bash', HOOK, 'origin', url], capture_output=True, text=True, env=env)
 
     def asked(self):

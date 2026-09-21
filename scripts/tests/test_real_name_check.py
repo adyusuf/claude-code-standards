@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 import unittest
 
-SCRIPTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+SCRIPTS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 
 # The shell scripts are run FROM THEIR REAL PATH, not from the copy inside the
 # throwaway repository. Both resolve their root with `git rev-parse

@@ -11,7 +11,7 @@ import os
 import unittest
 
 spec = importlib.util.spec_from_file_location(
-    'step_stats', os.path.join(os.path.dirname(__file__), '..', 'step-stats.py'))
+    'step_stats', os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'step-stats.py')))
 step_stats = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(step_stats)
 

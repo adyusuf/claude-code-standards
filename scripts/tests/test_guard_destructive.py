@@ -3,7 +3,7 @@ import os
 import subprocess
 import unittest
 
-GUARD = os.path.join(os.path.dirname(__file__), '..', 'guard-destructive.sh')
+GUARD = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'guard-destructive.sh'))
 
 
 def code(command):

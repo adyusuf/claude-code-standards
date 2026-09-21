@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 import unittest
 
-SCRIPTS = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..')
+SCRIPTS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 ANSI = re.compile(r'\x1b\[[0-9;]*m')
 
 # Run the gate from its real path, not a copy — see the note in

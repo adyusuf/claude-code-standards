@@ -4,7 +4,7 @@ import subprocess
 import tempfile
 import unittest
 
-HOOK = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'md-hook.sh')
+HOOK = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'md-hook.sh'))
 
 
 class MdHookDrift(unittest.TestCase):
