@@ -117,6 +117,7 @@ use: {
    - the promotion record (a commit status or similar) requires a valid full-run result;
    - some of the first run's failures were environmental (that run is not a valid baseline).
    If the fix is limited to a single spec or screen and no record is required, a targeted run is enough.
+7. **No test environment (user decision, 21/09/2026).** When `E2E_BASE_URL` is unset, Claude starts the stack locally (API + web, a throwaway test DB, e2e-only secrets from `.env`) and runs the whole suite against it, then stops it. The result is reported as "e2e ran locally (no test env)"; it satisfies the `prod` gate's e2e step (#33) but does not replace a run against `test` once one exists. Never pointed at a real/production database.
 6. **An invalid run.** The result of a run that hit an environment limit is never reported as a product result; parallelism is lowered, the run repeated, and this is stated explicitly.
 
 ## 10. Never-do list

@@ -105,6 +105,7 @@
 33. **E2E runs at the `prod` gate only, and the code must be on `test` first.**
  - **`feature → dev` and `dev → test`:** e2e is not RUN. The gate only CHECKS whether a spec is missing (#25) — no deploy wait, no status file.
  - **`test → prod`, in order:** 1) the code is deployed to `test` and the deploy is **verified** (the version endpoint reports this SHA) · 2) any missing spec is written and verified against the test environment · 3) the **WHOLE** e2e suite runs against `test` (#31's cycle applies to failures) · 4) nothing red ⇒ merge to `prod`. Red, stale or absent ⇒ no merge.
+ - **No test environment (`E2E_BASE_URL` unset):** start the app locally (API + web, own test DB) and run the FULL suite there — this is the fallback, not a skip. The report reads "e2e ran locally (no test env)"; the version check is against the local SHA.
  - **The only exception is a hotfix:** the report reads "e2e skipped (hotfix)", which does not count as passing.
  → `docs/decision-log.md` §33
 
