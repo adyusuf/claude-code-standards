@@ -519,7 +519,7 @@ that runs. What was built, and the decisions behind it:
 - ❌ Shipping to `prod` without e2e — only work the user explicitly calls a "hotfix" ships without it → #31
 - ❌ Starting a test run after every small change before the code is finished; writing or running an e2e spec before the code reaches `test` — all the code first, then write and run unit tests, e2e once it reaches test → #32
 - ❌ Starting an autonomous background agent or loop without asking the user → #20
-- ❌ Invoking the `test-writer` and `migration-reviewer` subagents — strictly forbidden. ⚠️ The ban is tied to **names** and those names are not on disk today; the real protection is **the mode's role set**: no agent outside the mode's roles is called (including the 21 active plugin agents) → #27, #28
+- ❌ Invoking any agent outside the active mode's role set — `migration-reviewer` (no longer on disk) and the plugin agents whose names shadow these roles (`ext:test-engineer`, `ext:code-reviewer`) included. ⚠️ The ban used to name `test-writer`, and that was a contradiction: `agents/test-writer.md` is on disk and B — the default mode — pre-approves it. A ban tied to names rots the moment a role file is added; the protection is **the mode's role set**, and no agent outside it is called (including the 21 active plugin agents) → #27, #28
 - ❌ Starting an agent in mode A; calling an agent outside the mode's set in B/C/D/E. ⚠️ With no mode file, **B** now applies — B's three agents are free, a fourth is not → #27
 - ❌ Ending a turn without reporting the agent count and estimated cost (B/C/D/E) → #27
 - ❌ Slowing down a `dev` merge with review/scanning gates → #25 (but skipping the gate on the `test`/`prod` promotion is equally forbidden)
