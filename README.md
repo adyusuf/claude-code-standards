@@ -159,7 +159,7 @@ because something broke first.
 | Engineering standards | `standards/` | 22 documents + 6 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate and measurement scripts | `scripts/` | 20 scripts + 280 tests |
+| Gate and measurement scripts | `scripts/` | 20 scripts + 292 tests |
 | Slash commands and skills | `commands/`, `skills/` | 5 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
