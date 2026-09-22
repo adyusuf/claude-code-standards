@@ -15,7 +15,7 @@ bash "$ROOT/scripts/gate-core.sh" "$target" || exit 1
 
 # ── This repository's own extra step ─────────────────────────────────────────
 # Being the canonical set carries one duty no project has: keeping the copies in
-# step. Twins drifted in BOTH directions on 21/09/2026 — the canonical was the
+# step. Twins drifted in BOTH directions — the canonical was the
 # stale side in the morning and the projects were in the evening — and both times
 # it was found by comparing blobs by hand. Now it is a step.
 #

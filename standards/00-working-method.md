@@ -163,7 +163,7 @@ When a gate, run or deploy takes minutes (merge gate, CI, test battery, publish/
 chain, migration), report it as a **short markdown table in the reply itself**.
 
 ⚠️ **No Artifact dashboard and no published board — they were REMOVED from the flow**
-(user decision, 21/09/2026). Publishing a page, keeping it current at the same URL and
+(user decision). Publishing a page, keeping it current at the same URL and
 then repeating the same content as text cost a round of work per report and split the
 record in two: the reply and the page disagreed as soon as one of them was updated. The
 table in the conversation is now the whole deliverable, and it is what the user reads.
@@ -204,7 +204,7 @@ finished into one row and give the remaining work its own rows.
   `coverage.sh` in its own command line, so `pgrep -f` counts it and the condition can
   never be met. It looks exactly like a job that is still running — and it was reported
   to the user as one, repeatedly, while the actual measurement had already finished
-  (21/09/2026). Match on something the waiter cannot contain: `pgrep -f '[c]overage.sh'`,
+  Match on something the waiter cannot contain: `pgrep -f '[c]overage.sh'`,
   or `pgrep -x`, or wait on the writer's own PID (`kill -0 "$pid"`), or check the output
   file for its final line. **Before reporting "still running", verify with `ps` that a
   REAL process is there and not just the waiter.**

@@ -23,7 +23,7 @@ selecting a role.**
 - **A status table is reported throughout a long run** (global rule: "STATUS
   REPORTING during a long gate/run"). The measured figures, the signal each was read
   from and the open risks go in a markdown table in the reply. ⚠️ No Artifact
-  dashboard — it was removed from the flow on 21/09/2026.
+  dashboard — it was removed from the flow.
 - Before starting a Workflow I **write down the agent count and the cost estimate** —
   this mode removes asking per agent, not declaring the scale.
 - Review: the `qa` agent; critical findings are verified by me.
@@ -33,9 +33,10 @@ selecting a role.**
   finds a gap **sends the work back and gets it fixed** (a retry gate in the script;
   closure is re-running the verification); if it is not closed within 2 hand-backs
   the phase stops and the open findings are written to the dashboard.
-- The threshold (§8) in mode E is **a warning at ~$200, a stop at ~$400**; if it is
-  going to be exceeded, it is asked before the run. The autonomous run's $100
-  ceiling is independent of this — whichever fills first is the one that stops.
+- There is no spending threshold for mode E. **The cost is asked about before the
+  run instead**, which is the check that mattered: a fan-out's size is known up front,
+  and a stop halfway through leaves half the modules done. The autonomous run's $100
+  ceiling still applies when the fan-out runs unattended (#20).
 
 ## When to use it
 Multi-file scanning or auditing, repeating the same work across N modules,

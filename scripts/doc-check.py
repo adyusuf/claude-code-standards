@@ -10,7 +10,10 @@ Exit 0 = consistent, 1 = at least one finding (each printed as `file: message`).
 What it checks (each one is a drift the rule set actually suffers from):
   1. every relative Markdown link  [text](path)  resolves to a file;
   2. every backticked repo path under standards/ modes/ docs/ agents/ commands/ skills/
-     exists (unless git ignores it: a generated, local-only file is absent in a clean clone; and
+     scripts/ — .md .tsv .sh .py .json .conf — exists. ⚠️ The pattern used to cover
+     only .md and .tsv under the six folders, so scripts/ and every script extension
+     were INVISIBLE: 51 references here were never checked, and removing four scripts
+     left 20 dead references the gate reported as consistent (unless git ignores it: a generated, local-only file is absent in a clean clone; and
      inside a git repository only files git does not ignore are read at all);
      the same holds for a relative link's target (a `~/.claude/` prefix is read as the repository root, and only checked when
      the root IS the configuration repository; `docs/...` inside standards/ names a
@@ -37,7 +40,8 @@ import subprocess
 import sys
 
 LINK = re.compile(r'\]\(([^)\s]+)\)')
-PATH = re.compile(r'`(~/\.claude/)?((?:standards|modes|docs|agents|commands|skills)/[A-Za-z0-9._/-]+\.(?:md|tsv))`')
+PATH = re.compile(r'`(~/\.claude/)?((?:standards|modes|docs|agents|commands|skills|scripts)/'
+                  r'[A-Za-z0-9._/-]+\.(?:md|tsv|sh|py|json|conf))`')
 RULE_LINE = re.compile(r'^(\d+)(?:-(\d+))?\.\s+\*\*', re.M)
 RULE_REF = re.compile(r'(?<![\w&/])#(\d{1,2})\b')
 INDEXES = {'standards/README.md': 'standards', 'docs/README.md': 'docs', 'modes/README.md': 'modes'}

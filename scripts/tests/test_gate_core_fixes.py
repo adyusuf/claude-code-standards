@@ -2,13 +2,13 @@
 
 `--run` is a vitest flag. Handing it to a jest project fails with "Unrecognized
 option run", so the gate reported a PASSING suite as failing — measured on
-21/09/2026 against a mobile suite of 10 tests, which passes on its own.
+It was measured against a mobile suite of 10 tests, which passes on its own.
 
 Each case installs a stub runner at web/node_modules/.bin/<name>, which is where
 `npm run` looks first, so `"test": "jest"` really resolves to the stub.
 
 The file grew past that one step: it now pins all five gate-core fixes of
-21/09/2026 — the JS test flag, the coverage refusal, .NET and Node stack
+The five: the JS test flag, the coverage refusal, .NET and Node stack
 detection, and passing the solution to dotnet as a target. Every one was
 mutation-verified; the record is in docs/decision-log.md §25.
 
@@ -183,7 +183,7 @@ class SolutionTarget(unittest.TestCase):
     Detection finding a nested project made HAS_DOTNET=1 while the build command
     still ran with no argument, so in a repository whose solution lives under
     api/ or backend/ the step failed with "MSBUILD : error MSB1003: Specify a
-    project or solution file" — measured 21/09/2026 in one repository, and four
+    project or solution file" — measured in one repository, and four
     of five .NET repositories here keep their solution below the root.
     """
 

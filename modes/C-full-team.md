@@ -26,10 +26,11 @@ selecting a role.**
   (one file, a defined signature). Cross-layer work stays with me.
 - Review: the `qa` agent makes **the first pass** and **I verify** the critical
   findings. Review is not lost, it becomes two-layered (#27).
-- I do not ask before an agent call; I pass a cost line at **every handoff** and
-  total it at the end of the turn (`role-selection.md` §6, §8). The threshold is
-  two-stage: **a warning at ~$75, a stop at ~$150** — consistent with the mode's own
-  expectation of +$100–150.
+- I do not ask before an agent call; the agent count and the estimated cost are
+  reported at the **end of the turn** (#27, `role-selection.md` §6). The mode's own
+  expectation is still +$100–150 per full pass, and that is an estimate to plan with
+  rather than a gate: the per-handoff cost line and the spending threshold were both
+  removed (`README.md` › "Who audits whom").
 - The auditing roles **do not ask, they check**: if anything is missing or wrong the
   work is **sent back to its producer and fixed**, and closure is evidenced by
   re-running the same verification; a handoff requires **one clean pass** (§7). If

@@ -134,11 +134,15 @@ In every mode, on every turn that uses agents:
    [`completeness-check-core.md`](completeness-check-core.md) — it is copied verbatim
    into every role that owes it, and `scripts/doc-check.py` fails if a copy reworded a
    line (adding one of its own is allowed, and five roles do).
-2. **Cost is reported at every handoff**, never deferred to the end of the turn:
-   `↳ analyst done · ~$3 · turn total ~$9 (2 agents) · threshold ~$150 (C)`.
-   The threshold is **mode-dependent and two-stage**: a warning at half, a stop at
-   the full figure — B ~$25 · C ~$150 · D ~$260 · E ~$400. Where the figures come
-   from → §8.
+2. **The agent count and the estimated cost are reported at the END of the turn**
+   (#27) — one line, not a running ledger.
+   > ⛔ This used to demand a cost line at every handoff, against a two-stage
+   > threshold per mode (B ~$25 · C ~$150 · D ~$260 · E ~$400). Both are gone. The
+   > thresholds were never measured — §8 said so itself — so they stopped a chain on
+   > a number derived from price ratios, and per-handoff accounting is bookkeeping
+   > most teams have no use for. The one cost limit that remains is the autonomous
+   > run's $100 ceiling, which is a safety stop for unattended work (#20), not
+   > economics.
 3. **`product-manager` output goes to user approval**, it does not flow into the
    chain automatically (§2a). **`devops` output goes into `qa`** (§3).
 

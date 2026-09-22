@@ -10,7 +10,12 @@ Usage:
 
 What it wires:
     PreToolUse(Bash)  ->  hooks/guard-destructive.sh          blocks the never-do commands
-    Stop              ->  hooks/measurement-ledger.py --auto --detach   refreshes docs/measurement-ledger.tsv
+
+It used to wire a Stop hook for a measurement ledger as well. That tooling is
+deliberately NOT in this repository: it records per-session token and cost metadata,
+which a published rule set has no business carrying, and a ledger next to the rules
+keeps session metadata on disk longer than the platform's own retention. If you run
+something like it, wire it yourself and keep it outside the checkout.
 
 Why symlinks in ~/.claude/hooks and not in ~/.claude/scripts: `scripts` is itself a
 symlink into the PROD worktree, so a new file there would appear as untracked in prod
@@ -33,10 +38,9 @@ import sys
 HERE = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_REPO = os.path.dirname(HERE)
 
-LINKS = ('guard-destructive.sh', 'measurement-ledger.py')
+LINKS = ('guard-destructive.sh',)
 HOOKS = (
     ('PreToolUse', 'Bash', 'bash "$HOME/.claude/hooks/guard-destructive.sh"'),
-    ('Stop', None, 'python3 "$HOME/.claude/hooks/measurement-ledger.py" --auto --detach'),
 )
 
 
