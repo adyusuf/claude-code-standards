@@ -211,26 +211,27 @@ def measure(paths):
     for path in paths:
         first = model = None
         count, cost = 0, 0.0
-        for line in open(path, errors='ignore'):
-            try:
-                record = json.loads(line)
-            except Exception:
-                continue
-            message = record.get('message') or {}
-            usage = message.get('usage')
-            if not usage:
-                continue
-            p_in, p_out, cache_rate = price(message.get('model'))
-            model = model or message.get('model')
-            tokens_in = usage.get('input_tokens', 0) or 0
-            tokens_out = usage.get('output_tokens', 0) or 0
-            cache_write = usage.get('cache_creation_input_tokens', 0) or 0
-            cache_read = usage.get('cache_read_input_tokens', 0) or 0
-            cost += (tokens_in * p_in + tokens_out * p_out
-                     + cache_write * p_in * 1.25 + cache_read * p_in * cache_rate) / 1e6
-            if first is None:
-                first = tokens_in + cache_write + cache_read
-            count += 1
+        with open(path, errors='ignore') as handle:
+            for line in handle:
+                try:
+                    record = json.loads(line)
+                except Exception:
+                    continue
+                message = record.get('message') or {}
+                usage = message.get('usage')
+                if not usage:
+                    continue
+                p_in, p_out, cache_rate = price(message.get('model'))
+                model = model or message.get('model')
+                tokens_in = usage.get('input_tokens', 0) or 0
+                tokens_out = usage.get('output_tokens', 0) or 0
+                cache_write = usage.get('cache_creation_input_tokens', 0) or 0
+                cache_read = usage.get('cache_read_input_tokens', 0) or 0
+                cost += (tokens_in * p_in + tokens_out * p_out
+                         + cache_write * p_in * 1.25 + cache_read * p_in * cache_rate) / 1e6
+                if first is None:
+                    first = tokens_in + cache_write + cache_read
+                count += 1
         if count:
             result[path] = (first, count, cost, model)
     return result
@@ -240,37 +241,38 @@ def count_steps(sessions):
     """Per step: how many calls actually RAN it (false positives are filtered out)."""
     counts, dismissed, best = collections.Counter(), collections.Counter(), {}
     for path in sessions:
-        for line in open(path, errors='ignore'):
-            if '"tool_use"' not in line:
-                continue
-            try:
-                record = json.loads(line)
-            except Exception:
-                continue
-            content = (record.get('message') or {}).get('content')
-            if not isinstance(content, list):
-                continue
-            for block in content:
-                if not (isinstance(block, dict) and block.get('type') == 'tool_use'):
+        with open(path, errors='ignore') as handle:
+            for line in handle:
+                if '"tool_use"' not in line:
                     continue
-                raw = str((block.get('input') or {}).get('command') or '')
-                if not raw or NOISE_COMMAND.search(raw):
+                try:
+                    record = json.loads(line)
+                except Exception:
                     continue
-                command = command_part(raw)
-                for name, pattern in STEPS:
-                    match = re.search(pattern, command, re.I)
-                    if not match:
-                        if re.search(pattern, raw, re.I):
-                            dismissed[name] += 1      # only inside a heredoc body
+                content = (record.get('message') or {}).get('content')
+                if not isinstance(content, list):
+                    continue
+                for block in content:
+                    if not (isinstance(block, dict) and block.get('type') == 'tool_use'):
                         continue
-                    before = command[max(0, match.start() - 60):match.start()]
-                    if NOISE_PREFIX.search(before):
-                        dismissed[name] += 1
+                    raw = str((block.get('input') or {}).get('command') or '')
+                    if not raw or NOISE_COMMAND.search(raw):
                         continue
-                    counts[name] += 1
-                    score = (2 if SEGMENT.search(before) else 0) + (1 if len(command) < 120 else 0)
-                    if score > best.get(name, (-1, ''))[0]:
-                        best[name] = (score, shape(command))
+                    command = command_part(raw)
+                    for name, pattern in STEPS:
+                        match = re.search(pattern, command, re.I)
+                        if not match:
+                            if re.search(pattern, raw, re.I):
+                                dismissed[name] += 1      # only inside a heredoc body
+                            continue
+                        before = command[max(0, match.start() - 60):match.start()]
+                        if NOISE_PREFIX.search(before):
+                            dismissed[name] += 1
+                            continue
+                        counts[name] += 1
+                        score = (2 if SEGMENT.search(before) else 0) + (1 if len(command) < 120 else 0)
+                        if score > best.get(name, (-1, ''))[0]:
+                            best[name] = (score, shape(command))
     return counts, {k: v[1] for k, v in best.items()}, dismissed
 
 
@@ -300,24 +302,25 @@ def role_ids(sessions):
     id_to_role = {}
     for path in sessions:
         pending = {}
-        for line in open(path, errors='ignore'):
-            try:
-                record = json.loads(line)
-            except Exception:
-                continue
-            content = (record.get('message') or {}).get('content')
-            if not isinstance(content, list):
-                continue
-            for block in content:
-                if not isinstance(block, dict):
+        with open(path, errors='ignore') as handle:
+            for line in handle:
+                try:
+                    record = json.loads(line)
+                except Exception:
                     continue
-                if block.get('type') == 'tool_use' and block.get('name') in ('Agent', 'Task'):
-                    pending[block.get('id')] = (block.get('input') or {}).get('subagent_type') or 'unknown'
-                if block.get('type') == 'tool_result':
-                    text = json.dumps(block.get('content'), ensure_ascii=False)
-                    found = re.search(r'agentId: ([0-9a-f]{8})', text)
-                    if found:
-                        id_to_role[found.group(1)] = pending.get(block.get('tool_use_id'), 'unknown')
+                content = (record.get('message') or {}).get('content')
+                if not isinstance(content, list):
+                    continue
+                for block in content:
+                    if not isinstance(block, dict):
+                        continue
+                    if block.get('type') == 'tool_use' and block.get('name') in ('Agent', 'Task'):
+                        pending[block.get('id')] = (block.get('input') or {}).get('subagent_type') or 'unknown'
+                    if block.get('type') == 'tool_result':
+                        text = json.dumps(block.get('content'), ensure_ascii=False)
+                        found = re.search(r'agentId: ([0-9a-f]{8})', text)
+                        if found:
+                            id_to_role[found.group(1)] = pending.get(block.get('tool_use_id'), 'unknown')
     return id_to_role
 
 
@@ -372,41 +375,43 @@ def compare_cuts():
         if os.path.basename(path).startswith('agent-'):
             continue
         first = started = None
-        for line in open(path, errors='ignore'):
-            try:
-                record = json.loads(line)
-            except Exception:
-                continue
-            if started is None and record.get('timestamp'):
-                started = record['timestamp']
-            usage = (record.get('message') or {}).get('usage')
-            if usage:
-                first = sum(usage.get(k, 0) or 0 for k in
-                            ('input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens'))
-                break
+        with open(path, errors='ignore') as handle:
+            for line in handle:
+                try:
+                    record = json.loads(line)
+                except Exception:
+                    continue
+                if started is None and record.get('timestamp'):
+                    started = record['timestamp']
+                usage = (record.get('message') or {}).get('usage')
+                if usage:
+                    first = sum(usage.get(k, 0) or 0 for k in
+                                ('input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens'))
+                    break
         if first and started:
             rows.append((datetime.datetime.fromisoformat(started.replace('Z', '+00:00')).timestamp(), first))
     out = ["## Fixed prefix — configuration cuts (before / after)\n",
            "| cut | label | before (median · n) | after (median · n) | delta |",
            "|---|---|---|---|---|"]
     index = 0
-    for line in open(cuts_file, encoding='utf-8'):
-        if line.startswith('#') or not line.strip():
-            continue
-        index += 1
-        try:
-            timestamp, label = line.rstrip('\n').split('\t', 1)
-        except ValueError:
-            continue
-        cut = datetime.datetime.fromisoformat(timestamp).timestamp()
-        before = [value for when, value in rows if when <= cut]
-        after = [value for when, value in rows if when > cut]
-        b = int(statistics.median(before)) if before else 0
-        a = int(statistics.median(after)) if after else 0
-        delta = cut_delta(b, len(before), a, len(after))
-        after_cell = f"{a:,} · {len(after)}" if a else "—"
-        # The cut's timestamp stays in the local tsv; the published table shows its order.
-        out.append(f"| cut {index} | {label} | {b:,} · {len(before)} | {after_cell} | {delta} |")
+    with open(cuts_file, encoding='utf-8') as handle:
+        for line in handle:
+            if line.startswith('#') or not line.strip():
+                continue
+            index += 1
+            try:
+                timestamp, label = line.rstrip('\n').split('\t', 1)
+            except ValueError:
+                continue
+            cut = datetime.datetime.fromisoformat(timestamp).timestamp()
+            before = [value for when, value in rows if when <= cut]
+            after = [value for when, value in rows if when > cut]
+            b = int(statistics.median(before)) if before else 0
+            a = int(statistics.median(after)) if after else 0
+            delta = cut_delta(b, len(before), a, len(after))
+            after_cell = f"{a:,} · {len(after)}" if a else "—"
+            # The cut's timestamp stays in the local tsv; the published table shows its order.
+            out.append(f"| cut {index} | {label} | {b:,} · {len(before)} | {after_cell} | {delta} |")
     return out
 
 
