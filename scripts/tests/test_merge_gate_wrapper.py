@@ -32,7 +32,11 @@ class MergeGateWrapper(unittest.TestCase):
         with open(path, 'w', encoding='utf-8') as handle:
             handle.write(text)
         if executable:
-            os.chmod(path, 0o755)
+            # 0o700, not 0o755: the only process that runs these stubs is this test.
+            # CodeQL flagged the wider mask (py/overly-permissive-file, 7.8) and it was
+            # right — a world-writable temp directory plus a world-readable stub is a
+            # shape nobody needs in a fixture.
+            os.chmod(path, 0o700)
         return path
 
     def stub(self, name, exit_code=0):
