@@ -136,6 +136,34 @@ class DocCheck(unittest.TestCase):
         files['agents/qa.md'] = self.CORE.replace('the command you ran', 'anything')
         self.assertEqual(dc.run(build(files)), [])
 
+    # Until the pattern was widened it matched only .md and .tsv under six folders, so
+    # `scripts/` and every script extension were invisible: 51 references in this
+    # repository were never checked, and removing four scripts left 20 dead ones that
+    # the gate reported as consistent.
+    def test_a_dead_script_reference_is_found(self):
+        files = consistent()
+        files['standards/00-a.md'] += '\nrun `scripts/gone.sh` and `scripts/gone.py`\n'
+        found = [f.split(' -> ')[1] for f in dc.run(build(files))]
+        self.assertEqual(sorted(found), ['scripts/gone.py', 'scripts/gone.sh'])
+
+    def test_a_live_script_reference_passes(self):
+        files = consistent()
+        files['standards/00-a.md'] += '\nrun `scripts/a.sh` and `scripts/b.py`\n'
+        self.assertEqual(dc.run(build(files)), [])
+
+    def test_a_dead_conf_or_json_reference_is_found(self):
+        files = consistent()
+        files['modes/A-skill.md'] = 'see `scripts/gone.conf` and `scripts/gone.json`'
+        found = [f.split(' -> ')[1] for f in dc.run(build(files))]
+        self.assertEqual(sorted(found), ['scripts/gone.conf', 'scripts/gone.json'])
+
+    def test_a_script_name_without_backticks_is_not_a_reference(self):
+        # A retired name being DISCUSSED is prose, not a path. Backticking it is what
+        # makes it a claim that the file exists.
+        files = consistent()
+        files['standards/00-a.md'] += '\nthis was called ci-local.sh while it was a plan\n'
+        self.assertEqual(dc.run(build(files)), [])
+
     def test_a_digit_glued_to_a_word_is_not_read_as_a_count(self):
         # `python3 scripts/x.py` was reported as "states 3 scripts": a finding with no
         # fix except rewording a correct shell command. A count is never glued to a word.
