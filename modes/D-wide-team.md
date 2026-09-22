@@ -43,8 +43,10 @@ selecting a role.**
 - Independent roles are started **in parallel in the same message**.
 - `developer` only for **isolated pieces with a clear contract**; cross-layer work
   stays with me.
-- I do not ask before an agent call; I pass a cost line at **every handoff** (§6, §8).
-  The threshold is two-stage: **a warning at ~$130, a stop at ~$260**.
+- I do not ask before an agent call; the agent count and the estimated cost are
+  reported at the **end of the turn** (#27, §6). No per-handoff cost line, no spending
+  threshold — this mode is the most expensive one, so plan the pass rather than
+  relying on a stop that is no longer there.
 - The auditing roles **do not ask, they check**: if anything is missing or wrong the
   work is **sent back to its producer and fixed**, and closure is evidenced by
   re-running the same verification; a handoff requires **one clean pass** (§7). If it

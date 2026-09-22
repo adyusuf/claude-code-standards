@@ -268,7 +268,30 @@ it and merge it to `dev`, then move to the next.
   asking — the default itself is the approval for those three agents. The other
   eleven roles require C/D/E. If the user names a mode, run the `/working-mode` skill.
 
-## §28 — The auditor checks, sends back and gets it fixed; cost is reported at every handoff
+## §28 — The auditor checks, sends back and gets it fixed
+
+> ⛔ **The cost half of this rule was removed.** It required a cost line at every role
+> handoff, counted against a two-stage spending threshold per mode (B ~$25 · C ~$150 ·
+> D ~$260 · E ~$400), and the section that defined those figures said in its own text
+> that they were **derived from price ratios rather than measured**. A brake set on an
+> invented number either fires in normal conditions — an unnecessary question on every
+> task — or never fires at all. Neither is a gate.
+>
+> What survives: the agent count and the estimated cost are reported at the **end of
+> the turn** (#27), mode E asks about cost **before** the run (a fan-out's size is
+> known up front, and stopping halfway leaves half the modules done), and the
+> autonomous run's **$100** ceiling stays because it is a safety stop for unattended
+> work, not economics.
+>
+> The measurement tooling behind the figures also left the repository, to
+> `~/.claude/measurement/`: a published rule set has no business carrying per-session
+> token and cost metadata, and a ledger beside the rules keeps that metadata on disk
+> longer than the platform's own retention. `step-stats.py` stays, because it carries
+> the sanitiser and produces the published measurement log — the findings stay
+> reproducible even though the bookkeeping is gone.
+>
+> The reasoning worth keeping from the deleted section: **a brake fires in abnormal
+> conditions, not in normal ones.** Any future limit has to pass that test first.
 
 - **One clean pass is enough.** A single "no
   serious gap" (`✅ clean`) is sufficient for a handoff. ⚠️ This does **not loosen**
