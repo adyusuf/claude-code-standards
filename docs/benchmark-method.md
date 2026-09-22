@@ -67,7 +67,7 @@ A number that breaks these rules is not reported as a finding.
 ## Reproduce
 
 ```bash
-python3 scripts/measurement-ledger.py --write     # merge new rows into the ledger
+python3 ~/.claude/measurement/measurement-ledger.py --write   # local-only tooling, see scripts/README.md
 python3 scripts/step-stats.py --write             # regenerate the aggregate log
 python3 - <<'PY'                                  # median list-price cost per kind/role/cut
 import csv, statistics, collections

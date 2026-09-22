@@ -15,10 +15,9 @@ and review stay with me.
   review in the `feature/* → dev` direction** — neither by hand nor by agent (#25);
   the exception is the security/backup/gate item in `role-selection.md` §3.
 - At most **4** agent turns per task; if I exceed that I stop and ask.
-- I do not ask before an agent call; I pass a cost line at **every handoff**
-  (`↳ analyst done · ~$3 · turn total ~$3 · threshold ~$25 (B)`) and total it at the
-  end of the turn. The threshold is two-stage: a warning at ~$12, a **stop at ~$25**
-  (§8).
+- I do not ask before an agent call; the agent count and the estimated cost are
+  reported at the **end of the turn** (#27). There is no per-handoff cost line and no
+  spending threshold — see `README.md` › "Who audits whom" for why both were removed.
 - `analyst` and `test-writer` close their reports with the **completeness-check**
   block; if anything is missing or wrong the work is **sent back and fixed**
   (closure = re-running the same verification), and a handoff requires **one clean

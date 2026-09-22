@@ -268,7 +268,30 @@ it and merge it to `dev`, then move to the next.
   asking — the default itself is the approval for those three agents. The other
   eleven roles require C/D/E. If the user names a mode, run the `/working-mode` skill.
 
-## §28 — The auditor checks, sends back and gets it fixed; cost is reported at every handoff
+## §28 — The auditor checks, sends back and gets it fixed
+
+> ⛔ **The cost half of this rule was removed.** It required a cost line at every role
+> handoff, counted against a two-stage spending threshold per mode (B ~$25 · C ~$150 ·
+> D ~$260 · E ~$400), and the section that defined those figures said in its own text
+> that they were **derived from price ratios rather than measured**. A brake set on an
+> invented number either fires in normal conditions — an unnecessary question on every
+> task — or never fires at all. Neither is a gate.
+>
+> What survives: the agent count and the estimated cost are reported at the **end of
+> the turn** (#27), mode E asks about cost **before** the run (a fan-out's size is
+> known up front, and stopping halfway leaves half the modules done), and the
+> autonomous run's **$100** ceiling stays because it is a safety stop for unattended
+> work, not economics.
+>
+> The measurement tooling behind the figures also left the repository, to
+> `~/.claude/measurement/`: a published rule set has no business carrying per-session
+> token and cost metadata, and a ledger beside the rules keeps that metadata on disk
+> longer than the platform's own retention. `step-stats.py` stays, because it carries
+> the sanitiser and produces the published measurement log — the findings stay
+> reproducible even though the bookkeeping is gone.
+>
+> The reasoning worth keeping from the deleted section: **a brake fires in abnormal
+> conditions, not in normal ones.** Any future limit has to pass that test first.
 
 - **One clean pass is enough.** A single "no
   serious gap" (`✅ clean`) is sufficient for a handoff. ⚠️ This does **not loosen**
@@ -471,7 +494,7 @@ that runs. What was built, and the decisions behind it:
   not `~/.claude/scripts`: `scripts` points into the PROD worktree, so a new file there
   would be untracked in prod and collide with the next promotion. The links point into
   the `dev` checkout; after a promotion `--repo <prod checkout>` re-points them.
-- **Automatic ledger (`scripts/measurement-ledger.py --auto`).** Every column is derived
+- **Automatic ledger (local-only tooling, no longer in this repository).** Every column is derived
   from the transcripts; there is no hand-filled field, and no project name, path or command
   is written (raw commands were rejected: an earlier commit already had to fix a log that
   bypassed the sanitiser). Incremental, locked, atomic, 600 s minimum interval, detached.
@@ -479,7 +502,7 @@ that runs. What was built, and the decisions behind it:
   and live `prod` worktrees dirty and would have blocked any promotion touching it; it was untracked
   (history keeps the earlier rows) and `scripts/doc-check.py` no longer reports a git-ignored path as a
   broken reference. The cost: the file is not backed up by git.
-- **Project nicknames and the per-day reports (`scripts/measurement-report.py`).** The ledger's
+- **Project nicknames and the per-day reports (local-only tooling, no longer in this repository).** The ledger's
   `project` column holds a nickname, never a folder name, and the folder-key → nickname map is a
   local git-ignored file because it is the one place real names live; a nickname that contains a
   real project name, or a project with no nickname, can never write a real name into the ledger
@@ -713,7 +736,7 @@ end would do.
 
 **Measurement:** the median fixed prefix was 57,756 tokens, an **18% share** of cost,
 and it had grown 27,700 → 63,500 tokens (2.3x) over fourteen weeks. Across the
-subagent runs in the same window the median was 52,313 tokens. Method and repeat instructions: `scripts/prefix-measure.py`,
+subagent runs in the same window the median was 52,313 tokens. Method and repeat instructions: `~/.claude/measurement/prefix-measure.py` (local-only tooling),
 `standards/00` §6b.
 
 - **§21-23:** the X/Y/Z team modes were moved to `modes/archive/`. They cannot be

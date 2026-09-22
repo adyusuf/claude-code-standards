@@ -190,14 +190,15 @@ The chain stops and I come back to the user in these cases:
 
 - **At the start of the turn:** which roles, in what order, and which were **skipped
   and why**.
-- **At every handoff** (as one role ends and the next begins): a one-line cost
-  reminder — that role's estimated cost + the turn's running total + the distance to
-  the threshold:
+- **At every handoff** (as one role ends and the next begins): one line saying the
+  role finished and its completeness check was clean, **with the evidence**:
 
-      ↳ analyst done · completeness check ✅ clean · ~$3 · turn total ~$9 (2 agents) · threshold ~$150 (C)
+      ↳ analyst done · completeness check ✅ clean (grep -rn X → 3 hits)
 
-- **At the end of the turn:** how many agents ran + the total estimated cost + where
-  that stands against the threshold.
+  The cost figure this line used to carry is gone with the threshold it counted
+  against (§8).
+- **At the end of the turn:** how many agents ran and the total estimated cost. One
+  line, informing rather than gating.
 
 Modes C/D are not run without these lines — because the approval is given up front,
 visibility is the only audit mechanism left.
@@ -234,10 +235,11 @@ The orchestrator does **not** write the full block at every handoff — the role
 block already carries the evidence, and a second copy repeats it. The orchestrator's
 obligations:
 
-- **One line per handoff** (the same line as the cost line in §6):
-  `↳ analyst done · ✅ clean (grep -rn X → 3) · ~$3 · turn total ~$9 · threshold ~$150 (C)`
+- **One line per handoff** (the same line as in §6):
+  `↳ analyst done · ✅ clean (grep -rn X → 3)`
   — "clean" **cannot be written without evidence**: the line carries the verification
-  that passed the handoff.
+  that passed the handoff. That evidence is the part that was always load-bearing; the
+  cost figure beside it was not, and it is gone (§8).
 - **The full block in two cases:** (a) **once at the end of the turn** — item mapping
   + not covered for the whole turn; (b) **on every "YES" decision** — the hand-back
   must carry what, with which evidence, and to whom it returns.
@@ -386,7 +388,7 @@ The table is an estimate today; **a measurement is recorded on every real agent 
 and the table is corrected once enough data accumulates. The method:
 
 1. After the turn, read **`subagent_tokens`** from the task notification.
-2. **The preferred route:** `python3 ~/.claude/scripts/session-cost.py <session-id>` —
+2. **The preferred route:** `python3 ~/.claude/measurement/session-cost.py <session-id>` —
    it sums the `usage` fields in the transcript, i.e. it **measures**.
    If only `subagent_tokens` is available, multiply by the model's per-MTok price; the
    current list is in the bundled `claude-api` skill.
@@ -439,33 +441,27 @@ what a threshold correction would require.
 ⚠️ The orchestrator's share confirms the measurement: in the same session, **main
 $26.99** vs **subagent $12.31** — most of the cost is still not in the agents, it is in me.
 
-### The threshold: **mode-dependent, two-stage**
+### The threshold: removed
 
-| Mode | Warning (half) | **Stop** |
-|---|---|---|
-| **A** | — (no agents) | — |
-| **B** | ~$12 | **~$25** |
-| **C** | ~$75 | **~$150** |
-| **D** | ~$130 | **~$260** |
-| **E** | ~$200 | **~$400** |
-| **X** (archived) | ~$25 | **~$50** |
-| **Y** (archived) | ~$150 | **~$300** |
-| **Z** (archived) | ~$300 | **~$600** |
+⛔ **There is no spending threshold any more, in any mode.** The table that used to
+sit here gave every mode a two-stage stop (B ~$25 · C ~$150 · D ~$260 · E ~$400), and
+the section immediately above it said the figures were **derived from price ratios,
+not measured**. So the brake stopped a chain on an invented number — and per-handoff
+cost accounting to feed it is bookkeeping most teams have no use for.
 
-⚠️ D read ~$150/$300 here while `CLAUDE.md` #28, `modes/README.md` and
-`D-wide-team.md` all said ~$130/$260, and **E was missing from the table
-entirely** while three archived modes had rows. The active figures are the ones
-in #28; this table follows them rather than the other way round.
+What replaces it:
 
-- **The warning tier:** one word is added to the handoff line (`⚠ half the threshold`)
-  and the work **does not stop**. The point is to remove the surprise: you see it
-  before hitting the ceiling.
-- **The stop tier:** the chain stops, what has been spent and what remains are written
-  down, and the decision to continue belongs to the user.
-- ⚠️ A threshold **must be consistent with the cost the mode itself declares.** A
-  single flat value set at a quarter of C's own expectation (+$100–150) would fire in
-  the **middle** of a normal C feature — which means either an unnecessary question on
-  every task or a dead rule. A brake fires in abnormal conditions, not in normal ones.
-- The autonomous run's own **$100** ceiling applies **independently** of this
-  (`autonomous-run.md`), and whichever fills first is the one that stops.
-- The thresholds can be changed by the user.
+- **The agent count and the estimated cost are reported at the END of the turn** (#27).
+  One line. It informs; it does not gate.
+- **In mode E the cost is asked about BEFORE the run.** A fan-out's size is known up
+  front, which is the moment where the answer can still change anything — a stop
+  halfway through leaves half the modules done.
+- **The autonomous run's $100 ceiling stays** (`autonomous-run.md`, #20). That one is a
+  safety stop for work running unattended, not economics, and it is the only cost
+  limit left that halts anything.
+
+⚠️ The thing worth keeping from the old section is the reasoning, not the numbers: **a
+brake fires in abnormal conditions, not in normal ones.** A flat threshold set at a
+quarter of what mode C itself expects to spend would have fired in the middle of an
+ordinary C feature — an unnecessary question on every task, or a dead rule. That is
+the test any future limit has to pass before it is written down.
