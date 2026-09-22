@@ -10,10 +10,16 @@ script; only `scripts/tests/` is omitted (`.coveragerc`). Nothing else is exclud
 
 ## Where it stands
 
+⚠️ **These figures are a snapshot, not a gate.** The gate is `scripts/coverage.sh`,
+which measures on every promotion; this file is a written record and it goes stale the
+moment a test lands. It has gone stale twice already. Refresh it with the command at
+the top and correct the numbers in the same commit as the tests that moved them.
+
+
 | Codebase | Coverage | State |
 |---|---|---|
-| Python scripts | **84%** (1,250 of 1,491 statements) | above the 80% threshold |
-| Shell scripts | **89.1%** (525 of 589 lines, 197 traced runs) | above the 80% threshold |
+| Python scripts | **82%** (833 of 1,014 statements) | above the 80% threshold |
+| Shell scripts | **90.3%** (533 of 590 lines, 204 traced runs) | above the 80% threshold |
 
 Neither figure is an average of the other. #29 forbids averaging codebases, and the
 gate reads them separately — either one below 80% closes it.
@@ -25,11 +31,15 @@ before trusting them:
 
 | File | Coverage | Why it matters |
 |---|---|---|
-| `scripts/merge-gate.sh` | **0%** (0 of 8 lines) | the wrapper every promotion goes through. It only calls the core and the drift check — but nothing proves it calls them |
-| `scripts/step-stats.py` | **61%** (121 statements missed) | the reporting half is untested. The sanitiser half is covered, and that is the half that must not leak |
+| `scripts/step-stats.py` | **60%** (125 statements missed) | `compare_cuts`, `report` and `main` — the functions that WRITE the document — are still untested. The sanitiser and the attribution below them are covered, and the sanitiser is the half that must not leak |
 | `scripts/guard-destructive.sh` | **65%** | the hook that refuses `rm -rf`, force push and `DROP`. The refusal paths are covered; the pass-through variants are not |
 | `scripts/real-name-check.sh` | **75%** | the commit-message guard |
 | `scripts/coverage-shell.sh` | **77.1%** | the tracer wrapper: it measures, and is itself the least measured thing here |
+
+`scripts/merge-gate.sh` used to head this table at 0%. It is at 100% now, and getting
+there took two attempts: the first set of tests passed every assertion while coverage
+stayed at 0.0%, because they ran a COPY of the wrapper. A test that exercises a copy
+proves the logic and measures nothing.
 
 ## How the shell codebase became measurable
 
