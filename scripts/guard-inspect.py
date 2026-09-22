@@ -2,7 +2,7 @@
 """Decides whether a Bash command is one of the never-do list's irreversible ones.
 
 This is the judgement half of scripts/guard-destructive.sh, which carried it
-inline in a heredoc until 21/09/2026. Extracted for two reasons:
+inline in a heredoc until recently. Extracted for two reasons:
 
   * it could not be TESTED directly, only through the shell wrapper, one
     subprocess per case with the payload squeezed through stdin;

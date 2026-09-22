@@ -12,7 +12,6 @@ REAL_REPO = os.path.dirname(os.path.realpath(SCRIPTS))
 
 MD_HOOK = 'bash "$HOME/.claude/scripts/md-hook.sh"'
 GUARD = 'bash "$HOME/.claude/hooks/guard-destructive.sh"'
-LEDGER = 'python3 "$HOME/.claude/hooks/measurement-ledger.py" --auto --detach'
 
 
 def text_of(path):
@@ -34,7 +33,7 @@ class Fixture(unittest.TestCase):
         self.home = tempfile.mkdtemp()
         self.repo = tempfile.mkdtemp()
         os.makedirs(os.path.join(self.repo, 'scripts'))
-        for name in ('guard-destructive.sh', 'measurement-ledger.py'):
+        for name in ('guard-destructive.sh',):
             with open(os.path.join(self.repo, 'scripts', name), 'w') as handle:
                 handle.write('#!/bin/sh\n')
         os.makedirs(os.path.join(self.home, '.claude'))
@@ -73,14 +72,14 @@ class Install(Fixture):
     def test_links_and_registers_both_hooks_and_keeps_everything_else(self):
         result = self.run_installer()
         self.assertEqual(result.returncode, 0, result.stderr)
-        for name in ('guard-destructive.sh', 'measurement-ledger.py'):
+        for name in ('guard-destructive.sh',):
             link = os.path.join(self.hooks_dir(), name)
             self.assertTrue(os.path.islink(link))
             self.assertEqual(os.readlink(link), os.path.join(os.path.realpath(self.repo), 'scripts', name))
         data = self.read_settings()
         self.assertIn(GUARD, commands(data, 'PreToolUse'))
         self.assertEqual(data['hooks']['PreToolUse'][0]['matcher'], 'Bash')
-        self.assertEqual(commands(data, 'Stop'), [MD_HOOK, LEDGER])
+        self.assertEqual(commands(data, 'Stop'), [MD_HOOK])  # the ledger hook left with its script
         self.assertEqual(commands(data, 'PostToolUse'), [MD_HOOK])
         self.assertEqual(data['theme'], 'dark')
 
@@ -97,7 +96,7 @@ class Install(Fixture):
         self.assertIn('already up to date', result.stdout)
         self.assertEqual(text_of(self.settings), first)
         self.assertEqual(len(self.backups()), 1)
-        self.assertEqual(commands(self.read_settings(), 'Stop').count(LEDGER), 1)
+        self.assertEqual(commands(self.read_settings(), 'PreToolUse').count(GUARD), 1)
 
     def test_trailing_newline_and_indent_are_preserved(self):
         self.run_installer()
@@ -120,7 +119,7 @@ class Install(Fixture):
         other = tempfile.mkdtemp()
         try:
             os.makedirs(os.path.join(other, 'scripts'))
-            for name in ('guard-destructive.sh', 'measurement-ledger.py'):
+            for name in ('guard-destructive.sh',):
                 open(os.path.join(other, 'scripts', name), 'w').close()
             self.assertEqual(self.run_installer(repo=other).returncode, 0)
             link = os.path.join(self.hooks_dir(), 'guard-destructive.sh')
@@ -149,7 +148,7 @@ class Refusals(Fixture):
         self.assertEqual(text_of(self.settings), '{ not json')
 
     def test_a_wrong_repo_aborts_before_any_link_is_made(self):
-        os.remove(os.path.join(self.repo, 'scripts', 'measurement-ledger.py'))
+        os.remove(os.path.join(self.repo, 'scripts', 'guard-destructive.sh'))
         result = self.run_installer()
         self.assertEqual(result.returncode, 2)
         self.assertFalse(os.path.exists(self.hooks_dir()))

@@ -2,7 +2,7 @@
 
 Rule #25 makes every gate script a deliberate TWIN — canonical here, a committed
 copy in each project — and nothing compared them until now. They drifted in BOTH
-directions inside one day on 21/09/2026: the canonical was the stale side in the
+directions inside one day: the canonical was the stale side in the
 morning, the projects were in the evening, and both times it was found by hand.
 
 The two design choices worth pinning, because getting either wrong makes the

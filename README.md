@@ -204,7 +204,7 @@ because something broke first.
 | Engineering standards | `standards/` | 22 documents + 6 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate and measurement scripts | `scripts/` | 24 scripts + 410 tests |
+| Gate and measurement scripts | `scripts/` | 20 scripts + 410 tests |
 | Slash commands and skills | `commands/`, `skills/` | 5 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
@@ -562,7 +562,6 @@ here is the inventory:
 |---|---|---|
 | `PreToolUse` (Bash) | `guard-destructive.sh` | refuses the never-do commands — `rm -rf`, force push, `DROP` — before they run |
 | `PostToolUse` (Edit/Write) and `Stop` | `md-hook.sh` | checks a touched `CLAUDE.md` against its size budget and for dropped rules |
-| `Stop` | `measurement-ledger.py --auto --detach` | appends this session's token and cost figures to a local, git-ignored ledger |
 
 **No telemetry, and nothing is uploaded.** The only outbound request anywhere in
 the repository is one optional `curl` in `gate-core.sh`, aimed at a test-deploy

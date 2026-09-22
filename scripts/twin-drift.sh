@@ -4,7 +4,7 @@
 # WHY THIS EXISTS. Rule #25 makes every gate script a deliberate TWIN: the
 # canonical copy lives in this repository and every project commits a COPY,
 # because a project's gate cannot depend on a path outside its own checkout (CI
-# runners have no configuration checked out). Twins drift, and on 21/09/2026 they
+# runners have no configuration checked out). Twins drift, and they have
 # drifted in BOTH directions within a single day:
 #
 #   · morning — five bugs were fixed and pushed to the eight project copies while

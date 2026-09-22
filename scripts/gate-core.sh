@@ -94,7 +94,7 @@ ACCEPTED=()
 # override it — so ACCEPTED_GAPS cannot waive it either. That was where the rule
 # was quietly losing: several projects listed `coverage` as an accepted gap and
 # their gates printed GREEN while nothing measured coverage at all. Measured on
-# 21/09/2026 across the projects carrying this gate.
+# It was measured across the projects carrying this gate.
 NEVER_ACCEPTABLE='coverage'
 skip() {
   local what="$1"
@@ -122,14 +122,14 @@ run()  { # run <label> <command...>
 #   · `ls ./*.sln` did not know about `.slnx`, the newer solution format;
 #   · `ls ./**/*.csproj` is ONE level deep in a plain shell (globstar is off), so
 #     a project at src/Api/X.csproj was invisible.
-# Measured on 21/09/2026: a repository with a .slnx, 673 backend tests, a build
+# Measured: a repository with a .slnx, 673 backend tests, a build
 # that was RED and two high-severity advisories reported GATE GREEN, because
 # HAS_DOTNET came out 0 and not one .NET step ran.
 # The build target. Detection finding a project is not enough: `dotnet build`
 # with no argument builds the CURRENT directory, so in a repository whose
 # solution lives under api/ or backend/ it failed with
 #   MSBUILD : error MSB1003: Specify a project or solution file.
-# — a confusing error in place of a build. Measured 21/09/2026: four of five
+# — a confusing error in place of a build. Measured: four of five
 # .NET repositories here keep their solution below the root.
 # shellcheck disable=SC2012  # `ls` on a glob is intentional: it answers "is
 # there a solution AT THE ROOT" cheaply, and the `find` below covers every case
@@ -153,7 +153,7 @@ fi
 # Node detection is only used for the rule-#16 document step (below), and it was
 # root-only while .NET detection now looks at any depth. A repository whose only
 # JS lives in frontend/ therefore skipped that step entirely — measured
-# 21/09/2026: one repo had no SETUP.md and its gate said "no stack at the
+# One repo had no SETUP.md and its gate said "no stack at the
 # repository root, nothing to check". WEB_DIR/MOBILE_DIR keep their own job of
 # deciding WHICH tier gets linted, built and tested.
 HAS_NODE=0
@@ -212,7 +212,7 @@ if [ "$TARGET" != "prod" ]; then
     if grep -q '"test"' "$d/package.json" 2>/dev/null; then
       # `--run` belongs to VITEST. Handing it to a jest project fails with
       # "Unrecognized option run", and the gate then reports a green test suite
-      # as FAILING — measured on 21/09/2026: one project's 10 mobile tests pass on
+      # as FAILING — Measured: one project's 10 mobile tests pass on
       # their own and this step called them red, purely because of this argument.
       # CI=true is what both runners understand: vitest does a single run instead
       # of watching, and jest is single-run anyway.
@@ -313,7 +313,7 @@ if [ "$TARGET" != "prod" ]; then
   # blind. The gap is NOT dropped: step 2 of the test -> prod gate writes every
   # missing spec before the suite runs, and that gate does block. The gate still
   # SAYS it on every run, so the backlog stays visible rather than silent.
-  # User decision, 21/09/2026.
+  # User decision.
   if [ "$missing" = 1 ] && [ "$TARGET" = "test" ]; then
     warn "the missing spec(s) above are written at the test -> prod gate (#33 step 2); dev -> test is not blocked"
   fi
@@ -326,10 +326,18 @@ if [ "$TARGET" = "prod" ]; then
   say "is this code deployed to the TEST environment?"
   HEAD_SHA="$(git rev-parse HEAD)"
   if [ "$LIST_ONLY" = 1 ]; then
-    if [ -n "${TEST_DEPLOY_SHA_CMD:-}" ]; then printf '  → %-42s %s\n' "deploy verification" "$TEST_DEPLOY_SHA_CMD"
-    elif [ -n "${TEST_VERSION_URL:-}" ]; then printf '  → %-42s %s\n' "deploy verification" "curl ${TEST_VERSION_URL} == ${HEAD_SHA:0:7}"
-    else printf '  → %-42s %s\n' "deploy verification" "<no source configured — would block>"; fi
-    PASS+=("deploy verification")
+    if [ -n "${TEST_DEPLOY_SHA_CMD:-}" ]; then
+      printf '  → %-42s %s\n' "deploy verification" "$TEST_DEPLOY_SHA_CMD"; PASS+=("deploy verification")
+    elif [ -n "${TEST_VERSION_URL:-}" ]; then
+      printf '  → %-42s %s\n' "deploy verification" "curl ${TEST_VERSION_URL} == ${HEAD_SHA:0:7}"; PASS+=("deploy verification")
+    else
+      # ⚠️ This used to count as PASS whatever was configured, so --list printed
+      # "<no source configured — would block>" and then reported GATE GREEN while
+      # the real run reported INCOMPLETE. A dry run that disagrees with the gate is
+      # worse than no dry run: it is the one people read before asking for a
+      # promotion. It now skips exactly as the real run does.
+      skip "the deployed SHA cannot be read: set TEST_VERSION_URL (a /version endpoint per standards/17 §6) or TEST_DEPLOY_SHA_CMD in scripts/merge-gate.conf"
+    fi
   else
     deployed=""
     if [ -n "${TEST_DEPLOY_SHA_CMD:-}" ]; then

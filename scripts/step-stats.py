@@ -13,7 +13,7 @@ This script is the measurement that corrects it. Source: the `usage` fields and
 ⚠️ Prices are API LIST prices, not a subscription bill — a proxy for consumption.
 ⚠️ Step counting is based on shell command patterns: a step that runs from inside
    another script is invisible here. A missing step is "not seen", not "zero".
-⚠️ The scripts were renamed to English on 20/09/2026. Runs recorded under the
+⚠️ The scripts were renamed to English. Runs recorded under the
    previous names are no longer counted, so md-gate counts from before that date
    are not comparable with later ones.
 """
@@ -145,7 +145,7 @@ def shape(command, deny=None):
 # ⚠️ Every marker in LEAK_MARKERS must actually OCCUR here, or the gate passes
 # by accident for that marker. `/home/` was listed and missing from the canary,
 # so a Linux home path was never exercised by the self-check — found by a test
-# that compares the two lists, 21/09/2026. If a marker is added below, add a
+# that compares the two lists. If a marker is added below, add a
 # token carrying it here.
 CANARY = ("L=/private/tmp/sess-AcmeCorp/run.log; dotnet build AcmeCorp.Tests/x.csproj "
           "&& cd /Users/zzz/Code/AcmeCorp && cp /home/zzz/.env . "
@@ -211,26 +211,27 @@ def measure(paths):
     for path in paths:
         first = model = None
         count, cost = 0, 0.0
-        for line in open(path, errors='ignore'):
-            try:
-                record = json.loads(line)
-            except Exception:
-                continue
-            message = record.get('message') or {}
-            usage = message.get('usage')
-            if not usage:
-                continue
-            p_in, p_out, cache_rate = price(message.get('model'))
-            model = model or message.get('model')
-            tokens_in = usage.get('input_tokens', 0) or 0
-            tokens_out = usage.get('output_tokens', 0) or 0
-            cache_write = usage.get('cache_creation_input_tokens', 0) or 0
-            cache_read = usage.get('cache_read_input_tokens', 0) or 0
-            cost += (tokens_in * p_in + tokens_out * p_out
-                     + cache_write * p_in * 1.25 + cache_read * p_in * cache_rate) / 1e6
-            if first is None:
-                first = tokens_in + cache_write + cache_read
-            count += 1
+        with open(path, errors='ignore') as handle:
+            for line in handle:
+                try:
+                    record = json.loads(line)
+                except Exception:
+                    continue
+                message = record.get('message') or {}
+                usage = message.get('usage')
+                if not usage:
+                    continue
+                p_in, p_out, cache_rate = price(message.get('model'))
+                model = model or message.get('model')
+                tokens_in = usage.get('input_tokens', 0) or 0
+                tokens_out = usage.get('output_tokens', 0) or 0
+                cache_write = usage.get('cache_creation_input_tokens', 0) or 0
+                cache_read = usage.get('cache_read_input_tokens', 0) or 0
+                cost += (tokens_in * p_in + tokens_out * p_out
+                         + cache_write * p_in * 1.25 + cache_read * p_in * cache_rate) / 1e6
+                if first is None:
+                    first = tokens_in + cache_write + cache_read
+                count += 1
         if count:
             result[path] = (first, count, cost, model)
     return result
@@ -240,37 +241,38 @@ def count_steps(sessions):
     """Per step: how many calls actually RAN it (false positives are filtered out)."""
     counts, dismissed, best = collections.Counter(), collections.Counter(), {}
     for path in sessions:
-        for line in open(path, errors='ignore'):
-            if '"tool_use"' not in line:
-                continue
-            try:
-                record = json.loads(line)
-            except Exception:
-                continue
-            content = (record.get('message') or {}).get('content')
-            if not isinstance(content, list):
-                continue
-            for block in content:
-                if not (isinstance(block, dict) and block.get('type') == 'tool_use'):
+        with open(path, errors='ignore') as handle:
+            for line in handle:
+                if '"tool_use"' not in line:
                     continue
-                raw = str((block.get('input') or {}).get('command') or '')
-                if not raw or NOISE_COMMAND.search(raw):
+                try:
+                    record = json.loads(line)
+                except Exception:
                     continue
-                command = command_part(raw)
-                for name, pattern in STEPS:
-                    match = re.search(pattern, command, re.I)
-                    if not match:
-                        if re.search(pattern, raw, re.I):
-                            dismissed[name] += 1      # only inside a heredoc body
+                content = (record.get('message') or {}).get('content')
+                if not isinstance(content, list):
+                    continue
+                for block in content:
+                    if not (isinstance(block, dict) and block.get('type') == 'tool_use'):
                         continue
-                    before = command[max(0, match.start() - 60):match.start()]
-                    if NOISE_PREFIX.search(before):
-                        dismissed[name] += 1
+                    raw = str((block.get('input') or {}).get('command') or '')
+                    if not raw or NOISE_COMMAND.search(raw):
                         continue
-                    counts[name] += 1
-                    score = (2 if SEGMENT.search(before) else 0) + (1 if len(command) < 120 else 0)
-                    if score > best.get(name, (-1, ''))[0]:
-                        best[name] = (score, shape(command))
+                    command = command_part(raw)
+                    for name, pattern in STEPS:
+                        match = re.search(pattern, command, re.I)
+                        if not match:
+                            if re.search(pattern, raw, re.I):
+                                dismissed[name] += 1      # only inside a heredoc body
+                            continue
+                        before = command[max(0, match.start() - 60):match.start()]
+                        if NOISE_PREFIX.search(before):
+                            dismissed[name] += 1
+                            continue
+                        counts[name] += 1
+                        score = (2 if SEGMENT.search(before) else 0) + (1 if len(command) < 120 else 0)
+                        if score > best.get(name, (-1, ''))[0]:
+                            best[name] = (score, shape(command))
     return counts, {k: v[1] for k, v in best.items()}, dismissed
 
 
@@ -286,7 +288,7 @@ def role_label(role):
 
     A plugin-provided agent's subagent_type is `<plugin>:<agent>` and the plugin
     part is a machine identifier — exactly what the sanitiser refuses to publish,
-    so it would block the whole write (measured 21/09/2026: one `agent-skills`
+    so it would block the whole write (measured: one `agent-skills`
     run made `--write` impossible). Only the agent part is printed, marked
     `ext:` so it is never confused with a mode role.
     """
@@ -300,24 +302,25 @@ def role_ids(sessions):
     id_to_role = {}
     for path in sessions:
         pending = {}
-        for line in open(path, errors='ignore'):
-            try:
-                record = json.loads(line)
-            except Exception:
-                continue
-            content = (record.get('message') or {}).get('content')
-            if not isinstance(content, list):
-                continue
-            for block in content:
-                if not isinstance(block, dict):
+        with open(path, errors='ignore') as handle:
+            for line in handle:
+                try:
+                    record = json.loads(line)
+                except Exception:
                     continue
-                if block.get('type') == 'tool_use' and block.get('name') in ('Agent', 'Task'):
-                    pending[block.get('id')] = (block.get('input') or {}).get('subagent_type') or 'unknown'
-                if block.get('type') == 'tool_result':
-                    text = json.dumps(block.get('content'), ensure_ascii=False)
-                    found = re.search(r'agentId: ([0-9a-f]{8})', text)
-                    if found:
-                        id_to_role[found.group(1)] = pending.get(block.get('tool_use_id'), 'unknown')
+                content = (record.get('message') or {}).get('content')
+                if not isinstance(content, list):
+                    continue
+                for block in content:
+                    if not isinstance(block, dict):
+                        continue
+                    if block.get('type') == 'tool_use' and block.get('name') in ('Agent', 'Task'):
+                        pending[block.get('id')] = (block.get('input') or {}).get('subagent_type') or 'unknown'
+                    if block.get('type') == 'tool_result':
+                        text = json.dumps(block.get('content'), ensure_ascii=False)
+                        found = re.search(r'agentId: ([0-9a-f]{8})', text)
+                        if found:
+                            id_to_role[found.group(1)] = pending.get(block.get('tool_use_id'), 'unknown')
     return id_to_role
 
 
@@ -340,7 +343,7 @@ MIN_CUT_ROWS = 3   # docs/benchmark-method.md: a side with fewer than three rows
 def cut_delta(before_median, before_n, after_median, after_n):
     """The delta cell of one cut row. Pure, so it can be tested.
 
-    Two rules this used to break, both measured on 21/09/2026:
+    Two rules this used to break, both measured:
       · the sign was hard-coded to '-', so a prefix that GREW was published as a
         saving ("--8,598 (--10%)" for +8,598);
       · a delta was published from a single session after the cut, although
@@ -372,41 +375,43 @@ def compare_cuts():
         if os.path.basename(path).startswith('agent-'):
             continue
         first = started = None
-        for line in open(path, errors='ignore'):
-            try:
-                record = json.loads(line)
-            except Exception:
-                continue
-            if started is None and record.get('timestamp'):
-                started = record['timestamp']
-            usage = (record.get('message') or {}).get('usage')
-            if usage:
-                first = sum(usage.get(k, 0) or 0 for k in
-                            ('input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens'))
-                break
+        with open(path, errors='ignore') as handle:
+            for line in handle:
+                try:
+                    record = json.loads(line)
+                except Exception:
+                    continue
+                if started is None and record.get('timestamp'):
+                    started = record['timestamp']
+                usage = (record.get('message') or {}).get('usage')
+                if usage:
+                    first = sum(usage.get(k, 0) or 0 for k in
+                                ('input_tokens', 'cache_creation_input_tokens', 'cache_read_input_tokens'))
+                    break
         if first and started:
             rows.append((datetime.datetime.fromisoformat(started.replace('Z', '+00:00')).timestamp(), first))
     out = ["## Fixed prefix — configuration cuts (before / after)\n",
            "| cut | label | before (median · n) | after (median · n) | delta |",
            "|---|---|---|---|---|"]
     index = 0
-    for line in open(cuts_file, encoding='utf-8'):
-        if line.startswith('#') or not line.strip():
-            continue
-        index += 1
-        try:
-            timestamp, label = line.rstrip('\n').split('\t', 1)
-        except ValueError:
-            continue
-        cut = datetime.datetime.fromisoformat(timestamp).timestamp()
-        before = [value for when, value in rows if when <= cut]
-        after = [value for when, value in rows if when > cut]
-        b = int(statistics.median(before)) if before else 0
-        a = int(statistics.median(after)) if after else 0
-        delta = cut_delta(b, len(before), a, len(after))
-        after_cell = f"{a:,} · {len(after)}" if a else "—"
-        # The cut's timestamp stays in the local tsv; the published table shows its order.
-        out.append(f"| cut {index} | {label} | {b:,} · {len(before)} | {after_cell} | {delta} |")
+    with open(cuts_file, encoding='utf-8') as handle:
+        for line in handle:
+            if line.startswith('#') or not line.strip():
+                continue
+            index += 1
+            try:
+                timestamp, label = line.rstrip('\n').split('\t', 1)
+            except ValueError:
+                continue
+            cut = datetime.datetime.fromisoformat(timestamp).timestamp()
+            before = [value for when, value in rows if when <= cut]
+            after = [value for when, value in rows if when > cut]
+            b = int(statistics.median(before)) if before else 0
+            a = int(statistics.median(after)) if after else 0
+            delta = cut_delta(b, len(before), a, len(after))
+            after_cell = f"{a:,} · {len(after)}" if a else "—"
+            # The cut's timestamp stays in the local tsv; the published table shows its order.
+            out.append(f"| cut {index} | {label} | {b:,} · {len(before)} | {after_cell} | {delta} |")
     return out
 
 

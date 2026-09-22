@@ -1,6 +1,6 @@
 """The guard's judgement (scripts/guard-inspect.py), tested directly.
 
-Until 21/09/2026 this logic was a heredoc inside guard-destructive.sh: every case
+Until recently this logic was a heredoc inside guard-destructive.sh: every case
 cost a subprocess, and a bash coverage tracer counted the whole program as ONE
 statement, so the file measured 3/19 while every rule was being exercised.
 

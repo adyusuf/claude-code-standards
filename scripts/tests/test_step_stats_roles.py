@@ -4,7 +4,7 @@ Why this test exists: the report's role table is passed through the sanitiser
 before docs/measurement-log.md is written, and the sanitiser's deny-set is
 derived from this machine. A plugin-provided agent (`<plugin>:<agent>`) put the
 plugin's name in the table, so `--write` refused every time — the measurement
-could not be recorded at all (measured 21/09/2026: 'agent-skills').
+could not be recorded at all (measured: 'agent-skills').
 """
 import importlib.util
 import os

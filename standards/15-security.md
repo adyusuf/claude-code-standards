@@ -222,7 +222,8 @@ the same order** as the pipeline: `scripts/merge-gate.sh <dev|test|prod>`, which
 calls the shared `scripts/gate-core.sh` (#25). `gate-core.sh <target> --list`
 prints the step list without running anything.
 
-⚠️ This was called `scripts/ci-local.sh` while it was still a plan, and nothing by
+⚠️ This was called ci-local.sh (unbackticked on purpose — it is a name being
+discussed, not a path that resolves) while it was still a plan, and nothing by
 that name was ever written: the local runner and the merge gate turned out to be
 the same script. Two names for one file is how a reference goes dead.
 

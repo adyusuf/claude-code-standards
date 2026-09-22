@@ -30,12 +30,16 @@ config
 __pycache__/
 *.pyc
 
-# Generated and rewritten by a live hook; it stays local (see docs/README.md)
+# The ledger and its per-day reports moved OUT of this repository, to
+# ~/.claude/measurement/. These patterns stay as a backstop: that tooling can be
+# pointed at a checkout by mistake, and a tracked ledger would then block every
+# promotion that touched it.
 docs/measurement-ledger.tsv
-# Real project keys and the per-project cost report: local only (see docs/README.md)
-docs/project-nicknames.tsv
 docs/measurement-daily-by-project.md
 docs/measurement-daily-by-role.md
 docs/measurement-daily-by-kind.md
 docs/measurement-daily-by-model.md
+# Real project keys: local only, and the one file that must never be committed —
+# a list of client names in a public repository publishes what it is there to hide
+docs/project-nicknames.tsv
 .codeql/

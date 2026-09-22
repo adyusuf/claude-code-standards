@@ -15,6 +15,5 @@
 | `measurement-daily-by-role.md` | **Generated, local, git-ignored.** Cost by day × role (`main` = the conversation, the rest are agent roles) |
 | `measurement-daily-by-kind.md` | **Generated, local, git-ignored.** Cost by day × kind (session / agent) |
 | `measurement-daily-by-model.md` | **Generated, local, git-ignored.** Cost by day × model (a row is filed under the first model it used) |
-| `measurement-ledger.tsv` | **Generated, local and git-ignored** (a live hook rewrites it; a tracked file would block every promotion that touches it). One row per session or agent run (`scripts/measurement-ledger.py`). Rows written before it was untracked are in git history |
 
 `scripts/doc-check.py` fails when a file in this folder is missing from this table.
