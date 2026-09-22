@@ -172,7 +172,7 @@ otherwise: a teammate drops to **idle** after each turn (it produces no turns un
 message arrives) and compacts its history when needed. Until a measurement exists, those
 sentences are not used as a justification for a decision.
 
-**Measurement:** `python3 ~/.claude/scripts/session-cost.py <session-id>` — it measures
+**Measurement:** `python3 ~/.claude/measurement/session-cost.py <session-id>` — it measures
 from the transcript rather than estimating. It is run on the first real X/Y/Z turn and
 written into the measurement ledger in `role-selection.md` §8.
 

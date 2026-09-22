@@ -386,7 +386,7 @@ The table is an estimate today; **a measurement is recorded on every real agent 
 and the table is corrected once enough data accumulates. The method:
 
 1. After the turn, read **`subagent_tokens`** from the task notification.
-2. **The preferred route:** `python3 ~/.claude/scripts/session-cost.py <session-id>` —
+2. **The preferred route:** `python3 ~/.claude/measurement/session-cost.py <session-id>` —
    it sums the `usage` fields in the transcript, i.e. it **measures**.
    If only `subagent_tokens` is available, multiply by the model's per-MTok price; the
    current list is in the bundled `claude-api` skill.

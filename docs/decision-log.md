@@ -471,7 +471,7 @@ that runs. What was built, and the decisions behind it:
   not `~/.claude/scripts`: `scripts` points into the PROD worktree, so a new file there
   would be untracked in prod and collide with the next promotion. The links point into
   the `dev` checkout; after a promotion `--repo <prod checkout>` re-points them.
-- **Automatic ledger (`scripts/measurement-ledger.py --auto`).** Every column is derived
+- **Automatic ledger (local-only tooling, no longer in this repository).** Every column is derived
   from the transcripts; there is no hand-filled field, and no project name, path or command
   is written (raw commands were rejected: an earlier commit already had to fix a log that
   bypassed the sanitiser). Incremental, locked, atomic, 600 s minimum interval, detached.
@@ -479,7 +479,7 @@ that runs. What was built, and the decisions behind it:
   and live `prod` worktrees dirty and would have blocked any promotion touching it; it was untracked
   (history keeps the earlier rows) and `scripts/doc-check.py` no longer reports a git-ignored path as a
   broken reference. The cost: the file is not backed up by git.
-- **Project nicknames and the per-day reports (`scripts/measurement-report.py`).** The ledger's
+- **Project nicknames and the per-day reports (local-only tooling, no longer in this repository).** The ledger's
   `project` column holds a nickname, never a folder name, and the folder-key → nickname map is a
   local git-ignored file because it is the one place real names live; a nickname that contains a
   real project name, or a project with no nickname, can never write a real name into the ledger
@@ -713,7 +713,7 @@ end would do.
 
 **Measurement:** the median fixed prefix was 57,756 tokens, an **18% share** of cost,
 and it had grown 27,700 → 63,500 tokens (2.3x) over fourteen weeks. Across the
-subagent runs in the same window the median was 52,313 tokens. Method and repeat instructions: `scripts/prefix-measure.py`,
+subagent runs in the same window the median was 52,313 tokens. Method and repeat instructions: `~/.claude/measurement/prefix-measure.py` (local-only tooling),
 `standards/00` §6b.
 
 - **§21-23:** the X/Y/Z team modes were moved to `modes/archive/`. They cannot be

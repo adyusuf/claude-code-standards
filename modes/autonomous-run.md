@@ -37,7 +37,7 @@ not met (no task list, no budget, no definition of done) the run **does not star
    - ⚠️ **This is a stop reason too** and is listed below.
    At the end of every turn:
    ```bash
-   python3 ~/.claude/scripts/session-cost.py <session-id>
+   python3 ~/.claude/measurement/session-cost.py <session-id>
    ```
    ⚠️ Without running this command, "~$X so far" is **never written** —
    an unmeasured ceiling is not a ceiling, and the next session will just say

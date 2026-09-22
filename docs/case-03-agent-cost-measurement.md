@@ -119,7 +119,7 @@ This is the most important part of the case:
 
 ```bash
 # Real cost of a session (sums the usage fields in the transcript)
-python3 ~/.claude/scripts/session-cost.py <session-id>
+python3 ~/.claude/measurement/session-cost.py <session-id>
 
 # If only subagent_tokens is available: tokens × current per-MTok price
 ```
