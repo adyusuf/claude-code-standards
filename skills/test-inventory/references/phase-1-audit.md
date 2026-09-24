@@ -100,7 +100,9 @@ unguarded project rule · 🟢 hygiene.
 
 Write the per-screen file, add every verified finding to the findings register
 (`templates/findings.md`, status `open`) and update the index. Findings that span
-screens get ONE register row listing every screen. In chat: one table (screen · 🔴/🟡/🟢
+screens get ONE register row listing every screen. **Compute the per-screen counts in
+the index from the register's screen column** (a short script), never by hand: a later
+finding that widens an earlier row changes earlier screens' counts. In chat: one table (screen · 🔴/🟡/🟢
 counts · top finding), the three most serious findings in one sentence each, and the
 list of tests proposed for phase 2 with an estimate of count per layer. Ask for
 approval of that list — and separately for any defect fix. Then stop.
