@@ -98,7 +98,9 @@ unguarded project rule · 🟢 hygiene.
 
 ## 10. Report and stop
 
-Write the per-screen file and update the index. In chat: one table (screen · 🔴/🟡/🟢
+Write the per-screen file, add every verified finding to the findings register
+(`templates/findings.md`, status `open`) and update the index. Findings that span
+screens get ONE register row listing every screen. In chat: one table (screen · 🔴/🟡/🟢
 counts · top finding), the three most serious findings in one sentence each, and the
 list of tests proposed for phase 2 with an estimate of count per layer. Ask for
 approval of that list — and separately for any defect fix. Then stop.
