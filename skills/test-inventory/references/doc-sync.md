@@ -11,7 +11,7 @@ files it changed.
 |---|---|
 | Findings register | Every finding touched in this phase has its new status and evidence; findings discovered during the phase are added with the phase that found them; a finding proven wrong is corrected **in place** with a dated note (never silently rewritten) and its priority re-evaluated. |
 | Each screen report | Header names the current phase and branch; the "what is wrong / what is missing" tables match the register (same ids, priorities, wording); the phase has its own section at the end (phase 2: tests written per finding with branch and commit; phase 3: the run table, failures, mutation proof; phase 4: fixes per round). Matrix cells change ✅ only after a phase-3 run proved the test green — a written but unrun test is not ✅. |
-| Index | Phase column per screen (a screen with nothing to do in a phase says so); per-screen 🔴/🟡/🟢 counts and the total **recomputed from the register** (script below), never edited by hand; the root-cause and backlog sections still true. |
+| Index | Phase column per screen (a screen with nothing to do in a phase says so); per-screen 🔴/🟡/🟢 counts of NOT-closed findings, the open · in progress · closed split, and the totals — all **recomputed from the register** (script below), never edited by hand; the root-cause and backlog sections still true. A red count that does not move between phases must be explainable from the status split. |
 
 ## 2. Project documents the phase can make stale
 
@@ -43,12 +43,17 @@ grep -rn "<old phrase>" <docs-dir>                       # the superseded wordin
 import re, collections
 rows = [[c.strip() for c in l.split('|')] for l in open(REGISTER) if l.startswith('| F-')]
 # column 3 = screens (comma-separated names), column 4 = priority emoji
-counts = collections.defaultdict(collections.Counter)
+# column 8 = status: open / in progress / closed / won't fix / not a finding
+prio = collections.defaultdict(collections.Counter)   # priority counts, closed excluded
+stat = collections.defaultdict(collections.Counter)   # open · in progress · closed
 for r in rows:
+    status = r[8].split()[0].lower()
     for screen in SCREENS_BY_NAME:               # {'name as written in the register': index-row}
         if screen in r[3]:
-            counts[SCREENS_BY_NAME[screen]][r[4]] += 1
-# write counts back into the index rows; the total line = Counter(r[4] for r in rows)
+            stat[SCREENS_BY_NAME[screen]][status] += 1
+            if status not in ('closed', 'fixed', "won't", 'not'):
+                prio[SCREENS_BY_NAME[screen]][r[4]] += 1
+# write both back into the index rows; totals = the same counters over all rows
 ```
 
 ## 5. Report the sync
