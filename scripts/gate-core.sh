@@ -51,6 +51,8 @@
 #   SAST_CMD="bash scripts/codeql-scan.sh"              # default: scripts/codeql-scan.sh
 #   BACKCOMPAT_CMD="bash scripts/api-compat.sh"         # default: scripts/backward-compat-scan.sh
 #   SECRET_CMD="gitleaks detect --no-banner --redact"   # default: the same
+#   GATE_CVE_TIMEOUT=300                                # seconds for `dotnet list package --vulnerable`;
+#                                                       # no answer in time is a FAILURE, never a pass
 #   LINT_CMD / TYPECHECK_CMD / BUILD_CMD / UNIT_CMD     # override the auto-detected ones
 #   SKIP_STACKS="mobile"                                # codebases this project does not have
 #   ACCEPTED_GAPS="SAST|backward"                       # gaps the USER has accepted, with a reason
@@ -239,9 +241,33 @@ if [ "$TARGET" != "prod" ]; then
     [ "$HAS_DOTNET" = 1 ] && { printf '  → %-42s %s\n' "dotnet vulnerable packages" "dotnet list package --vulnerable${SLN:+ ($SLN)}"; PASS+=("dotnet cve"); }
     for d in "$WEB_DIR" "$MOBILE_DIR"; do [ -n "$d" ] && { printf '  → %-42s %s\n' "npm audit ($d)" "npm --prefix $d audit --audit-level=high"; PASS+=("npm audit $d"); }; done
   else
-  [ "$HAS_DOTNET" = 1 ] && have dotnet && {
-    if dotnet list ${SLN:+"$SLN"} package --vulnerable 2>/dev/null | grep -qi 'critical\|high'; then bad "dotnet vulnerable packages (critical/high)"; else ok "dotnet packages"; fi
-  }
+  # ⚠️ FAIL-CLOSED. This step used to pipe the listing straight into a grep for
+  # "critical|high" and call everything else a pass — so a listing that never
+  # happened passed too. Seen live: the NuGet vulnerability feed hung on a network
+  # that black-holes IPv6, the process was killed after 13 minutes and the gate
+  # printed "✓ dotnet packages". A missing dotnet made the step vanish from the
+  # report altogether. Now only a listing that ran, exited 0 and printed NuGet's
+  # own verdict for the projects can pass.
+  if [ "$HAS_DOTNET" = 1 ]; then
+    if have dotnet; then
+      cve_limit="${GATE_CVE_TIMEOUT:-300}"; cve_timer=""
+      if have timeout; then cve_timer="timeout $cve_limit"; elif have gtimeout; then cve_timer="gtimeout $cve_limit"; fi
+      cve_out="$($cve_timer dotnet list ${SLN:+"$SLN"} package --vulnerable 2>&1)"; cve_rc=$?
+      if [ -n "$cve_timer" ] && [ "$cve_rc" = 124 ]; then
+        bad "dotnet vulnerable packages: no answer in ${cve_limit}s (NuGet feed unreachable? on an IPv6 black hole run the listing with DOTNET_SYSTEM_NET_DISABLEIPV6=1)"
+      elif [ "$cve_rc" != 0 ] || printf '%s\n' "$cve_out" | grep -qiE '^[[:space:]]*error'; then
+        bad "dotnet vulnerable packages: the listing failed (exit $cve_rc)"; printf '%s\n' "$cve_out" | tail -10 | sed 's/^/      /'
+      elif ! printf '%s\n' "$cve_out" | grep -qiE 'has no vulnerable packages|has the following vulnerable packages'; then
+        bad "dotnet vulnerable packages: no verdict in the output — the listing did not run"; printf '%s\n' "$cve_out" | tail -10 | sed 's/^/      /'
+      elif printf '%s\n' "$cve_out" | grep -qiwE 'critical|high'; then
+        bad "dotnet vulnerable packages (critical/high)"; printf '%s\n' "$cve_out" | grep -iwE 'critical|high' | head -10 | sed 's/^/      /'
+      else
+        ok "dotnet packages"
+      fi
+    else
+      skip "dotnet vulnerable packages: dotnet missing"
+    fi
+  fi
   for d in "$WEB_DIR" "$MOBILE_DIR"; do
     [ -n "$d" ] || continue
     if have npm; then
