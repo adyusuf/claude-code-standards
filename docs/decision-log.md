@@ -192,7 +192,31 @@ variable to a `:`-separated path.
 canonical one. Today that comparison had to be done by hand, and doing it by hand
 is exactly where the two false claims above came from. A check that walks the
 known repositories and diffs blob ids against a named ref would have answered it
-in one line, and it is not built.
+in one line, and it is not built. *(Closed since: `scripts/twin-drift.sh` does
+this comparison and `merge-gate.sh` runs it.)*
+
+### The dependency-CVE step failed open
+
+The .NET step was `dotnet list … --vulnerable | grep -qi 'critical\|high'` and a
+pass for everything else. On 24/09/2026 the NuGet vulnerability feed hung on a
+network that black-holes IPv6; the process was killed after 13 minutes and the gate
+printed `✓ dotnet packages`. With no `dotnet` on the machine the step did not appear
+in the report at all — neither passed nor skipped.
+
+The step now runs under `GATE_CVE_TIMEOUT` (default 300 s, through `timeout` or
+`gtimeout` when one exists) and passes only when the listing exits 0 **and** prints
+NuGet's own per-project verdict ("has no / has the following vulnerable
+packages") with no critical or high advisory. No answer in time, a non-zero exit,
+an `error` line or a missing verdict is a failure; a missing `dotnet` is SKIPPED.
+
+**Mutation record** (`scripts/tests/test_gate_core_cve.py`, 8 tests): with the old
+one-line step restored, 6 of the 8 fail — failing listing, empty listing, error
+line, timeout and missing `dotnet` go green or vanish, and the high-advisory case
+no longer names the package. The clean and moderate cases pass under both.
+
+**How to apply:** a gate step that reads a tool's output must also check that the
+tool RAN — exit code and an expected marker — before reading a verdict from it.
+"No bad news in the output" is not a pass when there may be no output.
 
 ## §26 — Pull `dev` → branch off `dev` → work → merge each task separately
 
