@@ -43,11 +43,11 @@ grep -rn "<old phrase>" <docs-dir>                       # the superseded wordin
 import re, collections
 rows = [[c.strip() for c in l.split('|')] for l in open(REGISTER) if l.startswith('| F-')]
 # column 3 = screens (comma-separated names), column 4 = priority emoji
-# column 8 = status: open / in progress / closed / won't fix / not a finding
+# column 9 = status: open / in progress / closed / won't fix / not a finding
 prio = collections.defaultdict(collections.Counter)   # priority counts, closed excluded
 stat = collections.defaultdict(collections.Counter)   # open · in progress · closed
 for r in rows:
-    status = r[8].split()[0].lower()
+    status = r[9].split()[0].lower()
     for screen in SCREENS_BY_NAME:               # {'name as written in the register': index-row}
         if screen in r[3]:
             stat[SCREENS_BY_NAME[screen]][status] += 1
