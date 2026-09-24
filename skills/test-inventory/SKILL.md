@@ -23,10 +23,10 @@ what nobody handled.
 
 | Phase | Does | Changes code? | Ends with | Reference |
 |---|---|---|---|---|
-| **1 — Audit** | Maps the screen, lists tests per layer as use cases, measures coverage, hunts defects and unhandled cases, verifies every finding | No (report files only) | Report + the list of tests proposed for phase 2 → **STOP, wait for approval** | `references/phase-1-audit.md` |
-| **2 — Write** | Writes ONLY the approved tests, on a branch off `dev`, following the project's own test conventions | Tests only — product fixes are separate, approved tasks | Report: finding → test file:line, or "not written + why" → **STOP** | `references/phase-2-write.md` |
-| **3 — Run** | Runs every affected suite FULL, one suite at a time, never stopping at the first failure; lists each failure on its own line, re-runs each failing test in isolation, classifies it; proves new tests by mutation; measures coverage | **No** — phase 3 never edits anything | Failure list (one row per failure, classified) → green: report and **STOP** · red: hand to phase 4 | `references/phase-3-run.md` |
-| **4 — Fix** | Fixes the failures phase 3 listed, one at a time; after each fix runs ONLY that failure (and what the fix could affect) until it is green | Test/fixture/env: yes · product code: only fixes already approved | All listed failures green in their narrow runs → **calls phase 3 again** for one full run | `references/phase-4-fix.md` |
+| **1 — Audit** | Maps the screen, lists tests per layer as use cases, measures coverage, hunts defects and unhandled cases, verifies every finding | No (report files only) | Docs synced · report + the list of tests proposed for phase 2 → **STOP, wait for approval** | `references/phase-1-audit.md` |
+| **2 — Write** | Writes ONLY the approved tests, on a branch off `dev`, following the project's own test conventions | Tests only — product fixes are separate, approved tasks | Docs synced · report: finding → test file:line, or "not written + why" → **STOP** | `references/phase-2-write.md` |
+| **3 — Run** | Runs every affected suite FULL, one suite at a time, never stopping at the first failure; lists each failure on its own line, re-runs each failing test in isolation, classifies it; proves new tests by mutation; measures coverage | **No** — phase 3 never edits anything | Docs synced · failure list (one row per failure, classified) → green: report and **STOP** · red: hand to phase 4 | `references/phase-3-run.md` |
+| **4 — Fix** | Fixes the failures phase 3 listed, one at a time; after each fix runs ONLY that failure (and what the fix could affect) until it is green | Test/fixture/env: yes · product code: only fixes already approved | Docs synced · all listed failures green in their narrow runs → **calls phase 3 again** for one full run | `references/phase-4-fix.md` |
 
 ### The 3 ⇄ 4 loop
 
@@ -68,6 +68,11 @@ phase 3 (full run, classify) ──red──▶ phase 4 (fix, narrow re-run) ─
    `templates/screen-report.md`, `templates/index.md`); the chat gets a short summary
    table (global "STATUS REPORTING"). No Artifact dashboards. Report prose is written in
    the user's language; file names follow the project's docs convention.
+9. **Every phase ends with a documentation sync** (`references/doc-sync.md`): the
+   findings register, every screen report, the index, and the project documents the
+   phase made stale (`CLAUDE.md` counts and known gaps, `SETUP.md`) are updated
+   before the chat report. A phase whose Markdown still describes the previous state
+   is not finished.
 
 ## Where the reports live
 
@@ -93,3 +98,4 @@ never deleted — it is closed with evidence, or marked "not a finding" with the
 - `templates/screen-report.md` — the per-screen report
 - `templates/index.md` — the index across screens
 - `templates/findings.md` — the findings register (all findings and run failures, with status)
+- `references/doc-sync.md` — the documentation sync that closes every phase

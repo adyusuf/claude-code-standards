@@ -33,7 +33,9 @@ phase 3's isolation step; evidence that it is green AFTER comes from this run.
 
 A fix that changed a test also re-runs that test's mutation proof (phase 3 §6).
 
-## 4. Hand back
+## 4. Sync the docs and hand back
+
+Run the documentation sync (`references/doc-sync.md`) for this round first.
 
 When every failure on the list is green in its narrow run:
 
