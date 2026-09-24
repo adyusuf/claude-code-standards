@@ -205,7 +205,7 @@ because something broke first.
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
 | Gate and measurement scripts | `scripts/` | 21 scripts + 410 tests |
-| Slash commands and skills | `commands/`, `skills/` | 5 |
+| Slash commands and skills | `commands/`, `skills/` | 6 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
 ```mermaid
@@ -215,7 +215,7 @@ pie showData title Repository composition (files)
  "modes/ (5 modes + selection guide)" : 13
  "scripts/ (gates, hooks, measurement, tests)" : 36
  "docs/ (decision log + case studies + method)" : 9
- "commands/ + skills/" : 5
+ "commands/ + skills/" : 6
  "root (CLAUDE.md, settings, license)" : 5
 ```
 
