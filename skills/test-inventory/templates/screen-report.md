@@ -50,9 +50,15 @@
 - Dead code: <unused exports — propose deletion>
 - E2E backlog (written at the `test → prod` gate): <items>
 
-## 6. Run results (phase 3)
+## 6. Run results (phase 3 ⇄ 4)
 
-| Suite | Command | Passed / failed / skipped | Duration | Coverage |
-|---|---|---|---|---|
+Findings and run failures are tracked in the findings register; this section is the
+per-round summary.
+
+| Round | Suite | Command | Passed / failed / skipped | Duration | Coverage |
+|---|---|---|---|---|---|
+
+| Round | Failure (register id) | Class | Isolation | Fixed by | Narrow re-run |
+|---|---|---|---|---|---|
 
 Mutation proof: | Test | Mutated line | Red | Reverted |

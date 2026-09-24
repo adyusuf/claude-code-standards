@@ -1,9 +1,9 @@
 ---
 name: test-inventory
-description: Screen-by-screen test audit in three gated phases — (1) inventory every test layer of a screen as use cases, hunt for defects, gaps and unhandled cases, and report; (2) write the approved missing tests and report; (3) run them, prove them by mutation and report. Use when the user says "/test-inventory", "review the tests", "find the missing tests", "which use cases are tested", "test inventory per page", "eksik testleri bul", "testleri gözden geçir", "sayfa sayfa test envanteri".
+description: Screen-by-screen test audit in four phases — (1) inventory every test layer of a screen as use cases, hunt for defects, gaps and unhandled cases, and report; (2) write the approved missing tests and report; (3) run every suite, list and classify each failure one by one, report; (4) fix the failures, re-run only what was fixed, then hand back to phase 3 for one full run — the 3 → 4 → 3 loop repeats until green or the ceiling. Use when the user says "/test-inventory", "review the tests", "find the missing tests", "which use cases are tested", "test inventory per page", "eksik testleri bul", "testleri gözden geçir", "sayfa sayfa test envanteri".
 ---
 
-# Test inventory — audit → write → run
+# Test inventory — audit → write → run ⇄ fix
 
 One screen at a time, every layer at once (web unit · e2e · backend unit/integration ·
 Android · iOS · Maestro). The unit of work is a **use case**, not a file: a report tells
@@ -16,19 +16,34 @@ what nobody handled.
 
 | Argument | Values | Default |
 |---|---|---|
-| `phase` | `1` audit · `2` write · `3` run | `1` |
+| `phase` | `1` audit · `2` write · `3` run · `4` fix | `1` |
 | `target` | a route or screen name · `top N` (risk-ranked) · `all` | ask |
 
-## The three phases — each ends in a report and a STOP
+## The four phases
 
 | Phase | Does | Changes code? | Ends with | Reference |
 |---|---|---|---|---|
-| **1 — Audit** | Maps the screen, lists tests per layer as use cases, measures coverage, hunts defects and unhandled cases, verifies every finding | No (report files only) | Report + the list of tests proposed for phase 2 → **wait for approval** | `references/phase-1-audit.md` |
-| **2 — Write** | Writes ONLY the approved tests, on a branch off `dev`, following the project's own test conventions | Tests only — product fixes are separate, approved tasks | Report: finding → test file:line, or "not written + why" → **wait** | `references/phase-2-write.md` |
-| **3 — Run** | Runs the affected suites with the failure cycle, proves each new test by mutation, measures coverage per codebase | No product code; test defects only | Report: measured results, classified failures, mutation evidence → the user decides merges and promotions | `references/phase-3-run.md` |
+| **1 — Audit** | Maps the screen, lists tests per layer as use cases, measures coverage, hunts defects and unhandled cases, verifies every finding | No (report files only) | Report + the list of tests proposed for phase 2 → **STOP, wait for approval** | `references/phase-1-audit.md` |
+| **2 — Write** | Writes ONLY the approved tests, on a branch off `dev`, following the project's own test conventions | Tests only — product fixes are separate, approved tasks | Report: finding → test file:line, or "not written + why" → **STOP** | `references/phase-2-write.md` |
+| **3 — Run** | Runs every affected suite FULL, one suite at a time, never stopping at the first failure; lists each failure on its own line, re-runs each failing test in isolation, classifies it; proves new tests by mutation; measures coverage | **No** — phase 3 never edits anything | Failure list (one row per failure, classified) → green: report and **STOP** · red: hand to phase 4 | `references/phase-3-run.md` |
+| **4 — Fix** | Fixes the failures phase 3 listed, one at a time; after each fix runs ONLY that failure (and what the fix could affect) until it is green | Test/fixture/env: yes · product code: only fixes already approved | All listed failures green in their narrow runs → **calls phase 3 again** for one full run | `references/phase-4-fix.md` |
 
-A phase never starts the next one on its own. Approval between phases is the user's
-(global #1 small step first, #26 the user decides promotions).
+### The 3 ⇄ 4 loop
+
+```
+phase 3 (full run, classify) ──red──▶ phase 4 (fix, narrow re-run) ──all fixed──▶ phase 3
+        │                                   │
+      green ──▶ report, STOP        unapproved product bug / ceiling ──▶ report, STOP
+```
+
+- One **round** = one phase-3 run + the phase-4 fixes that follow it. Rounds are
+  numbered in the report (R1, R2, …).
+- **Ceiling: 3 rounds** (global #28's three passes). If the third phase-3 run is still
+  red, stop and report every still-open failure individually — do not start a fourth.
+- The loop also stops early when a failure needs a decision that is not the agent's:
+  a product bug whose fix was not approved, a test whose expectation contradicts a
+  project rule, or an environment the agent cannot repair (a missing secret).
+- Phases 1 → 2 → 3 are gated by the user; 3 ⇄ 4 runs on its own inside those limits.
 
 ## Non-negotiables (all phases)
 
@@ -57,9 +72,15 @@ A phase never starts the next one on its own. Approval between phases is the use
 ## Where the reports live
 
 Use the project's docs folder and naming convention. Default: `docs/test-inventory/`
-with one `<screen-slug>.md` per screen and a `README.md` index. If the project already
-has an inventory folder (for example `docs/test-envanteri/`), continue there — never
-start a second one.
+with one `<screen-slug>.md` per screen, a `README.md` index and a **findings register**
+(`findings.md`). If the project already has an inventory folder (for example
+`docs/test-envanteri/`), continue there — never start a second one.
+
+**Every finding is also written to the findings register** the moment it is verified
+(`templates/findings.md`): a stable id (F-001…), screen, priority, class, evidence,
+proposal and status. The register is the one list the user approves from, phase 2
+writes against and phases 3/4 close; screen reports reference its ids. A finding is
+never deleted — it is closed with evidence, or marked "not a finding" with the reason.
 
 ## Supporting files
 
@@ -67,6 +88,8 @@ start a second one.
 - `references/unhandled-case-checklist.md` — the defect and unhandled-case hunt (the most valuable step)
 - `references/list-tests.md` — commands that list test names and counts per stack
 - `references/phase-2-write.md` — how the approved tests are written
-- `references/phase-3-run.md` — run cycle, mutation proof, coverage, reporting
+- `references/phase-3-run.md` — full run, per-failure isolation and classification, mutation proof, coverage
+- `references/phase-4-fix.md` — fixing, narrow re-runs, the hand-back to phase 3, the ceiling
 - `templates/screen-report.md` — the per-screen report
 - `templates/index.md` — the index across screens
+- `templates/findings.md` — the findings register (all findings and run failures, with status)

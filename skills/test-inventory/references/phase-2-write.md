@@ -51,6 +51,7 @@ branch per screen, so each screen merges to `dev` on its own. Never commit on `d
 
 ## 5. Report and stop
 
-Update the screen report's findings table: each approved item gets `→ test: path:line`
-or `not written: <reason>`. In chat, a table: layer · tests added · files · items left
+Update the findings register and the screen report: each approved item gets
+`→ test: path:line` (status `in progress` until phase 3 is green) or
+`not written: <reason>`. In chat, a table: layer · tests added · files · items left
 open. Then stop — phase 3 runs them.
