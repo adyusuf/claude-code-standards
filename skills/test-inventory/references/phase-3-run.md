@@ -74,7 +74,10 @@ phase 3 leaves no edit behind.
 Measure line coverage for each codebase separately (global #29). A codebase that was
 not measured is "not measured" and blocks promotion.
 
-## 8. Report, then either stop or hand to phase 4
+## 8. Sync the docs, report, then either stop or hand to phase 4
+
+First run the documentation sync (`references/doc-sync.md`) — measured counts and
+coverage go into the project `CLAUDE.md` here, with the date.
 
 Report for this round (screen report § run results, and chat):
 

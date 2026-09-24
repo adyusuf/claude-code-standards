@@ -49,7 +49,10 @@ branch per screen, so each screen merges to `dev` on its own. Never commit on `d
 - Mode: the approved agent set applies (`test-writer` from mode B up); in mode A write
   them yourself.
 
-## 5. Report and stop
+## 5. Sync the docs, report and stop
+
+First run the documentation sync (`references/doc-sync.md`); a finding that turned
+out wrong while writing its test is corrected in place there.
 
 Update the findings register and the screen report: each approved item gets
 `→ test: path:line` (status `in progress` until phase 3 is green) or

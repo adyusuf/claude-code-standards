@@ -96,7 +96,9 @@ command. Unverifiable → say so, do not upgrade it to a finding.
 Priority: 🔴 money, security or data loss · 🟡 wrong behaviour a user can hit or an
 unguarded project rule · 🟢 hygiene.
 
-## 10. Report and stop
+## 10. Sync the docs, report and stop
+
+First run the documentation sync (`references/doc-sync.md`).
 
 Write the per-screen file, add every verified finding to the findings register
 (`templates/findings.md`, status `open`) and update the index. Findings that span
