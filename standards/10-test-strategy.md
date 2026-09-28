@@ -160,3 +160,27 @@ xcrun xccov view --report --json <path>.xcresult
 - Slow or stateful tests (a live database, e2e) live in a separate workflow or are triggered manually — never mixed into the fast gate.
 - Test output must be readable; the log must make clear **why** a failing test failed.
 - Tests must run locally with the same command (`npm test`, `dotnet test`) — no CI-only magic.
+
+## 11. Screen-by-screen test audit — the `test-inventory` skill
+
+When the question is "which use cases of this screen are tested, and what is missing",
+the audit follows the `test-inventory` skill (`/test-inventory <phase> <target>`), not
+an ad-hoc read. It covers every test layer of one screen at once (web unit · e2e ·
+backend unit/integration · mobile) in four gated phases:
+
+1. **Audit** — list the screen's use cases, map each to the tests that exercise it,
+   hunt for defects, gaps and unhandled cases; findings go to one register with
+   stable ids (`F-NNN`). No code is written.
+2. **Write** — only the tests the user approved; each one must fail under a mutation
+   of the code it protects (§7.5).
+3. **Run** — every suite, full; each failure is listed and classified (product bug ·
+   stale spec · data/fixture · environment — global #31).
+4. **Fix** — fix the classified failures on their own branches, re-run only what was
+   fixed, then hand back to phase 3 for one full run; 3 → 4 → 3 repeats until green or
+   the ceiling.
+
+A product bug found by the audit is **never** fixed silently inside a test phase: it is
+recorded, the user approves the fix, and the fix gets its own regression test. Every
+phase ends with a documentation sync (register counts, screen report, index).
+Detail: `skills/test-inventory/SKILL.md` and its `references/`.
+
