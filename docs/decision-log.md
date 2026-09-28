@@ -218,6 +218,27 @@ no longer names the package. The clean and moderate cases pass under both.
 tool RAN — exit code and an expected marker — before reading a verdict from it.
 "No bad news in the output" is not a pass when there may be no output.
 
+### The typecheck step checked no files
+
+The step was `tsc -p <dir> --noEmit`. The Vite template's root `tsconfig.json` is
+`"files": []` plus `"references"` — it holds no files itself, so `tsc -p` on it
+compiled nothing and passed every time. On 24/09/2026 a broken multi-line import in
+a page passed the gate's typecheck and was caught only by `npm run build` (`tsc -b`).
+Measured on 28/09/2026 in that project: one injected type error, `tsc -p .` exits 0,
+`tsc -b .` exits 2.
+
+The step now uses build mode (`tsc -b <dir> --noEmit`) when the root tsconfig has
+`"references"`, and project mode otherwise. Four of the eight projects have a
+solution-style root; all four passed `tsc -b` on 28/09/2026, so the switch turned no
+gate red.
+
+**Mutation record** (`scripts/tests/test_gate_core_tsc.py`, 4 tests): with the old
+step restored, the build-mode and type-error-behind-references cases fail.
+
+**How to apply:** the same lesson as the CVE step, one level earlier — a check that
+passes must be shown to have looked at something. A tool pointed at a file that
+contains no inputs is not a green result.
+
 ## §26 — Pull `dev` → branch off `dev` → work → merge each task separately
 
 Additional detail shortened out of the active file:
