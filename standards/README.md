@@ -16,7 +16,7 @@ token cost stays low.
 | `07-api-design.md` | REST contract, one API, pagination, error format, idempotency |
 | `08-backward-compatibility.md` | Additive evolution, the deprecation lifecycle, expand/contract |
 | `09-database.md` | Schema, migrations, indexes, transactions, auditing, soft delete |
-| `10-test-strategy.md` | The test pyramid, unit-test rules, contract tests, the flaky policy |
+| `10-test-strategy.md` | The test pyramid, unit-test rules, contract tests, the flaky policy, the screen-by-screen audit (`test-inventory`) |
 | `11-playwright.md` | Web e2e: selectors, fixtures, isolation, CI |
 | `12-maestro.md` | Mobile e2e: flow structure, testIDs, the device matrix |
 | `13-pr-and-review.md` | Commits, branches, PR size, the review checklist and severity levels |
