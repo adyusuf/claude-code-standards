@@ -189,8 +189,13 @@ if [ "$TARGET" != "prod" ]; then
   say "typecheck"
   for d in "$WEB_DIR" "$MOBILE_DIR"; do
     [ -n "$d" ] || continue
-    if [ -f "$d/tsconfig.json" ]; then run "tsc ($d)" npx --prefix "$d" tsc -p "$d" --noEmit
-    else skip "tsc ($d): no tsconfig"; fi
+    # A solution-style root tsconfig ("files": [] + "references", the Vite
+    # template) holds no files itself: `tsc -p` on it checks NOTHING and always
+    # passes. Only build mode follows the references into the real projects.
+    if [ ! -f "$d/tsconfig.json" ]; then skip "tsc ($d): no tsconfig"
+    elif grep -q '"references"' "$d/tsconfig.json"; then
+      run "tsc -b ($d)" npx --prefix "$d" tsc -b "$d" --noEmit
+    else run "tsc ($d)" npx --prefix "$d" tsc -p "$d" --noEmit; fi
   done
 
   say "build"
