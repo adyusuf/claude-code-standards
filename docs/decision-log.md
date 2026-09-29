@@ -528,6 +528,12 @@ gate runs is **not measured**; the rule rests on the role ledger (`analyst`/`dev
 on sonnet ~$2–6, `qa` on opus ~$4.10 measured) and on the fact that most of a gate's
 wall-clock is waiting, not tokens.
 
+**29/09/2026, same day — short gates and one runner per chain (user decision (c)).**
+Measured the same day: a fresh runner agent cost 17.7–18.3k tokens per gate whatever
+the gate's length (6 runs, 21 s to 10 min), a resumed one 2.6–2.7k (2 runs). So a gate
+under a minute is run directly, and a promotion chain resumes ONE runner agent instead
+of opening a new one per gate (`standards/23-delivery-flow-tuning.md` §13b).
+
 ## §16 · §28 · never-do list — the enforcement tooling
 
 Rules that stayed prose were the ones that failed silently, so each was given a check

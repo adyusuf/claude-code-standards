@@ -75,5 +75,14 @@ what a red or incomplete result MEANS is not.
   full log is opened only for diagnosis.
 - A turn that runs gates for long stretches may also run on Sonnet as a session
   model and switch to Opus when a result is red — the user's choice in the app.
-- **Cost:** not measured yet for gate runs. Record the first measured pair
-  (Sonnet run vs. Opus run of the same gate) in `modes/role-selection.md` §8.
+- ⚠️ **A short gate is run directly, not delegated** (user decision 29/09/2026). A gate whose last
+  measured run took **under a minute** — e.g. the `prod` gate of a repository with no e2e (21 s) —
+  is run by the orchestrator: a fresh runner agent costs a fixed ~18k tokens whatever the gate's
+  length, more than the gate itself. If the permission mode refuses the orchestrator (a `prod`
+  gate is often classed as a production deploy), the USER runs it — it is never routed to an agent.
+- ⚠️ **One runner agent per promotion chain** (user decision 29/09/2026). The first long gate
+  (feature → `dev`) opens the runner; the following gates of the same chain (`dev → test`, and the
+  next batch) are sent to that SAME agent (`SendMessage`), not to a new one.
+- **Cost, measured 29/09/2026:** a fresh runner agent **17.7–18.3k tokens**, 3 tool calls, for a
+  3-10 min gate (6 runs); the same agent resumed for another gate **2.6–2.7k tokens** (2 runs).
+  The Opus side (the orchestrator running the same gate itself) is still not measured.
