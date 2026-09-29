@@ -28,6 +28,14 @@ the command and compares your number. A finding without its command counts as
 **"not verified"** — because nobody can audit it without redoing your reading
 from scratch.
 
+## Running a test suite, coverage run or gate (`standards/23-delivery-flow-tuning.md` §13b)
+
+When you are asked to RUN one: write its output to a log file (never pipe it into
+`tail`/`head`), and return the exact command, the exit code and the result block
+read from that file. Do **not** diagnose a red result and do **not** call anything
+green that did not run or was cut short — say "did not run" / "interrupted" and stop.
+Diagnosis belongs to the caller.
+
 ## Completeness check (mandatory — at the VERY END of your report, every time)
 
 Close your report with this block; write it even when the pass is clean — an
