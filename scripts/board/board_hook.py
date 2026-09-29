@@ -1,0 +1,116 @@
+"""Claude Code hook entrypoint: records agent lifecycle and enforces board controls.
+
+Wire it for PreToolUse/PostToolUse (matcher "Agent"), SubagentStop, Stop,
+UserPromptSubmit and PostToolUse (matcher "*") — the settings block is in
+standards/22-live-board.md.
+"""
+from __future__ import annotations
+
+import json
+import re
+import sys
+
+from board_config import AGENT_TOOL, TASK_TAG_PATTERN, board_dir
+from board_store import append_event, fold, read_control, read_events, unseen_changes
+
+
+def task_tag(text: str) -> str | None:
+    m = re.search(TASK_TAG_PATTERN, text or "")
+    return m.group(1) if m else None
+
+
+def deny_reason(agent_type: str, task: str | None, control: dict,
+                allowed_roles: list | None) -> str | None:
+    """None = no plan declared yet (nothing to enforce); [] = a declared EMPTY set
+    (mode A: no agents), which denies every agent — fail-closed (#6)."""
+    if agent_type in control["disabled_roles"]:
+        return f"The '{agent_type}' agent is switched off on the board by the user."
+    if task and task in control["removed_tasks"]:
+        return f"Task {task} was removed from the board by the user; do not work on it."
+    if allowed_roles is not None and agent_type not in allowed_roles:
+        return (f"'{agent_type}' is outside the active mode's role set "
+                f"({', '.join(allowed_roles) or 'none'}). Propose a mode change instead.")
+    return None
+
+
+def _change_text(changes: list[dict]) -> str:
+    labels = {"remove_task": "removed task", "restore_task": "restored task",
+              "disable_role": "switched off agent", "enable_role": "switched on agent"}
+    lines = [f"- {labels.get(c['action'], c['action'])} {c['value']}" for c in changes]
+    return ("The user changed the live board:\n" + "\n".join(lines) +
+            "\nApply this: skip removed tasks, do not start switched-off agents, "
+            "and stop any running agent for a removed task (TaskStop).")
+
+
+def _context(event_name: str, text: str) -> dict:
+    return {"hookSpecificOutput": {"hookEventName": event_name, "additionalContext": text}}
+
+
+def handle(payload: dict) -> dict | None:
+    event = payload.get("hook_event_name")
+    session = payload.get("session_id", "")
+    bdir = board_dir(payload.get("cwd"))
+    tool = payload.get("tool_name")
+    tin = payload.get("tool_input") or {}
+
+    if event == "PreToolUse" and tool == AGENT_TOOL:
+        agent_type = tin.get("subagent_type") or "general-purpose"
+        desc = tin.get("description", "")
+        task = task_tag(desc)
+        control = read_control(bdir)
+        roles = fold(read_events(bdir))["roles"]
+        reason = deny_reason(agent_type, task, control, roles)
+        base = {"session": session, "tool_use_id": payload.get("tool_use_id"),
+                "agent_type": agent_type, "description": desc, "task": task,
+                "background": tin.get("run_in_background", True)}
+        if reason:
+            append_event(bdir, {"type": "agent_denied", "reason": reason, **base})
+            return {"hookSpecificOutput": {"hookEventName": "PreToolUse",
+                                           "permissionDecision": "deny",
+                                           "permissionDecisionReason": reason}}
+        append_event(bdir, {"type": "agent_pre", **base})
+        return None
+
+    if event == "PostToolUse":
+        if tool == AGENT_TOOL:
+            resp = payload.get("tool_response") or {}
+            launched = isinstance(resp, dict) and resp.get("status") == "async_launched"
+            append_event(bdir, {"type": "agent_post", "session": session,
+                                "tool_use_id": payload.get("tool_use_id"),
+                                "launched": launched,
+                                "agent_id": resp.get("agentId") if launched else None})
+        changes = unseen_changes(bdir, session)
+        return _context("PostToolUse", _change_text(changes)) if changes else None
+
+    if event == "SubagentStop":
+        append_event(bdir, {"type": "agent_stop", "session": session,
+                            "agent_id": payload.get("agent_id"),
+                            "agent_type": payload.get("agent_type")})
+        return None
+
+    if event == "Stop":
+        append_event(bdir, {"type": "turn_stop", "session": session})
+        return None
+
+    if event == "UserPromptSubmit":
+        append_event(bdir, {"type": "turn_start", "session": session})
+        changes = unseen_changes(bdir, session)
+        return _context("UserPromptSubmit", _change_text(changes)) if changes else None
+
+    return None
+
+
+def main() -> int:
+    try:
+        payload = json.load(sys.stdin)
+        out = handle(payload)
+    except Exception as exc:  # the board must never break a session; log and let the call through
+        print(f"board hook error: {exc!r}", file=sys.stderr)
+        return 0
+    if out:
+        print(json.dumps(out))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

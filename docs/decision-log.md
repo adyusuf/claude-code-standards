@@ -192,7 +192,52 @@ variable to a `:`-separated path.
 canonical one. Today that comparison had to be done by hand, and doing it by hand
 is exactly where the two false claims above came from. A check that walks the
 known repositories and diffs blob ids against a named ref would have answered it
-in one line, and it is not built.
+in one line, and it is not built. *(Closed since: `scripts/twin-drift.sh` does
+this comparison and `merge-gate.sh` runs it.)*
+
+### The dependency-CVE step failed open
+
+The .NET step was `dotnet list … --vulnerable | grep -qi 'critical\|high'` and a
+pass for everything else. On 24/09/2026 the NuGet vulnerability feed hung on a
+network that black-holes IPv6; the process was killed after 13 minutes and the gate
+printed `✓ dotnet packages`. With no `dotnet` on the machine the step did not appear
+in the report at all — neither passed nor skipped.
+
+The step now runs under `GATE_CVE_TIMEOUT` (default 300 s, through `timeout` or
+`gtimeout` when one exists) and passes only when the listing exits 0 **and** prints
+NuGet's own per-project verdict ("has no / has the following vulnerable
+packages") with no critical or high advisory. No answer in time, a non-zero exit,
+an `error` line or a missing verdict is a failure; a missing `dotnet` is SKIPPED.
+
+**Mutation record** (`scripts/tests/test_gate_core_cve.py`, 8 tests): with the old
+one-line step restored, 6 of the 8 fail — failing listing, empty listing, error
+line, timeout and missing `dotnet` go green or vanish, and the high-advisory case
+no longer names the package. The clean and moderate cases pass under both.
+
+**How to apply:** a gate step that reads a tool's output must also check that the
+tool RAN — exit code and an expected marker — before reading a verdict from it.
+"No bad news in the output" is not a pass when there may be no output.
+
+### The typecheck step checked no files
+
+The step was `tsc -p <dir> --noEmit`. The Vite template's root `tsconfig.json` is
+`"files": []` plus `"references"` — it holds no files itself, so `tsc -p` on it
+compiled nothing and passed every time. On 24/09/2026 a broken multi-line import in
+a page passed the gate's typecheck and was caught only by `npm run build` (`tsc -b`).
+Measured on 28/09/2026 in that project: one injected type error, `tsc -p .` exits 0,
+`tsc -b .` exits 2.
+
+The step now uses build mode (`tsc -b <dir> --noEmit`) when the root tsconfig has
+`"references"`, and project mode otherwise. Four of the eight projects have a
+solution-style root; all four passed `tsc -b` on 28/09/2026, so the switch turned no
+gate red.
+
+**Mutation record** (`scripts/tests/test_gate_core_tsc.py`, 4 tests): with the old
+step restored, the build-mode and type-error-behind-references cases fail.
+
+**How to apply:** the same lesson as the CVE step, one level earlier — a check that
+passes must be shown to have looked at something. A tool pointed at a file that
+contains no inputs is not a green result.
 
 ## §26 — Pull `dev` → branch off `dev` → work → merge each task separately
 
@@ -644,6 +689,21 @@ name their signal; an unmeasurable figure says "cannot be measured"; a step that
 not run is reported as "did not run" and never folded into a pass; a long run's output
 goes to a log file instead of a buffering pipe (`tail`/`head`); an inferred state says
 it is inferred; an over-optimistic estimate is corrected downward out loud.
+
+**29/09/2026 — the local live board is allowed back, as an extra view (user
+decision).** The user wanted to watch, while Claude works, which task is where and
+which agent runs on it, and to remove tasks and switch agents off without typing.
+It does not bring back what sank the dashboard: **Claude does not write the page**
+— hooks record agent start/finish, so there is no second record to keep in step by
+hand and no round of work per report; the page is served on `127.0.0.1` and never
+published; and the table in the reply stays the report (`CLAUDE.md` STATUS
+REPORTING, `standards/22-live-board.md` §3). What it adds is control: a removed task
+or a switched-off agent is enforced by a `PreToolUse` hook, not by memory. Cost was
+measured before adoption (`22` §4): silent hooks cost no tokens, ≈1.8-2k tokens per
+7-task hour, 65 ms per tool call. Found while building it and pinned by tests: a
+denied spawn was being revived by a stray `PostToolUse`; a declared EMPTY role set
+(mode A) meant "no limit" instead of "no agents" — now fail-closed (#6); a refused
+control's error was wiped by the refresh that followed it.
 
 <details>
 <summary>The retired dashboard rule, as it stood until recently</summary>

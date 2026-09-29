@@ -166,7 +166,7 @@ chain, migration), report it as a **short markdown table in the reply itself**.
 (user decision). Publishing a page, keeping it current at the same URL and
 then repeating the same content as text cost a round of work per report and split the
 record in two: the reply and the page disagreed as soon as one of them was updated. The
-table in the conversation is now the whole deliverable, and it is what the user reads.
+table in the conversation is the whole deliverable; the local live board (`22-live-board.md`) is an extra view only.
 
 ### 10a. What the table contains
 
@@ -253,3 +253,7 @@ then loses the promotion to a moving base. Speed-ups are allowed only under thes
 6. **Two gates / test batteries never share a worktree** (§11.6) — parallelism is INSIDE one run, not between runs.
 7. **Measure the gain before claiming it.** State the before/after wall-clock; a speed-up that was only reasoned about is
    reported as an estimate, not a result.
+
+## 13. Tuning the delivery flow — cost, quality and speed (GUIDANCE, all projects)
+
+Moved to [`23-delivery-flow-tuning.md`](23-delivery-flow-tuning.md) (§13 and the mandatory §13a flow-research task).
