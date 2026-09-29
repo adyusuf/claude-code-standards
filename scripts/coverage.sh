@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Line coverage of THIS repository's own scripts (global rule #29): Python measured,
+# Line coverage of THIS repository's own scripts (global rule #29): Python and JavaScript measured,
 # shell reported honestly as NOT MEASURED. gate-core.sh runs this file as the
 # coverage step when it is present (scripts/coverage.sh).
 #
@@ -55,6 +55,47 @@ else
   find scripts -name __pycache__ -path '*tests*' -prune -exec rm -rf {} + 2>/dev/null
   rm -rf "$data"
 fi
+
+# JavaScript: MEASURED with Node's built-in coverage, so there is no package to
+# install. The live board's page script (scripts/board/, standards/22-live-board.md) is the
+# JavaScript here. Node only reports files a test LOADED, so a file no test touches
+# would silently leave the denominator: every file must appear in the report, or
+# the codebase is NOT MEASURED (#29).
+echo "▶ JavaScript (threshold ${min}%)"
+js_files="$(find scripts -name '*.js' -not -path '*/tests/*' -not -path '*/node_modules/*' 2>/dev/null | sort)"
+js_status=0
+if [ -z "$js_files" ]; then
+  echo "  n/a: no JavaScript here"
+elif ! command -v node >/dev/null 2>&1; then
+  echo "  NOT MEASURED: node is not installed"
+  js_status=3
+else
+  js_log="$(mktemp)"
+  node --test --experimental-test-coverage --test-coverage-include='scripts/**/*.js' \
+       --test-coverage-exclude='scripts/tests/**' --test-coverage-lines="$min" \
+       'scripts/tests/**/*.test.js' >"$js_log" 2>&1
+  js_run=$?
+  sed -n '/start of coverage report/,/end of coverage report/p' "$js_log" | sed 's/^/  /'
+  unloaded=""
+  for file in $js_files; do
+    grep -q " $(basename "$file") " "$js_log" || unloaded="$unloaded $file"
+  done
+  if ! grep -q '^# fail 0$' "$js_log"; then
+    grep -E '^not ok|^# (pass|fail) ' "$js_log" | sed 's/^/  /'
+    echo "  ✗ the tests are red — coverage of a red suite is not a measurement"
+    js_status=1
+  elif [ -n "$unloaded" ]; then
+    echo "  NOT MEASURED: no test loads$unloaded"
+    js_status=3
+  elif [ "$js_run" != 0 ]; then
+    echo "  ✗ below ${min}%"
+    js_status=1
+  else
+    echo "  ✓ at or above ${min}%"
+  fi
+  rm -f "$js_log"
+fi
+if [ "$js_status" != 0 ] && [ "$status" = 0 ]; then status="$js_status"; fi
 
 # Shell: MEASURED by scripts/coverage-shell.sh (kcov). It used to be reported here
 # as permanently NOT MEASURED, which made this gate impossible to pass on macOS at

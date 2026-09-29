@@ -5,8 +5,9 @@
 # thresholds CI uses — never two different rules in two places. gate-core.sh
 # calls this file through SAST_CMD in scripts/merge-gate.conf.
 #
-# Scope: Python via CodeQL, shell via ShellCheck. CodeQL has no shell analyser,
-# and this repository is mostly shell — "SAST passed" would have read as
+# Scope: Python and JavaScript via CodeQL, shell via ShellCheck. The JavaScript is
+# the live board's page script (scripts/board/, standards/22-live-board.md).
+# CodeQL has no shell analyser, and this repository is mostly shell — "SAST passed" would have read as
 # "everything was scanned" while more than half the code was never looked at.
 # ShellCheck closes that half. Both tools are PROBED; a missing one is reported
 # as NOT RUN and blocks, because a gate that did not run did not pass (#19).
@@ -26,42 +27,39 @@ set -uo pipefail
 root="$(git rev-parse --show-toplevel 2>/dev/null)" || { echo "not inside a git repository" >&2; exit 2; }
 cd "$root" || exit 2
 
-echo "▶ SAST (CodeQL, Python)"
-
 command -v codeql >/dev/null 2>&1 || {
+  echo "▶ SAST (CodeQL)"
   echo "  NOT RUN: codeql is not installed (brew install --cask codeql)"
   echo "  A gate that did not run did not pass (#19)."
   exit 3; }
 
-if [ -z "$(find . -name '*.py' -not -path './.codeql/*' -not -path '*/node_modules/*' -print -quit 2>/dev/null)" ]; then
-  echo "  n/a: this repository has no Python"
-  exit 0
-fi
-
-db="${CODEQL_DB:-$root/.codeql/db}"
-out="${CODEQL_SARIF:-$root/.codeql/results.sarif}"
-suite="${CODEQL_SUITE:-codeql/python-queries:codeql-suites/python-security-extended.qls}"
-mkdir -p "$(dirname "$db")"
-rm -rf "$db"
-
 log="$(mktemp)"
 trap 'rm -f "$log"' EXIT
 
-if ! codeql database create "$db" --language=python --source-root="$root" \
+# One CodeQL pass: $1 language, $2 label, $3 file pattern, $4 query suite, $5 database,
+# $6 SARIF output. Returns 0 clean or n/a · 1 high/critical · 3 NOT RUN.
+codeql_pass() {
+  local lang="$1" label="$2" pattern="$3" suite="$4" db="$5" out="$6"
+  echo "▶ SAST (CodeQL, $label)"
+  if [ -z "$(find . -name "$pattern" -not -path './.codeql/*' -not -path '*/node_modules/*' -print -quit 2>/dev/null)" ]; then
+    echo "  n/a: this repository has no $label"
+    return 0
+  fi
+  mkdir -p "$(dirname "$db")"
+  rm -rf "$db"
+  if ! codeql database create "$db" --language="$lang" --source-root="$root" \
         --overwrite >"$log" 2>&1; then
-  tail -15 "$log" | sed 's/^/    /'
-  echo "  NOT RUN: the CodeQL database could not be built"
-  exit 3
-fi
-
-if ! codeql database analyze "$db" "$suite" \
-        --format=sarif-latest --output="$out" --download >"$log" 2>&1; then
-  tail -15 "$log" | sed 's/^/    /'
-  echo "  NOT RUN: the CodeQL analysis did not complete (query pack unavailable offline?)"
-  exit 3
-fi
-
-python3 - "$out" <<'REPORT'
+    tail -15 "$log" | sed 's/^/    /'
+    echo "  NOT RUN: the CodeQL database could not be built"
+    return 3
+  fi
+  if ! codeql database analyze "$db" "$suite" \
+          --format=sarif-latest --output="$out" --download >"$log" 2>&1; then
+    tail -15 "$log" | sed 's/^/    /'
+    echo "  NOT RUN: the CodeQL analysis did not complete (query pack unavailable offline?)"
+    return 3
+  fi
+  python3 - "$out" <<'REPORT'
 import json, sys
 from collections import Counter
 
@@ -106,7 +104,21 @@ if blocking:
     raise SystemExit(1)
 print('  ✓ no high or critical finding')
 REPORT
+}
+
+codeql_pass python Python '*.py' \
+  "${CODEQL_SUITE:-codeql/python-queries:codeql-suites/python-security-extended.qls}" \
+  "${CODEQL_DB:-$root/.codeql/db}" "${CODEQL_SARIF:-$root/.codeql/results.sarif}"
 status=$?
+if [ "$status" = 3 ]; then exit 3; fi
+
+echo
+codeql_pass javascript JavaScript '*.js' \
+  "codeql/javascript-queries:codeql-suites/javascript-security-extended.qls" \
+  "$root/.codeql/db-javascript" "$root/.codeql/results-javascript.sarif"
+js_status=$?
+if [ "$js_status" = 3 ]; then exit 3; fi
+if [ "$js_status" != 0 ] && [ "$status" = 0 ]; then status="$js_status"; fi
 
 echo
 echo "▶ SAST (ShellCheck, shell)"

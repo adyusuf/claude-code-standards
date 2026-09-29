@@ -27,6 +27,15 @@
 # PROBED below, and if either is missing this exits 3: not measured, which blocks
 # exactly like a failure (#29 — an unmeasured codebase does not count as passing).
 #
+# ⚠️ RUN IT FROM A SHORT PATH. kcov reads bash's trace lines (`kcov@<file>@<line>@`)
+# from stderr on macOS, and with a long checkout path it misreads them: a traced
+# script that runs another script prints "kcov: error: <path> is not an integer" and
+# the inner script never runs. Measured 29/09/2026: the same commit, kcov 43 and
+# bash 5.3 passed test_md_hook_drift from /Users/…/claude-code-standards-wt-rules
+# and failed it from a 238-character /private/tmp/… worktree. A red suite here from a
+# deep temporary directory is an ENVIRONMENT failure (#31) — re-run from a short
+# path before reading it as a product bug.
+#
 # Exit codes: 0 at or above the threshold · 1 below it · 2 usage/environment · 3 NOT MEASURED
 set -uo pipefail
 
