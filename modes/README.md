@@ -115,6 +115,10 @@ decision.
 
 ## Audit and cost visibility
 
+> Tuning a project's flow for cost · quality · speed (parallel test writing, parallel `qa`,
+> batching, a separate test database): [`standards/00-working-method.md`](../standards/00-working-method.md) §13 —
+> each project measures and picks its own set. The research behind it (§13a) is MANDATORY and recurring.
+
 In every mode, on every turn that uses agents:
 
 1. **The auditor does not ask — it checks, and sends work back if something is
