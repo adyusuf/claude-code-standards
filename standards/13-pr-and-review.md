@@ -124,6 +124,10 @@ When writing a comment: **what** is wrong + **why** it matters + **a suggestion*
   A red batch gate is not waved through: bisect the batch (drop the newest task, re-run) to find the
   task that broke it, fix it in its own commit, and re-run the gate.
 - `dev → test → prod`: a **promotion**, fast-forward/merge. Never a merge in the reverse direction.
+- **The `prod` gate runs on the tip of `test` itself** — a detached checkout of `origin/test` —
+  never on a `test`-into-`prod` merge candidate: its deploy step compares `HEAD` with the SHA the
+  test environment runs, so a candidate's new merge commit fails it by construction (measured
+  29/09/2026). The merge to `prod` follows the green run.
 - **No** direct commit or PR to `test` and `prod` — only from the previous stage, with the user's approval.
 - Before merging, `git fetch` and update if you are behind — a gate running against stale code gives false confidence.
 - A `--force` push happens only on your own feature branch and only with explicit approval.
