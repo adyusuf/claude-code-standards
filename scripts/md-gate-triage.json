@@ -7,6 +7,7 @@
     "33. the only place for e2e is the pre-production gate.": "Reworded as 'E2E runs at the prod gate only, and the code must be on test first' — same intent, plus the deploy verification.",
     "1. has the code reached test if not it goes to test first an": "Kept as step 1 of the new #33 and strengthened: the deploy is now VERIFIED through the version endpoint rather than merely awaited.",
     "4. has e2e been run against this code if there is no valid f": "Replaced: there is no 'is there a valid record' shortcut any more. The WHOLE suite runs at the prod gate every time.",
-    "5. if the record is green it ships to prod . if it is red st": "Replaced by the new step 4: nothing red in the full run ⇒ merge; red, stale or absent ⇒ no merge."
+    "5. if the record is green it ships to prod . if it is red st": "Replaced by the new step 4: nothing red in the full run ⇒ merge; red, stale or absent ⇒ no merge.",
+    "3. when a task is finished merge that task to dev on its own": "Changed by the user on 29/09/2026: each task keeps its own commit, but finished tasks may be merged to dev together through ONE gate run (gates are long); never squashed (#26, standards/13-pr-and-review.md §8, decision-log §26 amendment)."
   }
 }
