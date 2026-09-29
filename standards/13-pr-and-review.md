@@ -116,7 +116,13 @@ When writing a comment: **what** is wrong + **why** it matters + **a suggestion*
 
 ## 8. Merge strategy
 
-- Into `dev`: **squash merge** (a clean history) or rebase — one style within a project.
+- Into `dev`: a **merge commit** (`--no-ff`) that keeps every task's own commit. Never squash: a squashed
+  batch loses the per-task history (#26).
+- **Batch merge (#26, user decision 29/09/2026 — gates are long):** finished tasks, each in its own
+  commit(s), are collected on one batch branch off `dev` (or their branches are merged into it with
+  `--no-ff`), the gate runs ONCE on the batch, and the batch is merged to `dev` in one merge commit.
+  A red batch gate is not waved through: bisect the batch (drop the newest task, re-run) to find the
+  task that broke it, fix it in its own commit, and re-run the gate.
 - `dev → test → prod`: a **promotion**, fast-forward/merge. Never a merge in the reverse direction.
 - **No** direct commit or PR to `test` and `prod` — only from the previous stage, with the user's approval.
 - Before merging, `git fetch` and update if you are behind — a gate running against stale code gives false confidence.
