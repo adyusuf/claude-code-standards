@@ -2,7 +2,7 @@
 
 **Five** modes determine how a task is carried out: **A-E, subagent-based.**
 (The Agent Teams modes X-Z are archived → [`archive/README.md`](archive/README.md).)
-Reading order: **a session-scoped selection** (`/working-mode <letter> --tek`, not
+Reading order: **a session-scoped selection** (`/adyusuf:working-mode <letter> --tek`, not
 written to the project file) → the project's `.claude/mode` → **B**. If neither
 exists, **B** applies.
 
@@ -76,7 +76,7 @@ If either check cannot be run, the output is "not verified" (#28), never fine.
 **No agent is called in A; in B/C/D/E choosing the mode is the approval for that
 agent set.** No separate question before a call; at the end of the turn, how many
 agents ran and the estimated cost are **reported**. If an agent is needed but the
-mode is A: I do not start it, I **propose changing the mode** (`/working-mode B`) —
+mode is A: I do not start it, I **propose changing the mode** (`/adyusuf:working-mode B`) —
 the decision is the user's.
 
 ⚠️ **Automatic delegation is a call too.** Claude Code may suggest an agent on its
@@ -180,6 +180,6 @@ budget ceiling, stall brake, stopping on any irreversible action.
 
 ## Selecting a mode
 
-    /working-mode           # show the current mode
-    /working-mode B         # switch this project to B (persistent)
-    /working-mode B --tek   # this session only, do not write the file
+    /adyusuf:working-mode           # show the current mode
+    /adyusuf:working-mode B         # switch this project to B (persistent)
+    /adyusuf:working-mode B --tek   # this session only, do not write the file

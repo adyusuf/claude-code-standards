@@ -1,6 +1,6 @@
 # Mode A — Skill
 
-The default is **B**; A is chosen explicitly (`/working-mode A`). It is the right
+The default is **B**; A is chosen explicitly (`/adyusuf:working-mode A`). It is the right
 mode for turns where you want to work without agents, for narrow work, and for
 cost-sensitive sessions.
 
@@ -25,7 +25,7 @@ separate prefix, no separate approval.
   (#25: "neither me reading the diff by hand nor an agent"). The exception is the
   security/backup/gate item in `role-selection.md` §3; that exception applies in A too.
 - The role methods (deriving scope, planning, review, documentation) are applied
-  **in the main conversation**. `~/.claude/skills/software-standards` loads the
+  **in the main conversation**. the `adyusuf:software-standards` skill loads the
   relevant standard; there is **no per-role skill file and none is required** — A's
   promise is "the method without the agent", not a set of files.
 - Code review is done by **me**.

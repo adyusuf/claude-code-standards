@@ -1,6 +1,6 @@
 ---
 name: working-mode
-description: Shows or changes the operating mode (A/B/C/D/E) for this project. The mode determines agent usage, review and the approval policy. Use it when the user says "/working-mode", "change the mode", "which mode are we in", "work as a full team", or "work without agents".
+description: Shows or changes the operating mode (A/B/C/D/E) for this project. The mode determines agent usage, review and the approval policy. Use it when the user says "/adyusuf:working-mode", "change the mode", "which mode are we in", "work as a full team", or "work without agents".
 ---
 
 # Working mode
@@ -39,7 +39,7 @@ Show the current mode, what it means and the other options **briefly**: letter +
 name + agent set + who reviews + cost multiplier. Do not paste the whole matrix;
 5-6 lines are enough (A-E).
 
-## 4. If a letter is given (`/working-mode B`)
+## 4. If a letter is given (`/adyusuf:working-mode B`)
 
 1. Validate the letter (**A/B/C/D/E**). ⚠️ **D and E swapped places**: D is now the
    14-role wide team and E is fan-out (`Workflow`). Correct any "D = fan-out"

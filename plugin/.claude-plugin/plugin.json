@@ -1,0 +1,5 @@
+{
+  "name": "adyusuf",
+  "version": "1.0.0",
+  "description": "This rule set's own skills and slash commands under one namespace: /adyusuf:<name>. Loaded from ~/.claude/skills/adyusuf (a skills-dir plugin); skills/ and commands/ link back to the repository's own folders."
+}
