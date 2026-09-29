@@ -716,6 +716,17 @@ denied spawn was being revived by a stray `PostToolUse`; a declared EMPTY role s
 (mode A) meant "no limit" instead of "no agents" — now fail-closed (#6); a refused
 control's error was wiped by the refresh that followed it.
 
+**29/09/2026, same day — it starts by itself and shows every project (user request).**
+A board started by hand in a terminal died with the terminal, and one server per
+project would have meant one port and one page per project. Now a `SessionStart`
+hook registers the project in a machine-wide list and starts ONE server if none
+answers; the page has a tab per project. Chosen over a launchd service because it
+lives in the same opt-in settings block, needs no per-machine service file, and is
+up exactly when Claude is working. Pinned by tests: parallel registrations do not
+drop each other (removing the lock fails the test), a foreign service or an older
+one-project server on the port is reported, never replaced, and no test touches
+the real registry or port.
+
 <details>
 <summary>The retired dashboard rule, as it stood until recently</summary>
 
