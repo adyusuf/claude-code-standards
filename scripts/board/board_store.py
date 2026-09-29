@@ -147,7 +147,7 @@ def read_control(bdir: Path) -> dict:
     return {**empty_control(), **data}
 
 
-def _atomic_write(path: Path, data: dict) -> None:
+def atomic_write(path: Path, data: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
     fd = os.open(tmp, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
@@ -171,7 +171,7 @@ def apply_control(bdir: Path, action: str, value: str) -> dict:
     ctl["version"] += 1
     ctl["changes"] = (ctl["changes"] + [{"v": ctl["version"], "action": action,
                                          "value": value, "ts": now_iso()}])[-50:]
-    _atomic_write(bdir / CONTROL_FILE, ctl)
+    atomic_write(bdir / CONTROL_FILE, ctl)
     return ctl
 
 
@@ -187,5 +187,5 @@ def unseen_changes(bdir: Path, session: str) -> list[dict]:
     fresh = [c for c in ctl["changes"] if c["v"] > seen]
     if fresh:
         acks[session] = ctl["version"]
-        _atomic_write(ack_path, acks)
+        atomic_write(ack_path, acks)
     return fresh

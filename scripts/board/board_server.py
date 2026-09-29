@@ -1,7 +1,9 @@
-"""Local board server: serves board.html, the folded state, and accepts control changes.
+"""Local board server — ONE server for every project registered on this machine.
 
-  python3 ~/.claude/scripts/board/board_server.py [--dir <project>/.claude/board]
-Binds to localhost only. Standard library, no dependencies.
+  python3 ~/.claude/scripts/board/board_server.py [--port N] [--dir <project>/.claude/board]
+Serves board.html, the project list, each project's folded state, and takes the
+user's controls. Binds to localhost only. Standard library, no dependencies.
+Started automatically by board_ensure.py (SessionStart hook, standards/22-live-board.md).
 """
 from __future__ import annotations
 
@@ -11,9 +13,11 @@ import re
 import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from urllib.parse import parse_qs, urlsplit
 
-from board_config import (HOST, PORT, ROLE_PATTERN, TASK_ID_PATTERN, ControlAction,
-                          board_dir)
+from board_config import (API_VERSION, HOST, PORT, PROJECT_ID_PATTERN, REGISTRY,
+                          ROLE_PATTERN, TASK_ID_PATTERN, ControlAction)
+from board_registry import load, project_id, summary
 from board_store import apply_control, fold, read_control, read_events
 
 STATIC = {"/": ("board.html", "text/html; charset=utf-8"),
@@ -29,10 +33,33 @@ def validate_control(body: dict) -> tuple[str, str]:
     pattern = TASK_ID_PATTERN if action in task_actions else ROLE_PATTERN
     if not re.match(pattern, value):
         raise ValueError("invalid value")
+    project = body.get("project")
+    if project is not None and not (isinstance(project, str) and re.match(PROJECT_ID_PATTERN, project)):
+        raise ValueError("invalid project")
     return action, value
 
 
-def make_handler(bdir: Path):
+def boards(registry: Path, extra_dir: Path | None) -> dict:
+    """Registered boards, plus the one named with --dir (kept for backward compatibility)."""
+    found = load(registry)
+    if extra_dir is not None:
+        root = extra_dir.resolve().parent.parent
+        entry = {"id": project_id(root), "name": root.name, "root": str(root),
+                 "dir": str(extra_dir.resolve()), "registered": None}
+        found.setdefault(entry["id"], entry)
+    return found
+
+
+def pick(found: dict, wanted: str | None) -> dict | None:
+    """The requested board; without one, the most recently active (the pre-v2 behaviour)."""
+    if wanted:
+        return found.get(wanted)
+    if not found:
+        return None
+    return max(found.values(), key=lambda e: summary(e)["last_event"] or "")
+
+
+def make_handler(registry: Path | None = None, extra_dir: Path | None = None):
     class Handler(BaseHTTPRequestHandler):
         def _send(self, code: int, body: bytes, ctype: str) -> None:
             self.send_response(code)
@@ -47,19 +74,32 @@ def make_handler(bdir: Path):
                        "application/json; charset=utf-8")
 
         def do_GET(self):
-            if self.path in STATIC:
-                name, ctype = STATIC[self.path]
-                self._send(200, Path(__file__).with_name(name).read_bytes(), ctype)
-            elif self.path == "/api/state":
+            url = urlsplit(self.path)
+            query = parse_qs(url.query)
+            if url.path in STATIC:
+                name, ctype = STATIC[url.path]
+                return self._send(200, Path(__file__).with_name(name).read_bytes(), ctype)
+            if url.path == "/api/info":
+                return self._json(200, {"version": API_VERSION})
+            found = boards(registry, extra_dir)
+            if url.path == "/api/projects":
+                items = sorted((summary(e) for e in found.values()),
+                               key=lambda s: s["last_event"] or "", reverse=True)
+                return self._json(200, items)
+            if url.path == "/api/state":
+                entry = pick(found, (query.get("p") or [None])[0])
+                if entry is None:
+                    return self._json(404, {"error": "unknown project"})
+                bdir = Path(entry["dir"])
                 control = read_control(bdir)
                 state = fold(read_events(bdir), control)
                 state["control"] = {k: control[k] for k in ("removed_tasks", "disabled_roles")}
-                self._json(200, state)
-            else:
-                self._json(404, {"error": "not found"})
+                state["project"] = entry["id"]
+                return self._json(200, state)
+            return self._json(404, {"error": "not found"})
 
         def do_POST(self):
-            if self.path != "/api/control":
+            if urlsplit(self.path).path != "/api/control":
                 return self._json(404, {"error": "not found"})
             # Same-origin only: a foreign page cannot send JSON here without a preflight we never answer.
             origin = self.headers.get("Origin")
@@ -71,10 +111,14 @@ def make_handler(bdir: Path):
             if length <= 0 or length > MAX_BODY:
                 return self._json(400, {"error": "bad body size"})
             try:
-                action, value = validate_control(json.loads(self.rfile.read(length)))
+                body = json.loads(self.rfile.read(length))
+                action, value = validate_control(body)
             except (ValueError, json.JSONDecodeError) as exc:
                 return self._json(400, {"error": str(exc)})
-            ctl = apply_control(bdir, action, value)
+            entry = pick(boards(registry, extra_dir), body.get("project"))
+            if entry is None:
+                return self._json(404, {"error": "unknown project"})
+            ctl = apply_control(Path(entry["dir"]), action, value)
             self._json(200, {"version": ctl["version"]})
 
         def log_message(self, fmt, *args):  # keep request noise out; errors still go to stderr
@@ -84,13 +128,14 @@ def make_handler(bdir: Path):
     return Handler
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     p = argparse.ArgumentParser()
-    p.add_argument("--dir", help="board directory (default: from board_config)")
-    args = p.parse_args()
-    bdir = Path(args.dir) if args.dir else board_dir()
-    server = ThreadingHTTPServer((HOST, PORT), make_handler(bdir))
-    print(f"board: http://{HOST}:{PORT}  (data: {bdir})", flush=True)
+    p.add_argument("--port", type=int, default=PORT)
+    p.add_argument("--dir", help="also show this board directory (optional)")
+    args = p.parse_args(argv)
+    extra = Path(args.dir) if args.dir else None
+    server = ThreadingHTTPServer((HOST, args.port), make_handler(REGISTRY, extra))
+    print(f"board: http://{HOST}:{args.port}  (registry: {REGISTRY})", flush=True)
     try:
         server.serve_forever()
     except KeyboardInterrupt:
