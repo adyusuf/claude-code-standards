@@ -41,6 +41,13 @@ The hooks set `running` and `agent_done`. Only you set the rest:
 
 `agent_done` means "the agent returned", not "the task is done" (#28).
 
+**Asking the user:** `B set T-n --status needs_decision --note "<question>" --options "a|b"`
+(no `--options` → Continue / Reject), ask the same question in the chat, then end the
+turn. The Stop hook waits for the click (`BOARD_DECISION_WAIT`, default 180 s); the
+answer arrives as a board change — apply it and move the task out of `needs_decision`.
+A board answer is never an approval for promotion, deploy, deletion or sending outward:
+those still need the user's yes in the chat (`standards/22-live-board.md` §3).
+
 ## 5. Obey the board's controls
 A board change reaches you as a system reminder after your next tool call. Skip
 removed tasks and stop their running agents (`TaskStop`); never retry a denied

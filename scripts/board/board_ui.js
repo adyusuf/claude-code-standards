@@ -30,6 +30,8 @@
       s_waiting: "bekliyor", s_done: "bitti", s_failed: "başarısız", s_removed: "çıkarıldı",
       s_starting: "başlıyor", s_denied: "reddedildi",
       noProjects: "Henüz proje yok — bir projede Claude oturumu başlayınca burada görünür.",
+      s_needs_decision: "karar bekliyor", stDecision: "Karar bekliyor", decided: "Karar",
+      continue: "Devam", reject: "Reddet", notePh: "not (isteğe bağlı)",
     },
     en: {
       title: "Live Work Board", mode: "Mode", lastEvent: "last event:", agentsHdr: "Agents",
@@ -45,6 +47,8 @@
       s_waiting: "waiting", s_done: "done", s_failed: "failed", s_removed: "removed",
       s_starting: "starting", s_denied: "denied",
       noProjects: "No project yet — one appears when a Claude session starts in it.",
+      s_needs_decision: "awaiting decision", stDecision: "Awaiting decision", decided: "Decision",
+      continue: "Continue", reject: "Reject", notePh: "note (optional)",
     },
   };
 
@@ -87,6 +91,20 @@
       `<span class="agent-chip"><span class="dot on"></span>${esc(a.type)}</span>`).join("")}</div>` : "";
   }
 
+  /** A question Claude put on the board: its choices and a note field, or the answer given. */
+  function decisionHtml(task, defaults, t) {
+    if (task.status !== "needs_decision") return "";
+    if (task.decision) {
+      return `<div class="decided">${esc(t("decided"))}: <b>${esc(task.decision.choice)}</b>${
+        task.decision.note ? ` — ${esc(task.decision.note)}` : ""}</div>`;
+    }
+    const choices = task.options && task.options.length
+      ? task.options.map((o) => [o, o]) : defaults.map((d) => [d, t(d)]);
+    return `<div class="decide" data-decide-task="${esc(task.id)}">${choices.map(([value, label]) =>
+      `<button class="act" data-choice="${esc(value)}">${esc(label)}</button>`).join("")}
+      <input class="dnote" data-note-for="${esc(task.id)}" maxlength="500" placeholder="${esc(t("notePh"))}"></div>`;
+  }
+
   /** The project tabs: name, live-agent dot, running count; the selected one marked. */
   function projectsHtml(projects, selected, t) {
     if (!projects.length) return `<span class="muted">${esc(t("noProjects"))}</span>`;
@@ -106,6 +124,7 @@
     const stats = [
       [t("stRunning"), count((x) => x.status === "running")],
       [t("stWaiting"), count((x) => x.status === "waiting" || x.status === "agent_done")],
+      [t("stDecision"), count((x) => x.status === "needs_decision")],
       [t("stPlanned"), count((x) => x.status === "planned")],
       [t("stDone"), count((x) => x.status === "done")],
       [t("stRemoved"), count((x) => x.status === "removed")],
@@ -140,7 +159,7 @@
             <td>${x.branch ? `<code>${esc(x.branch)}</code>` : "—"}</td>
             <td>${esc(x.role || "—")}${liveAgents(x, agents)}</td><td>${badge(t, x.status)}</td>
             <td class="muted">${start ? esc(fmtDur(t, start, end, now)) : "—"}</td>
-            <td>${esc(x.note)}</td>
+            <td>${esc(x.note)}${decisionHtml(x, st.decision_defaults || [], t)}</td>
             <td><button class="act" data-task="${esc(x.id)}" data-action="${removed ? "restore_task" : "remove_task"}">
               ${esc(removed ? t("restore") : t("remove"))}</button></td></tr>`;
         }).join(""),
@@ -186,7 +205,9 @@
       $("stats").innerHTML = v.statsHtml;
       $("banner").classList.toggle("show", v.allDone);
       $("roles").innerHTML = v.rolesHtml;
-      $("tasks").innerHTML = v.tasksHtml;
+      // Typing a note: do not redraw the table under the cursor, or the text is lost.
+      const typing = doc.activeElement && doc.activeElement.dataset && doc.activeElement.dataset.noteFor;
+      if (!typing) $("tasks").innerHTML = v.tasksHtml;
       $("agents").innerHTML = v.agentsHtml;
     }
 
@@ -205,10 +226,10 @@
       }
     }
 
-    async function control(action, value) {
+    async function control(action, value, extra = {}) {
       const res = await fetchImpl("/api/control", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, value, project }),
+        body: JSON.stringify({ action, value, project, ...extra }),
       });
       const refused = res.ok ? "" : (await res.json()).error;
       await refresh();  // refresh clears the error line, so a refusal is written after it
@@ -230,6 +251,12 @@
         writeKey(win, PROJECT_KEY, project);
         return refresh();
       }
+      const pick = e.target.closest("[data-choice]");
+      if (pick) {
+        const task = pick.closest("[data-decide-task]").dataset.decideTask;
+        const noteEl = doc.querySelector(`[data-note-for="${task}"]`);
+        return control("decide", task, { choice: pick.dataset.choice, note: noteEl ? noteEl.value : "" });
+      }
       const sw = e.target.closest("[data-role]");
       if (sw) return control(sw.getAttribute("aria-checked") === "true" ? "disable_role" : "enable_role", sw.dataset.role);
       const btn = e.target.closest("[data-task]");
@@ -243,5 +270,5 @@
     return { first, refresh, control, onClick, lang: () => lang, project: () => project };
   }
 
-  return { I18N, makeT, esc, fmtDate, fmtTime, fmtStamp, fmtDur, view, projectsHtml, start };
+  return { I18N, makeT, esc, fmtDate, fmtTime, fmtStamp, fmtDur, view, projectsHtml, decisionHtml, start };
 });
