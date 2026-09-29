@@ -55,8 +55,11 @@ call to its `SubagentStop.agent_id`; `UserPromptSubmit` carries `prompt`.
    itself also logs its errors to stderr and lets the call through.
 2. Add `.claude/board/` to `.gitignore`.
 3. Link the skill once per machine: `ln -s <repo>/skills/board-plan ~/.claude/skills/board-plan`.
-4. Start a NEW session (hooks are read at session start) and open
-   `http://127.0.0.1:8765`. The server is started by the `SessionStart` hook and keeps
+4. Open `http://127.0.0.1:8765`. A running session picked up a newly added
+   `.claude/settings.json` without a restart (measured 29/09/2026, Claude Code 2.1.281:
+   its Stop hook delivered a board decision in the same session), but `SessionStart` —
+   the auto-start — only runs when a session starts. If the board stays silent, start a
+   new session. The server is started by the `SessionStart` hook and keeps
    running after the session ends; after a reboot the next session starts it again.
    By hand, if ever needed: `python3 ~/.claude/scripts/board/board_ensure.py < /dev/null`.
    `BOARD_DIR`, `BOARD_HOST`, `BOARD_PORT`, `BOARD_REGISTRY` override the defaults
