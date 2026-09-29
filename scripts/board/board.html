@@ -46,6 +46,10 @@ code{font:12px ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--code);bac
 .badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;white-space:nowrap}
 .s-planned{background:var(--chip);color:var(--muted)}.s-running,.s-starting{background:var(--run-bg);color:var(--run)}
 .s-agent_done,.s-waiting{background:var(--warn-bg);color:var(--warn)}.s-done{background:var(--ok-bg);color:var(--ok)}
+.s-needs_decision{background:var(--warn-bg);color:var(--warn);outline:1px solid var(--warn)}
+.decide{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;align-items:center}
+.dnote{flex:1;min-width:140px;border:1px solid var(--line);border-radius:6px;padding:3px 7px;background:var(--panel);color:var(--ink);font:inherit;font-size:12px}
+.decided{margin-top:6px;font-size:12px;color:var(--muted)}
 .s-failed,.s-denied{background:var(--bad-bg);color:var(--bad)}.s-removed{background:var(--chip);color:var(--off)}
 .muted{color:var(--muted);font-size:12px}
 button.act{border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:6px;padding:3px 9px;font-size:12px;cursor:pointer}

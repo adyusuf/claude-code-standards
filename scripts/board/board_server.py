@@ -15,8 +15,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from board_config import (API_VERSION, HOST, PORT, PROJECT_ID_PATTERN, REGISTRY,
-                          ROLE_PATTERN, TASK_ID_PATTERN, ControlAction)
+from board_config import (API_VERSION, CHOICE_MAX, HOST, NOTE_MAX, PORT, PROJECT_ID_PATTERN,
+                          REGISTRY, ROLE_PATTERN, TASK_ID_PATTERN, ControlAction, DecisionChoice)
 from board_registry import load, project_id, summary
 from board_store import apply_control, fold, read_control, read_events
 
@@ -29,7 +29,7 @@ def validate_control(body: dict) -> tuple[str, str]:
     action, value = body.get("action"), body.get("value")
     if action not in ControlAction.ALL or not isinstance(value, str):
         raise ValueError("invalid action")
-    task_actions = (ControlAction.REMOVE_TASK, ControlAction.RESTORE_TASK)
+    task_actions = (ControlAction.REMOVE_TASK, ControlAction.RESTORE_TASK, ControlAction.DECIDE)
     pattern = TASK_ID_PATTERN if action in task_actions else ROLE_PATTERN
     if not re.match(pattern, value):
         raise ValueError("invalid value")
@@ -37,6 +37,20 @@ def validate_control(body: dict) -> tuple[str, str]:
     if project is not None and not (isinstance(project, str) and re.match(PROJECT_ID_PATTERN, project)):
         raise ValueError("invalid project")
     return action, value
+
+
+CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
+
+
+def decision_fields(body: dict) -> tuple[str, str]:
+    """The user's choice and optional note for a decide action, validated server-side (#7)."""
+    choice, note = body.get("choice"), body.get("note", "")
+    if not isinstance(choice, str) or not 0 < len(choice.strip()) <= CHOICE_MAX \
+            or CONTROL_CHARS.search(choice):
+        raise ValueError("invalid choice")
+    if not isinstance(note, str) or len(note) > NOTE_MAX or CONTROL_CHARS.search(note):
+        raise ValueError("invalid note")
+    return choice.strip(), note.strip()
 
 
 def boards(registry: Path, extra_dir: Path | None) -> dict:
@@ -95,6 +109,7 @@ def make_handler(registry: Path | None = None, extra_dir: Path | None = None):
                 state = fold(read_events(bdir), control)
                 state["control"] = {k: control[k] for k in ("removed_tasks", "disabled_roles")}
                 state["project"] = entry["id"]
+                state["decision_defaults"] = list(DecisionChoice.DEFAULTS)
                 return self._json(200, state)
             return self._json(404, {"error": "not found"})
 
@@ -113,12 +128,13 @@ def make_handler(registry: Path | None = None, extra_dir: Path | None = None):
             try:
                 body = json.loads(self.rfile.read(length))
                 action, value = validate_control(body)
+                choice, note = decision_fields(body) if action == ControlAction.DECIDE else (None, None)
             except (ValueError, json.JSONDecodeError) as exc:
                 return self._json(400, {"error": str(exc)})
             entry = pick(boards(registry, extra_dir), body.get("project"))
             if entry is None:
                 return self._json(404, {"error": "unknown project"})
-            ctl = apply_control(Path(entry["dir"]), action, value)
+            ctl = apply_control(Path(entry["dir"]), action, value, choice, note)
             self._json(200, {"version": ctl["version"]})
 
         def log_message(self, fmt, *args):  # keep request noise out; errors still go to stderr
