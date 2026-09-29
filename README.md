@@ -111,7 +111,7 @@ Full set: [`CLAUDE.md`](CLAUDE.md) (33 rules) · why each exists:
 The list above is the promise. This is the mechanism, in the same order.
 
 **1. The practices become rules, not intentions.** 33 invariant rules load into
-every session; 22 standards documents carry the detail. The agent does not get
+every session; 23 standards documents carry the detail. The agent does not get
 to decide whether backward compatibility matters this time.
 
 **2. Where a rule is not enough, a gate has an exit code.** A shared gate
@@ -185,7 +185,7 @@ to the human as a question.
 
 ```mermaid
 flowchart LR
-    R["Rules<br/>33 invariants + 22 standards"] --> G["Gates<br/>one shared step set<br/>per promotion"]
+    R["Rules<br/>33 invariants + 23 standards"] --> G["Gates<br/>one shared step set<br/>per promotion"]
     G --> A["Audit<br/>evidence block<br/>at every handoff"]
     A --> M["Measurement<br/>ledger + decision log"]
     M -->|"a rule that cost more<br/>than it returned is retired"| R
@@ -201,7 +201,7 @@ because something broke first.
 | What | Where | Count |
 |---|---|---|
 | Working rules (index loaded every session) | `CLAUDE.md` | 33 rules |
-| Engineering standards | `standards/` | 22 documents + 6 templates |
+| Engineering standards | `standards/` | 23 documents + 6 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
 | Gate and measurement scripts | `scripts/` | 21 scripts + 410 tests |
@@ -210,7 +210,7 @@ because something broke first.
 
 ```mermaid
 pie showData title Repository composition (files)
- "standards/ (22 docs + 6 templates)" : 29
+ "standards/ (23 docs + 6 templates)" : 30
  "agents/ (14 roles)" : 14
  "modes/ (5 modes + selection guide)" : 13
  "scripts/ (gates, hooks, measurement, tests)" : 36

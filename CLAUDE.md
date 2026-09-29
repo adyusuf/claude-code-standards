@@ -140,8 +140,8 @@ for irreversible work (deploy, `DROP`, sending anything outward, deleting files)
 ## STATUS REPORTING during a long gate/run (PERMANENT, all projects)
 
 Report progress as a **short markdown table in the reply** — what the job is,
-where it stands, what is left. **No Artifact dashboard, no published board.** A
-table in the conversation is the whole deliverable.
+where it stands, what is left. **No Artifact dashboard, no published board**; the
+local live board (`standards/22`) is an extra view, the table stays the report.
 
 The table carries: the item · its state · **the measured figure, with the signal
 it was read from** · what it is waiting on. Keep it to the rows that matter; a

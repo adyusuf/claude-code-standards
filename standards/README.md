@@ -28,6 +28,7 @@ token cost stays low.
 | `19-cloudflare-and-edge.md` | DNS, TLS, WAF, rate limiting, caching, **single-origin `/api`**, Tunnel, Workers, R2 |
 | `20-hardening.md` | Security headers, firewall, SSH/RDP, IIS, Docker, DB, CI hardening |
 | `21-backup-and-recovery.md` | 3-2-1, the inventory of what is backed up, RPO/RTO, **restore drills**, runbooks |
+| `22-live-board.md` | The opt-in **live board**: hooks track agents, Claude writes the plan, the user removes tasks and switches agents off; cost measured |
 | `../docs/decision-log.md` | **The decision log** — rationale, measurements and retired rule text moved out of `CLAUDE.md` |
 | `templates/` | Project CLAUDE.md, **module CLAUDE.md**, **SETUP.md**, PR, ADR and user-story templates |
 

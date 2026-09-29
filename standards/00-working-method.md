@@ -166,7 +166,7 @@ chain, migration), report it as a **short markdown table in the reply itself**.
 (user decision). Publishing a page, keeping it current at the same URL and
 then repeating the same content as text cost a round of work per report and split the
 record in two: the reply and the page disagreed as soon as one of them was updated. The
-table in the conversation is now the whole deliverable, and it is what the user reads.
+table in the conversation is the whole deliverable; the local live board (`22-live-board.md`) is an extra view only.
 
 ### 10a. What the table contains
 
