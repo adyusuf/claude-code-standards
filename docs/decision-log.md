@@ -534,6 +534,13 @@ the gate's length (6 runs, 21 s to 10 min), a resumed one 2.6–2.7k (2 runs). S
 under a minute is run directly, and a promotion chain resumes ONE runner agent instead
 of opening a new one per gate (`standards/23-delivery-flow-tuning.md` §13b).
 
+**Incident, 29/09/2026 — a rejected message was delivered.** The user rejected a
+`SendMessage` asking the runner to run a `test` gate; the runner still received it, ran
+the gate (read-only, nothing pushed) and reported it together with the next request.
+The result was discarded. The harness behaviour cannot be fixed from here, so the rule
+is on the reader: after a rejected send, check the runner's next report and drop what
+the user stopped (§13b).
+
 ## §16 · §28 · never-do list — the enforcement tooling
 
 Rules that stayed prose were the ones that failed silently, so each was given a check
