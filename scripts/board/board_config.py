@@ -38,6 +38,12 @@ DECISION_WAIT_S = max(0, min(_int_env("BOARD_DECISION_WAIT", _DEFAULT_DECISION_W
 DECISION_POLL_S = 1.0
 CHOICE_MAX = 64
 NOTE_MAX = 500
+
+# The Merge column: where a task's commits have landed, read from the project's git.
+MERGE_REMOTE = "origin"
+MERGE_BRANCHES = ("dev", "test", "prod")
+MERGE_TIP_TTL_S = 10.0  # branch tips are re-read at most this often (the page polls every 1.5 s)
+COMMIT_PATTERN = r"^[0-9a-f]{7,40}$"
 API_VERSION = 2  # 2 = one server for every registered project
 
 

@@ -16,7 +16,7 @@ lost: it sat under a directory that belonged to no git repository, and although
 
 ## Installing into a project
 
-The `/apply-project-standards` command does this. By hand:
+The `/adyusuf:apply-project-standards` command does this. By hand:
 
 ```bash
 mkdir -p scripts && cp ~/.claude/scripts/md-*.sh ~/.claude/scripts/md-*.py scripts/
@@ -105,7 +105,7 @@ steps; it may never remove one.
 ## Adopting these scripts in a new project
 
 Not everything here is meant to be copied, and some copied files must be edited.
-`/apply-project-standards` does the document part; this is the script part.
+`/adyusuf:apply-project-standards` does the document part; this is the script part.
 
 | File | What to do | Note |
 |---|---|---|

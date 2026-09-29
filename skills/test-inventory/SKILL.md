@@ -1,6 +1,6 @@
 ---
 name: test-inventory
-description: Screen-by-screen test audit in four phases — (1) inventory every test layer of a screen as use cases, hunt for defects, gaps and unhandled cases, and report; (2) write the approved missing tests and report; (3) run every suite, list and classify each failure one by one, report; (4) fix the failures, re-run only what was fixed, then hand back to phase 3 for one full run — the 3 → 4 → 3 loop repeats until green or the ceiling. Use when the user says "/test-inventory", "review the tests", "find the missing tests", "which use cases are tested", "test inventory per page", "eksik testleri bul", "testleri gözden geçir", "sayfa sayfa test envanteri".
+description: Screen-by-screen test audit in four phases — (1) inventory every test layer of a screen as use cases, hunt for defects, gaps and unhandled cases, and report; (2) write the approved missing tests and report; (3) run every suite, list and classify each failure one by one, report; (4) fix the failures, re-run only what was fixed, then hand back to phase 3 for one full run — the 3 → 4 → 3 loop repeats until green or the ceiling. Use when the user says "/adyusuf:test-inventory", "review the tests", "find the missing tests", "which use cases are tested", "test inventory per page", "eksik testleri bul", "testleri gözden geçir", "sayfa sayfa test envanteri".
 ---
 
 # Test inventory — audit → write → run ⇄ fix
@@ -12,7 +12,7 @@ what nobody handled.
 
 ## Arguments
 
-`/test-inventory <phase> <target>`
+`/adyusuf:test-inventory <phase> <target>`
 
 | Argument | Values | Default |
 |---|---|---|

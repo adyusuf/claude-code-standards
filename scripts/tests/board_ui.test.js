@@ -196,3 +196,12 @@ test("an unreachable server is shown and logged, not swallowed", async () => {
   assert.equal(page.els.err.textContent, "Sunucuya ulaşılamıyor");
   assert.equal(page.errors.length, 1);
 });
+
+test("the Merge column shows each existing branch, merged or not, and a dash without commits", () => {
+  const html = ui.mergeHtml({ merged: { dev: true, test: false, prod: null } });
+  assert.match(html, /<span class="mg on">dev ✓<\/span>/);
+  assert.match(html, /<span class="mg">test —<\/span>/);
+  assert.doesNotMatch(html, /prod/);
+  assert.equal(ui.mergeHtml({ merged: {} }), "—");
+  assert.equal(ui.mergeHtml({}), "—");
+});

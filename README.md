@@ -205,7 +205,7 @@ because something broke first.
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
 | Gate and measurement scripts | `scripts/` | 21 scripts + 410 tests |
-| Slash commands and skills | `commands/`, `skills/` | 6 |
+| Slash commands and skills — one plugin, `/adyusuf:<name>` | `commands/`, `skills/`, `plugin/` | 7 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
 ```mermaid
@@ -215,7 +215,7 @@ pie showData title Repository composition (files)
  "modes/ (5 modes + selection guide)" : 13
  "scripts/ (gates, hooks, measurement, tests)" : 36
  "docs/ (decision log + case studies + method)" : 9
- "commands/ + skills/" : 6
+ "commands/ + skills/" : 7
  "root (CLAUDE.md, settings, license)" : 5
 ```
 
@@ -457,7 +457,8 @@ and breaks it silently.
 ```bash
 git clone https://github.com/adyusuf/claude-code-standards
 cd claude-code-standards
-cp -r CLAUDE.md standards agents modes commands skills scripts ~/.claude/
+cp -r CLAUDE.md standards agents modes scripts ~/.claude/
+mkdir -p ~/.claude/skills && cp -RL plugin ~/.claude/skills/adyusuf   # skills + commands as /adyusuf:<name>
 ```
 
 Then the settings, after reading them:
@@ -482,8 +483,11 @@ at a directory in my home folder that will not exist on your machine. Take the
 
 ### Level 4 — run it live, the way I do
 
-`~/.claude/CLAUDE.md`, `standards`, `agents`, `modes`, `commands`, `scripts` and
+`~/.claude/CLAUDE.md`, `standards`, `agents`, `modes`, `scripts` and
 `docs` are **symlinks into a checkout of this repository**, pinned to `prod`.
+Skills and commands come in as ONE plugin, `adyusuf` (`plugin/`), linked as
+`~/.claude/skills/adyusuf` and invoked as `/adyusuf:<name>`
+(`standards/00-working-method.md` §7a).
 Nothing is edited in place: work happens in a `dev` worktree and reaches the live
 configuration only by promotion. The upside is exactly one copy of every rule.
 The cost is that a bad promotion changes my tooling mid-session, which is why the

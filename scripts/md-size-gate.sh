@@ -40,7 +40,7 @@ if [ -z "${BUDGET:-}" ] || [ ! -f "$BUDGET" ]; then
   # file would delete the gate along with it.
   if [ "$HOOK" -eq 1 ]; then
     echo "· No CLAUDE.md budget is installed in this project (md-budget.tsv is missing)."
-    echo "  To install it: /apply-project-standards  or"
+    echo "  To install it: /adyusuf:apply-project-standards  or"
     echo "  cp ~/.claude/scripts/md-*.sh ~/.claude/scripts/md-*.py scripts/ && bash scripts/md-size-gate.sh --update"
     exit 0
   fi

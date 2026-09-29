@@ -21,7 +21,7 @@ read them all — read **the one the task is about**.
 | Endpoint contract, error format, pagination, idempotency | `07-api-design.md` |
 | Changing a field/endpoint, deprecation, expand-contract | `08-backward-compatibility.md` |
 | Schema, migration, index, transaction, soft delete | `09-database.md` |
-| Unit/integration/contract tests, flaky policy, screen-by-screen test audit (`/test-inventory`) | `10-test-strategy.md` |
+| Unit/integration/contract tests, flaky policy, screen-by-screen test audit (`/adyusuf:test-inventory`) | `10-test-strategy.md` |
 | Web e2e | `11-playwright.md` |
 | Mobile e2e | `12-maestro.md` |
 | Commit, branch, PR, code review | `13-pr-and-review.md` |
