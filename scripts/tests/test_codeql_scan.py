@@ -173,6 +173,47 @@ class WhenItCannotRun(Scan):
             shutil.rmtree(loose, ignore_errors=True)
 
 
+class JavaScriptIsScannedToo(Scan):
+    """The live board ships a page script (scripts/board/board_ui.js). CodeQL
+    scans it in a pass of its own; with only a Python pass that file would sit
+    outside SAST while the gate said "passed"."""
+
+    def add_js(self):
+        with open(os.path.join(self.root, 'scripts', 'page.js'), 'w', encoding='utf-8') as handle:
+            handle.write('document.title = "x";\n')
+
+    def test_a_repository_with_javascript_gets_a_javascript_pass(self):
+        self.add_js()
+        self.stub_codeql(sarif())
+        out, code = self.run_scan()
+        self.assertIn('SAST (CodeQL, JavaScript)', out)
+        self.assertNotIn('no JavaScript', out)
+        self.assertEqual(0, code, out)
+
+    def test_a_high_javascript_finding_blocks(self):
+        self.add_js()
+        os.remove(os.path.join(self.root, 'scripts', 'thing.py'))
+        self.stub_codeql(sarif(('js/xss', 8.1, 3)))
+        out, code = self.run_scan()
+        self.assertIn('n/a: this repository has no Python', out)
+        self.assertIn('js/xss', out)
+        self.assertEqual(1, code, out)
+
+    def test_no_javascript_is_n_a(self):
+        self.stub_codeql(sarif())
+        out, code = self.run_scan()
+        self.assertIn('n/a: this repository has no JavaScript', out)
+        self.assertEqual(0, code)
+
+    def test_a_javascript_pass_that_cannot_run_is_NOT_RUN(self):
+        self.add_js()
+        os.remove(os.path.join(self.root, 'scripts', 'thing.py'))
+        self.stub_codeql(create_fails=True)
+        out, code = self.run_scan()
+        self.assertIn('NOT RUN', out)
+        self.assertEqual(3, code)
+
+
 class ShellIsScannedToo(Scan):
     """CodeQL has no shell analyser and this repository is largely shell, so for
     one commit the script said so on every run and left it at that — "SAST

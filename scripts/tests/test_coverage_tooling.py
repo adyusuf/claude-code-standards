@@ -153,16 +153,9 @@ class CommitMsgHook(Repo):
             shutil.rmtree(loose, ignore_errors=True)
 
 
-class CoverageWithAFakeVenv(Repo):
-    """coverage.sh's measurement path, which nothing reached before: every test
-    stopped at "no coverage in <venv>". A fake venv gets past that, so the parts
-    that decide PASS vs FAIL vs "the tests are red" are exercised.
-
-    The distinction that matters: a RED suite must not be reported as a coverage
-    figure at all. A percentage computed from a suite that failed measures
-    nothing, and treating it as a measurement would let a broken test file raise
-    the number.
-    """
+class FakeVenv(Repo):
+    """A coverage venv that exists but measures nothing real: coverage.sh gets past
+    its "no coverage in <venv>" check, so the parts after it can be driven."""
 
     def venv(self, coverage_body):
         venv = os.path.join(self.root, '.venv')
@@ -204,6 +197,18 @@ class CoverageWithAFakeVenv(Repo):
             f'  report) echo "{report_line}"; exit {report_exit} ;;\n'
             'esac\n'
             'exit 0\n')
+
+
+class CoverageWithAFakeVenv(FakeVenv):
+    """coverage.sh's measurement path, which nothing reached before: every test
+    stopped at "no coverage in <venv>". A fake venv gets past that, so the parts
+    that decide PASS vs FAIL vs "the tests are red" are exercised.
+
+    The distinction that matters: a RED suite must not be reported as a coverage
+    figure at all. A percentage computed from a suite that failed measures
+    nothing, and treating it as a measurement would let a broken test file raise
+    the number.
+    """
 
     def test_a_passing_suite_at_the_threshold_passes(self):
         out, code = self.run_coverage(self.stub('exit 0', 'TOTAL 100 0 100%', 0))

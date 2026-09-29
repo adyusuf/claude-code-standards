@@ -690,6 +690,21 @@ not run is reported as "did not run" and never folded into a pass; a long run's 
 goes to a log file instead of a buffering pipe (`tail`/`head`); an inferred state says
 it is inferred; an over-optimistic estimate is corrected downward out loud.
 
+**29/09/2026 — the local live board is allowed back, as an extra view (user
+decision).** The user wanted to watch, while Claude works, which task is where and
+which agent runs on it, and to remove tasks and switch agents off without typing.
+It does not bring back what sank the dashboard: **Claude does not write the page**
+— hooks record agent start/finish, so there is no second record to keep in step by
+hand and no round of work per report; the page is served on `127.0.0.1` and never
+published; and the table in the reply stays the report (`CLAUDE.md` STATUS
+REPORTING, `standards/22-live-board.md` §3). What it adds is control: a removed task
+or a switched-off agent is enforced by a `PreToolUse` hook, not by memory. Cost was
+measured before adoption (`22` §4): silent hooks cost no tokens, ≈1.8-2k tokens per
+7-task hour, 65 ms per tool call. Found while building it and pinned by tests: a
+denied spawn was being revived by a stray `PostToolUse`; a declared EMPTY role set
+(mode A) meant "no limit" instead of "no agents" — now fail-closed (#6); a refused
+control's error was wiped by the refresh that followed it.
+
 <details>
 <summary>The retired dashboard rule, as it stood until recently</summary>
 
