@@ -72,7 +72,7 @@ only by **moving** content (never by summarising it); the result is verified wit
 ## 6. Working mode (optional)
 
 If the project carries no `.claude/mode` file, mode **B** applies.
-To request a different agent set: `/working-mode <A|C|D|E>`.
+To request a different agent set: `/adyusuf:working-mode <A|C|D|E>`.
 Definitions are in `~/.claude/modes/README.md`, the rule in `~/.claude/CLAUDE.md` #27.
 ⚠️ `.claude/*` is gitignored in most projects; the mode file **must be committed**
 (a narrow `!.claude/mode` exception is needed) — it is a project setting, not

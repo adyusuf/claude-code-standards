@@ -54,7 +54,7 @@ call to its `SubagentStop.agent_id`; `UserPromptSubmit` carries `prompt`.
    (a missing file exits 2, which Claude Code would read as a BLOCK). The hook
    itself also logs its errors to stderr and lets the call through.
 2. Add `.claude/board/` to `.gitignore`.
-3. Link the skill once per machine: `ln -s <repo>/skills/board-plan ~/.claude/skills/board-plan`.
+3. The skill ships in the `adyusuf` plugin (`/adyusuf:board-plan`, `standards/00` §7a) — no link of its own.
 4. Open `http://127.0.0.1:8765`. A running session picked up a newly added
    `.claude/settings.json` without a restart (measured 29/09/2026, Claude Code 2.1.281:
    its Stop hook delivered a board decision in the same session), but `SessionStart` —

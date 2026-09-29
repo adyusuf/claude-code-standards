@@ -72,7 +72,7 @@ This project should follow the engineering rules in {source}
 the smallest level that is useful here - usually level 1 (five rules pasted into
 CLAUDE.md) or level 2 (the standards/*.md documents matching this project's
 stack). If we are adopting it into this repository specifically, run the
-/apply-project-standards command (its definition is at
+/adyusuf:apply-project-standards command (its definition is at
 commands/apply-project-standards.md in that repository) to install or update
 CLAUDE.md, SETUP.md and .env.example here - it never deletes what already
 exists, only fills in what is missing.

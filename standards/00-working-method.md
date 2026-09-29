@@ -122,7 +122,7 @@ The same repository may be open in more than one Claude session:
 ### 7a. The live configuration is a symlink into this repository
 
 `~/.claude` does not hold its own copy of the instruction text: `CLAUDE.md`,
-`standards/`, `agents/`, `modes/`, `commands/`, `scripts/`, `docs/` and the skills
+`standards/`, `agents/`, `modes/`, `scripts/`, `docs/` and the `adyusuf` plugin
 are **symlinks** into this repository's **main worktree**. The same text therefore
 lives in exactly one place (rule #2 applied to the configuration itself), and
 there is no twin to drift.
@@ -137,12 +137,16 @@ main worktree has checked out.** So:
 - A change reaches the live configuration only when the user promotes
   `dev → test → prod`. Never check out `dev` in the main worktree to "try something".
 
-⚠️ **Skills are linked one by one.** `~/.claude/skills` is a real directory (it
-also holds third-party clones), so a new `skills/<name>` reaches no session until
-its own link exists — reaching `prod` is not enough. When a skill first lands on
-`prod`, link it and confirm it is listed:
-`ln -s <main worktree>/skills/<name> ~/.claude/skills/<name>`. A real directory
-under `~/.claude/skills` is always third-party, never ours.
+⚠️ **Our skills and commands are ONE plugin: `adyusuf`.** Every skill in `skills/`
+and every command in `commands/` is invoked as `/adyusuf:<name>`, so ours are
+never confused with plugins or third-party skills. The mechanism is Claude Code's
+skills-dir plugin: `plugin/` holds `.claude-plugin/plugin.json` plus links back to
+`../skills` and `../commands`, and one link makes it live —
+`ln -s <main worktree>/plugin ~/.claude/skills/adyusuf`. A new skill or command on
+`prod` is then live from the next session with no extra step. Check it with
+`claude plugin details adyusuf`. There is no `~/.claude/commands` link and no
+per-skill link under `~/.claude/skills` — either would load a second, unprefixed
+copy. A real directory under `~/.claude/skills` is always third-party.
 
 ## 8. Work that requires approval (no exceptions)
 

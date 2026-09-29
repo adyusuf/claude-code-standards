@@ -2,7 +2,7 @@
 
 ⚠️ **Every project without a mode file is in B.** The default
 itself is the approval for these three agents — I do not ask separately. To work
-without agents: `/working-mode A`.
+without agents: `/adyusuf:working-mode A`.
 
 Three agents are enabled: **`analyst`**, **`test-writer`**, **`doc-writer`**. Code
 and review stay with me.
