@@ -7,7 +7,10 @@ agent off**. It is an **extra view**: the status table in the reply stays mandat
 `127.0.0.1` only.
 
 Code: `scripts/board/` · skill: `skills/board-plan/` · tests:
-`scripts/tests/test_board.py`, `scripts/tests/board_ui.test.js`.
+`scripts/tests/test_board*.py`, `scripts/tests/board_ui.test.js`.
+
+**One page for every project:** `http://127.0.0.1:8765`, one tab per project. It
+comes up by itself when a Claude session starts in any project that enables the board.
 
 ## 1. How it works
 
@@ -15,7 +18,9 @@ Code: `scripts/board/` · skill: `skills/board-plan/` · tests:
 |---|---|---|
 | Hooks (`board_hook.py`) | Record every `Agent` start and finish; deny an agent that is switched off, a call for a removed task, or a role outside the declared mode set; tell Claude about board changes | Claude Code, automatically |
 | CLI (`board.py`) | Writes the plan: mode + role set, one row per task, the semantic status (`done`, `waiting`, `failed`) | Claude, per the `board-plan` skill |
-| Server (`board_server.py`) | Serves the page and the folded state; takes the user's controls (same-origin JSON only, validated) | the user starts it |
+| Auto-start (`board_ensure.py`) | On `SessionStart`: registers the project, starts the server if nothing answers, says where the board is — never blocks a session | Claude Code, automatically |
+| Registry (`board_registry.py`) | The machine-wide list of boards: `~/.cache/claude-board/projects.json` (id, name, path — runtime data, outside every repository) | the auto-start |
+| Server (`board_server.py`) | ONE server for every registered project: the tabs, each project's state, the user's controls (same-origin JSON only, validated) | the auto-start |
 | Page (`board.html`, `board_ui.js`) | Polls every 1.5 s; Turkish first, English switch; dates `dd/mm/yyyy` | the user's browser |
 
 Data lives in `<main checkout>/.claude/board/` — the **main** checkout, so every
@@ -35,6 +40,7 @@ call to its `SubagentStop.agent_id`; `UserPromptSubmit` carries `prompt`.
 ```json
 {
   "hooks": {
+    "SessionStart": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_ensure.py\" || true" }] }],
     "PreToolUse": [{ "matcher": "Agent", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
     "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
     "SubagentStop": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
@@ -49,10 +55,16 @@ call to its `SubagentStop.agent_id`; `UserPromptSubmit` carries `prompt`.
    itself also logs its errors to stderr and lets the call through.
 2. Add `.claude/board/` to `.gitignore`.
 3. Link the skill once per machine: `ln -s <repo>/skills/board-plan ~/.claude/skills/board-plan`.
-4. Start a NEW session (hooks are read at session start), then run the server:
-   `python3 ~/.claude/scripts/board/board_server.py` and open `http://127.0.0.1:8765`.
-   `BOARD_DIR`, `BOARD_HOST`, `BOARD_PORT` override the defaults (single source:
-   `scripts/board/board_config.py`).
+4. Start a NEW session (hooks are read at session start) and open
+   `http://127.0.0.1:8765`. The server is started by the `SessionStart` hook and keeps
+   running after the session ends; after a reboot the next session starts it again.
+   By hand, if ever needed: `python3 ~/.claude/scripts/board/board_ensure.py < /dev/null`.
+   `BOARD_DIR`, `BOARD_HOST`, `BOARD_PORT`, `BOARD_REGISTRY` override the defaults
+   (single source: `scripts/board/board_config.py`). The server's own log is
+   `~/.cache/claude-board/server.log`.
+5. If the auto-start reports an **older** board server on the port (one project per
+   server, before 29/09/2026), stop that process once; the next session starts the
+   one-for-all server.
 
 ## 3. Permanent rules
 
@@ -82,6 +94,7 @@ The hooks and the server cost **no tokens** while silent. What enters the contex
 | `board.py set` call | 80 chars | ~20 | per status change |
 | Board-change reminder (2 changes) | 203 chars | ~51 | when the user changes a control |
 | Deny reason | 115 chars | ~29 | per denied agent call |
+| Auto-start line (`SessionStart`) | 69 chars | ~17 | once per session |
 
 A 7-task hour ≈ 1,800–2,000 new tokens (estimate); every added token is then
 re-read from cache on later calls. Hook latency: **65 ms median** per tool call

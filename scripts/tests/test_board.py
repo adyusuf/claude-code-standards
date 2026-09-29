@@ -1,14 +1,12 @@
-"""The live board (scripts/board/, standards/22-live-board.md): hook, event fold, controls, CLI, server."""
+"""The live board (scripts/board/, standards/22-live-board.md): hook, event fold, controls, CLI.
+The server and board location live in test_board_server.py, registry and auto-start in
+test_board_ensure.py (#9)."""
 import io
 import json
 import os
 import sys
 import tempfile
-import threading
 import unittest
-import urllib.error
-import urllib.request
-from http.server import ThreadingHTTPServer
 from pathlib import Path
 from unittest import mock
 
@@ -16,9 +14,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "board"))
 
 import board  # noqa: E402
 import board_hook  # noqa: E402
-import board_server  # noqa: E402
-import subprocess  # noqa: E402
-from board_config import board_dir, project_root  # noqa: E402
 from board_config import EVENTS_FILE  # noqa: E402
 from board_store import (apply_control, fold, read_control, read_events,  # noqa: E402
                          unseen_changes)
@@ -212,110 +207,12 @@ class ValidationTests(BoardTestCase):
         with mock.patch.object(sys, "stderr", io.StringIO()):
             self.assertEqual(self.cli("set", "T-1"), 2)
 
-    def test_server_validation(self):
-        self.assertEqual(board_server.validate_control({"action": "remove_task", "value": "T-3"}),
-                         ("remove_task", "T-3"))
-        for bad in ({"action": "remove_task", "value": "T-3; rm"},
-                    {"action": "disable_role", "value": "../x"},
-                    {"action": "wipe", "value": "T-1"},
-                    {"action": "enable_role", "value": 7}):
-            with self.assertRaises(ValueError):
-                board_server.validate_control(bad)
-
     def test_cli_list_prints_folded_tasks(self):
         self.cli("add", "T-1", "first", "--role", "analyst")
         self.cli("set", "T-1", "--status", "waiting", "--note", "later")
         with mock.patch.object(sys, "stdout", io.StringIO()) as out:
             self.assertEqual(self.cli("list"), 0)
         self.assertEqual(out.getvalue().strip(), "T-1\twaiting\tanalyst\tfirst")
-
-
-class BoardLocationTests(unittest.TestCase):
-    """Every worktree of a project must write to ONE board, or a session in a
-    worktree and its agents would each see half of the work."""
-
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.main = Path(self.tmp.name) / "main"
-        git = ["git", "-c", "user.email=t@t", "-c", "user.name=t"]
-        subprocess.run(["git", "init", "-q", str(self.main)], check=True)
-        subprocess.run(git + ["-C", str(self.main), "commit", "-q", "--allow-empty", "-m", "x"], check=True)
-        self.wt = Path(self.tmp.name) / "wt"
-        subprocess.run(["git", "-C", str(self.main), "worktree", "add", "-q", str(self.wt)], check=True)
-
-    def test_a_worktree_resolves_to_the_main_checkout(self):
-        self.assertEqual(project_root(str(self.wt)).resolve(), self.main.resolve())
-        self.assertEqual(project_root(str(self.main / ".")).resolve(), self.main.resolve())
-
-    def test_outside_a_repository_the_start_directory_is_used(self):
-        loose = Path(self.tmp.name) / "loose"
-        loose.mkdir()
-        self.assertEqual(project_root(str(loose)), loose)
-
-    def test_board_dir_prefers_BOARD_DIR_then_the_project_dir(self):
-        with mock.patch.dict(os.environ, {"BOARD_DIR": "/x/y"}):
-            self.assertEqual(board_dir(), Path("/x/y"))
-        env = {k: v for k, v in os.environ.items() if k != "BOARD_DIR"}
-        env["CLAUDE_PROJECT_DIR"] = str(self.wt)
-        with mock.patch.dict(os.environ, env, clear=True):
-            self.assertEqual(board_dir().resolve(), (self.main / ".claude" / "board").resolve())
-
-
-class ServerTests(BoardTestCase):
-    def setUp(self):
-        super().setUp()
-        self.server = ThreadingHTTPServer(("127.0.0.1", 0), board_server.make_handler(self.bdir))
-        threading.Thread(target=self.server.serve_forever, daemon=True).start()
-        self.addCleanup(self.server.server_close)
-        self.addCleanup(self.server.shutdown)
-        self.base = f"http://127.0.0.1:{self.server.server_address[1]}"
-
-    def request(self, path, body=None, headers=None):
-        data = json.dumps(body).encode() if isinstance(body, dict) else body
-        req = urllib.request.Request(self.base + path, data=data, headers=headers or {})
-        try:
-            with urllib.request.urlopen(req) as res:
-                return res.status, res.read()
-        except urllib.error.HTTPError as exc:
-            return exc.code, exc.read()
-
-    def test_serves_page_script_and_404(self):
-        self.assertEqual(self.request("/")[0], 200)
-        status, body = self.request("/board_ui.js")
-        self.assertEqual(status, 200)
-        self.assertIn(b"I18N", body)
-        self.assertEqual(self.request("/etc/passwd")[0], 404)
-
-    def test_state_reflects_events_and_control(self):
-        self.cli("add", "T-1", "a")
-        apply_control(self.bdir, "disable_role", "qa")
-        status, body = self.request("/api/state")
-        state = json.loads(body)
-        self.assertEqual(status, 200)
-        self.assertIn("T-1", state["tasks"])
-        self.assertEqual(state["control"]["disabled_roles"], ["qa"])
-
-    def test_post_control_updates_file(self):
-        status, body = self.request("/api/control", {"action": "remove_task", "value": "T-7"},
-                                    {"Content-Type": "application/json"})
-        self.assertEqual((status, json.loads(body)["version"]), (200, 1))
-        self.assertEqual(read_control(self.bdir)["removed_tasks"], ["T-7"])
-
-    def test_post_rejections(self):
-        json_hdr = {"Content-Type": "application/json"}
-        cases = [
-            ("/api/other", {"action": "remove_task", "value": "T-1"}, json_hdr, 404),
-            ("/api/control", {"action": "remove_task", "value": "T-1"},
-             {**json_hdr, "Origin": "http://evil.example"}, 403),
-            ("/api/control", {"action": "remove_task", "value": "T-1"}, {"Content-Type": "text/plain"}, 415),
-            ("/api/control", {"action": "wipe", "value": "T-1"}, json_hdr, 400),
-            ("/api/control", b"x" * 5000, json_hdr, 400),
-        ]
-        for path, body, headers, code in cases:
-            with self.subTest(code=code):
-                self.assertEqual(self.request(path, body, headers)[0], code)
-        self.assertEqual(read_control(self.bdir)["version"], 0)
 
 
 if __name__ == "__main__":
