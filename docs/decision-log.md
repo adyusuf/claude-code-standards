@@ -508,6 +508,17 @@ rule (e.g. selective e2e on `dev → test`), report it and propose updating the 
 to match; until the script is updated, tell the user in advance that "the gate will
 run e2e".
 
+## Model per job — run on Sonnet, diagnose on Opus (29/09/2026, user decision)
+
+**The rule:** `standards/23-delivery-flow-tuning.md` §13b. Running a suite or gate is
+waiting plus reading a result block; the model's judgement adds nothing there, so it
+runs on Sonnet (`analyst` in B, `devops` in C/D/E). Classifying a red result is where
+a wrong call is expensive — the same day, a kcov long-path failure was first misread
+as a pre-existing red on `dev` — so diagnosis stays on Opus. The cost difference for
+gate runs is **not measured**; the rule rests on the role ledger (`analyst`/`devops`
+on sonnet ~$2–6, `qa` on opus ~$4.10 measured) and on the fact that most of a gate's
+wall-clock is waiting, not tokens.
+
 ## §16 · §28 · never-do list — the enforcement tooling
 
 Rules that stayed prose were the ones that failed silently, so each was given a check

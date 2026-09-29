@@ -30,6 +30,8 @@ and review stay with me.
 - A "how does this work / where is this defined" question spanning several tiers → `analyst`
 - Behaviour changed, tests need writing, and the work is isolated → `test-writer`
 - CLAUDE.md / docs updates have piled up → `doc-writer`
+- A test suite, coverage run or merge gate has to RUN and be reported → `analyst` (sonnet);
+  a red result comes back to me for diagnosis (`standards/23-delivery-flow-tuning.md` §13b)
 
 ## Expected cost
 **1.15–1.35x**. The measured average per agent turn is ~$6.9; `analyst` and

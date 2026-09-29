@@ -53,3 +53,27 @@ memory.
   (containers, databases, CI) or change a gate's steps go to the **user's decision**.
 - **Not done = open.** A due research task that did not run is listed as an **open item** in the end-of-turn report,
   never silently deferred. The next re-measurement (Step 4) closes the loop with before/after figures.
+
+## 13b. Model per job — run on Sonnet, diagnose on Opus (PERMANENT, all projects)
+
+Running a test suite, a coverage run or a merge gate and reporting its result is
+**mechanical**: start it, wait, read the result block into the §10 table. Deciding
+what a red or incomplete result MEANS is not.
+
+| Job | Model | Who, by mode |
+|---|---|---|
+| Run a suite / coverage / gate; return the exit code, the result block and the command | **Sonnet** | **B:** `analyst` · **C/D/E:** `devops` · **A:** no agents — the orchestrator runs it |
+| Classify a red result (#31: product bug · stale spec · data/fixture · environment), find the root cause, choose the fix | **Opus** | the orchestrator (or `qa` in C/D/E) |
+
+- ⚠️ **The runner never diagnoses and never says green** for a step that did not run
+  or was interrupted — it reports "did not run" / "interrupted" and hands back.
+- ⚠️ **Diagnosis is a controlled comparison, not a first reading.** Measured
+  29/09/2026: a red shell-coverage run was first read as "already red on `dev`";
+  the real cause (a kcov long-path limit) only showed when the SAME commit was run
+  from a short path and a long one side by side.
+- The run's output goes to a log file and only the result block is read (§10); the
+  full log is opened only for diagnosis.
+- A turn that runs gates for long stretches may also run on Sonnet as a session
+  model and switch to Opus when a result is red — the user's choice in the app.
+- **Cost:** not measured yet for gate runs. Record the first measured pair
+  (Sonnet run vs. Opus run of the same gate) in `modes/role-selection.md` §8.
