@@ -13,6 +13,7 @@
 })(typeof window !== "undefined" ? window : globalThis, function () {
   const POLL_MS = 1500;
   const LANG_KEY = "board.lang";
+  const PROJECT_KEY = "board.project";
   const LIVE = new Set(["starting", "running"]);
   const I18N = {
     tr: {
@@ -28,6 +29,7 @@
       s_planned: "planlandı", s_running: "çalışıyor", s_agent_done: "ajan bitti · onay bekliyor",
       s_waiting: "bekliyor", s_done: "bitti", s_failed: "başarısız", s_removed: "çıkarıldı",
       s_starting: "başlıyor", s_denied: "reddedildi",
+      noProjects: "Henüz proje yok — bir projede Claude oturumu başlayınca burada görünür.",
     },
     en: {
       title: "Live Work Board", mode: "Mode", lastEvent: "last event:", agentsHdr: "Agents",
@@ -42,6 +44,7 @@
       s_planned: "planned", s_running: "running", s_agent_done: "agent done · awaiting review",
       s_waiting: "waiting", s_done: "done", s_failed: "failed", s_removed: "removed",
       s_starting: "starting", s_denied: "denied",
+      noProjects: "No project yet — one appears when a Claude session starts in it.",
     },
   };
 
@@ -82,6 +85,14 @@
     const live = task.agents.map((k) => agents[k]).filter((a) => a && LIVE.has(a.status));
     return live.length ? `<div class="live-agents">${live.map((a) =>
       `<span class="agent-chip"><span class="dot on"></span>${esc(a.type)}</span>`).join("")}</div>` : "";
+  }
+
+  /** The project tabs: name, live-agent dot, running count; the selected one marked. */
+  function projectsHtml(projects, selected, t) {
+    if (!projects.length) return `<span class="muted">${esc(t("noProjects"))}</span>`;
+    return projects.map((p) => `<button class="tab${p.id === selected ? " on" : ""}" data-project="${esc(p.id)}"
+      aria-pressed="${p.id === selected}"><span class="dot${p.turn_open ? " on" : ""}"></span>${esc(p.name)}
+      <span class="cnt">${p.running}/${p.total}</span></button>`).join("");
   }
 
   /** Everything the page shows, computed from the server state; no DOM access. */
@@ -141,20 +152,21 @@
     };
   }
 
-  function readLang(win) {
-    try { return win.localStorage.getItem(LANG_KEY); } catch { return null; }
+  function readKey(win, key) {
+    try { return win.localStorage.getItem(key); } catch { return null; }
   }
 
-  function writeLang(win, lang) {
-    try { win.localStorage.setItem(LANG_KEY, lang); } catch { /* per-viewer convenience only */ }
+  function writeKey(win, key, value) {
+    try { win.localStorage.setItem(key, value); } catch { /* per-viewer convenience only */ }
   }
 
   /** Wires the view to a document: polling, controls, language switch. */
   function start(doc, win, fetchImpl) {
-    const stored = readLang(win);
+    const stored = readKey(win, LANG_KEY);
     let lang = I18N[stored] ? stored : "tr";  // tr is the primary locale
     let t = makeT(lang);
     let lastState = null;
+    let project = readKey(win, PROJECT_KEY);
     const $ = (id) => doc.getElementById(id);
 
     function applyStatic() {
@@ -180,7 +192,11 @@
 
     async function refresh() {
       try {
-        const res = await fetchImpl("/api/state", { cache: "no-store" });
+        const projects = await (await fetchImpl("/api/projects", { cache: "no-store" })).json();
+        if (!projects.some((p) => p.id === project)) project = projects.length ? projects[0].id : null;
+        $("projects").innerHTML = projectsHtml(projects, project, t);
+        if (!project) { $("err").textContent = ""; return; }
+        const res = await fetchImpl(`/api/state?p=${encodeURIComponent(project)}`, { cache: "no-store" });
         render(await res.json());
         $("err").textContent = "";
       } catch (err) {
@@ -192,7 +208,7 @@
     async function control(action, value) {
       const res = await fetchImpl("/api/control", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action, value }),
+        body: JSON.stringify({ action, value, project }),
       });
       const refused = res.ok ? "" : (await res.json()).error;
       await refresh();  // refresh clears the error line, so a refusal is written after it
@@ -203,10 +219,16 @@
       if (e.target.id === "lang") {
         lang = lang === "tr" ? "en" : "tr";
         t = makeT(lang);
-        writeLang(win, lang);
+        writeKey(win, LANG_KEY, lang);
         applyStatic();
         if (lastState) render(lastState);
         return null;
+      }
+      const tab = e.target.closest("[data-project]");
+      if (tab) {
+        project = tab.dataset.project;
+        writeKey(win, PROJECT_KEY, project);
+        return refresh();
       }
       const sw = e.target.closest("[data-role]");
       if (sw) return control(sw.getAttribute("aria-checked") === "true" ? "disable_role" : "enable_role", sw.dataset.role);
@@ -218,8 +240,8 @@
     applyStatic();
     const first = refresh();
     win.setInterval(refresh, POLL_MS);
-    return { first, refresh, control, onClick, lang: () => lang };
+    return { first, refresh, control, onClick, lang: () => lang, project: () => project };
   }
 
-  return { I18N, makeT, esc, fmtDate, fmtTime, fmtStamp, fmtDur, view, start };
+  return { I18N, makeT, esc, fmtDate, fmtTime, fmtStamp, fmtDur, view, projectsHtml, start };
 });

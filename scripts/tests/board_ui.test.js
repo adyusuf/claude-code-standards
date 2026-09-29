@@ -105,7 +105,20 @@ test("live agents show per task; a role that was only denied gets no switch", ()
 
 // ---- start(): the DOM wiring, driven through a minimal fake document ----
 
-function fakePage({ stored = null, storageThrows = false, fetchImpl } = {}) {
+const PROJECTS = [
+  { id: "aaaaaaaaaa", name: "alpha", running: 1, total: 2, turn_open: true },
+  { id: "bbbbbbbbbb", name: "beta", running: 0, total: 1, turn_open: false },
+];
+
+// Answers like the v2 server: the project list, a project's state, and controls.
+const serverLike = (calls, over = {}) => async (url, opts) => {
+  calls.push([url, opts]);
+  if (url === "/api/projects") return { ok: true, json: async () => over.projects ?? PROJECTS };
+  if (url === "/api/control") return over.control ?? { ok: true, json: async () => ({ version: 1 }) };
+  return { ok: true, json: async () => state({ sessions: { s: { turn_open: true } } }) };
+};
+
+function fakePage({ stored = {}, storageThrows = false, fetchImpl, server } = {}) {
   const els = {};
   const el = (id) => (els[id] ||= { id, textContent: "", innerHTML: "", className: "",
     shown: null, classList: { toggle: (_c, on) => { els[id].shown = on; } } });
@@ -124,14 +137,11 @@ function fakePage({ stored = null, storageThrows = false, fetchImpl } = {}) {
     console: { error: (...a) => errors.push(a) },
     get localStorage() {
       if (storageThrows) throw new Error("blocked");
-      return { getItem: () => stored, setItem: (k, v) => { saved[k] = v; } };
+      return { getItem: (k) => stored[k] ?? null, setItem: (k, v) => { saved[k] = v; } };
     },
   };
   const calls = [];
-  const fetchFn = fetchImpl || (async (url, opts) => {
-    calls.push([url, opts]);
-    return { ok: true, json: async () => state({ sessions: { s: { turn_open: true } } }) };
-  });
+  const fetchFn = fetchImpl || serverLike(calls, server);
   const app = ui.start(doc, win, fetchFn);
   return { app, els, labels, doc, saved, errors, calls, click: (target) => clickHandler({ target }) };
 }
@@ -152,7 +162,7 @@ test("start renders the first state in Turkish by default", async () => {
 });
 
 test("a stored language is honoured and blocked storage falls back to tr", async () => {
-  const page = fakePage({ stored: "en" });
+  const page = fakePage({ stored: { "board.lang": "en" } });
   await page.app.first;
   assert.equal(page.els.turn.textContent, "Claude is working");
   const blocked = fakePage({ storageThrows: true });
@@ -182,23 +192,57 @@ test("switches and task buttons post the right control", async () => {
   await page.click(target({ closest: (sel) => (sel === "[data-task]" ? btn : null) }));
   const posts = page.calls.filter(([url]) => url === "/api/control");
   assert.deepEqual(posts.map(([, o]) => JSON.parse(o.body)), [
-    { action: "disable_role", value: "qa" },
-    { action: "enable_role", value: "qa" },
-    { action: "remove_task", value: "T-4" },
+    { action: "disable_role", value: "qa", project: "aaaaaaaaaa" },
+    { action: "enable_role", value: "qa", project: "aaaaaaaaaa" },
+    { action: "remove_task", value: "T-4", project: "aaaaaaaaaa" },
   ]);
   assert.equal(posts[0][1].headers["Content-Type"], "application/json");
   assert.equal(page.click(target()), null);
 });
 
 test("a refused control shows the server's error", async () => {
-  const page = fakePage({ fetchImpl: async (url) => {
-    if (url === "/api/control") return { ok: false, json: async () => ({ error: "invalid value" }) };
-    return { ok: true, json: async () => state() };
-  } });
+  const page = fakePage({ server: { control: { ok: false, json: async () => ({ error: "invalid value" }) } } });
   await page.app.first;
   await page.app.control("remove_task", "bad");
   assert.equal(page.els.err.textContent, "invalid value");
   await page.app.refresh();
+  assert.equal(page.els.err.textContent, "");
+});
+
+test("every registered project gets a tab; the first is selected by default", async () => {
+  const page = fakePage();
+  await page.app.first;
+  const html = page.els.projects.innerHTML;
+  assert.match(html, /class="tab on" data-project="aaaaaaaaaa"/);
+  assert.match(html, /data-project="bbbbbbbbbb"/);
+  assert.match(html, /<span class="dot on"><\/span>alpha\s*<span class="cnt">1\/2<\/span>/);
+  assert.ok(page.calls.some(([url]) => url === "/api/state?p=aaaaaaaaaa"));
+});
+
+test("a remembered project is reopened; a vanished one falls back to the first", async () => {
+  const kept = fakePage({ stored: { "board.project": "bbbbbbbbbb" } });
+  await kept.app.first;
+  assert.equal(kept.app.project(), "bbbbbbbbbb");
+  const gone = fakePage({ stored: { "board.project": "cccccccccc" } });
+  await gone.app.first;
+  assert.equal(gone.app.project(), "aaaaaaaaaa");
+});
+
+test("clicking a tab switches the board and remembers the choice", async () => {
+  const page = fakePage();
+  await page.app.first;
+  const tab = { dataset: { project: "bbbbbbbbbb" } };
+  await page.click(target({ closest: (sel) => (sel === "[data-project]" ? tab : null) }));
+  assert.equal(page.app.project(), "bbbbbbbbbb");
+  assert.equal(page.saved["board.project"], "bbbbbbbbbb");
+  assert.equal(page.calls.at(-1)[0], "/api/state?p=bbbbbbbbbb");
+});
+
+test("no project yet: the tabs say so and no board is requested", async () => {
+  const page = fakePage({ server: { projects: [] } });
+  await page.app.first;
+  assert.match(page.els.projects.innerHTML, /Henüz proje yok/);
+  assert.ok(!page.calls.some(([url]) => url.startsWith("/api/state")));
   assert.equal(page.els.err.textContent, "");
 });
 

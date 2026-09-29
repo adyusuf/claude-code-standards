@@ -12,9 +12,14 @@ from pathlib import Path
 _DEFAULT_HOST = "127.0.0.1"
 _DEFAULT_PORT = 8765
 _BOARD_SUBDIR = Path(".claude") / "board"
+# Machine-wide list of projects that have a board — runtime data, outside every repository.
+_DEFAULT_REGISTRY = Path.home() / ".cache" / "claude-board" / "projects.json"
 
 HOST = os.environ.get("BOARD_HOST", _DEFAULT_HOST)
 PORT = int(os.environ.get("BOARD_PORT", _DEFAULT_PORT))
+REGISTRY = Path(os.environ.get("BOARD_REGISTRY", _DEFAULT_REGISTRY))
+PROJECT_ID_PATTERN = r"^[0-9a-f]{10}$"
+API_VERSION = 2  # 2 = one server for every registered project
 
 
 def project_root(start: str) -> Path:
