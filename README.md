@@ -484,6 +484,8 @@ at a directory in my home folder that will not exist on your machine. Take the
 
 `~/.claude/CLAUDE.md`, `standards`, `agents`, `modes`, `commands`, `scripts` and
 `docs` are **symlinks into a checkout of this repository**, pinned to `prod`.
+Skills are the exception: `~/.claude/skills` is a real directory and each skill
+gets its own link (`standards/00-working-method.md` §7a).
 Nothing is edited in place: work happens in a `dev` worktree and reaches the live
 configuration only by promotion. The upside is exactly one copy of every rule.
 The cost is that a bad promotion changes my tooling mid-session, which is why the

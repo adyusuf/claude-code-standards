@@ -137,6 +137,13 @@ main worktree has checked out.** So:
 - A change reaches the live configuration only when the user promotes
   `dev → test → prod`. Never check out `dev` in the main worktree to "try something".
 
+⚠️ **Skills are linked one by one.** `~/.claude/skills` is a real directory (it
+also holds third-party clones), so a new `skills/<name>` reaches no session until
+its own link exists — reaching `prod` is not enough. When a skill first lands on
+`prod`, link it and confirm it is listed:
+`ln -s <main worktree>/skills/<name> ~/.claude/skills/<name>`. A real directory
+under `~/.claude/skills` is always third-party, never ours.
+
 ## 8. Work that requires approval (no exceptions)
 
 - Deploying to production / merging to a production branch
