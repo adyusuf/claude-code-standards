@@ -61,6 +61,8 @@ button.act:hover{border-color:var(--muted)}
 .tab{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink);border-radius:8px;padding:5px 11px;font:inherit;cursor:pointer}
 .tab.on{border-color:var(--run);box-shadow:inset 0 0 0 1px var(--run)}
 .tab .cnt{font-size:12px;color:var(--muted)}
+.mg{display:inline-block;font-size:11px;padding:1px 6px;border-radius:5px;background:var(--chip);color:var(--off);white-space:nowrap}
+.mg.on{background:var(--ok-bg);color:var(--ok)}
 .empty{padding:22px;text-align:center;color:var(--muted)}
 .err{color:var(--bad);font-size:12px}
 </style>
@@ -88,7 +90,7 @@ button.act:hover{border-color:var(--muted)}
   <h2 data-i18n="tasksHdr"></h2>
   <div class="card"><table>
     <thead><tr><th data-i18n="colTask"></th><th data-i18n="colBranch"></th><th data-i18n="colRole"></th>
-      <th data-i18n="colStatus"></th><th data-i18n="colTime"></th><th data-i18n="colNote"></th><th></th></tr></thead>
+      <th data-i18n="colStatus"></th><th data-i18n="colTime"></th><th data-i18n="colMerge"></th><th data-i18n="colNote"></th><th></th></tr></thead>
     <tbody id="tasks"></tbody>
   </table></div>
 

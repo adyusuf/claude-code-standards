@@ -78,6 +78,23 @@ Definitions are in `~/.claude/modes/README.md`, the rule in `~/.claude/CLAUDE.md
 (a narrow `!.claude/mode` exception is needed) — it is a project setting, not
 personal session state.
 
+## 6a. Live board (default for new projects — `~/.claude/standards/22-live-board.md`)
+
+So that sessions in this project appear on the one board (`http://127.0.0.1:8765`), receive
+the user's board decisions and start the board by themselves:
+
+1. Merge the hooks block of `standards/22-live-board.md` §2 into `.claude/settings.json` —
+   **merge, never overwrite**: keep every hook the project already has. Copy the block from
+   the standard, not from memory, so the two do not drift.
+2. `.gitignore`: `.claude/board/` must be ignored (runtime data). If `.claude/*` is ignored,
+   add the narrow exception `!.claude/settings.json` next to `!.claude/mode` — the hooks
+   are a project setting and must be committed.
+3. Verify: `git check-ignore -v .claude/board/x` matches and `git check-ignore .claude/settings.json`
+   does not; `python3 -m json.tool .claude/settings.json` parses.
+
+A running session usually picks the hooks up at once; the auto-start (`SessionStart`) runs
+from the next session on.
+
 ## 7. Report
 
 - Files created / updated

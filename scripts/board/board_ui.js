@@ -31,7 +31,7 @@
       s_starting: "başlıyor", s_denied: "reddedildi",
       noProjects: "Henüz proje yok — bir projede Claude oturumu başlayınca burada görünür.",
       s_needs_decision: "karar bekliyor", stDecision: "Karar bekliyor", decided: "Karar",
-      continue: "Devam", reject: "Reddet", notePh: "not (isteğe bağlı)",
+      continue: "Devam", reject: "Reddet", notePh: "not (isteğe bağlı)", colMerge: "Merge",
     },
     en: {
       title: "Live Work Board", mode: "Mode", lastEvent: "last event:", agentsHdr: "Agents",
@@ -48,7 +48,7 @@
       s_starting: "starting", s_denied: "denied",
       noProjects: "No project yet — one appears when a Claude session starts in it.",
       s_needs_decision: "awaiting decision", stDecision: "Awaiting decision", decided: "Decision",
-      continue: "Continue", reject: "Reject", notePh: "note (optional)",
+      continue: "Continue", reject: "Reject", notePh: "note (optional)", colMerge: "Merge",
     },
   };
 
@@ -105,6 +105,13 @@
       <input class="dnote" data-note-for="${esc(task.id)}" maxlength="500" placeholder="${esc(t("notePh"))}"></div>`;
   }
 
+  /** Where the task's commits are, per branch, as the server read it from git. */
+  function mergeHtml(task) {
+    const entries = Object.entries(task.merged || {}).filter(([, ok]) => ok !== null);
+    return entries.length ? entries.map(([branch, ok]) =>
+      `<span class="mg${ok ? " on" : ""}">${esc(branch)} ${ok ? "✓" : "—"}</span>`).join(" ") : "—";
+  }
+
   /** The project tabs: name, live-agent dot, running count; the selected one marked. */
   function projectsHtml(projects, selected, t) {
     if (!projects.length) return `<span class="muted">${esc(t("noProjects"))}</span>`;
@@ -150,7 +157,7 @@
           aria-label="${esc(r)} ${esc(on ? t("roleOn") : t("roleOff"))}" data-role="${esc(r)}"></button>
           <span>${esc(r)}</span><span class="cnt">${n} ${esc(t("running"))}</span></div>`;
       }).join(""),
-      tasksHtml: !tasks.length ? `<tr><td colspan="7" class="empty">${esc(t("noTasks"))}</td></tr>` :
+      tasksHtml: !tasks.length ? `<tr><td colspan="8" class="empty">${esc(t("noTasks"))}</td></tr>` :
         tasks.map((x) => {
           const [start, end] = taskSpan(x, agents);
           const removed = x.status === "removed";
@@ -159,6 +166,7 @@
             <td>${x.branch ? `<code>${esc(x.branch)}</code>` : "—"}</td>
             <td>${esc(x.role || "—")}${liveAgents(x, agents)}</td><td>${badge(t, x.status)}</td>
             <td class="muted">${start ? esc(fmtDur(t, start, end, now)) : "—"}</td>
+            <td>${mergeHtml(x)}</td>
             <td>${esc(x.note)}${decisionHtml(x, st.decision_defaults || [], t)}</td>
             <td><button class="act" data-task="${esc(x.id)}" data-action="${removed ? "restore_task" : "remove_task"}">
               ${esc(removed ? t("restore") : t("remove"))}</button></td></tr>`;
@@ -270,5 +278,5 @@
     return { first, refresh, control, onClick, lang: () => lang, project: () => project };
   }
 
-  return { I18N, makeT, esc, fmtDate, fmtTime, fmtStamp, fmtDur, view, projectsHtml, decisionHtml, start };
+  return { I18N, makeT, esc, fmtDate, fmtTime, fmtStamp, fmtDur, view, projectsHtml, decisionHtml, mergeHtml, start };
 });
