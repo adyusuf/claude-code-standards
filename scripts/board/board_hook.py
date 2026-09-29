@@ -2,16 +2,20 @@
 
 Wire it for PreToolUse/PostToolUse (matcher "Agent"), SubagentStop, Stop,
 UserPromptSubmit and PostToolUse (matcher "*") — the settings block is in
-standards/22-live-board.md.
+standards/22-live-board.md. The Stop hook also waits, for a bounded time, for the
+user's answer to a question Claude put on the board (needs_decision).
 """
 from __future__ import annotations
 
 import json
 import re
 import sys
+import time
 
-from board_config import AGENT_TOOL, TASK_TAG_PATTERN, board_dir
-from board_store import append_event, fold, read_control, read_events, unseen_changes
+from board_config import (AGENT_TOOL, DECISION_POLL_S, DECISION_WAIT_S, TASK_TAG_PATTERN,
+                          ControlAction, TaskStatus, board_dir)
+from board_store import (append_event, fold, peek_changes as _peek_changes, read_control,
+                         read_events, unseen_changes)
 
 
 def task_tag(text: str) -> str | None:
@@ -36,10 +40,39 @@ def deny_reason(agent_type: str, task: str | None, control: dict,
 def _change_text(changes: list[dict]) -> str:
     labels = {"remove_task": "removed task", "restore_task": "restored task",
               "disable_role": "switched off agent", "enable_role": "switched on agent"}
-    lines = [f"- {labels.get(c['action'], c['action'])} {c['value']}" for c in changes]
+    lines = []
+    for c in changes:
+        if c["action"] == ControlAction.DECIDE:
+            note = f" — note: {c['note']}" if c.get("note") else ""
+            lines.append(f"- decided {c['value']}: {c.get('choice')}{note} "
+                         f"(apply it, then move the task out of needs_decision)")
+        else:
+            lines.append(f"- {labels.get(c['action'], c['action'])} {c['value']}")
     return ("The user changed the live board:\n" + "\n".join(lines) +
             "\nApply this: skip removed tasks, do not start switched-off agents, "
             "and stop any running agent for a removed task (TaskStop).")
+
+
+def _asks_the_user(bdir) -> bool:
+    tasks = fold(read_events(bdir), read_control(bdir))["tasks"].values()
+    return any(t["status"] == TaskStatus.NEEDS_DECISION and not t["decision"] for t in tasks)
+
+
+def wait_for_decision(bdir, session: str, wait_s: float, poll_s: float = DECISION_POLL_S):
+    """At the end of a turn: hand over a decision the user already clicked, or, while a
+    question is open on the board, wait up to wait_s for the click. A decision keeps the
+    turn going (Stop is blocked with the decision as the reason); anything else, or the
+    time running out, lets the turn end. Other control changes wait for the next turn."""
+    deadline = time.monotonic() + (wait_s if wait_s > 0 and _asks_the_user(bdir) else 0)
+    while True:
+        pending = [c for c in _peek_changes(bdir, session) if c["action"] == ControlAction.DECIDE]
+        if pending:
+            changes = unseen_changes(bdir, session)
+            append_event(bdir, {"type": "turn_start", "session": session})
+            return {"decision": "block", "reason": _change_text(changes)}
+        if time.monotonic() >= deadline:
+            return None
+        time.sleep(poll_s)
 
 
 def _context(event_name: str, text: str) -> dict:
@@ -79,6 +112,10 @@ def handle(payload: dict) -> dict | None:
                                 "tool_use_id": payload.get("tool_use_id"),
                                 "launched": launched,
                                 "agent_id": resp.get("agentId") if launched else None})
+        if payload.get("agent_id"):
+            # A subagent's tool call (modes C/D/E): it must not consume a notice meant
+            # for the orchestrator, or the orchestrator would never see the change.
+            return None
         changes = unseen_changes(bdir, session)
         return _context("PostToolUse", _change_text(changes)) if changes else None
 
@@ -90,7 +127,7 @@ def handle(payload: dict) -> dict | None:
 
     if event == "Stop":
         append_event(bdir, {"type": "turn_stop", "session": session})
-        return None
+        return wait_for_decision(bdir, session, DECISION_WAIT_S)
 
     if event == "UserPromptSubmit":
         append_event(bdir, {"type": "turn_start", "session": session})

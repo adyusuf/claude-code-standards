@@ -141,6 +141,17 @@ class ServerTests(unittest.TestCase):
         self.assertEqual(self.request("/api/control", {"action": "remove_task", "value": "T-1",
                                                        "project": "0123456789"}, json_hdr)[0], 404)
 
+    def test_a_decision_is_posted_and_the_defaults_come_from_the_server(self):
+        json_hdr = {"Content-Type": "application/json"}
+        status, _ = self.request("/api/control", {"action": "decide", "value": "T-1", "choice": "continue",
+                                                  "note": "go", "project": self.a_id}, json_hdr)
+        self.assertEqual(status, 200)
+        self.assertEqual(read_control(self.a)["decisions"]["T-1"]["choice"], "continue")
+        self.assertEqual(self.request("/api/control", {"action": "decide", "value": "T-1",
+                                                       "project": self.a_id}, json_hdr)[0], 400)
+        _, state = self.request(f"/api/state?p={self.a_id}")
+        self.assertEqual(state["decision_defaults"], ["continue", "reject"])
+
     def test_post_rejections(self):
         json_hdr = {"Content-Type": "application/json"}
         cases = [

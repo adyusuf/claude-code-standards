@@ -44,7 +44,7 @@ call to its `SubagentStop.agent_id`; `UserPromptSubmit` carries `prompt`.
     "PreToolUse": [{ "matcher": "Agent", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
     "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
     "SubagentStop": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
-    "Stop": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
+    "Stop": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true", "timeout": 900 }] }],
     "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }]
   }
 }
@@ -66,6 +66,23 @@ call to its `SubagentStop.agent_id`; `UserPromptSubmit` carries `prompt`.
    server, before 29/09/2026), stop that process once; the next session starts the
    one-for-all server.
 
+## 2a. Decisions asked on the board
+
+When a task needs the user's answer, Claude puts the question on the board:
+`board.py set T-n --status needs_decision --note "<question>" [--options "a|b"]`.
+The page shows the choices (without options: **Continue / Reject**) and a note field.
+
+| When the user clicks | How it reaches Claude |
+|---|---|
+| While Claude is working | as a reminder after its next tool call |
+| After Claude ended its turn with an open question | the `Stop` hook waits up to `BOARD_DECISION_WAIT` seconds (default **180**, `0` = no wait, capped at 840 — the Stop hook's `timeout` is 900) and, on a click, keeps the turn going with the decision |
+| After the wait ran out | at the start of the next turn |
+
+While the Stop hook waits, the session shows as busy; a message typed in the chat
+queues until the wait ends. Only a decision prolongs a turn; other board changes wait
+for the next one. In modes C/D/E a subagent's tool call never consumes a notice meant
+for the orchestrator.
+
 ## 3. Permanent rules
 
 - ⚠️ **The board is an extra view, never the report.** The table in the reply
@@ -77,6 +94,10 @@ call to its `SubagentStop.agent_id`; `UserPromptSubmit` carries `prompt`.
 - ⚠️ **A removed task or a switched-off agent is obeyed, never routed around.** No
   retrying a denied call under another role. A running agent for a removed task
   is stopped (`TaskStop`) — the hook cannot stop it, only block new calls.
+- ⚠️ **A board decision steers the work; it is not an approval.** Anything that needs
+  the user's explicit approval in the chat — `test`/`prod` promotion (#26), a deploy,
+  deleting data, sending anything outward — still needs it there. The board is a local
+  file channel; a click on it never stands in for that approval.
 - **The role set on the board is copied from the mode file**, not from memory; the
   hook denies anything outside it (#27).
 - **Progress percentages are not shown.** They cannot be measured; states and
@@ -94,6 +115,7 @@ The hooks and the server cost **no tokens** while silent. What enters the contex
 | `board.py set` call | 80 chars | ~20 | per status change |
 | Board-change reminder (2 changes) | 203 chars | ~51 | when the user changes a control |
 | Deny reason | 115 chars | ~29 | per denied agent call |
+| Decision reminder (one decision with a note) | 253 chars | ~63 | per decision |
 | Auto-start line (`SessionStart`) | 69 chars | ~17 | once per session |
 
 A 7-task hour ≈ 1,800–2,000 new tokens (estimate); every added token is then
