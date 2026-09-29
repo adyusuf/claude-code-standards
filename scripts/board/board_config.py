@@ -19,6 +19,25 @@ HOST = os.environ.get("BOARD_HOST", _DEFAULT_HOST)
 PORT = int(os.environ.get("BOARD_PORT", _DEFAULT_PORT))
 REGISTRY = Path(os.environ.get("BOARD_REGISTRY", _DEFAULT_REGISTRY))
 PROJECT_ID_PATTERN = r"^[0-9a-f]{10}$"
+
+# A decision asked on the board: how long the Stop hook waits for the user's click.
+# 0 turns the wait off. Capped below the Stop hook's 900 s timeout in the settings block.
+_DEFAULT_DECISION_WAIT_S = 180
+_MAX_DECISION_WAIT_S = 840
+
+
+def _int_env(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, default))
+    except ValueError:
+        return default  # a typo in the env must not break every hook call
+
+
+DECISION_WAIT_S = max(0, min(_int_env("BOARD_DECISION_WAIT", _DEFAULT_DECISION_WAIT_S),
+                             _MAX_DECISION_WAIT_S))
+DECISION_POLL_S = 1.0
+CHOICE_MAX = 64
+NOTE_MAX = 500
 API_VERSION = 2  # 2 = one server for every registered project
 
 
@@ -62,7 +81,8 @@ class TaskStatus:
     DONE = "done"
     FAILED = "failed"
     REMOVED = "removed"
-    ALL = (PLANNED, RUNNING, AGENT_DONE, WAITING, DONE, FAILED, REMOVED)
+    NEEDS_DECISION = "needs_decision"  # Claude asked the user; the board shows the choices
+    ALL = (PLANNED, RUNNING, AGENT_DONE, WAITING, DONE, FAILED, REMOVED, NEEDS_DECISION)
 
 
 class AgentStatus:
@@ -77,4 +97,12 @@ class ControlAction:
     RESTORE_TASK = "restore_task"
     DISABLE_ROLE = "disable_role"
     ENABLE_ROLE = "enable_role"
-    ALL = (REMOVE_TASK, RESTORE_TASK, DISABLE_ROLE, ENABLE_ROLE)
+    DECIDE = "decide"
+    ALL = (REMOVE_TASK, RESTORE_TASK, DISABLE_ROLE, ENABLE_ROLE, DECIDE)
+
+
+class DecisionChoice:
+    """The two choices a decision offers when Claude named no options of its own."""
+    CONTINUE = "continue"
+    REJECT = "reject"
+    DEFAULTS = (CONTINUE, REJECT)

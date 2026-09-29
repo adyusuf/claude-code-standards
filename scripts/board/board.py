@@ -4,6 +4,7 @@
   python3 $B plan --mode B --roles analyst,test-writer,doc-writer
   python3 $B add T-1 "F-063 trusted proxies" --branch fix/f063 --role developer
   python3 $B set T-1 --status waiting --note "tests later"
+  python3 $B set T-2 --status needs_decision --note "Split the PR?" --options "split|keep one"
   python3 $B list
 Agents are linked to a task by putting "[T-1]" in the Agent tool's description.
 """
@@ -13,7 +14,7 @@ import argparse
 import re
 import sys
 
-from board_config import ROLE_PATTERN, TASK_ID_PATTERN, TaskStatus, board_dir
+from board_config import CHOICE_MAX, ROLE_PATTERN, TASK_ID_PATTERN, TaskStatus, board_dir
 from board_store import append_event, fold, read_control, read_events
 
 
@@ -29,6 +30,13 @@ def _roles(value: str) -> list[str]:
     if bad:
         raise argparse.ArgumentTypeError(f"invalid role name(s): {', '.join(bad)}")
     return roles
+
+
+def _options(value: str) -> list[str]:
+    options = [o.strip() for o in value.split("|") if o.strip()]
+    if not options or any(len(o) > CHOICE_MAX for o in options):
+        raise argparse.ArgumentTypeError(f"options: 'a|b|c', each 1-{CHOICE_MAX} characters")
+    return options
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -50,6 +58,7 @@ def build_parser() -> argparse.ArgumentParser:
     st.add_argument("--branch")
     st.add_argument("--role")
     st.add_argument("--title")
+    st.add_argument("--options", type=_options, help="choices for a needs_decision task: 'a|b'")
     sub.add_parser("list")
     return p
 
@@ -63,7 +72,7 @@ def run(argv: list[str]) -> int:
         append_event(bdir, {"type": "task_add", "id": args.id, "title": args.title,
                             "branch": args.branch, "role": args.role, "note": args.note})
     elif args.cmd == "set":
-        fields = {k: getattr(args, k) for k in ("status", "note", "branch", "role", "title")
+        fields = {k: getattr(args, k) for k in ("status", "note", "branch", "role", "title", "options")
                   if getattr(args, k) is not None}
         if not fields:
             print("board set: nothing to change", file=sys.stderr)

@@ -48,6 +48,7 @@ def _task(state: dict, tid: str) -> dict:
     return state["tasks"].setdefault(tid, {
         "id": tid, "title": tid, "branch": "", "role": "", "note": "",
         "status": TaskStatus.PLANNED, "agents": [], "updated": None,
+        "options": [], "decision": None,
     })
 
 
@@ -86,7 +87,7 @@ def fold(events: list[dict], control: dict | None = None) -> dict:
             t["updated"] = ts
         elif kind == "task_set":
             t = _task(state, ev["id"])
-            for k in ("status", "note", "branch", "role", "title"):
+            for k in ("status", "note", "branch", "role", "title", "options"):
                 if ev.get(k) is not None:
                     t[k] = ev[k]
             t["updated"] = ts
@@ -126,13 +127,19 @@ def fold(events: list[dict], control: dict | None = None) -> dict:
     for tid in (control or {}).get("removed_tasks", []):
         if tid in state["tasks"]:
             state["tasks"][tid]["status"] = TaskStatus.REMOVED
+    for tid, decision in (control or {}).get("decisions", {}).items():
+        # A decision counts only for the question it answered: once Claude asks
+        # again (a later task_set), the old answer no longer shows as the reply.
+        task = state["tasks"].get(tid)
+        if task and (task["updated"] or "") <= decision.get("ts", ""):
+            task["decision"] = decision
     return state
 
 
 # ---- control file (written by the board server, read by the hook) ----
 
 def empty_control() -> dict:
-    return {"version": 0, "removed_tasks": [], "disabled_roles": [], "changes": []}
+    return {"version": 0, "removed_tasks": [], "disabled_roles": [], "changes": [], "decisions": {}}
 
 
 def read_control(bdir: Path) -> dict:
@@ -156,8 +163,11 @@ def atomic_write(path: Path, data: dict) -> None:
     os.replace(tmp, path)
 
 
-def apply_control(bdir: Path, action: str, value: str) -> dict:
+def apply_control(bdir: Path, action: str, value: str,
+                  choice: str | None = None, note: str | None = None) -> dict:
     ctl = read_control(bdir)
+    if action == ControlAction.DECIDE:
+        return _decide(bdir, ctl, value, choice, note)
     lists = {ControlAction.REMOVE_TASK: ("removed_tasks", True),
              ControlAction.RESTORE_TASK: ("removed_tasks", False),
              ControlAction.DISABLE_ROLE: ("disabled_roles", True),
@@ -175,17 +185,38 @@ def apply_control(bdir: Path, action: str, value: str) -> dict:
     return ctl
 
 
-def unseen_changes(bdir: Path, session: str) -> list[dict]:
-    """Control changes this session has not been told about yet; marks them as seen."""
-    ctl = read_control(bdir)
+def _decide(bdir: Path, ctl: dict, tid: str, choice: str | None, note: str | None) -> dict:
+    if not choice:
+        raise ValueError("a decision needs a choice")
+    ctl["version"] += 1
+    decision = {"choice": choice, "note": note or "", "ts": now_iso(), "v": ctl["version"]}
+    ctl["decisions"][tid] = decision
+    ctl["changes"] = (ctl["changes"] + [{"v": ctl["version"], "action": ControlAction.DECIDE,
+                                         "value": tid, "choice": choice, "note": note or "",
+                                         "ts": decision["ts"]}])[-50:]
+    atomic_write(bdir / CONTROL_FILE, ctl)
+    return ctl
+
+
+def _acks(bdir: Path) -> dict:
     ack_path = bdir / ACK_FILE
     try:
-        acks = json.loads(ack_path.read_text(encoding="utf-8")) if ack_path.exists() else {}
+        return json.loads(ack_path.read_text(encoding="utf-8")) if ack_path.exists() else {}
     except (OSError, json.JSONDecodeError):
-        acks = {}
-    seen = acks.get(session, 0)
-    fresh = [c for c in ctl["changes"] if c["v"] > seen]
+        return {}
+
+
+def peek_changes(bdir: Path, session: str) -> list[dict]:
+    """Control changes this session has not been told about yet — without marking them."""
+    seen = _acks(bdir).get(session, 0)
+    return [c for c in read_control(bdir)["changes"] if c["v"] > seen]
+
+
+def unseen_changes(bdir: Path, session: str) -> list[dict]:
+    """Control changes this session has not been told about yet; marks them as seen."""
+    fresh = peek_changes(bdir, session)
     if fresh:
-        acks[session] = ctl["version"]
-        atomic_write(ack_path, acks)
+        acks = _acks(bdir)
+        acks[session] = max(c["v"] for c in fresh)
+        atomic_write(bdir / ACK_FILE, acks)
     return fresh

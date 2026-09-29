@@ -727,6 +727,17 @@ drop each other (removing the lock fails the test), a foreign service or an olde
 one-project server on the port is reported, never replaced, and no test touches
 the real registry or port.
 
+**29/09/2026, same day — decisions from the board (user request).** Claude marks a task
+`needs_decision` with its question and options; the page shows the choices. An idle
+session cannot be woken from outside, so a click reaches Claude mid-turn through the
+existing reminder, or at the end of a turn through the Stop hook, which waits
+`BOARD_DECISION_WAIT` seconds (user's choice: configurable, default 180) and blocks the
+stop with the decision. Found while designing it: a subagent's tool call (modes C/D/E)
+was consuming board notices meant for the orchestrator — now only the main thread
+does. A board click is steering, not approval: promotion, deploys and deletions still
+need the user's yes in the chat. Pinned by mutation: removing the subagent guard, or
+letting any change (not only a decision) prolong a turn, fails a test.
+
 <details>
 <summary>The retired dashboard rule, as it stood until recently</summary>
 
