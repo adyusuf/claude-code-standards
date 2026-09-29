@@ -58,10 +58,10 @@
  - **`test → prod`:** the code must already be **deployed to the test environment** and the **FULL e2e suite** must run green against it (#33).
  - **A step that did not run did not pass.** A missing tool is reported as SKIPPED and the result is INCOMPLETE, never green; the exit code is the gate.
  - A project may ADD steps to the shared gate; it may never remove one. → the step list: `standards/13-pr-and-review.md` §4; rationale: `docs/decision-log.md` §25
-26. **Once the work is planned: pull `dev` → branch/worktree off `dev` → work there → merge each task to `dev` SEPARATELY.** The order is binding:
+26. **Once the work is planned: pull `dev` → branch/worktree off `dev` → work there → one commit per task, merged to `dev` through a gate.** The order is binding:
  1. **First `git fetch` and update `dev`.** Do not branch from a stale base.
  2. **Create a new branch (or worktree) off `dev` and work there.** Never commit directly on `dev`.
- 3. **When a task is finished, merge that task to `dev` on its own.** Do not collect several tasks into one commit/merge.
+ 3. **Each task is committed on its own** (its own commit(s), the task named in the message) — never mixed into another task's commit. Finished tasks may reach `dev` **together through ONE gate run** (gates are long); never squashed. → `standards/13-pr-and-review.md` §8
  4. **The USER decides on the `test` and `prod` promotions.** There is NO self-initiated merge to `test`/`prod`.
  5. **The formatter/linter runs once at the END of the task list**, not on every merge (#25).
  - ⚠️ **The configuration repository's own layout:** branches `dev` / `test` / `prod`. The live `~/.claude` is a **symlink into the main worktree, which stays on `prod`**; work happens in a separate `dev` worktree and reaches the live config only by promotion, which the **user** decides (`standards/00-working-method.md` §7a). Commit only your own diff. → rationale: `docs/decision-log.md` §26
@@ -90,7 +90,7 @@
  - **Out of scope:** tests whose sender is faked. → detail `standards/11-playwright.md` §4; rationale `docs/decision-log.md` §30
 31. **The run cycle (e2e AND every test/gate run → `standards/00` §11; parallelism/reuse → §12): full run → identify failures → fix → run only what was fixed → I decide on a full re-run.**
  - **The WHOLE suite runs first**, without stopping at the first failure. Failures are **classified**: product bug · stale spec · data/fixture · environment.
- - **Failures are fixed** — each fix on its own branch with its own merge (#26). Raising retries or loosening assertions does not count as a fix.
+ - **Failures are fixed** — each fix in its own commit; fixes may share one gate and one merge (#26). Raising retries or loosening assertions does not count as a fix.
  - **Then ONLY the fixed tests** (and those they could affect) run.
  - ⚠️ **E2E runs only against code that has reached the `test` environment.** While a fix is on `dev`, verification means **unit tests + tsc/lint** (#25).
  - ⛔ **Nothing ships to `prod` without e2e.** **The only exception is a hotfix:** when the user explicitly says "hotfix" it ships without e2e and the report reads "e2e skipped (hotfix)" — which does not count as passing.
@@ -100,7 +100,7 @@
  - The planned work's code is written **in full**; tests are not run after every small change.
  - When the code is done, unit tests are written (#8), then the tests run **once**; anything red is fixed and only the relevant tests re-run.
  - **E2E is neither written nor run at the `dev` stage** — #33 narrowed this further: writing and running e2e belong to the pre-production gate.
- - #26 still holds: each task is written on its own branch and merged to `dev` **separately** once its unit run is green. → rationale: `docs/decision-log.md` §32
+ - #26 still holds: each task gets its own commit and reaches `dev` through a gate — alone or in a batch — once its unit run is green. → rationale: `docs/decision-log.md` §32
 33. **E2E runs at the `prod` gate only, and the code must be on `test` first.**
  - **`feature → dev` and `dev → test`:** e2e is not RUN. The gate only CHECKS whether a spec is missing (#25) — no deploy wait, no status file.
  - **`test → prod`, in order:** 1) the code is deployed to `test` and the deploy is **verified** (the version endpoint reports this SHA) · 2) any missing spec is written and verified against the test environment · 3) the **WHOLE** e2e suite runs against `test` (#31's cycle applies to failures) · 4) nothing red ⇒ merge to `prod`. Red, stale or absent ⇒ no merge.

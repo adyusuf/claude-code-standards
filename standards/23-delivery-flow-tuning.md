@@ -25,7 +25,7 @@ repetition. Only the second kind is taken without a separate user decision.
 | **Test-writer in parallel with the developer**, writing from the contract, not the code | ↑ 10–20% of test-writer tokens (rework when the contract drifts) | = / ↑ tests cannot copy the implementation's mistake | ↑ test time overlaps code time | Only when the contract is clear (fix it in the prompt); otherwise code → tests |
 | **`qa` in parallel with the test run** instead of after it | = (some test work wasted on a send-back) | = same diff, same depth | ↑ review stops being a wait | — |
 | **Remove repetition inside the gate** (one run feeds both unit and coverage steps; scans alongside tests) | ↓ machine time | = same steps, same thresholds | ↑ measure first | Obey §12 (resource-based parallelism, stamped reuse) |
-| **Batch 3–4 ready branches through one gate** on the combined tree, merging each separately | ↓ fewer gate runs | ↑ interactions between branches get tested | ↑ throughput; ↓ one item waits for its batch | A red batch needs attribution |
+| **Batch 3–4 ready branches through one gate** on the combined tree (the default since 29/09/2026, #26) | ↓ fewer gate runs | ↑ interactions between branches get tested | ↑ throughput; ↓ one item waits for its batch | A red batch needs attribution |
 | **Fix a flaky test the day it appears** (root cause, never retries) | ↑ small per flake | ↑ | ↑ no more false-red re-runs | — |
 | ~~Same agent writes code and its tests~~ | ↓ | **↓ loses the independent eye** | ↑ | Withdrawn in gandalf: an independent test found a real ordering bug |
 | ~~Skip `qa` for "low-severity" items~~ | ↓ | **↓ severity is known only after reading the code** | ↑ | Withdrawn in gandalf: a "low" channel choice hid a cross-tenant takeover |

@@ -239,16 +239,16 @@ step restored, the build-mode and type-error-behind-references cases fail.
 passes must be shown to have looked at something. A tool pointed at a file that
 contains no inputs is not a green result.
 
-## §26 — Pull `dev` → branch off `dev` → work → merge each task separately
+## §26 — Pull `dev` → branch off `dev` → work → one commit per task, merged through a gate
 
 Additional detail shortened out of the active file:
 
 1. **First `git fetch` and update `dev`.** Branching from a stale base means
    working without ever seeing other sessions' commits (this repo is used with
    parallel worktrees).
-3. **When a task is finished, merge that task to `dev` on its own.** Do not collect
-   several tasks into one commit/merge — each task goes with its own commit, its own
-   verification and its own merge.
+3. **Each task is committed on its own;** finished tasks may be merged to `dev`
+   together through one gate run. (Until 29/09/2026: each task with its own commit,
+   its own verification and its own merge — see the amendment below.)
 4. **The USER decides on the `test` and `prod` promotions.** There is no
    self-initiated merge to `test`/`prod`; those branches are not touched until the
    user explicitly says "merge" / "prod merge" (#25 and the project's own rules
@@ -264,8 +264,17 @@ diff is committed.
 separately, and to keep control of what goes outward.
 
 **How to apply:** when given a multi-step task list, update the base and create the
-branch before the first line of code; when each item is finished, verify it, commit
-it and merge it to `dev`, then move to the next.
+branch before the first line of code; when each item is finished, verify it and
+commit it, then move to the next; merge the finished items through one gate.
+
+**Amendment 29/09/2026 (user decision): batch merges.** One merge per task meant one
+full gate per task, and a project gate runs 20+ minutes (measured on 29/09: the
+dev gate of a .NET + web + mobile project, SAST's serial rebuild being the longest step) — two small tasks
+cost close to an hour of gates. The per-task **commit** is what keeps a task
+traceable, so it stays mandatory; the per-task **merge** goes. A batch is merged with
+`--no-ff` so the task commits survive (squashing them would lose exactly what the
+rule protects), and a red batch is bisected, never waved through
+(`standards/13-pr-and-review.md` §8).
 
 ## §27 — The operating mode is selectable per project; the selection is the approval
 
@@ -466,7 +475,7 @@ re-running without classifying first wasted the time twice.
 - **E2E is neither written nor run at the `dev` stage.** ⚠️ #33 changed this
   further: writing and running e2e now belong to the pre-production gate.
 - #26 still holds: each task is written on its own branch and merged to `dev`
-  **separately** once its unit run is green.
+  through a gate — alone or in a batch (#26 amendment, 29/09/2026) — once its unit run is green.
 
 **Why:** intermediate runs consumed time and machine load; the order is all the
 code, then write and run unit tests, and e2e once the code reaches `test`.
