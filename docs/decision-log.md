@@ -320,7 +320,7 @@ rule protects), and a red batch is bisected, never waved through
   one line** — do not switch on your own. ⚠️ Because B is the default, in a project
   with no mode file `analyst`/`test-writer`/`doc-writer` may be invoked without
   asking — the default itself is the approval for those three agents. The other
-  eleven roles require C/D/E. If the user names a mode, run the `/working-mode` skill.
+  eleven roles require C/D/E. If the user names a mode, run the `/adyusuf:working-mode` skill.
 
 ## §28 — The auditor checks, sends back and gets it fixed
 
@@ -533,6 +533,28 @@ Measured the same day: a fresh runner agent cost 17.7–18.3k tokens per gate wh
 the gate's length (6 runs, 21 s to 10 min), a resumed one 2.6–2.7k (2 runs). So a gate
 under a minute is run directly, and a promotion chain resumes ONE runner agent instead
 of opening a new one per gate (`standards/23-delivery-flow-tuning.md` §13b).
+
+**Incident, 29/09/2026 — a rejected message was delivered.** The user rejected a
+`SendMessage` asking the runner to run a `test` gate; the runner still received it, ran
+the gate (read-only, nothing pushed) and reported it together with the next request.
+The result was discarded. The harness behaviour cannot be fixed from here, so the rule
+is on the reader: after a rejected send, check the runner's next report and drop what
+the user stopped (§13b).
+
+## Own skills and commands under one namespace — `/adyusuf:<name>` (29/09/2026, user decision)
+
+Our skills sat among 30 third-party skills and 26 plugins with nothing marking
+them as ours, and one of them (`test-inventory`) had reached `prod` without its
+per-skill link, so no session could load it. The user chose a plugin-style
+prefix over renaming (`adyusuf-…`). Claude Code loads a folder under
+`~/.claude/skills/` that carries `.claude-plugin/plugin.json` as a plugin named
+`<name>@skills-dir`, and it follows symlinks at session load (measured with
+`claude plugin details`, Claude Code 2.1.281: a linked probe listed all 7 skills
+and commands). So `plugin/` links back to `skills/` and `commands/`, one link
+(`~/.claude/skills/adyusuf`) replaces the per-skill links and `~/.claude/commands`,
+and a new skill needs no install step. `plugin/agents` is deliberately absent: it
+would load a second, prefixed copy of every role. `scripts/tests/test_plugin_layout.py`
+fails on any unprefixed invocation. → `standards/00` §7a
 
 ## §16 · §28 · never-do list — the enforcement tooling
 

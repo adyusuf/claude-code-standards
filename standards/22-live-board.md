@@ -54,7 +54,7 @@ call to its `SubagentStop.agent_id`; `UserPromptSubmit` carries `prompt`.
    (a missing file exits 2, which Claude Code would read as a BLOCK). The hook
    itself also logs its errors to stderr and lets the call through.
 2. Add `.claude/board/` to `.gitignore`.
-3. Link the skill once per machine: `ln -s <repo>/skills/board-plan ~/.claude/skills/board-plan`.
+3. The skill ships in the `adyusuf` plugin (`/adyusuf:board-plan`, `standards/00` §7a) — no link of its own.
 4. Open `http://127.0.0.1:8765`. A running session picked up a newly added
    `.claude/settings.json` without a restart (measured 29/09/2026, Claude Code 2.1.281:
    its Stop hook delivered a board decision in the same session), but `SessionStart` —
@@ -68,6 +68,15 @@ call to its `SubagentStop.agent_id`; `UserPromptSubmit` carries `prompt`.
 5. If the auto-start reports an **older** board server on the port (one project per
    server, before 29/09/2026), stop that process once; the next session starts the
    one-for-all server.
+
+## 2b. The Merge column
+
+Each task can carry its commit(s): `board.py set T-n --commit <sha>[,<sha>]`. The page then
+shows, per task, whether **every** one of them is in `origin/dev`, `origin/test` and
+`origin/prod` — read live from the project's git (`scripts/board/board_merge.py`; the branch
+names and the remote are in `board_config.py`). A branch that does not exist is left out; an
+unknown commit counts as not merged. It is **as of the project's last `git fetch`** — the
+board never fetches; branch tips are re-read at most every 10 s.
 
 ## 2a. Decisions asked on the board
 

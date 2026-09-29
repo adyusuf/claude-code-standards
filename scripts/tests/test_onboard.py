@@ -48,7 +48,7 @@ class TestDescribe(Fixture):
     def test_mentions_the_apply_project_standards_command(self):
         result = self.run_onboard('describe')
         self.assertEqual(result.returncode, 0)
-        self.assertIn('/apply-project-standards', result.stdout)
+        self.assertIn('/adyusuf:apply-project-standards', result.stdout)
 
     def test_falls_back_to_the_path_without_a_git_remote(self):
         result = self.run_onboard('describe')

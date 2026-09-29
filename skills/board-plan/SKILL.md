@@ -41,6 +41,10 @@ The hooks set `running` and `agent_done`. Only you set the rest:
 
 `agent_done` means "the agent returned", not "the task is done" (#28).
 
+**Record each task's commit** as soon as it exists: `B set T-n --commit <sha>` (several:
+`<sha>,<sha>`). The page's Merge column then shows where it has landed — dev / test / prod —
+read from git, so nobody has to write merge notes by hand.
+
 **Asking the user:** `B set T-n --status needs_decision --note "<question>" --options "a|b"`
 (no `--options` → Continue / Reject), ask the same question in the chat, then end the
 turn. The Stop hook waits for the click (`BOARD_DECISION_WAIT`, default 180 s); the

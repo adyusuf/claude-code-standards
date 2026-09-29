@@ -48,7 +48,7 @@ def _task(state: dict, tid: str) -> dict:
     return state["tasks"].setdefault(tid, {
         "id": tid, "title": tid, "branch": "", "role": "", "note": "",
         "status": TaskStatus.PLANNED, "agents": [], "updated": None,
-        "options": [], "decision": None,
+        "options": [], "decision": None, "commits": [],
     })
 
 
@@ -81,13 +81,13 @@ def fold(events: list[dict], control: dict | None = None) -> dict:
             state["roles"] = list(ev.get("roles", []))
         elif kind == "task_add":
             t = _task(state, ev["id"])
-            for k in ("title", "branch", "role", "note"):
+            for k in ("title", "branch", "role", "note", "commits"):
                 if ev.get(k) is not None:
                     t[k] = ev[k]
             t["updated"] = ts
         elif kind == "task_set":
             t = _task(state, ev["id"])
-            for k in ("status", "note", "branch", "role", "title", "options"):
+            for k in ("status", "note", "branch", "role", "title", "options", "commits"):
                 if ev.get(k) is not None:
                     t[k] = ev[k]
             t["updated"] = ts

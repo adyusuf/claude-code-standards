@@ -17,6 +17,7 @@ from urllib.parse import parse_qs, urlsplit
 
 from board_config import (API_VERSION, CHOICE_MAX, HOST, NOTE_MAX, PORT, PROJECT_ID_PATTERN,
                           REGISTRY, ROLE_PATTERN, TASK_ID_PATTERN, ControlAction, DecisionChoice)
+from board_merge import merged
 from board_registry import load, project_id, summary
 from board_store import apply_control, fold, read_control, read_events
 
@@ -110,6 +111,8 @@ def make_handler(registry: Path | None = None, extra_dir: Path | None = None):
                 state["control"] = {k: control[k] for k in ("removed_tasks", "disabled_roles")}
                 state["project"] = entry["id"]
                 state["decision_defaults"] = list(DecisionChoice.DEFAULTS)
+                for task in state["tasks"].values():
+                    task["merged"] = merged(entry["root"], task.get("commits") or [])
                 return self._json(200, state)
             return self._json(404, {"error": "not found"})
 
