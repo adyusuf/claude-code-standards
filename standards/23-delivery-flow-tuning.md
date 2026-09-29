@@ -83,6 +83,10 @@ what a red or incomplete result MEANS is not.
 - ⚠️ **One runner agent per promotion chain** (user decision 29/09/2026). The first long gate
   (feature → `dev`) opens the runner; the following gates of the same chain (`dev → test`, and the
   next batch) are sent to that SAME agent (`SendMessage`), not to a new one.
+- ⚠️ **A message the user stopped may still reach the runner.** Measured 29/09/2026: a
+  `SendMessage` the user rejected was delivered anyway and the runner ran the gate. After a
+  rejected send, read the runner's next report item by item and **discard every result for
+  work the user stopped** — say so in the report; never use it as a gate result.
 - **Cost, measured 29/09/2026:** a fresh runner agent **17.7–18.3k tokens**, 3 tool calls, for a
   3-10 min gate (6 runs); the same agent resumed for another gate **2.6–2.7k tokens** (2 runs).
   The Opus side (the orchestrator running the same gate itself) is still not measured.
