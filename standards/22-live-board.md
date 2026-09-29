@@ -69,6 +69,15 @@ call to its `SubagentStop.agent_id`; `UserPromptSubmit` carries `prompt`.
    server, before 29/09/2026), stop that process once; the next session starts the
    one-for-all server.
 
+## 2b. The Merge column
+
+Each task can carry its commit(s): `board.py set T-n --commit <sha>[,<sha>]`. The page then
+shows, per task, whether **every** one of them is in `origin/dev`, `origin/test` and
+`origin/prod` — read live from the project's git (`scripts/board/board_merge.py`; the branch
+names and the remote are in `board_config.py`). A branch that does not exist is left out; an
+unknown commit counts as not merged. It is **as of the project's last `git fetch`** — the
+board never fetches; branch tips are re-read at most every 10 s.
+
 ## 2a. Decisions asked on the board
 
 When a task needs the user's answer, Claude puts the question on the board:
