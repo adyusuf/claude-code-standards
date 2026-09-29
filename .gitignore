@@ -43,3 +43,7 @@ docs/measurement-daily-by-model.md
 # a list of client names in a public repository publishes what it is there to hide
 docs/project-nicknames.tsv
 .codeql/
+
+# The live board's runtime data (standards/22-live-board.md §2 step 2): the event log
+# and the user's controls for a session in this repository. Never committed.
+.claude/board/
