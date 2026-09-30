@@ -139,7 +139,7 @@ test("sessionsHtml: drafts refill the field and reselect the picked skill, for t
 test("sessionsHtml: session ids, skill names and drafts are HTML-escaped", () => {
   const id = '"><img src=x>';
   const html = rows(stateOf([session({ id })]), { queue: { [id]: "<script>" } }, tr, ["<i>skill"]);
-  assert.doesNotMatch(html, /<img|<script>|<i>/);
+  for (const raw of ["<img", "<script", "<i>"]) assert.equal(html.toLowerCase().includes(raw), false, raw);
   assert.match(html, /data-queue-for="&quot;&gt;&lt;img src=x&gt;"/);
   assert.match(html, /<option value="&lt;i&gt;skill">&lt;i&gt;skill<\/option>/);
   assert.match(html, /value="&lt;script&gt;"/);
