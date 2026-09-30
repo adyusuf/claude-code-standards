@@ -568,6 +568,59 @@ and a new skill needs no install step. `plugin/agents` is deliberately absent: i
 would load a second, prefixed copy of every role. `scripts/tests/test_plugin_layout.py`
 fails on any unprefixed invocation. → `standards/00` §7a
 
+## Live board: sessions, cost, controls, app mode (30/09/2026, T-23)
+
+The board gained cost tracking, session views, task/skill queueing, and app mode:
+
+- **Cost is measured, not estimated.** Prices live only in `board_config.py`; a model not
+  listed there shows "cannot be measured" (not a guess). Tokens are read from transcripts
+  incrementally (half-written lines wait for the next read) and cached. Subagent transcripts
+  may record output_tokens at stream start, so agent cost may be undercounted; the board
+  shows this as a note. Cost lives in task and session projections as estimates, each
+  carrying its basis (the rate and ETA it rests on).
+- **Agents carry their own cost (user request, 30/09/2026).** Each Agent-activity row shows
+  tokens and cost from its transcript, with a total row over the measured agents; an
+  agent whose id or transcript is unknown is "cannot be measured yet", never zero.
+- **Sessions are the unit of work.** The board shows session state (busy/idle) with the
+  24-hour visibility window. A task's cost is the sum of its linked agents' transcripts (by
+  [T-n] tag in the Agent call or explicit `board.py set --agent` link). A projection is an
+  estimate: task = spent + $/h × remaining ETA; session = spent + burn rate (last 3600 s
+  averaged) × open tasks' remaining ETA hours.
+- **Work can be queued from the board.** Tasks and skills reach a session after its next
+  main-thread tool call (same turn if busy) or at Stop (the turn continues). An idle session
+  is reached only inside the Stop hook's wait window or when the user types a new message:
+  hooks run only inside a turn, so nothing can wake an idle session. Mode changes write `.claude/mode` and count as the user's #27 selection
+  (approval), asking Claude to re-declare the plan. Delivery is fail-closed: session must
+  exist, skill must be in the list, control.json keeps the last 50 changes (undelivered work
+  falls out if a session never runs a hook again — it can be re-sent). A queued task or mode
+  switch are not approval for irreversible work (deploy, DROP, promotion, sending outward);
+  that still needs explicit chat approval.
+- **App mode works without binary files.** The manifest, icons (192×192 and 512×512 PNG,
+  and SVG), and the command to open as a Chrome window (`--app=<url>`) are all there. The
+  icons are drawn on request (blue background, three white columns) so they never enter
+  git. The service worker caches nothing — the board is ephemeral and always fresh.
+  Installing it via the browser's "Install" menu is an alternative to the `board_open.py`
+  command.
+- **Context compaction is the user's own command.** The board warns at ≥80% context use
+  (a UX reminder), but neither Claude nor a hook can trigger `/compact` — it is only
+  callable by the user. The board shows a warning, never a fake button.
+
+→ `standards/22-live-board.md` §2c §2d §2e, rule #27 (mode selection from the board is
+the user's approval)
+
+## §19 — the dependency scan must run in a pnpm workspace too (30/09/2026, T-26)
+
+The gate's Node step was `npm audit`, which needs a `package-lock.json`. A pnpm workspace has
+`pnpm-lock.yaml` only, so it failed with `ENOLOCK` on every run — the step was red for the wrong
+reason and nobody read it, so the dependencies were never scanned. Run by hand (`pnpm audit`), the
+production dependencies of one project carried **2 critical and 27 high** advisories (`next` 14,
+`multer`, `adm-zip`, `js-yaml`, `lodash`, `nanoid`, `postcss`), none of them ever shown by the gate.
+`gate-core.sh` now uses `pnpm --dir <d> audit --audit-level=high` when the directory (or, for a
+sub-package, the repository root) has `pnpm-lock.yaml`; a missing pnpm is SKIPPED, a scan that could
+not run is a failure, and an npm project still uses `npm audit`. `test_gate_core_pnpm_audit.py`
+pins six cases (the four pnpm ones fail on the old loop). Lesson: a gate step that always fails is
+as blind as one that never runs — read the *reason* on a red step, not only the colour.
+
 ## §16 · §28 · never-do list — the enforcement tooling
 
 Rules that stayed prose were the ones that failed silently, so each was given a check

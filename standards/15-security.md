@@ -75,7 +75,7 @@ X-Frame-Options: DENY            (alongside CSP frame-ancestors)
 ## 8. Dependencies and the supply chain
 
 - The lock file is committed; versions are pinned.
-- CVE scanning in CI (`dotnet list package --vulnerable`, `npm audit`, Dependabot/Renovate).
+- CVE scanning in CI (`dotnet list package --vulnerable`, `npm audit` / `pnpm audit`, Dependabot/Renovate).
 - A critical/high vulnerability → the merge is blocked. If there is no patch, the risk acceptance is written down and time-boxed.
 - For a new package: is it maintained, how many downloads, the last commit, the licence, the number of transitive dependencies.
 - A typosquatting check — read the package name twice.
@@ -115,7 +115,7 @@ written down.
 | **A03** | Injection | Parameterized SQL, an ORM, an **allowlist** for sort/filter, no shell calls, React escaping + CSP for XSS, a template-injection check |
 | **A04** | Insecure Design | An ADR + a threat model (§14 below), rate limiting, business rules on the server, idempotency in critical flows |
 | **A05** | Security Misconfiguration | The whole of `20-hardening.md`: Swagger/debug off in production, security headers, no default passwords, directory listing off, CORS narrow |
-| **A06** | Vulnerable & Outdated Components | The lock file, CVE scanning in CI (`npm audit`, `dotnet list package --vulnerable`, Dependabot), a critical vulnerability blocks the merge, actions pinned to a SHA |
+| **A06** | Vulnerable & Outdated Components | The lock file, CVE scanning in CI (`npm audit` / `pnpm audit`, `dotnet list package --vulnerable`, Dependabot), a critical vulnerability blocks the merge, actions pinned to a SHA |
 | **A07** | Identification & Auth Failures | Rate limiting + lockout, error messages closed to enumeration, refresh rotation + reuse detection, MFA for admins, sessions terminated server-side |
 | **A08** | Software & Data Integrity Failures | The lock file + SHA-pinned CI actions, signed artifacts, unsafe deserialization disabled, supply-chain checks (typosquatting) |
 | **A09** | Security Logging & Monitoring Failures | `17-observability.md`: security events are logged, the audit log is append-only, abnormal-pattern alerts, a correlation id |
@@ -143,7 +143,7 @@ no real secret on a mobile client.
 | Kind | What it finds | Tool | When |
 |---|---|---|---|
 | **Secret scanning** | A secret that leaked into the repository | gitleaks / trufflehog | Every push + pre-commit |
-| **SCA** | A vulnerable dependency | `dotnet list package --vulnerable`, `npm audit`, Dependabot/Renovate, OWASP Dependency-Check | Every push + weekly |
+| **SCA** | A vulnerable dependency | `dotnet list package --vulnerable`, `npm audit` / `pnpm audit`, Dependabot/Renovate, OWASP Dependency-Check | Every push + weekly |
 | **SAST** | Vulnerable patterns in the code | CodeQL, SonarQube, Roslyn analyzers, `eslint-plugin-security` | On the PR |
 | **DAST** | Vulnerabilities in the running application | **OWASP ZAP** (a baseline scan in CI, a full scan periodically) | After deploying to the test environment |
 | **Container** | CVEs in the image | Trivy / Docker Scout | On the image build |
