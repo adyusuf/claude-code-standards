@@ -8,6 +8,7 @@ everything else in the settings file (other hooks, permissions, ...) is kept.
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
 
 SETTINGS = Path(".claude") / "settings.json"
@@ -25,6 +26,16 @@ HOOKS = {
     "Stop": (None, "board_hook.py", STOP_TIMEOUT_S),
     "UserPromptSubmit": (None, "board_hook.py", None),
 }
+
+
+def checkout_root(fallback: Path) -> Path:
+    """The checkout you are IN: settings.json and .gitignore are committed files of this worktree, so in a
+    linked worktree they belong to it — not to the main checkout, where the board data lives."""
+    try:
+        out = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, check=True)
+        return Path(out.stdout.strip())
+    except (OSError, subprocess.CalledProcessError):
+        return fallback
 
 
 def hook_block() -> dict:
