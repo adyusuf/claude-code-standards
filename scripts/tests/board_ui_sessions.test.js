@@ -262,3 +262,10 @@ test("todo line: done/total and the running item; absent when the session sent n
   assert.doesNotMatch(rows(stateOf([session({ todos: null })])), /yapılacaklar/);
   assert.doesNotMatch(rows(stateOf([session()])), /yapılacaklar/);
 });
+
+test("session name: shown above the id, escaped, absent when the transcript has none", () => {
+  const named = rows(stateOf([session({ title: "live board <b>x</b>" })]));
+  assert.match(named, /<div class="sname" title="live board &lt;b&gt;x&lt;\/b&gt;">live board &lt;b&gt;x&lt;\/b&gt;<\/div><code title="abcdef1234567890">abcdef12<\/code>/);
+  assert.doesNotMatch(rows(stateOf([session({ title: null })])), /sname/);
+  assert.doesNotMatch(rows(stateOf([session()])), /sname/);
+});

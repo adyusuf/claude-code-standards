@@ -139,6 +139,16 @@ an update for a task the board never saw created, an undocumented status — rec
 line, never an invented one). Not verified live: this repository's sessions have no `TaskCreate` tool, so
 the result shape is checked against the binary's source and the tests, not against a real call.
 
+**Session names and unmeasured sessions:** the sessions table shows each session's name above its id.
+The name is read from the session's own transcript — the last `custom-title` entry (`customTitle`, set by
+the user or the app), else the last `agent-name` entry (`agentName`) — cut to 80 characters; a session
+without either shows the id alone. A session whose events never carried a transcript path (recorded
+before the hooks sent it, or a client that does not) is looked up as `<session-id>.jsonl` under
+`~/.claude/projects/*/` (`BOARD_TRANSCRIPTS_ROOT` overrides the root; the id is checked against the
+session-id pattern before it is globbed, and a miss is not retried for 30 s). A session whose transcript
+does not exist at all (deleted, or the client keeps none there) stays "cannot be measured": the board
+says so instead of guessing.
+
 **Context:** the last main-thread call's input + cache read + cache write tokens, set against
 the model's window size. The board shows **"context warn" at ≥80%** — a UX reminder, never a
 block. Compacting the context (`/compact`) is the user's own command in Claude Code; neither
