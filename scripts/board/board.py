@@ -21,6 +21,8 @@ import sys
 
 from board_config import (AGENT_ID_PATTERN, AUTO_TASK_ID, CHOICE_MAX, COMMIT_PATTERN, EST_COST_MAX_USD,
                           ETA_MAX_MIN, EVENTS_FILE, ROLE_PATTERN, TASK_ID_PATTERN, TaskStatus, board_dir)
+from board_enable import enable
+from board_registry import register, register_if_missing
 from board_store import append_event, fold, read_control, read_events
 from board_tasks import TaskExists, add_task
 
@@ -112,6 +114,7 @@ def build_parser() -> argparse.ArgumentParser:
     st.add_argument("--est-cost", dest="est_cost", type=_usd, help="estimated dollars for the task")
     st.add_argument("--agent", type=_agent, help="count this agent's cost for the task")
     sub.add_parser("list")
+    sub.add_parser("enable", help="turn the live board on in this repository: hooks, .gitignore, listing")
     return p
 
 
@@ -121,12 +124,28 @@ def run(argv: list[str]) -> int:
     # The board is found from the working directory's repository, so a command typed from another
     # project's tree used to create a stray .claude/board/ there. A repository whose hooks are
     # wired already has one (the first hook event creates it); anything else needs --init.
-    if (args.cmd != "list" and not args.init and not os.environ.get("BOARD_DIR")
+    if (args.cmd not in ("list", "enable") and not args.init and not os.environ.get("BOARD_DIR")
             and not (bdir / EVENTS_FILE).exists()):
         print(f"board: no live board at {bdir}. This repository has no board hooks; run the command "
               "from the repository whose board you mean, or pass --init to create one here.",
               file=sys.stderr)
         return 2
+    if args.cmd == "enable":
+        root = bdir.parent.parent
+        try:
+            changes = enable(root)
+        except ValueError as exc:
+            print(f"board: {exc}", file=sys.stderr)
+            return 2
+        register(root, bdir)
+        print("\n".join(changes) if changes else "live board is on already: nothing to change")
+        print(f"listed: {root.name}. Commit .claude/settings.json (and .gitignore); a running session picks the hooks "
+              "up, SessionStart (auto-start of the server) applies from the next session.")
+        return 0
+    if args.cmd != "list" and not os.environ.get("BOARD_DIR"):
+        # Not through the SessionStart hook alone: ryan had a board full of tasks that no page listed
+        # because its repository had no hooks. BOARD_DIR is an override (tests, odd layouts): no project root to list.
+        register_if_missing(bdir.parent.parent, bdir)
     if args.cmd == "plan":
         append_event(bdir, {"type": "plan", "mode": args.mode, "roles": args.roles})
     elif args.cmd == "add":

@@ -55,6 +55,17 @@ def register(root: Path, bdir: Path, path: Path | None = None) -> dict:
     return entry
 
 
+def register_if_missing(root: Path, bdir: Path, path: Path | None = None) -> bool:
+    """List this project on the live page unless it already is. Called by everything that WRITES a
+    board (the CLI, the hook), so a repository whose SessionStart hook is missing or has not run
+    still shows up: visibility must not depend on the one hook that used to be the only registrar.
+    A read of the registry, no write, when the project is there already. True = it was added."""
+    if project_id(root.resolve()) in load(path):
+        return False
+    register(root, bdir, path)
+    return True
+
+
 def summary(entry: dict) -> dict:
     """One tab's worth of numbers for a project, read from its own board."""
     bdir = Path(entry["dir"])

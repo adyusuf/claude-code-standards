@@ -4,7 +4,9 @@ refuses an id that already exists, and never creates a board in a repository tha
 Seen live (30/09/2026): T-25 was typed by three sessions and T-26 by two, so a task silently
 took over another's title; and `board.py set` run from another repository's working tree created a
 stray .claude/board/ there."""
+import atexit
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -19,8 +21,14 @@ from board_store import fold, read_control, read_events  # noqa: E402
 CLI = str(BOARD / "board.py")
 
 
+# The CLI lists the project it writes to (T-36): never in the developer's real registry.
+_REGISTRY_DIR = tempfile.mkdtemp(prefix="board-test-registry-")
+atexit.register(shutil.rmtree, _REGISTRY_DIR, ignore_errors=True)
+
+
 def run_cli(cwd, *argv, env_extra=None):
     env = {k: v for k, v in os.environ.items() if k != "BOARD_DIR"}
+    env["BOARD_REGISTRY"] = os.path.join(_REGISTRY_DIR, "projects.json")
     env.update(env_extra or {})
     return subprocess.run([sys.executable, CLI, *argv], cwd=cwd, capture_output=True, text=True, env=env)
 
