@@ -32,6 +32,16 @@
         ]
       }
     ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true"
+          }
+        ]
+      }
+    ],
     "SubagentStop": [
       {
         "hooks": [

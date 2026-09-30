@@ -48,6 +48,7 @@ call to its `SubagentStop.agent_id`; `UserPromptSubmit` carries `prompt`.
     "SessionStart": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_ensure.py\" || true" }] }],
     "PreToolUse": [{ "matcher": "Agent", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
     "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
+    "SubagentStart": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
     "SubagentStop": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
     "Stop": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true", "timeout": 900 }] }],
     "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }]
@@ -120,8 +121,12 @@ read / cache write) and cost, read from that agent's transcript (the `SubagentSt
 `<session>/subagents/agent-<id>.jsonl`); a running agent shows its cost so far, read
 incrementally. A row whose agent id or transcript is not known yet says "cannot be measured
 yet" and is left out of the total row, which counts the measured agents and names how many
-are not. The roles panel adds each role's cost. Rows for resumed / Workflow agents exist only
-once T-2 opens them on `SubagentStart`, so their cost column depends on it.
+are not. The roles panel adds each role's cost. A resumed agent (`SendMessage`) or a Workflow
+agent never passes through the Agent tool's `PreToolUse`, so `SubagentStart` (with a non-empty
+`agent_type`) opens its row and `SubagentStop` closes it; an agent that already has a row from the
+Agent tool runs again in that row (no duplicate), and an untyped internal subagent is ignored.
+Projects enabled before 30/09/2026 add the `SubagentStart` line to their settings block to get
+these rows; without it everything else keeps working.
 
 **Context:** the last main-thread call's input + cache read + cache write tokens, set against
 the model's window size. The board shows **"context warn" at ≥80%** — a UX reminder, never a

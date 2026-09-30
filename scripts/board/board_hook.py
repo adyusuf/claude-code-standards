@@ -1,6 +1,6 @@
 """Claude Code hook entrypoint: records agent lifecycle and enforces board controls.
 
-Wire it for PreToolUse/PostToolUse (matcher "Agent"), SubagentStop, Stop,
+Wire it for PreToolUse/PostToolUse (matcher "Agent"), SubagentStart, SubagentStop, Stop,
 UserPromptSubmit and PostToolUse (matcher "*") — the settings block is in
 standards/22-live-board.md. The Stop hook also waits, for a bounded time, for the
 user's answer to a question Claude put on the board (needs_decision). A task or skill the
@@ -137,6 +137,14 @@ def handle(payload: dict) -> dict | None:
             return None
         text = _change_text(unseen_changes(bdir, session), session)
         return _context("PostToolUse", text) if text else None
+
+    if event == "SubagentStart":
+        # Opens a row for agents that never pass through the Agent tool (SendMessage resumes,
+        # Workflow agents); an untyped internal subagent has no agent_type and is ignored.
+        if payload.get("agent_id") and payload.get("agent_type"):
+            append_event(bdir, {"type": "agent_start", "session": session,
+                                "agent_id": payload["agent_id"], "agent_type": payload["agent_type"]})
+        return None
 
     if event == "SubagentStop":
         append_event(bdir, {"type": "agent_stop", "session": session,
