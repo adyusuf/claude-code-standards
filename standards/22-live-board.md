@@ -253,3 +253,31 @@ The hooks and the server cost **no tokens** while silent. What enters the contex
 A 7-task hour ≈ 1,800–2,000 new tokens (estimate); every added token is then
 re-read from cache on later calls. Hook latency: **65 ms median** per tool call
 (20 runs, no-op `PostToolUse`).
+
+## 5. Channels — pushing a task into an IDLE session (measured 30/09/2026, T-24 phase 1)
+
+Hooks reach a BUSY session only (`PostToolUse` mid-turn, `Stop` at turn end). An idle
+session can be reached through an MCP **channel**: a stdio server that declares
+`capabilities.experimental["claude/channel"] = {}` and sends
+`notifications/claude/channel` with `params: {content: string, meta?: {key: string}}`
+(meta keys must match `^[a-zA-Z_][a-zA-Z0-9_]*$`, others are dropped).
+
+- **Measured (Claude Code 2.1.281, interactive CLI):** a minimal stdlib server pushed a
+  message into an idle session; it was enqueued and dequeued within 20 ms, arrived as a
+  user message `<channel source="<server>" <meta…>>text</channel>` (`origin.kind:
+  channel`) and the session started a turn and acted on it — 2 of 2 runs.
+- **How to start such a session:** `claude --mcp-config <file> --dangerously-load-development-channels server:<name>`
+  (`--channels` alone only accepts marketplace plugins on the approved list). The flag
+  shows a confirmation dialog at every start; the user must accept it.
+- **Org opt-in:** on claude.ai Teams/Enterprise the managed setting `channelsEnabled: true`
+  is required (default off). Not needed on the measured account (no managed settings).
+- ⚠️ **Not reachable:** the Claude desktop app (Code tab) starts its sessions without any
+  `--channels` flag and has no setting for it, so those sessions cannot receive a channel
+  push (not tested live — inferred from the session argv and the app bundle).
+- ⚠️ **A session whose login has expired wakes but fails** ("Login expired"): delivery is
+  not the same as the session acting.
+- **Stays hook-based:** hooks are deterministic, cost no tokens while silent and can block;
+  a channel message is only text the model may or may not follow. Channels close the
+  idle-session gap only — they never replace the hooks.
+- **Fail-closed rule for any board channel server:** it pushes only text the board queued
+  for a registered session — never arbitrary text.
