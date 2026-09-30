@@ -40,6 +40,16 @@ call to its `SubagentStop.agent_id`; `UserPromptSubmit` carries `prompt`.
 
 ## 2. Enabling it in a project
 
+**One command:** from the repository, `python3 ~/.claude/scripts/board/board.py enable` does steps 1 and 2 below
+and lists the project on the page. It is idempotent (a hook already there is left alone, everything else in
+`settings.json` is kept, a file that is not valid JSON is never touched); commit the two files it changed.
+The steps below are what it does, for a project that wants to do it by hand.
+
+**A project is listed as soon as its board is written** — by `board.py plan|add|set` or by any hook event —
+not only by the `SessionStart` hook (`board_registry.register_if_missing`; not when `BOARD_DIR` overrides the
+directory). Seen live 30/09/2026: ryan had ten tasks on a board and no `.claude/settings.json`, so no page
+listed it. Without the hooks the page shows the tasks but no sessions, agents or costs: those need step 1.
+
 1. Merge this block into the project's `.claude/settings.json` (committed):
 
 ```json
