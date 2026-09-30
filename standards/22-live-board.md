@@ -129,12 +129,15 @@ Projects enabled before 30/09/2026 add the `SubagentStart` line to their setting
 these rows; without it everything else keeps working.
 
 **Todo list:** the sessions panel shows each session's own todo progress ("todo 2/5 · what is
-running now"). The main session's `TodoWrite` call (input `{todos:[{content,status,activeForm}]}`,
-the whole list each time — verified in the CLI binary, not guessed) is recorded by the existing
-`PostToolUse` `*` hook as `todo_sync`; the latest list replaces the previous one, an empty list
-clears it, a subagent's call is ignored, and any other shape records nothing (no todo line, never
-an invented one). `TaskCreate`/`TaskUpdate` (the incremental task tools) are not mirrored: their
-response carries the id the board would need and that shape is not documented, so that stays open.
+running now"). The main session's todo tools are recorded by the existing `PostToolUse` `*` hook,
+with shapes read from the CLI binary, not guessed: `TodoWrite` (`{todos:[{content,status,activeForm}]}`,
+the whole list each time → `todo_sync`), `TaskCreate` (result `{task:{id,subject}}` or the text
+"Task #<id> created successfully" → `todo_add`) and `TaskUpdate` (`{taskId,status,subject?,activeForm?}`,
+status `pending|in_progress|completed|deleted` → `todo_update`). The latest list replaces the previous
+one, an empty list clears it, a subagent's call is ignored, and anything else — a payload without an id,
+an update for a task the board never saw created, an undocumented status — records nothing (no todo
+line, never an invented one). Not verified live: this repository's sessions have no `TaskCreate` tool, so
+the result shape is checked against the binary's source and the tests, not against a real call.
 
 **Context:** the last main-thread call's input + cache read + cache write tokens, set against
 the model's window size. The board shows **"context warn" at ≥80%** — a UX reminder, never a
