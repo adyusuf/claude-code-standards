@@ -48,6 +48,7 @@ call to its `SubagentStop.agent_id`; `UserPromptSubmit` carries `prompt`.
     "SessionStart": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_ensure.py\" || true" }] }],
     "PreToolUse": [{ "matcher": "Agent", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
     "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
+    "SubagentStart": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
     "SubagentStop": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
     "Stop": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true", "timeout": 900 }] }],
     "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }]
@@ -120,8 +121,20 @@ read / cache write) and cost, read from that agent's transcript (the `SubagentSt
 `<session>/subagents/agent-<id>.jsonl`); a running agent shows its cost so far, read
 incrementally. A row whose agent id or transcript is not known yet says "cannot be measured
 yet" and is left out of the total row, which counts the measured agents and names how many
-are not. The roles panel adds each role's cost. Rows for resumed / Workflow agents exist only
-once T-2 opens them on `SubagentStart`, so their cost column depends on it.
+are not. The roles panel adds each role's cost. A resumed agent (`SendMessage`) or a Workflow
+agent never passes through the Agent tool's `PreToolUse`, so `SubagentStart` (with a non-empty
+`agent_type`) opens its row and `SubagentStop` closes it; an agent that already has a row from the
+Agent tool runs again in that row (no duplicate), and an untyped internal subagent is ignored.
+Projects enabled before 30/09/2026 add the `SubagentStart` line to their settings block to get
+these rows; without it everything else keeps working.
+
+**Todo list:** the sessions panel shows each session's own todo progress ("todo 2/5 · what is
+running now"). The main session's `TodoWrite` call (input `{todos:[{content,status,activeForm}]}`,
+the whole list each time — verified in the CLI binary, not guessed) is recorded by the existing
+`PostToolUse` `*` hook as `todo_sync`; the latest list replaces the previous one, an empty list
+clears it, a subagent's call is ignored, and any other shape records nothing (no todo line, never
+an invented one). `TaskCreate`/`TaskUpdate` (the incremental task tools) are not mirrored: their
+response carries the id the board would need and that shape is not documented, so that stays open.
 
 **Context:** the last main-thread call's input + cache read + cache write tokens, set against
 the model's window size. The board shows **"context warn" at ≥80%** — a UX reminder, never a
@@ -210,6 +223,20 @@ files in the repository** — icons are generated on request from the server.
 **Service worker** (`/sw.js`): caches nothing. The board is ephemeral and always fresh; a
 stale cache would be worse than a reload.
 
+## 2f. Task ids and where the CLI writes (T-28, 30/09/2026)
+
+Several sessions write to one board, and ids were typed by hand: T-25 was taken by three
+sessions and T-26 by two, so a later `add` silently replaced an earlier task's title. And
+`board.py` finds the board from the working directory's repository, so a `set` typed in another
+project's tree created a stray `.claude/board/` there.
+
+- `board.py add auto "<title>"` reads the log and appends **under an exclusive lock**
+  (`tasks.lock`), so parallel sessions cannot draw the same number; it prints the id.
+- `add T-n` with an id that already exists is **refused** (exit 2) and writes nothing.
+- A repository with no board (no `events.jsonl`) is **refused** for `plan`/`add`/`set` unless
+  `--init` is given; `list` there prints nothing and creates nothing. A repository whose hooks
+  are wired already has a board (the first hook event creates it), so nothing changes for it.
+
 ## 3. Permanent rules
 
 - ⚠️ **The board is an extra view, never the report.** The table in the reply
@@ -253,3 +280,31 @@ The hooks and the server cost **no tokens** while silent. What enters the contex
 A 7-task hour ≈ 1,800–2,000 new tokens (estimate); every added token is then
 re-read from cache on later calls. Hook latency: **65 ms median** per tool call
 (20 runs, no-op `PostToolUse`).
+
+## 5. Channels — pushing a task into an IDLE session (measured 30/09/2026, T-24 phase 1)
+
+Hooks reach a BUSY session only (`PostToolUse` mid-turn, `Stop` at turn end). An idle
+session can be reached through an MCP **channel**: a stdio server that declares
+`capabilities.experimental["claude/channel"] = {}` and sends
+`notifications/claude/channel` with `params: {content: string, meta?: {key: string}}`
+(meta keys must match `^[a-zA-Z_][a-zA-Z0-9_]*$`, others are dropped).
+
+- **Measured (Claude Code 2.1.281, interactive CLI):** a minimal stdlib server pushed a
+  message into an idle session; it was enqueued and dequeued within 20 ms, arrived as a
+  user message `<channel source="<server>" <meta…>>text</channel>` (`origin.kind:
+  channel`) and the session started a turn and acted on it — 2 of 2 runs.
+- **How to start such a session:** `claude --mcp-config <file> --dangerously-load-development-channels server:<name>`
+  (`--channels` alone only accepts marketplace plugins on the approved list). The flag
+  shows a confirmation dialog at every start; the user must accept it.
+- **Org opt-in:** on claude.ai Teams/Enterprise the managed setting `channelsEnabled: true`
+  is required (default off). Not needed on the measured account (no managed settings).
+- ⚠️ **Not reachable:** the Claude desktop app (Code tab) starts its sessions without any
+  `--channels` flag and has no setting for it, so those sessions cannot receive a channel
+  push (not tested live — inferred from the session argv and the app bundle).
+- ⚠️ **A session whose login has expired wakes but fails** ("Login expired"): delivery is
+  not the same as the session acting.
+- **Stays hook-based:** hooks are deterministic, cost no tokens while silent and can block;
+  a channel message is only text the model may or may not follow. Channels close the
+  idle-session gap only — they never replace the hooks.
+- **Fail-closed rule for any board channel server:** it pushes only text the board queued
+  for a registered session — never arbitrary text.

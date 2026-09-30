@@ -2,7 +2,8 @@
 
   B=~/.claude/scripts/board/board.py
   python3 $B plan --mode B --roles analyst,test-writer,doc-writer
-  python3 $B add T-1 "F-063 trusted proxies" --branch fix/f063 --role developer
+  python3 $B add auto "F-063 trusted proxies" --branch fix/f063 --role developer   # prints the new id
+  python3 $B add T-1 "F-063 trusted proxies"      # an id that exists is refused
   python3 $B set T-1 --status waiting --note "tests later"
   python3 $B set T-1 --commit 3e2e5e2,5d3067f     # the Merge column reads these from git
   python3 $B set T-2 --status needs_decision --note "Split the PR?" --options "split|keep one"
@@ -14,18 +15,25 @@ Agents are linked to a task by putting "[T-1]" in the Agent tool's description.
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import sys
 
-from board_config import (AGENT_ID_PATTERN, CHOICE_MAX, COMMIT_PATTERN, EST_COST_MAX_USD,
-                          ETA_MAX_MIN, ROLE_PATTERN, TASK_ID_PATTERN, TaskStatus, board_dir)
+from board_config import (AGENT_ID_PATTERN, AUTO_TASK_ID, CHOICE_MAX, COMMIT_PATTERN, EST_COST_MAX_USD,
+                          ETA_MAX_MIN, EVENTS_FILE, ROLE_PATTERN, TASK_ID_PATTERN, TaskStatus, board_dir)
 from board_store import append_event, fold, read_control, read_events
+from board_tasks import TaskExists, add_task
 
 
 def _task_id(value: str) -> str:
     if not re.match(TASK_ID_PATTERN, value):
         raise argparse.ArgumentTypeError(f"task id must look like T-1, got {value!r}")
     return value
+
+
+def _new_task_id(value: str) -> str:
+    """`add` takes a T-n id or 'auto' (the next free one)."""
+    return value if value == AUTO_TASK_ID else _task_id(value)
 
 
 def _roles(value: str) -> list[str]:
@@ -78,12 +86,14 @@ def _agent(value: str) -> str:
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="board")
+    p.add_argument("--init", action="store_true",
+                   help="create the board of this repository (refused otherwise when it has none)")
     sub = p.add_subparsers(dest="cmd", required=True)
     plan = sub.add_parser("plan")
     plan.add_argument("--mode", required=True)
     plan.add_argument("--roles", type=_roles, default=[])
     add = sub.add_parser("add")
-    add.add_argument("id", type=_task_id)
+    add.add_argument("id", type=_new_task_id, help="T-n, or 'auto' for the next free id (printed)")
     add.add_argument("title")
     add.add_argument("--branch", default="")
     add.add_argument("--role", default="")
@@ -108,12 +118,27 @@ def build_parser() -> argparse.ArgumentParser:
 def run(argv: list[str]) -> int:
     args = build_parser().parse_args(argv)
     bdir = board_dir()
+    # The board is found from the working directory's repository, so a command typed from another
+    # project's tree used to create a stray .claude/board/ there. A repository whose hooks are
+    # wired already has one (the first hook event creates it); anything else needs --init.
+    if (args.cmd != "list" and not args.init and not os.environ.get("BOARD_DIR")
+            and not (bdir / EVENTS_FILE).exists()):
+        print(f"board: no live board at {bdir}. This repository has no board hooks; run the command "
+              "from the repository whose board you mean, or pass --init to create one here.",
+              file=sys.stderr)
+        return 2
     if args.cmd == "plan":
         append_event(bdir, {"type": "plan", "mode": args.mode, "roles": args.roles})
     elif args.cmd == "add":
-        append_event(bdir, {"type": "task_add", "id": args.id, "title": args.title,
-                            "branch": args.branch, "role": args.role, "note": args.note,
-                            **({"commits": args.commits} if args.commits else {})})
+        try:
+            task_id = add_task(bdir, {"type": "task_add", "id": args.id, "title": args.title,
+                                      "branch": args.branch, "role": args.role, "note": args.note,
+                                      **({"commits": args.commits} if args.commits else {})})
+        except TaskExists as exc:
+            print(f"board add: {exc.task_id} already exists — use `add {AUTO_TASK_ID}` for the next "
+                  "free id, or `set` to change that task.", file=sys.stderr)
+            return 2
+        print(task_id)
     elif args.cmd == "set":
         fields = {k: getattr(args, k) for k in ("status", "note", "branch", "role", "title", "options",
                                                "commits", "eta_min", "est_cost", "agent")

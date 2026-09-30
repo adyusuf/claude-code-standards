@@ -69,7 +69,8 @@ button.act:hover{border-color:var(--muted)}
 .empty{padding:22px;text-align:center;color:var(--muted)}
 .err{color:var(--bad);font-size:12px}
 .st-busy{background:var(--run-bg);color:var(--run)}.st-idle,.st-unknown{background:var(--chip);color:var(--muted)}
-.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.badge.warn{background:var(--warn-bg);color:var(--warn)}.badge.ch{background:var(--ok-bg);color:var(--ok)}
+.chk{font-size:13px;color:var(--muted);display:inline-block;margin:0 2px 6px}
 .send{display:flex;gap:6px;align-items:center;margin-bottom:4px}
 .send select{max-width:190px;border:1px solid var(--line);border-radius:6px;padding:3px 5px;background:var(--panel);color:var(--ink);font:inherit;font-size:12px}
 .modes{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
@@ -100,6 +101,7 @@ tr.total td{background:var(--chip);border-top:1px solid var(--line)}
   <div class="roles" id="roles"></div>
 
   <h2 data-i18n="sessionsHdr"></h2>
+  <label class="chk"><input type="checkbox" id="channelOnly"> <span data-i18n="channelOnly"></span></label>
   <div class="card"><table>
     <thead><tr><th data-i18n="colSession"></th><th data-i18n="colStatus"></th><th data-i18n="colContext"></th>
       <th data-i18n="colCost"></th><th data-i18n="colRate"></th><th data-i18n="colProjection"></th><th data-i18n="colSend"></th></tr></thead>

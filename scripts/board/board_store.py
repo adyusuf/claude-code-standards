@@ -99,6 +99,8 @@ def fold(events: list[dict], control: dict | None = None) -> dict:
             state["mode"] = ev.get("mode")
             state["roles"] = list(ev.get("roles", []))
             state["mode_by"] = None
+        elif kind == "todo_sync" and sid:  # the session's todo list, replaced as a whole
+            state["sessions"][sid]["todos"] = ev.get("todos") or []
         elif kind == "mode_set":  # the user picked the mode on the board (#27)
             state["mode"], state["mode_by"] = ev.get("mode"), ev.get("by")
         elif kind == "task_add":
@@ -135,11 +137,35 @@ def fold(events: list[dict], control: dict | None = None) -> dict:
                     t["role"] = ev.get("agent_type", "")
                 _mark_started(t, ts)
                 _refresh_task_after_agent(state, ev["task"], ts)
+        elif kind == "agent_start":
+            # SubagentStart: an agent that did not pass through the Agent tool's PreToolUse (resumed
+            # with SendMessage, or a Workflow agent) has no row yet. Untyped internal subagents are
+            # not agents the user picked and are ignored.
+            aid = ev.get("agent_id")
+            if not aid or not ev.get("agent_type"):
+                continue
+            key = by_agent_id.get(aid)
+            if key:  # already known: it runs (again) in its own row
+                a = state["agents"][key]
+                if a["status"] != AgentStatus.DENIED:
+                    a["status"], a["ended"] = AgentStatus.RUNNING, None
+                    _refresh_task_after_agent(state, a["task"], ts)
+                continue
+            key = f"agent:{aid}"
+            by_agent_id[aid] = key
+            state["agents"][key] = {
+                "key": key, "agent_id": aid, "type": ev["agent_type"], "task": None,
+                "description": "(resumed or workflow agent)", "background": True, "session": sid,
+                "status": AgentStatus.RUNNING, "reason": None, "started": ts, "ended": None,
+            }
         elif kind == "agent_post":
             a = state["agents"].get(ev["tool_use_id"])
             if not a or a["status"] == AgentStatus.DENIED:  # a denied spawn never comes alive
                 continue
             if ev.get("agent_id"):  # a foreground call reports its agentId too
+                prior = by_agent_id.get(ev["agent_id"])
+                if prior and prior.startswith("agent:") and prior != a["key"]:
+                    del state["agents"][prior]  # SubagentStart got here first: one row per agent
                 a["agent_id"] = ev["agent_id"]
                 by_agent_id[ev["agent_id"]] = a["key"]
             if ev.get("launched") and ev.get("agent_id"):
