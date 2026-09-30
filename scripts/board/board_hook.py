@@ -9,6 +9,7 @@ user queued for a session reaches it after its next main-thread tool call, or at
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 import time
@@ -17,6 +18,7 @@ from board_config import (AGENT_TOOL, DECISION_POLL_S, DECISION_WAIT_S, TASK_TAG
                           TASK_CREATE_TOOL, TASK_UPDATE_TOOL, TODO_TOOL, ControlAction, TaskStatus,
                           board_dir)
 import board_todos
+from board_registry import register_if_missing
 from board_channel_ack import confirm as _channel_confirm
 from board_channel_ack import peek_changes as _peek_changes
 from board_channel_ack import unseen_changes
@@ -119,6 +121,8 @@ def handle(payload: dict) -> dict | None:
     event = payload.get("hook_event_name")
     session = payload.get("session_id", "")
     bdir = board_dir(payload.get("cwd"))
+    if not os.environ.get("BOARD_DIR"):  # a project with only some hooks (no SessionStart) is still listed
+        register_if_missing(bdir.parent.parent, bdir)
     tool = payload.get("tool_name")
     tin = payload.get("tool_input") or {}
 
