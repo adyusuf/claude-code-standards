@@ -16,6 +16,7 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 from board_api import apply, decision_fields, list_skills, validate_control  # noqa: F401 (re-export)
+from board_app import SVG_ICON_PATH, icon_png, icon_size, icon_svg, manifest
 from board_config import (API_VERSION, DECISION_WAIT_S, HOST, MODES, PORT, QUEUE_TEXT_MAX, REGISTRY,
                           SKILLS_DIR, ControlAction, DecisionChoice)
 from board_cost import Cache
@@ -27,7 +28,7 @@ from board_store import fold, peek_changes, read_control, read_events
 JS = "text/javascript; charset=utf-8"
 STATIC = {"/": ("board.html", "text/html; charset=utf-8"),
           "/board_ui.js": ("board_ui.js", JS), "/board_ui_text.js": ("board_ui_text.js", JS),
-          "/board_ui_sessions.js": ("board_ui_sessions.js", JS)}
+          "/board_ui_sessions.js": ("board_ui_sessions.js", JS), "/sw.js": ("sw.js", JS)}
 MAX_BODY = 4096
 TRANSCRIPTS = Cache()  # parsed incrementally, shared by every request thread
 
@@ -100,6 +101,13 @@ def make_handler(registry: Path | None = None, extra_dir: Path | None = None,
                 return self._send(200, Path(__file__).with_name(name).read_bytes(), ctype)
             if url.path == "/api/info":
                 return self._json(200, {"version": API_VERSION})
+            if url.path == "/manifest.webmanifest":
+                return self._send(200, json.dumps(manifest()).encode("utf-8"),
+                                  "application/manifest+json")
+            if url.path == SVG_ICON_PATH:
+                return self._send(200, icon_svg(), "image/svg+xml")
+            if icon_size(url.path):
+                return self._send(200, icon_png(icon_size(url.path)), "image/png")
             if url.path == "/api/skills":
                 return self._json(200, list_skills(skills_dir))
             found = boards(registry, extra_dir)

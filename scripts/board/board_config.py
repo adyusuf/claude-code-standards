@@ -167,3 +167,13 @@ PLUGIN_SKILLS = "skills"      # <plugin>/skills/<name>/SKILL.md -> /<plugin>:<na
 PLUGIN_COMMANDS = "commands"  # <plugin>/commands/<name>.md    -> /<plugin>:<name>
 COMMAND_SUFFIX = ".md"
 MODE_BY_BOARD = "board"       # the mode_set event's "by": the user picked it on the board
+
+# ---- App mode (standards/22 §2e) ----
+APP_NAME = "Claude Live Board"
+APP_SHORT_NAME = "Board"
+APP_THEME_COLOR = "#2f6fdb"
+APP_BACKGROUND = "#f7f7f5"
+APP_ICON_SIZES = (192, 512)
+MAC_CHROME_APP = "Google Chrome"
+CHROME_BINARIES = ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")
+OPEN_TIMEOUT_S = 15
