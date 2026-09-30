@@ -62,6 +62,14 @@ class LedgerTests(BoardCase):
         self.assertEqual(ack.held_back(self.bdir, S2, now=1001.0), set())
         self.assertEqual(ack.held_back(self.bdir, S1, now=1001.0), {3})
 
+    def test_pushed_lists_every_version_ever_marked_whatever_its_state(self):
+        ack.mark(self.bdir, S1, 3, now=1000.0)
+        ack.mark(self.bdir, S1, 5, now=1000.0)
+        ack.confirm(self.bdir, S1, now=1001.0)
+        ack.mark(self.bdir, S1, 7, now=time.time() - 10 * CHANNEL_CONFIRM_S)
+        self.assertEqual(ack.pushed(self.bdir, S1), {3, 5, 7})
+        self.assertEqual(ack.pushed(self.bdir, S2), set())
+
     def test_unmark_takes_a_push_back_and_tolerates_unknowns(self):
         ack.mark(self.bdir, S1, 3, now=1000.0)
         ack.unmark(self.bdir, S1, 3)

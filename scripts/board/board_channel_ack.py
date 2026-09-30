@@ -59,6 +59,12 @@ def confirm(bdir: Path, session: str, now: float | None = None) -> None:
         atomic_write(bdir / CHANNEL_DELIVERED_FILE, data)
 
 
+def pushed(bdir: Path, session: str) -> set:
+    """Every version ever pushed to this session (confirmed or not): a server never pushes one twice."""
+    mine = _read(bdir).get(session)
+    return {int(v) for v in mine if v.isdigit()} if isinstance(mine, dict) else set()
+
+
 def held_back(bdir: Path, session: str, now: float | None = None) -> set:
     """Versions the hooks must NOT deliver: confirmed pushes, and pushes still inside the grace."""
     stamp = time.time() if now is None else now
