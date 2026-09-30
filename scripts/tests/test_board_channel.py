@@ -1,12 +1,10 @@
 """The board channel server (scripts/board/board_channel.py, standards/22-live-board.md §5):
 the MCP handshake, what it will push (only a board-queued task for ITS session, only while that
-session is idle, only when launched with the channel flag) and the real stdio process."""
+session is idle, at most once per change) — the real process and the served state are in
+test_board_channel_process.py."""
 import io
 import json
-import os
-import subprocess
 import sys
-import tempfile
 import threading
 import time
 import unittest
@@ -20,34 +18,9 @@ import board_channel as bc  # noqa: E402
 import board_channel_ack as ack  # noqa: E402
 import board_channel_reg as reg  # noqa: E402
 from board_config import (CHANNEL_CAPABILITY, CHANNEL_CONFIRM_S, CHANNEL_METHOD, CHANNEL_SERVER,  # noqa: E402
-                          QUEUE_TEXT_MAX, ControlAction)
-from board_store import append_event, read_control, record_change  # noqa: E402
-
-BOARD = Path(__file__).resolve().parent.parent / "board"
-S1, S2 = "11111111-aaaa", "22222222-bbbb"
-FLAG = f"--dangerously-load-development-channels server:{CHANNEL_SERVER}"
-
-
-def request(method, mid=1, **params):
-    return {"jsonrpc": "2.0", "id": mid, "method": method, "params": params}
-
-
-class ServerCase(unittest.TestCase):
-    def setUp(self):
-        self.tmp = tempfile.TemporaryDirectory()
-        self.addCleanup(self.tmp.cleanup)
-        self.bdir = Path(self.tmp.name) / ".claude" / "board"
-        self.now = 1000.0
-
-    def channel(self, session=S1, enabled=True):
-        return bc.Channel(self.bdir, session, enabled, clock=lambda: self.now)
-
-    def state(self, session, kind):
-        append_event(self.bdir, {"type": kind, "session": session})
-
-    def queue(self, session, text="do the thing", action=ControlAction.QUEUE_TASK, **extra):
-        change = {"action": action, "value": session, "session": session, "text": text, **extra}
-        return record_change(self.bdir, read_control(self.bdir), change)["version"]
+                          QUEUE_TEXT_MAX)
+from board_store import read_control, record_change  # noqa: E402
+from channel_case import S1, S2, ServerCase, request  # noqa: E402
 
 
 class HandshakeTests(ServerCase):
@@ -231,52 +204,6 @@ class ServeTests(ServerCase):
         self.assertIn("pipe closed", err.getvalue())
         self.assertEqual(ack.held_back(self.bdir, S1, now=time.time()), set())
         self.assertEqual([c["v"] for c in ack.peek_changes(self.bdir, S1)], [v])
-
-
-class ProcessTests(ServerCase):
-    """The real stdio process, started by a parent whose command line carries the flag — the
-    only way main() can be told the channel is on (there is deliberately no override)."""
-
-    SPAWN = ("import os,subprocess,sys;"
-             "p=subprocess.Popen([sys.executable,sys.argv[1]],stdin=subprocess.PIPE,stdout=subprocess.PIPE,"
-             "text=True,env=dict(os.environ));"
-             "p.stdin.write(sys.argv[2]+'\\n');p.stdin.flush();"
-             "print(p.stdout.readline().strip(),flush=True);"
-             "print(p.stdout.readline().strip() if sys.argv[3]=='1' else '',flush=True);"
-             "p.stdin.close();p.wait(10)")
-
-    def run_process(self, flagged, expect_push=False, session=S1):
-        env = {**os.environ, "BOARD_DIR": str(self.bdir), "CLAUDE_CODE_SESSION_ID": session}
-        argv = [sys.executable, "-c", self.SPAWN, str(BOARD / "board_channel.py"),
-                json.dumps(request("initialize", protocolVersion="2025-11-25")), "1" if expect_push else "0"]
-        if flagged:
-            argv += FLAG.split()
-        proc = subprocess.run(argv, capture_output=True, text=True, timeout=30, env=env)
-        return proc
-
-    def test_started_with_the_flag_it_declares_the_channel_and_pushes(self):
-        self.state(S1, "turn_stop")
-        self.queue(S1, "from the board")
-        proc = self.run_process(True, expect_push=True)
-        first, second = (json.loads(x) for x in proc.stdout.splitlines()[:2])
-        self.assertEqual(first["result"]["capabilities"]["experimental"], {CHANNEL_CAPABILITY: {}})
-        self.assertEqual(second["method"], CHANNEL_METHOD)
-        self.assertIn("from the board", second["params"]["content"])
-        self.assertEqual(reg.reachable(self.bdir), set())  # gone once the process exited
-
-    def test_started_without_the_flag_it_is_idle_and_says_why(self):
-        self.state(S1, "turn_stop")
-        self.queue(S1, "from the board")
-        proc = self.run_process(False)
-        first = json.loads(proc.stdout.splitlines()[0])
-        self.assertNotIn("experimental", first["result"]["capabilities"])
-        self.assertIn("idle", proc.stderr)
-        self.assertEqual(ack.held_back(self.bdir, S1, now=time.time()), set())
-
-    def test_without_a_session_id_it_is_idle_even_when_flagged(self):
-        proc = self.run_process(True, session="")
-        first = json.loads(proc.stdout.splitlines()[0])
-        self.assertNotIn("experimental", first["result"]["capabilities"])
 
 
 if __name__ == "__main__":

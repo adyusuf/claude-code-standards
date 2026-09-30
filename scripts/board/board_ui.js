@@ -109,7 +109,7 @@
           aria-label="${esc(r)} ${esc(on ? t("roleOn") : t("roleOff"))}" data-role="${esc(r)}"></button>
           <span>${esc(r)}</span><span class="cnt">${n} ${esc(t("running"))}${esc(panel.roleCostText(t, st.costs && st.costs.agent_rows, r))}</span></div>`;
       }).join(""),
-      sessionsHtml: panel.sessionsHtml(t, st, skills, drafts, now),
+      sessionsHtml: panel.sessionsHtml(t, st, skills, drafts, now, extra.channelOnly),
       sessionsHelp: panel.helpHtml(t, st.costs, st.stop_wait_s),
       modesHtml: panel.modesHtml(t, st),
       tasksHtml: !tasks.length ? `<tr><td colspan="9" class="empty">${esc(t("noTasks"))}</td></tr>` :
@@ -166,7 +166,7 @@
 
     function render(st) {
       lastState = st;
-      const v = view(st, t, new Date(), { skills, drafts });
+      const v = view(st, t, new Date(), { skills, drafts, channelOnly: Boolean($("channelOnly").checked) });
       $("mode").textContent = v.mode;
       $("modes").innerHTML = v.modesHtml;
       $("last").textContent = v.last;
@@ -220,6 +220,7 @@
 
     function onInput(e) {
       const d = e.target.dataset || {};
+      if (e.target.id === "channelOnly" && lastState) render(lastState);
       if (d.queueFor) drafts.queue[d.queueFor] = e.target.value;
       if (d.skillFor) drafts.skill[d.skillFor] = e.target.value;
     }
