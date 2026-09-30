@@ -276,6 +276,18 @@ traceable, so it stays mandatory; the per-task **merge** goes. A batch is merged
 rule protects), and a red batch is bisected, never waved through
 (`standards/13-pr-and-review.md` §8).
 
+**Amendment 30/09/2026 (user decision): batch promotion to `dev` AND `test`, fixes on the
+sub-branches.** No per-feature / per-worktree test or gate run before a promotion: every ready
+sub-branch is merged into one batch first, then the tests and the gate run once. Failures are
+fixed on the sub-branch that caused them (not patched on the batch) and the fixed branches are
+merged in again together. The re-verification differs by target: towards `dev` only the failed
+tests re-run before the gate (the #31 narrow re-run); towards `test` the FULL suite re-runs after
+the fixes, then the gate. The bisect step of 29/09 is replaced by attribution from the full run's
+output. The user also ruled out a misreading: "batch" never means that a merge to `dev` implies a
+merge to `test` — each stage is its own batch and `test` stays the user's decision (#26.4).
+**Why:** per-branch runs multiply gate time, and a fix patched on the batch branch is lost to the
+sub-branch's history. → `standards/13-pr-and-review.md` §8, `standards/00-working-method.md` §11.7
+
 ## §27 — The operating mode is selectable per project; the selection is the approval
 
 - **A** Skill (no agents; chosen explicitly) ·
