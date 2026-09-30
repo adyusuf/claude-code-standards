@@ -38,6 +38,7 @@ DECISION_WAIT_S = max(0, min(_int_env("BOARD_DECISION_WAIT", _DEFAULT_DECISION_W
 DECISION_POLL_S = 1.0
 CHOICE_MAX = 64
 NOTE_MAX = 500
+CHANGES_KEPT = 50  # control.json keeps this many changes for sessions not told yet
 
 # The Merge column: where a task's commits have landed, read from the project's git.
 MERGE_REMOTE = "origin"
@@ -77,6 +78,9 @@ AGENT_TOOL = "Agent"
 TASK_TAG_PATTERN = r"\[(T-\d+)\]"
 TASK_ID_PATTERN = r"^T-\d+$"
 ROLE_PATTERN = r"^[a-z0-9][a-z0-9:_-]{0,63}$"
+AGENT_ID_PATTERN = r"^[0-9A-Za-z_-]{6,64}$"
+ETA_MAX_MIN = 7 * 24 * 60   # board.py set --eta: minutes, 1..this
+EST_COST_MAX_USD = 10_000   # board.py set --est-cost: dollars, 0..this
 
 
 class TaskStatus:
@@ -112,3 +116,35 @@ class DecisionChoice:
     CONTINUE = "continue"
     REJECT = "reject"
     DEFAULTS = (CONTINUE, REJECT)
+
+
+# ---- Sessions, cost, context (standards/22 §2c) ----
+
+class SessionState:
+    BUSY = "busy"        # UserPromptSubmit seen, no Stop yet
+    IDLE = "idle"        # the turn ended
+    UNKNOWN = "unknown"  # no turn event recorded for this session yet
+    ALL = (BUSY, IDLE, UNKNOWN)
+
+
+SESSION_ID_PATTERN = r"^[0-9A-Za-z-]{8,64}$"
+SESSION_HIDE_AFTER_S = 24 * 3600  # the panel leaves out sessions silent for longer than this
+SUBAGENT_DIR = "subagents"        # <session transcript without .jsonl>/subagents/agent-<id>.jsonl
+SUBAGENT_PREFIX = "agent-"
+TRANSCRIPT_SUFFIX = ".jsonl"
+
+# $/MTok: (input, output, cache read). Source: the claude-api skill, cached 25/09/2026.
+# A model not listed here is NOT priced: its cost is "cannot be measured", never a guess.
+PRICING_USD_PER_MTOK = {
+    "claude-opus-5-5": (4.0, 20.0, 0.20),
+    "claude-sonnet-5-5": (2.0, 10.0, 0.20),
+    "claude-haiku-4-5": (1.0, 5.0, 0.10),
+}
+CACHE_WRITE_5M_X = 1.25  # cache write = input price x this (5-minute TTL)
+CACHE_WRITE_1H_X = 2.0   # ... x this (1-hour TTL)
+TOKENS_PER_MTOK = 1_000_000
+CONTEXT_WINDOW = {"claude-opus-5-5": 1_000_000, "claude-sonnet-5-5": 1_000_000,
+                  "claude-haiku-4-5": 200_000}
+CONTEXT_WARN_RATIO = 0.8          # at or above: "compact suggested" (/compact is the user's)
+BURN_WINDOW_S = 3600              # the $/h behind a session projection is measured over this
+MODEL_SUFFIX_CHARS = "-[@"        # "claude-haiku-4-5-20251001" still prices as claude-haiku-4-5

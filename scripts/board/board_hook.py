@@ -107,11 +107,11 @@ def handle(payload: dict) -> dict | None:
     if event == "PostToolUse":
         if tool == AGENT_TOOL:
             resp = payload.get("tool_response") or {}
-            launched = isinstance(resp, dict) and resp.get("status") == "async_launched"
+            resp = resp if isinstance(resp, dict) else {}
+            launched = resp.get("status") == "async_launched"
             append_event(bdir, {"type": "agent_post", "session": session,
                                 "tool_use_id": payload.get("tool_use_id"),
-                                "launched": launched,
-                                "agent_id": resp.get("agentId") if launched else None})
+                                "launched": launched, "agent_id": resp.get("agentId")})
         if payload.get("agent_id"):
             # A subagent's tool call (modes C/D/E): it must not consume a notice meant
             # for the orchestrator, or the orchestrator would never see the change.
@@ -122,15 +122,18 @@ def handle(payload: dict) -> dict | None:
     if event == "SubagentStop":
         append_event(bdir, {"type": "agent_stop", "session": session,
                             "agent_id": payload.get("agent_id"),
-                            "agent_type": payload.get("agent_type")})
+                            "agent_type": payload.get("agent_type"),
+                            "agent_transcript": payload.get("agent_transcript_path")})
         return None
 
     if event == "Stop":
-        append_event(bdir, {"type": "turn_stop", "session": session})
+        append_event(bdir, {"type": "turn_stop", "session": session,
+                            "transcript": payload.get("transcript_path")})
         return wait_for_decision(bdir, session, DECISION_WAIT_S)
 
     if event == "UserPromptSubmit":
-        append_event(bdir, {"type": "turn_start", "session": session})
+        append_event(bdir, {"type": "turn_start", "session": session,
+                            "transcript": payload.get("transcript_path")})
         changes = unseen_changes(bdir, session)
         return _context("UserPromptSubmit", _change_text(changes)) if changes else None
 

@@ -11,19 +11,23 @@ import argparse
 import json
 import re
 import sys
+import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
 from board_config import (API_VERSION, CHOICE_MAX, HOST, NOTE_MAX, PORT, PROJECT_ID_PATTERN,
                           REGISTRY, ROLE_PATTERN, TASK_ID_PATTERN, ControlAction, DecisionChoice)
+from board_cost import Cache
 from board_merge import merged
 from board_registry import load, project_id, summary
+from board_sessions import board_costs
 from board_store import apply_control, fold, read_control, read_events
 
 STATIC = {"/": ("board.html", "text/html; charset=utf-8"),
           "/board_ui.js": ("board_ui.js", "text/javascript; charset=utf-8")}
 MAX_BODY = 4096
+TRANSCRIPTS = Cache()  # parsed incrementally, shared by every request thread
 
 
 def validate_control(body: dict) -> tuple[str, str]:
@@ -74,6 +78,19 @@ def pick(found: dict, wanted: str | None) -> dict | None:
     return max(found.values(), key=lambda e: summary(e)["last_event"] or "")
 
 
+def project_state(entry: dict, now: float | None = None) -> dict:
+    bdir = Path(entry["dir"])
+    control = read_control(bdir)
+    state = fold(read_events(bdir), control)
+    state["control"] = {k: control[k] for k in ("removed_tasks", "disabled_roles")}
+    state["project"] = entry["id"]
+    state["decision_defaults"] = list(DecisionChoice.DEFAULTS)
+    for task in state["tasks"].values():
+        task["merged"] = merged(entry["root"], task.get("commits") or [])
+    state["costs"] = board_costs(state, TRANSCRIPTS, time.time() if now is None else now)
+    return state
+
+
 def make_handler(registry: Path | None = None, extra_dir: Path | None = None):
     class Handler(BaseHTTPRequestHandler):
         def _send(self, code: int, body: bytes, ctype: str) -> None:
@@ -105,15 +122,7 @@ def make_handler(registry: Path | None = None, extra_dir: Path | None = None):
                 entry = pick(found, (query.get("p") or [None])[0])
                 if entry is None:
                     return self._json(404, {"error": "unknown project"})
-                bdir = Path(entry["dir"])
-                control = read_control(bdir)
-                state = fold(read_events(bdir), control)
-                state["control"] = {k: control[k] for k in ("removed_tasks", "disabled_roles")}
-                state["project"] = entry["id"]
-                state["decision_defaults"] = list(DecisionChoice.DEFAULTS)
-                for task in state["tasks"].values():
-                    task["merged"] = merged(entry["root"], task.get("commits") or [])
-                return self._json(200, state)
+                return self._json(200, project_state(entry))
             return self._json(404, {"error": "not found"})
 
         def do_POST(self):
