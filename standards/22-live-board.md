@@ -43,6 +43,9 @@ call to its `SubagentStop.agent_id`; `UserPromptSubmit` carries `prompt`.
 **One command:** from the repository, `python3 ~/.claude/scripts/board/board.py enable` does steps 1 and 2 below
 and lists the project on the page. It is idempotent (a hook already there is left alone, everything else in
 `settings.json` is kept, a file that is not valid JSON is never touched); commit the two files it changed.
+Run it in the checkout whose files you will commit: from a linked worktree it writes THAT worktree's
+`settings.json` and `.gitignore` (never the main checkout's) and lists the main checkout's board. Settings a
+worktree does not have yet can be given locally without a commit through `.claude/settings.local.json` (git-ignored).
 The steps below are what it does, for a project that wants to do it by hand.
 
 **A project is listed as soon as its board is written** — by `board.py plan|add|set` or by any hook event —

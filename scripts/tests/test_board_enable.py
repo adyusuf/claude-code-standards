@@ -101,5 +101,29 @@ class EnableTests(unittest.TestCase):
             self.assertEqual(path.read_text(), text)
 
 
+class LinkedWorktreeTests(unittest.TestCase):
+    """Run from a linked worktree, `enable` writes THAT worktree's files (they get committed there) and
+    lists the main checkout's board; it must not touch the main checkout's tree."""
+
+    def test_files_go_to_the_worktree_and_the_listing_to_the_main_checkout(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp).resolve()
+            main, wt, registry = tmp / "main", tmp / "wt", tmp / "projects.json"
+            main.mkdir()
+            git = ["git", "-c", "user.name=t", "-c", "user.email=t@t"]
+            subprocess.run([*git, "init", "-q", str(main)], check=True)
+            subprocess.run([*git, "-C", str(main), "commit", "-q", "--allow-empty", "-m", "i"], check=True)
+            subprocess.run([*git, "-C", str(main), "worktree", "add", "-q", "-b", "b", str(wt)], check=True)
+            env = {k: v for k, v in os.environ.items() if k != "BOARD_DIR"}
+            env["BOARD_REGISTRY"] = str(registry)
+            out = subprocess.run([sys.executable, CLI, "enable"], cwd=wt, capture_output=True, text=True, env=env)
+            self.assertEqual(out.returncode, 0, out.stderr)
+            self.assertTrue((wt / ".claude" / "settings.json").exists())
+            self.assertTrue((wt / ".gitignore").exists())
+            self.assertFalse((main / ".claude" / "settings.json").exists())
+            self.assertFalse((main / ".gitignore").exists())
+            self.assertEqual([e["root"] for e in json.loads(registry.read_text()).values()], [str(main)])
+
+
 if __name__ == "__main__":
     unittest.main()
