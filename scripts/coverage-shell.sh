@@ -34,7 +34,10 @@
 # bash 5.3 passed test_md_hook_drift from /Users/…/claude-code-standards-wt-rules
 # and failed it from a 238-character /private/tmp/… worktree. A red suite here from a
 # deep temporary directory is an ENVIRONMENT failure (#31) — re-run from a short
-# path before reading it as a product bug.
+# path before reading it as a product bug. Bisected 30/09/2026 (kcov 43, bash 5.3, the
+# checkout path is what counts, not the temp dir): a root of 70 characters or fewer
+# passes, 71 or more fails. The limit is machine-specific, so it is NOT hard-coded:
+# the symptom is recognised below and reported as an environment failure (exit 2).
 #
 # Exit codes: 0 at or above the threshold · 1 below it · 2 usage/environment · 3 NOT MEASURED
 set -uo pipefail
@@ -99,6 +102,12 @@ PATH="$work/bin:$PATH" python3 -m unittest discover -s scripts/tests -p 'test_*.
 tests_status=$?
 if [ "$tests_status" != 0 ]; then
   tail -15 "$work/tests.log" | sed 's/^/    /'
+  if grep -q "is not an integer" "$work/tests.log"; then
+    echo "  ✗ ENVIRONMENT, not a product failure (#31): kcov could not read the trace of a script under this"
+    echo "    checkout path (${#root} characters). Measured: 70 or fewer passes, 71 or more fails (kcov 43, bash 5.3)."
+    echo "    Re-run from a shorter checkout:  git worktree add <short path> <ref>"
+    exit 2
+  fi
   echo "  ✗ the tests are red — coverage of a red suite is not a measurement"
   exit 1
 fi

@@ -4,6 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Canlı İş Panosu</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icon-192.png">
 <style>
 :root{--bg:#f7f7f5;--panel:#fff;--ink:#1d1d1b;--muted:#6b6a66;--line:#e4e3de;--chip:#f0efea;
 --run:#2f6fdb;--run-bg:#e8f0fd;--ok:#1f8a4c;--ok-bg:#e5f5ec;--warn:#a86400;--warn-bg:#fdf1dc;
@@ -65,6 +68,14 @@ button.act:hover{border-color:var(--muted)}
 .mg.on{background:var(--ok-bg);color:var(--ok)}
 .empty{padding:22px;text-align:center;color:var(--muted)}
 .err{color:var(--bad);font-size:12px}
+.st-busy{background:var(--run-bg);color:var(--run)}.st-idle,.st-unknown{background:var(--chip);color:var(--muted)}
+.badge.warn{background:var(--warn-bg);color:var(--warn)}
+.send{display:flex;gap:6px;align-items:center;margin-bottom:4px}
+.send select{max-width:190px;border:1px solid var(--line);border-radius:6px;padding:3px 5px;background:var(--panel);color:var(--ink);font:inherit;font-size:12px}
+.modes{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
+button.mode.on{border-color:var(--run);color:var(--run);font-weight:650}
+tr.total td{background:var(--chip);border-top:1px solid var(--line)}
+.help{font-size:12px;color:var(--muted);margin:6px 2px 0}.help p{margin:3px 0}
 </style>
 </head>
 <body>
@@ -80,6 +91,7 @@ button.act:hover{border-color:var(--muted)}
   </header>
 
   <nav class="tabs" id="projects" aria-label="projects"></nav>
+  <div class="modes" id="modes"></div>
 
   <div class="stats" id="stats"></div>
   <div class="banner" id="banner" data-i18n="allDone"></div>
@@ -87,20 +99,32 @@ button.act:hover{border-color:var(--muted)}
   <h2 data-i18n="agentsHdr"></h2>
   <div class="roles" id="roles"></div>
 
+  <h2 data-i18n="sessionsHdr"></h2>
+  <div class="card"><table>
+    <thead><tr><th data-i18n="colSession"></th><th data-i18n="colStatus"></th><th data-i18n="colContext"></th>
+      <th data-i18n="colCost"></th><th data-i18n="colRate"></th><th data-i18n="colProjection"></th><th data-i18n="colSend"></th></tr></thead>
+    <tbody id="sessions"></tbody>
+  </table></div>
+  <div class="help" id="sessionsHelp"></div>
+
   <h2 data-i18n="tasksHdr"></h2>
   <div class="card"><table>
     <thead><tr><th data-i18n="colTask"></th><th data-i18n="colBranch"></th><th data-i18n="colRole"></th>
-      <th data-i18n="colStatus"></th><th data-i18n="colTime"></th><th data-i18n="colMerge"></th><th data-i18n="colNote"></th><th></th></tr></thead>
+      <th data-i18n="colStatus"></th><th data-i18n="colTime"></th><th data-i18n="colMerge"></th><th data-i18n="colCostEta"></th><th data-i18n="colNote"></th><th></th></tr></thead>
     <tbody id="tasks"></tbody>
   </table></div>
 
   <h2 data-i18n="activityHdr"></h2>
   <div class="card"><table>
     <thead><tr><th data-i18n="colAgent"></th><th data-i18n="colTask"></th><th data-i18n="colStatus"></th>
-      <th data-i18n="colStarted"></th><th data-i18n="colTime"></th><th data-i18n="colNote"></th></tr></thead>
+      <th data-i18n="colStarted"></th><th data-i18n="colTime"></th><th data-i18n="colTokens"></th>
+      <th data-i18n="colCost"></th><th data-i18n="colNote"></th></tr></thead>
     <tbody id="agents"></tbody>
   </table></div>
+  <div class="help" id="agentsHelp"></div>
 </main>
+<script src="board_ui_text.js"></script>
+<script src="board_ui_sessions.js"></script>
 <script src="board_ui.js"></script>
 </body>
 </html>

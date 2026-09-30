@@ -194,7 +194,9 @@ test("an unreachable server is shown and logged, not swallowed", async () => {
   const page = fakePage({ fetchImpl: async () => { throw new Error("down"); } });
   await page.app.first;
   assert.equal(page.els.err.textContent, "Sunucuya ulaşılamıyor");
-  assert.equal(page.errors.length, 1);
+  // start() logs the failed skill fetch and the refresh failure; both must be visible.
+  assert.deepEqual(page.errors.map((e) => e[0]), ["board skills failed", "board refresh failed"]);
+  assert.ok(page.errors.every((e) => e[1] instanceof Error && e[1].message === "down"));
 });
 
 test("the Merge column shows each existing branch, merged or not, and a dash without commits", () => {
