@@ -108,7 +108,12 @@ class ControlAction:
     DISABLE_ROLE = "disable_role"
     ENABLE_ROLE = "enable_role"
     DECIDE = "decide"
-    ALL = (REMOVE_TASK, RESTORE_TASK, DISABLE_ROLE, ENABLE_ROLE, DECIDE)
+    QUEUE_TASK = "queue_task"  # value = session id; the change carries the text
+    RUN_SKILL = "run_skill"    # value = skill name; the change carries the session
+    SET_MODE = "set_mode"      # value = mode letter
+    ALL = (REMOVE_TASK, RESTORE_TASK, DISABLE_ROLE, ENABLE_ROLE, DECIDE, QUEUE_TASK, RUN_SKILL,
+           SET_MODE)
+    FOR_ONE_SESSION = (QUEUE_TASK, RUN_SKILL)
 
 
 class DecisionChoice:
@@ -148,3 +153,17 @@ CONTEXT_WINDOW = {"claude-opus-5-5": 1_000_000, "claude-sonnet-5-5": 1_000_000,
 CONTEXT_WARN_RATIO = 0.8          # at or above: "compact suggested" (/compact is the user's)
 BURN_WINDOW_S = 3600              # the $/h behind a session projection is measured over this
 MODEL_SUFFIX_CHARS = "-[@"        # "claude-haiku-4-5-20251001" still prices as claude-haiku-4-5
+
+# ---- Controls that send work to a session (standards/22 §2d) ----
+QUEUE_TEXT_MAX = 1000
+MODE_PATTERN = r"^[A-E]$"
+MODES = ("A", "B", "C", "D", "E")
+MODE_FILE = Path(".claude") / "mode"
+SKILL_PATTERN = r"^[a-z0-9][a-z0-9_-]{0,63}(:[a-z0-9][a-z0-9_-]{0,63})?$"
+SKILLS_DIR = Path(os.environ.get("BOARD_SKILLS_DIR", Path.home() / ".claude" / "skills"))
+SKILL_FILE = "SKILL.md"
+PLUGIN_MANIFEST = Path(".claude-plugin") / "plugin.json"
+PLUGIN_SKILLS = "skills"      # <plugin>/skills/<name>/SKILL.md -> /<plugin>:<name>
+PLUGIN_COMMANDS = "commands"  # <plugin>/commands/<name>.md    -> /<plugin>:<name>
+COMMAND_SUFFIX = ".md"
+MODE_BY_BOARD = "board"       # the mode_set event's "by": the user picked it on the board

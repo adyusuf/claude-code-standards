@@ -3,7 +3,8 @@
 Wire it for PreToolUse/PostToolUse (matcher "Agent"), SubagentStop, Stop,
 UserPromptSubmit and PostToolUse (matcher "*") — the settings block is in
 standards/22-live-board.md. The Stop hook also waits, for a bounded time, for the
-user's answer to a question Claude put on the board (needs_decision).
+user's answer to a question Claude put on the board (needs_decision). A task or skill the
+user queued for a session reaches it after its next main-thread tool call, or at Stop.
 """
 from __future__ import annotations
 
@@ -37,17 +38,31 @@ def deny_reason(agent_type: str, task: str | None, control: dict,
     return None
 
 
-def _change_text(changes: list[dict]) -> str:
+def _for_me(change: dict, session: str) -> bool:
+    """A queued task or skill is meant for ONE session; every other change is for all."""
+    return change["action"] not in ControlAction.FOR_ONE_SESSION or change.get("session") == session
+
+
+def _change_text(changes: list[dict], session: str) -> str | None:
     labels = {"remove_task": "removed task", "restore_task": "restored task",
               "disable_role": "switched off agent", "enable_role": "switched on agent"}
     lines = []
-    for c in changes:
-        if c["action"] == ControlAction.DECIDE:
+    for c in (c for c in changes if _for_me(c, session)):
+        if c["action"] in ControlAction.FOR_ONE_SESSION:
+            lines.append(f"- NEW TASK from the user, queued on the board for this session: "
+                         f"{c.get('text', '')} (do it after the current step; put it on the board)")
+        elif c["action"] == ControlAction.SET_MODE:
+            lines.append(f"- working mode changed to {c['value']} by the user on the board "
+                         f"(.claude/mode written; this selection is the approval, #27) — re-declare "
+                         f"the plan: board.py plan --mode {c['value']} --roles <that mode's role set>")
+        elif c["action"] == ControlAction.DECIDE:
             note = f" — note: {c['note']}" if c.get("note") else ""
             lines.append(f"- decided {c['value']}: {c.get('choice')}{note} "
                          f"(apply it, then move the task out of needs_decision)")
         else:
             lines.append(f"- {labels.get(c['action'], c['action'])} {c['value']}")
+    if not lines:
+        return None
     return ("The user changed the live board:\n" + "\n".join(lines) +
             "\nApply this: skip removed tasks, do not start switched-off agents, "
             "and stop any running agent for a removed task (TaskStop).")
@@ -59,17 +74,19 @@ def _asks_the_user(bdir) -> bool:
 
 
 def wait_for_decision(bdir, session: str, wait_s: float, poll_s: float = DECISION_POLL_S):
-    """At the end of a turn: hand over a decision the user already clicked, or, while a
-    question is open on the board, wait up to wait_s for the click. A decision keeps the
-    turn going (Stop is blocked with the decision as the reason); anything else, or the
-    time running out, lets the turn end. Other control changes wait for the next turn."""
+    """At the end of a turn: hand over a decision the user already clicked or a task queued
+    for THIS session, or, while a question is open on the board, wait up to wait_s for one.
+    Either keeps the turn going (Stop is blocked with it as the reason); anything else, or
+    the time running out, lets the turn end. Other control changes wait for the next turn."""
     deadline = time.monotonic() + (wait_s if wait_s > 0 and _asks_the_user(bdir) else 0)
+    keeps_going = (ControlAction.DECIDE,) + ControlAction.FOR_ONE_SESSION
     while True:
-        pending = [c for c in _peek_changes(bdir, session) if c["action"] == ControlAction.DECIDE]
+        pending = [c for c in _peek_changes(bdir, session)
+                   if c["action"] in keeps_going and _for_me(c, session)]
         if pending:
             changes = unseen_changes(bdir, session)
             append_event(bdir, {"type": "turn_start", "session": session})
-            return {"decision": "block", "reason": _change_text(changes)}
+            return {"decision": "block", "reason": _change_text(changes, session)}
         if time.monotonic() >= deadline:
             return None
         time.sleep(poll_s)
@@ -116,8 +133,8 @@ def handle(payload: dict) -> dict | None:
             # A subagent's tool call (modes C/D/E): it must not consume a notice meant
             # for the orchestrator, or the orchestrator would never see the change.
             return None
-        changes = unseen_changes(bdir, session)
-        return _context("PostToolUse", _change_text(changes)) if changes else None
+        text = _change_text(unseen_changes(bdir, session), session)
+        return _context("PostToolUse", text) if text else None
 
     if event == "SubagentStop":
         append_event(bdir, {"type": "agent_stop", "session": session,
@@ -134,8 +151,8 @@ def handle(payload: dict) -> dict | None:
     if event == "UserPromptSubmit":
         append_event(bdir, {"type": "turn_start", "session": session,
                             "transcript": payload.get("transcript_path")})
-        changes = unseen_changes(bdir, session)
-        return _context("UserPromptSubmit", _change_text(changes)) if changes else None
+        text = _change_text(unseen_changes(bdir, session), session)
+        return _context("UserPromptSubmit", text) if text else None
 
     return None
 

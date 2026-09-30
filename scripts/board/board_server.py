@@ -9,53 +9,26 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
 
-from board_config import (API_VERSION, CHOICE_MAX, HOST, NOTE_MAX, PORT, PROJECT_ID_PATTERN,
-                          REGISTRY, ROLE_PATTERN, TASK_ID_PATTERN, ControlAction, DecisionChoice)
+from board_api import apply, decision_fields, list_skills, validate_control  # noqa: F401 (re-export)
+from board_config import (API_VERSION, DECISION_WAIT_S, HOST, MODES, PORT, QUEUE_TEXT_MAX, REGISTRY,
+                          SKILLS_DIR, ControlAction, DecisionChoice)
 from board_cost import Cache
 from board_merge import merged
 from board_registry import load, project_id, summary
 from board_sessions import board_costs
-from board_store import apply_control, fold, read_control, read_events
+from board_store import fold, peek_changes, read_control, read_events
 
+JS = "text/javascript; charset=utf-8"
 STATIC = {"/": ("board.html", "text/html; charset=utf-8"),
-          "/board_ui.js": ("board_ui.js", "text/javascript; charset=utf-8")}
+          "/board_ui.js": ("board_ui.js", JS)}
 MAX_BODY = 4096
 TRANSCRIPTS = Cache()  # parsed incrementally, shared by every request thread
-
-
-def validate_control(body: dict) -> tuple[str, str]:
-    action, value = body.get("action"), body.get("value")
-    if action not in ControlAction.ALL or not isinstance(value, str):
-        raise ValueError("invalid action")
-    task_actions = (ControlAction.REMOVE_TASK, ControlAction.RESTORE_TASK, ControlAction.DECIDE)
-    pattern = TASK_ID_PATTERN if action in task_actions else ROLE_PATTERN
-    if not re.match(pattern, value):
-        raise ValueError("invalid value")
-    project = body.get("project")
-    if project is not None and not (isinstance(project, str) and re.match(PROJECT_ID_PATTERN, project)):
-        raise ValueError("invalid project")
-    return action, value
-
-
-CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
-
-
-def decision_fields(body: dict) -> tuple[str, str]:
-    """The user's choice and optional note for a decide action, validated server-side (#7)."""
-    choice, note = body.get("choice"), body.get("note", "")
-    if not isinstance(choice, str) or not 0 < len(choice.strip()) <= CHOICE_MAX \
-            or CONTROL_CHARS.search(choice):
-        raise ValueError("invalid choice")
-    if not isinstance(note, str) or len(note) > NOTE_MAX or CONTROL_CHARS.search(note):
-        raise ValueError("invalid note")
-    return choice.strip(), note.strip()
 
 
 def boards(registry: Path, extra_dir: Path | None) -> dict:
@@ -78,6 +51,12 @@ def pick(found: dict, wanted: str | None) -> dict | None:
     return max(found.values(), key=lambda e: summary(e)["last_event"] or "")
 
 
+def queued(bdir: Path, session: str) -> list:
+    """Tasks and skills queued for a session that its hooks have not delivered yet."""
+    return [c.get("text") for c in peek_changes(bdir, session)
+            if c["action"] in ControlAction.FOR_ONE_SESSION and c.get("session") == session]
+
+
 def project_state(entry: dict, now: float | None = None) -> dict:
     bdir = Path(entry["dir"])
     control = read_control(bdir)
@@ -85,13 +64,20 @@ def project_state(entry: dict, now: float | None = None) -> dict:
     state["control"] = {k: control[k] for k in ("removed_tasks", "disabled_roles")}
     state["project"] = entry["id"]
     state["decision_defaults"] = list(DecisionChoice.DEFAULTS)
+    state["modes"] = list(MODES)
+    state["stop_wait_s"] = DECISION_WAIT_S
+    state["queue_text_max"] = QUEUE_TEXT_MAX
     for task in state["tasks"].values():
         task["merged"] = merged(entry["root"], task.get("commits") or [])
     state["costs"] = board_costs(state, TRANSCRIPTS, time.time() if now is None else now)
+    for sess in state["costs"]["sessions"]:
+        sess["queued"] = queued(bdir, sess["id"])
     return state
 
 
-def make_handler(registry: Path | None = None, extra_dir: Path | None = None):
+def make_handler(registry: Path | None = None, extra_dir: Path | None = None,
+                 skills_dir: Path | None = None):
+    skills_dir = skills_dir or SKILLS_DIR
     class Handler(BaseHTTPRequestHandler):
         def _send(self, code: int, body: bytes, ctype: str) -> None:
             self.send_response(code)
@@ -113,6 +99,8 @@ def make_handler(registry: Path | None = None, extra_dir: Path | None = None):
                 return self._send(200, Path(__file__).with_name(name).read_bytes(), ctype)
             if url.path == "/api/info":
                 return self._json(200, {"version": API_VERSION})
+            if url.path == "/api/skills":
+                return self._json(200, list_skills(skills_dir))
             found = boards(registry, extra_dir)
             if url.path == "/api/projects":
                 items = sorted((summary(e) for e in found.values()),
@@ -139,14 +127,16 @@ def make_handler(registry: Path | None = None, extra_dir: Path | None = None):
                 return self._json(400, {"error": "bad body size"})
             try:
                 body = json.loads(self.rfile.read(length))
-                action, value = validate_control(body)
-                choice, note = decision_fields(body) if action == ControlAction.DECIDE else (None, None)
+                validate_control(body if isinstance(body, dict) else {})
             except (ValueError, json.JSONDecodeError) as exc:
                 return self._json(400, {"error": str(exc)})
             entry = pick(boards(registry, extra_dir), body.get("project"))
             if entry is None:
                 return self._json(404, {"error": "unknown project"})
-            ctl = apply_control(Path(entry["dir"]), action, value, choice, note)
+            try:
+                ctl = apply(entry, body, skills_dir)
+            except ValueError as exc:
+                return self._json(400, {"error": str(exc)})
             self._json(200, {"version": ctl["version"]})
 
         def log_message(self, fmt, *args):  # keep request noise out; errors still go to stderr
