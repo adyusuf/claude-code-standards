@@ -61,7 +61,7 @@
 26. **Once the work is planned: pull `dev` → branch/worktree off `dev` → work there → one commit per task, merged to `dev` through a gate.** The order is binding:
  1. **First `git fetch` and update `dev`.** Do not branch from a stale base.
  2. **Create a new branch (or worktree) off `dev` and work there.** Never commit directly on `dev`.
- 3. **Each task is committed on its own** (its own commit(s), the task named in the message) — never mixed into another task's commit. Finished tasks may reach `dev` **together through ONE gate run** (gates are long); never squashed. → `standards/13-pr-and-review.md` §8
+ 3. **Each task is committed on its own** (its own commit(s), the task named in the message) — never mixed into another task's commit. Ready branches reach `dev`/`test` **as ONE batch: one test run, one gate**; fixes go on their own branch; `dev` never implies `test`; never squashed. → `standards/13-pr-and-review.md` §8
  4. **The USER decides on the `test` and `prod` promotions.** There is NO self-initiated merge to `test`/`prod`.
  5. **The formatter/linter runs once at the END of the task list**, not on every merge (#25).
  - ⚠️ **The configuration repository's own layout:** branches `dev` / `test` / `prod`. The live `~/.claude` is a **symlink into the main worktree, which stays on `prod`**; work happens in a separate `dev` worktree and reaches the live config only by promotion, which the **user** decides (`standards/00-working-method.md` §7a). Commit only your own diff. → rationale: `docs/decision-log.md` §26
