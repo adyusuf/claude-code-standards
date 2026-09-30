@@ -143,11 +143,11 @@ When writing a comment: **what** is wrong + **why** it matters + **a suggestion*
   never on a `test`-into-`prod` merge candidate: its deploy step compares `HEAD` with the SHA the
   test environment runs, so a candidate's new merge commit fails it by construction (measured
   29/09/2026). The merge to `prod` follows the green run.
-- **E2E for `test` runs AFTER release, never before the merge (user decision 30/09/2026, general rule).** The
-  `dev → test` gate is the pre-merge gate and runs no e2e (#25, #33). Once the code has gone out to `test`
-  (merged and deployed) e2e runs against the test environment. A project may run a *selective* e2e right
-  after its `test` merge (the manchaster project does); a red result does not undo the merge — it stops the `prod`
-  gate until fixed (#31's cycle).
+- **E2E is mandatory BEFORE `prod`, on the test environment — and never a requirement of `test` (user decision
+  30/09/2026, general rule).** The `dev → test` gate runs no e2e and nothing obliges e2e after the code has gone
+  out to `test`; a project may run one optionally. The `test → prod` gate is where the WHOLE suite must have run
+  against the test environment for this SHA (#33). An optional *selective* run must never stand in for that full
+  run: a project that records one must keep it from satisfying the `prod` gate.
 - **No** direct commit or PR to `test` and `prod` — only from the previous stage, with the user's approval.
 - Before merging, `git fetch` and update if you are behind — a gate running against stale code gives false confidence.
 - A `--force` push happens only on your own feature branch and only with explicit approval.
