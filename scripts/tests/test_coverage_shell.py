@@ -1,8 +1,10 @@
 """coverage-shell.sh end to end (#29) — split from test_coverage_tooling.py so both
 files stay under the 300-line limit (#9). The fixtures are shared from there."""
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -34,10 +36,11 @@ class ShellCoverageRunsEndToEnd(Repo):
         '</lines></class>'
         '</classes></package></packages></coverage>\n')
 
-    def build(self, hits_second_line, failure=None):
+    def build(self, hits_second_line, failure=None, targets_file=None):
         """A repo with one shell script, one trivial test, and a stub kcov whose
         reports cover 1 or 2 of that script's 2 lines. `failure` makes the trivial
-        test fail with that message, standing in for a red suite."""
+        test fail with that message, standing in for a red suite; `targets_file`,
+        when given, receives the script path each kcov run was handed."""
         # ⚠️ realpath, not the tempfile path. On macOS /var is a symlink to
         # /private/var, so `git rev-parse --show-toplevel` inside the script
         # reports the physical path while tempfile hands out the logical one —
@@ -88,6 +91,7 @@ class ShellCoverageRunsEndToEnd(Repo):
                    # MEASURED — which is how this fixture was wrong at first.
                    'printf \'{"percent_covered":100}\' > "$out/run/coverage.json"\n'
                    f'cp {report_file} "$out/run/cobertura.xml"\n'
+                   + (f'printf "%s %s\\n" "$target" "$(cd "$(dirname "$target")" && pwd -P)" >> {targets_file}\n' if targets_file else '') +
                    '[ -n "$target" ] && [ -f "$target" ] && sh "$target" >/dev/null 2>&1\n'
                    'exit 0\n')
         env = {'PATH': self.bin + os.pathsep + os.environ['PATH'],
@@ -134,6 +138,37 @@ class ShellCoverageRunsEndToEnd(Repo):
         self.assertEqual(1, code, out)
         self.assertIn('the tests are red', out)
         self.assertNotIn('ENVIRONMENT', out)
+
+    def test_kcov_is_handed_a_short_path_however_deep_the_checkout_is(self):
+        # kcov loses the trace lines whose file field is long, and it prefixed every
+        # line with the checkout path: from 80 characters up a whole suite measured
+        # 0%, and a test capturing a child's output printed "kcov: error: ... is not
+        # an integer" (30/09/2026). The scripts are therefore started through a short
+        # link, and this is what pins it: the path kcov is given must not contain
+        # the deep checkout at all — and the run must still measure and pass.
+        parent = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, parent, ignore_errors=True)
+        self.root = os.path.join(parent, 'd' * 120, 'checkout')
+        os.makedirs(os.path.join(self.root, 'scripts'))
+        subprocess.run(['git', 'init', '-q', self.root], check=True)
+        targets = os.path.join(parent, 'targets.txt')
+        out, code = self.build(hits_second_line=1, targets_file=targets)
+        self.assertEqual(0, code, out)
+        with open(targets, encoding='utf-8') as handle:
+            handed = [line.split(' ') for line in handle.read().splitlines() if '/thing.sh ' in line]
+        self.assertTrue(handed, 'kcov was never handed the script: ' + out)
+        for path, resolved in handed:
+            self.assertNotIn('d' * 120, path)
+            self.assertLess(len(path), 60, path)
+            # and it is still the checkout's own script, not a copy (a copy measures 0%)
+            self.assertEqual(os.path.join(os.path.realpath(self.root), 'scripts'), resolved)
+
+    def test_the_short_link_is_removed_and_the_checkout_survives(self):
+        before = set(os.listdir('/tmp'))
+        out, code = self.build(hits_second_line=1)
+        self.assertEqual(0, code, out)
+        self.assertEqual([], sorted(n for n in set(os.listdir('/tmp')) - before if n.startswith('kc.')))
+        self.assertTrue(os.path.isfile(os.path.join(self.root, 'scripts', 'thing.sh')))
 
 
 if __name__ == '__main__':
