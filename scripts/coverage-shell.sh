@@ -27,14 +27,16 @@
 # PROBED below, and if either is missing this exits 3: not measured, which blocks
 # exactly like a failure (#29 — an unmeasured codebase does not count as passing).
 #
-# ⚠️ RUN IT FROM A SHORT PATH. kcov reads bash's trace lines (`kcov@<file>@<line>@`)
-# from stderr on macOS, and with a long checkout path it misreads them: a traced
-# script that runs another script prints "kcov: error: <path> is not an integer" and
-# the inner script never runs. Measured 29/09/2026: the same commit, kcov 43 and
-# bash 5.3 passed test_md_hook_drift from /Users/…/claude-code-standards-wt-rules
-# and failed it from a 238-character /private/tmp/… worktree. A red suite here from a
-# deep temporary directory is an ENVIRONMENT failure (#31) — re-run from a short
-# path before reading it as a product bug.
+# ⚠️ THE CHECKOUT PATH USED TO MATTER, AND NO LONGER DOES. kcov reads bash's trace
+# lines (`kcov@<file>@<line>@<command>`) from stderr on macOS and LOSES the ones that
+# grow long, and the file field is the path the script was started by. From a deep
+# checkout — a default `.claude/worktrees/<name>` is 70-90 characters — that was a
+# whole-suite failure, not a flake: measured 30/09/2026, kcov 43 + bash 5.3, from
+# 80 characters up EVERY line of every script was lost (0/34 on md-hook.sh) while the
+# same commit at 54 characters measured 20/34; and a test that captures a child's
+# output (`out="$(bash x.sh 2>&1)"`, md-hook.sh) also got `kcov: error: <path> is not
+# an integer` printed into its result. So the scripts are started through a SHORT
+# symlink to the checkout (see $short below), which is what kcov then sees.
 #
 # Exit codes: 0 at or above the threshold · 1 below it · 2 usage/environment · 3 NOT MEASURED
 set -uo pipefail
@@ -65,7 +67,13 @@ done
   exit 3; }
 
 work="$(mktemp -d)"
-trap 'rm -rf "$work"' EXIT
+# The checkout, seen through a path that stays short whatever the checkout's depth.
+# /tmp and not $TMPDIR: on macOS $TMPDIR alone is ~50 characters. `rm -rf` on the
+# directory removes the link, never what it points to.
+link_dir="$(mktemp -d "${COVERAGE_LINK_BASE:-/tmp}/kc.XXXXXX")" || exit 2
+trap 'rm -rf "$work" "$link_dir"' EXIT
+ln -s "$root" "$link_dir/r"
+short="$link_dir/r"
 mkdir -p "$work/bin" "$work/out"
 
 # The shim. It must be a REAL bash script (its own shebang is the traceable bash),
@@ -73,21 +81,30 @@ mkdir -p "$work/bin" "$work/out"
 cat > "$work/bin/bash" <<SHIM
 #!$trace_bash
 # Interposed by scripts/coverage-shell.sh. Only OUR OWN scripts are traced.
+ours=0
 for arg in "\$@"; do
   case "\$arg" in
-    $root/scripts/*.sh)
-      if [ -f "\$arg" ]; then
-        # ⚠️ An ABSOLUTE path to kcov, not a PATH lookup. A test that legitimately
-        # strips a directory from PATH (to prove a missing tool is announced) also
-        # strips kcov when they share a directory, and the shim then died with
-        # "exec: kcov: not found" — turning a passing suite red only under
-        # measurement.
-        exec "$kcov_bin" --include-path="$root/scripts" --exclude-pattern=/tests/ \\
-                  "$work/out/\$(date +%s%N)-\$\$" "\$@"
-      fi
-      ;;
+    "$root"/scripts/*.sh|"$short"/scripts/*.sh) [ -f "\$arg" ] && ours=1 ;;
   esac
 done
+if [ "\$ours" = 1 ]; then
+  # Re-spell every path into the checkout through the short link: the traced script
+  # is then started by, and reports, a short path (see the header).
+  n=\$#
+  while [ "\$n" -gt 0 ]; do
+    a="\$1"; shift
+    case "\$a" in "$root"/scripts/*) a="$short/scripts/\${a#"$root"/scripts/}" ;; esac
+    set -- "\$@" "\$a"
+    n=\$((n - 1))
+  done
+  # ⚠️ An ABSOLUTE path to kcov, not a PATH lookup. A test that legitimately
+  # strips a directory from PATH (to prove a missing tool is announced) also
+  # strips kcov when they share a directory, and the shim then died with
+  # "exec: kcov: not found" — turning a passing suite red only under
+  # measurement.
+  exec "$kcov_bin" --include-path="$short/scripts,$root/scripts" --exclude-pattern=/tests/ \\
+            "$work/out/\$(date +%s%N)-\$\$" "\$@"
+fi
 exec "$trace_bash" "\$@"
 SHIM
 chmod +x "$work/bin/bash"
