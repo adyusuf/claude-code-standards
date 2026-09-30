@@ -128,6 +128,14 @@ Agent tool runs again in that row (no duplicate), and an untyped internal subage
 Projects enabled before 30/09/2026 add the `SubagentStart` line to their settings block to get
 these rows; without it everything else keeps working.
 
+**Todo list:** the sessions panel shows each session's own todo progress ("todo 2/5 · what is
+running now"). The main session's `TodoWrite` call (input `{todos:[{content,status,activeForm}]}`,
+the whole list each time — verified in the CLI binary, not guessed) is recorded by the existing
+`PostToolUse` `*` hook as `todo_sync`; the latest list replaces the previous one, an empty list
+clears it, a subagent's call is ignored, and any other shape records nothing (no todo line, never
+an invented one). `TaskCreate`/`TaskUpdate` (the incremental task tools) are not mirrored: their
+response carries the id the board would need and that shape is not documented, so that stays open.
+
 **Context:** the last main-thread call's input + cache read + cache write tokens, set against
 the model's window size. The board shows **"context warn" at ≥80%** — a UX reminder, never a
 block. Compacting the context (`/compact`) is the user's own command in Claude Code; neither

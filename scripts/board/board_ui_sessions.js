@@ -31,8 +31,10 @@
   function stateHtml(t, s, now) {
     const channel = s.channel
       ? ` <span class="badge ch" title="${esc(t("channelTitle"))}">${esc(t("channel"))}</span>` : "";
+    const todo = s.todos
+      ? muted(`${esc(t("todos"))} ${s.todos.done}/${s.todos.total}${s.todos.current ? ` · ${esc(s.todos.current)}` : ""}`) : "";
     return `<span class="badge st-${esc(s.state)}">${esc(t(s.state))} ${
-      esc(fmtDur(t, s.since, null, now))}</span>${channel}`;
+      esc(fmtDur(t, s.since, null, now))}</span>${channel}${todo}`;
   }
 
   function contextHtml(t, s) {

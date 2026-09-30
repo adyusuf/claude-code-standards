@@ -75,6 +75,9 @@ CONTROL_FILE = "control.json"
 ACK_FILE = "control_ack.json"
 
 AGENT_TOOL = "Agent"
+TODO_TOOL = "TodoWrite"  # its input is {todos: [{content, status, activeForm}]}, the whole list each time
+TODO_MAX_ITEMS = 50
+TODO_TEXT_MAX = 200
 TASK_TAG_PATTERN = r"\[(T-\d+)\]"
 TASK_ID_PATTERN = r"^T-\d+$"
 AUTO_TASK_ID = "auto"  # `board.py add auto ...`: the next free id, taken under a lock
@@ -126,6 +129,13 @@ class DecisionChoice:
 
 
 # ---- Sessions, cost, context (standards/22 §2c) ----
+
+class TodoStatus:
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    ALL = (PENDING, IN_PROGRESS, COMPLETED)
+
 
 class SessionState:
     BUSY = "busy"        # UserPromptSubmit seen, no Stop yet

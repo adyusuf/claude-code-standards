@@ -254,3 +254,11 @@ test("helpHtml names how many sessions a channel reaches and how to start one", 
   assert.match(panel.helpHtml(en, { sessions: [] }, 180), /Channel: 0 session/);
   assert.match(panel.helpHtml(en, undefined, 180), /Channel: 0 session/);
 });
+
+test("todo line: done/total and the running item; absent when the session sent no list; escaped", () => {
+  const withTodos = rows(stateOf([session({ todos: { done: 2, total: 5, current: "Running <b>tests</b>" } })]));
+  assert.match(withTodos, /yapılacaklar 2\/5 · Running &lt;b&gt;tests&lt;\/b&gt;/);
+  assert.match(rows(stateOf([session({ todos: { done: 0, total: 1, current: null } })]), {}, en), /todo 0\/1</);
+  assert.doesNotMatch(rows(stateOf([session({ todos: null })])), /yapılacaklar/);
+  assert.doesNotMatch(rows(stateOf([session()])), /yapılacaklar/);
+});
