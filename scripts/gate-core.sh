@@ -55,6 +55,15 @@
 #                                                       # no answer in time is a FAILURE, never a pass
 #   LINT_CMD / TYPECHECK_CMD / BUILD_CMD / UNIT_CMD     # override the auto-detected ones
 #   SKIP_STACKS="mobile"                                # codebases this project does not have
+#   GATE_PARALLEL_NODE=1                                # run the web/mobile Node steps (lint, typecheck,
+#                                                       # build, test, npm audit) BESIDE the .NET steps
+#                                                       # instead of after them; default 0 (serial).
+#                                                       # Only dev/test. The track's output is printed as
+#                                                       # one block at the join, and a track that did not
+#                                                       # report counts as FAILED, never as passed.
+#                                                       # Put it in merge-gate.conf as
+#                                                       #   GATE_PARALLEL_NODE="${GATE_PARALLEL_NODE:-1}"
+#                                                       # so the environment wins: =0 forces serial.
 #   ACCEPTED_GAPS="SAST|backward"                       # gaps the USER has accepted, with a reason
 #   ACCEPTED_GAPS_REASON="no SAST tooling yet; tracked in docs/gates.md, review 01/11/2026"
 #
@@ -113,8 +122,9 @@ have() { command -v "$1" >/dev/null 2>&1; }
 run()  { # run <label> <command...>
   local label="$1"; shift
   if [ "$LIST_ONLY" = 1 ]; then printf '  → %-42s %s\n' "$label" "$*"; PASS+=("$label"); return 0; fi
-  if "$@" >/tmp/mg.$$ 2>&1; then ok "$label"; else bad "$label"; tail -20 /tmp/mg.$$ | sed 's/^/      /'; fi
-  rm -f /tmp/mg.$$
+  local out; out="$(mktemp)"   # not $$: the node track runs in a subshell that shares the parent's $$
+  if "$@" >"$out" 2>&1; then ok "$label"; else bad "$label"; tail -20 "$out" | sed 's/^/      /'; fi
+  rm -f "$out"
 }
 
 # ── Stack detection ──────────────────────────────────────────────────────────
@@ -171,22 +181,18 @@ HAS_E2E_MOBILE=0; [ -d .maestro ] || [ -d "${MOBILE_DIR:-mobile}/.maestro" ] && 
 echo "merge gate → $TARGET   ($(git rev-parse --short HEAD), $ROOT)"
 echo "stacks: dotnet=$HAS_DOTNET${SLN:+ (${SLN#./})} node=$HAS_NODE web=${WEB_DIR:-none} mobile=${MOBILE_DIR:-none} e2e=web:$HAS_E2E_WEB/mobile:$HAS_E2E_MOBILE"
 
-# ── Everything except e2e: dev and test ──────────────────────────────────────
-if [ "$TARGET" != "prod" ]; then
-
-  say "formatter / linter"
-  if [ "$HAS_DOTNET" = 1 ]; then
-    if have dotnet; then run "dotnet format" dotnet format ${SLN:+"$SLN"} --verify-no-changes
-    else skip "dotnet format (dotnet missing)"; fi
-  fi
+# ── Node steps as functions ──────────────────────────────────────────────────
+# Serial mode calls each one where its section is; GATE_PARALLEL_NODE=1 runs them
+# all as one track beside the .NET steps (node_start / node_join below).
+node_lint() {
   for d in "$WEB_DIR" "$MOBILE_DIR"; do
     [ -n "$d" ] || continue
     if [ -f "$d/node_modules/.bin/eslint" ] || grep -q '"lint"' "$d/package.json" 2>/dev/null; then
       run "lint ($d)" npm --prefix "$d" run lint
     else skip "lint ($d): no lint script"; fi
   done
-
-  say "typecheck"
+}
+node_typecheck() {
   for d in "$WEB_DIR" "$MOBILE_DIR"; do
     [ -n "$d" ] || continue
     # A solution-style root tsconfig ("files": [] + "references", the Vite
@@ -197,23 +203,15 @@ if [ "$TARGET" != "prod" ]; then
       run "tsc -b ($d)" npx --prefix "$d" tsc -b "$d" --noEmit
     else run "tsc ($d)" npx --prefix "$d" tsc -p "$d" --noEmit; fi
   done
-
-  say "build"
-  if [ "$HAS_DOTNET" = 1 ]; then
-    if have dotnet; then run "dotnet build" dotnet build ${SLN:+"$SLN"} -warnaserror
-    else skip "dotnet build (dotnet missing)"; fi
-  fi
+}
+node_build() {
   for d in "$WEB_DIR" "$MOBILE_DIR"; do
     [ -n "$d" ] || continue
     if grep -q '"build"' "$d/package.json" 2>/dev/null; then run "build ($d)" npm --prefix "$d" run build
     else skip "build ($d): no build script"; fi
   done
-
-  say "unit tests"
-  if [ "$HAS_DOTNET" = 1 ]; then
-    if have dotnet; then run "dotnet test" dotnet test ${SLN:+"$SLN"} --nologo
-    else skip "dotnet test (dotnet missing)"; fi
-  fi
+}
+node_test() {
   for d in "$WEB_DIR" "$MOBILE_DIR"; do
     [ -n "$d" ] || continue
     if grep -q '"test"' "$d/package.json" 2>/dev/null; then
@@ -230,7 +228,103 @@ if [ "$TARGET" != "prod" ]; then
       fi
     else skip "test ($d): no test script"; fi
   done
+}
+node_audit() {
+  for d in "$WEB_DIR" "$MOBILE_DIR"; do
+    [ -n "$d" ] || continue
+    if have npm; then
+      local out; out="$(mktemp)"
+      if npm --prefix "$d" audit --audit-level=high >"$out" 2>&1; then ok "npm audit ($d)"; else bad "npm audit ($d): high or critical"; tail -10 "$out" | sed 's/^/      /'; fi
+      rm -f "$out"
+    else skip "npm audit ($d): npm missing"; fi
+  done
+}
 
+# ── Node track beside the .NET steps (opt-in: GATE_PARALLEL_NODE=1) ──────────
+# The Node steps never touch what the .NET steps touch, so on a machine with
+# spare cores they cost nothing extra. The track runs in a subshell, prints to a
+# log and writes its results as tagged lines; node_join replays both in the
+# parent. Fail-closed: no DONE marker in the results means the track did not
+# finish, and that is a failure. It is joined BEFORE the coverage step, which
+# runs the frontend suite again and must not overlap it.
+NODE_PARALLEL_ACTIVE=0; NODE_JOINED=0; NODE_PID=""; NODE_LOG=""; NODE_RES=""
+if [ "${GATE_PARALLEL_NODE:-0}" = 1 ] && [ "$TARGET" != "prod" ] && [ "$LIST_ONLY" = 0 ] \
+   && [ "$HAS_DOTNET" = 1 ] && { [ -n "$WEB_DIR" ] || [ -n "$MOBILE_DIR" ]; }; then
+  NODE_PARALLEL_ACTIVE=1
+fi
+node_track() {
+  local t0=$SECONDS
+  say "node track — lint · typecheck · build · test · audit (ran beside the .NET steps)"
+  node_lint; node_typecheck; node_build; node_test; node_audit
+  printf '  node track: %ds\n' $((SECONDS - t0))
+}
+node_start() {
+  [ "$NODE_PARALLEL_ACTIVE" = 1 ] || return 0
+  NODE_LOG="$(mktemp)"; NODE_RES="$(mktemp)"
+  (
+    node_track
+    {
+      for x in "${PASS[@]+"${PASS[@]}"}"; do printf 'P\t%s\n' "$x"; done
+      for x in "${FAIL[@]+"${FAIL[@]}"}"; do printf 'F\t%s\n' "$x"; done
+      for x in "${SKIP[@]+"${SKIP[@]}"}"; do printf 'S\t%s\n' "$x"; done
+      for x in "${ACCEPTED[@]+"${ACCEPTED[@]}"}"; do printf 'A\t%s\n' "$x"; done
+      for x in "${NA[@]+"${NA[@]}"}"; do printf 'N\t%s\n' "$x"; done
+      for x in "${WARN[@]+"${WARN[@]}"}"; do printf 'W\t%s\n' "$x"; done
+      echo DONE
+    } >"$NODE_RES"
+  ) >"$NODE_LOG" 2>&1 &
+  NODE_PID=$!
+  trap '[ -n "$NODE_PID" ] && kill "$NODE_PID" 2>/dev/null; rm -f "$NODE_LOG" "$NODE_RES"' EXIT
+  echo "  node track started beside the .NET steps (GATE_PARALLEL_NODE=1)"
+}
+node_join() {
+  [ "$NODE_PARALLEL_ACTIVE" = 1 ] && [ "$NODE_JOINED" = 0 ] || return 0
+  NODE_JOINED=1
+  wait "$NODE_PID" 2>/dev/null
+  cat "$NODE_LOG"
+  if grep -qx DONE "$NODE_RES" 2>/dev/null; then
+    local kind label
+    while IFS=$'\t' read -r kind label; do
+      case "$kind" in
+        P) PASS+=("$label") ;; F) FAIL+=("$label") ;; S) SKIP+=("$label") ;;
+        A) ACCEPTED+=("$label") ;; N) NA+=("$label") ;; W) WARN+=("$label") ;;
+      esac
+    done <"$NODE_RES"
+  else
+    bad "node track did not report a result — a track that did not finish did not pass"
+  fi
+  rm -f "$NODE_LOG" "$NODE_RES"
+}
+
+# ── Everything except e2e: dev and test ──────────────────────────────────────
+if [ "$TARGET" != "prod" ]; then
+  node_start
+
+  say "formatter / linter"
+  if [ "$HAS_DOTNET" = 1 ]; then
+    if have dotnet; then run "dotnet format" dotnet format ${SLN:+"$SLN"} --verify-no-changes
+    else skip "dotnet format (dotnet missing)"; fi
+  fi
+  [ "$NODE_PARALLEL_ACTIVE" = 1 ] || node_lint
+
+  say "typecheck"
+  [ "$NODE_PARALLEL_ACTIVE" = 1 ] || node_typecheck
+
+  say "build"
+  if [ "$HAS_DOTNET" = 1 ]; then
+    if have dotnet; then run "dotnet build" dotnet build ${SLN:+"$SLN"} -warnaserror
+    else skip "dotnet build (dotnet missing)"; fi
+  fi
+  [ "$NODE_PARALLEL_ACTIVE" = 1 ] || node_build
+
+  say "unit tests"
+  if [ "$HAS_DOTNET" = 1 ]; then
+    if have dotnet; then run "dotnet test" dotnet test ${SLN:+"$SLN"} --nologo
+    else skip "dotnet test (dotnet missing)"; fi
+  fi
+  [ "$NODE_PARALLEL_ACTIVE" = 1 ] || node_test
+
+  node_join
   say "coverage (>= ${COVERAGE_MIN}% lines, per codebase)"
   if [ -n "${COVERAGE_CMD:-}" ]; then run "coverage" bash -c "$COVERAGE_CMD"
   elif [ -x scripts/coverage.sh ]; then run "coverage" bash scripts/coverage.sh
@@ -273,13 +367,7 @@ if [ "$TARGET" != "prod" ]; then
       skip "dotnet vulnerable packages: dotnet missing"
     fi
   fi
-  for d in "$WEB_DIR" "$MOBILE_DIR"; do
-    [ -n "$d" ] || continue
-    if have npm; then
-      if npm --prefix "$d" audit --audit-level=high >/tmp/mg.$$ 2>&1; then ok "npm audit ($d)"; else bad "npm audit ($d): high or critical"; tail -10 /tmp/mg.$$ | sed 's/^/      /'; fi
-      rm -f /tmp/mg.$$
-    else skip "npm audit ($d): npm missing"; fi
-  done
+  [ "$NODE_PARALLEL_ACTIVE" = 1 ] || node_audit
   fi
 
   say "SAST"
