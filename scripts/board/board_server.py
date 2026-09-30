@@ -26,7 +26,8 @@ from board_store import fold, peek_changes, read_control, read_events
 
 JS = "text/javascript; charset=utf-8"
 STATIC = {"/": ("board.html", "text/html; charset=utf-8"),
-          "/board_ui.js": ("board_ui.js", JS)}
+          "/board_ui.js": ("board_ui.js", JS), "/board_ui_text.js": ("board_ui_text.js", JS),
+          "/board_ui_sessions.js": ("board_ui_sessions.js", JS)}
 MAX_BODY = 4096
 TRANSCRIPTS = Cache()  # parsed incrementally, shared by every request thread
 
