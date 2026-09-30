@@ -621,6 +621,15 @@ not run is a failure, and an npm project still uses `npm audit`. `test_gate_core
 pins six cases (the four pnpm ones fail on the old loop). Lesson: a gate step that always fails is
 as blind as one that never runs — read the *reason* on a red step, not only the colour.
 
+## Board task ids are allocated, not typed (30/09/2026, T-28)
+
+Two failures in one day on the shared live board: T-25 (three sessions) and T-26 (two) were typed
+by hand, so a later `add` replaced an earlier task's title and one session's "done" note ended up
+under another's task; and `board.py set` typed from another project's working tree created a
+`.claude/board/` in three project checkouts. `add auto` now allocates under a lock, an existing id
+is refused, and a repository without a board needs `--init`. `test_board_tasks.py` pins nine cases
+(twelve parallel sessions get twelve distinct ids). → `standards/22` §2f
+
 ## §16 · §28 · never-do list — the enforcement tooling
 
 Rules that stayed prose were the ones that failed silently, so each was given a check

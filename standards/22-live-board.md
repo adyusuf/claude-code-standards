@@ -210,6 +210,20 @@ files in the repository** — icons are generated on request from the server.
 **Service worker** (`/sw.js`): caches nothing. The board is ephemeral and always fresh; a
 stale cache would be worse than a reload.
 
+## 2f. Task ids and where the CLI writes (T-28, 30/09/2026)
+
+Several sessions write to one board, and ids were typed by hand: T-25 was taken by three
+sessions and T-26 by two, so a later `add` silently replaced an earlier task's title. And
+`board.py` finds the board from the working directory's repository, so a `set` typed in another
+project's tree created a stray `.claude/board/` there.
+
+- `board.py add auto "<title>"` reads the log and appends **under an exclusive lock**
+  (`tasks.lock`), so parallel sessions cannot draw the same number; it prints the id.
+- `add T-n` with an id that already exists is **refused** (exit 2) and writes nothing.
+- A repository with no board (no `events.jsonl`) is **refused** for `plan`/`add`/`set` unless
+  `--init` is given; `list` there prints nothing and creates nothing. A repository whose hooks
+  are wired already has a board (the first hook event creates it), so nothing changes for it.
+
 ## 3. Permanent rules
 
 - ⚠️ **The board is an extra view, never the report.** The table in the reply
