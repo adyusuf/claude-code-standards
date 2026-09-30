@@ -15,64 +15,12 @@
   const LANG_KEY = "board.lang";
   const PROJECT_KEY = "board.project";
   const LIVE = new Set(["starting", "running"]);
-  const I18N = {
-    tr: {
-      title: "Canlı İş Panosu", mode: "Mod", lastEvent: "son olay:", agentsHdr: "Ajanlar",
-      tasksHdr: "İşler", activityHdr: "Ajan hareketleri", colTask: "İş", colBranch: "Dal",
-      colRole: "Rol / ajan", colStatus: "Durum", colTime: "Süre", colNote: "Not",
-      colAgent: "Ajan", colStarted: "Başladı", turnOpen: "Claude çalışıyor", turnClosed: "Tur bitti",
-      noSession: "Oturum yok", allDone: "Tüm işler bitti.", remove: "Çıkar", restore: "Geri al",
-      noTasks: "Henüz iş yok — Claude plan yazınca burada görünecek.", noAgents: "Henüz ajan başlatılmadı.",
-      running: "çalışan", stRunning: "Çalışıyor", stWaiting: "Bekliyor", stDone: "Bitti",
-      stRemoved: "Çıkarıldı", stPlanned: "Planlandı", unreachable: "Sunucuya ulaşılamıyor",
-      notMeasured: "ölçülemiyor", sec: "sn", min: "dk", hr: "sa", roleOff: "kapalı", roleOn: "açık",
-      s_planned: "planlandı", s_running: "çalışıyor", s_agent_done: "ajan bitti · onay bekliyor",
-      s_waiting: "bekliyor", s_done: "bitti", s_failed: "başarısız", s_removed: "çıkarıldı",
-      s_starting: "başlıyor", s_denied: "reddedildi",
-      noProjects: "Henüz proje yok — bir projede Claude oturumu başlayınca burada görünür.",
-      s_needs_decision: "karar bekliyor", stDecision: "Karar bekliyor", decided: "Karar",
-      continue: "Devam", reject: "Reddet", notePh: "not (isteğe bağlı)", colMerge: "Merge",
-    },
-    en: {
-      title: "Live Work Board", mode: "Mode", lastEvent: "last event:", agentsHdr: "Agents",
-      tasksHdr: "Tasks", activityHdr: "Agent activity", colTask: "Task", colBranch: "Branch",
-      colRole: "Role / agent", colStatus: "Status", colTime: "Time", colNote: "Note",
-      colAgent: "Agent", colStarted: "Started", turnOpen: "Claude is working", turnClosed: "Turn finished",
-      noSession: "No session", allDone: "All tasks are done.", remove: "Remove", restore: "Restore",
-      noTasks: "No tasks yet — they appear once Claude writes the plan.", noAgents: "No agent started yet.",
-      running: "running", stRunning: "Running", stWaiting: "Waiting", stDone: "Done",
-      stRemoved: "Removed", stPlanned: "Planned", unreachable: "Server unreachable",
-      notMeasured: "not measured", sec: "s", min: "m", hr: "h", roleOff: "off", roleOn: "on",
-      s_planned: "planned", s_running: "running", s_agent_done: "agent done · awaiting review",
-      s_waiting: "waiting", s_done: "done", s_failed: "failed", s_removed: "removed",
-      s_starting: "starting", s_denied: "denied",
-      noProjects: "No project yet — one appears when a Claude session starts in it.",
-      s_needs_decision: "awaiting decision", stDecision: "Awaiting decision", decided: "Decision",
-      continue: "Continue", reject: "Reject", notePh: "note (optional)", colMerge: "Merge",
-    },
-  };
-
-  const makeT = (lang) => (k) => (I18N[lang] || {})[k] ?? I18N.tr[k] ?? k;
-  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) =>
-    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
-  const pad = (n) => String(n).padStart(2, "0");
-  // #12: dd/mm/yyyy, built by hand — no locale-aware formatting.
-  const fmtDate = (d) => `${pad(d.getDate())}/${pad(d.getMonth() + 1)}/${d.getFullYear()}`;
-  const fmtTime = (d) => `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
-
-  function fmtStamp(iso, now = new Date()) {
-    if (!iso) return "–";
-    const d = new Date(iso);
-    return fmtDate(d) === fmtDate(now) ? fmtTime(d) : `${fmtDate(d)} ${fmtTime(d)}`;
-  }
-
-  function fmtDur(t, fromIso, toIso, now = new Date()) {
-    if (!fromIso) return t("notMeasured");
-    const s = Math.max(0, Math.round(((toIso ? new Date(toIso) : now) - new Date(fromIso)) / 1000));
-    if (s < 60) return `${s} ${t("sec")}`;
-    if (s < 3600) return `${Math.floor(s / 60)} ${t("min")} ${s % 60} ${t("sec")}`;
-    return `${Math.floor(s / 3600)} ${t("hr")} ${Math.floor(s / 60) % 60} ${t("min")}`;
-  }
+  const text = typeof module === "object" && module.exports
+    ? require("./board_ui_text.js") : globalThis.BoardText;
+  const panel = typeof module === "object" && module.exports
+    ? require("./board_ui_sessions.js") : globalThis.BoardSessions;
+  const { I18N, makeT, esc, fmtDate, fmtTime, fmtStamp, fmtDur, fill } = text;
+  const SW_PATH = "/sw.js";
 
   const badge = (t, status) => `<span class="badge s-${esc(status)}">${esc(t("s_" + status))}</span>`;
 
@@ -121,7 +69,11 @@
   }
 
   /** Everything the page shows, computed from the server state; no DOM access. */
-  function view(st, t, now = new Date()) {
+  function view(st, t, now = new Date(), extra = {}) {
+    const skills = extra.skills || [];
+    const drafts = extra.drafts || {};
+    const taskCosts = (st.costs && st.costs.tasks) || {};
+    const agentRows = (st.costs && st.costs.agent_rows) || { rows: {}, by_type: {}, unmeasured: 0, total: null };
     const tasks = Object.values(st.tasks);
     const agents = st.agents;
     const agentList = Object.values(agents).sort((a, b) => (b.started || "").localeCompare(a.started || ""));
@@ -155,9 +107,12 @@
         const n = agentList.filter((a) => a.type === r && LIVE.has(a.status)).length;
         return `<div class="role${on ? "" : " off"}"><button class="switch" role="switch" aria-checked="${on}"
           aria-label="${esc(r)} ${esc(on ? t("roleOn") : t("roleOff"))}" data-role="${esc(r)}"></button>
-          <span>${esc(r)}</span><span class="cnt">${n} ${esc(t("running"))}</span></div>`;
+          <span>${esc(r)}</span><span class="cnt">${n} ${esc(t("running"))}${esc(panel.roleCostText(t, st.costs && st.costs.agent_rows, r))}</span></div>`;
       }).join(""),
-      tasksHtml: !tasks.length ? `<tr><td colspan="8" class="empty">${esc(t("noTasks"))}</td></tr>` :
+      sessionsHtml: panel.sessionsHtml(t, st, skills, drafts, now),
+      sessionsHelp: panel.helpHtml(t, st.costs, st.stop_wait_s),
+      modesHtml: panel.modesHtml(t, st),
+      tasksHtml: !tasks.length ? `<tr><td colspan="9" class="empty">${esc(t("noTasks"))}</td></tr>` :
         tasks.map((x) => {
           const [start, end] = taskSpan(x, agents);
           const removed = x.status === "removed";
@@ -166,16 +121,18 @@
             <td>${x.branch ? `<code>${esc(x.branch)}</code>` : "—"}</td>
             <td>${esc(x.role || "—")}${liveAgents(x, agents)}</td><td>${badge(t, x.status)}</td>
             <td class="muted">${start ? esc(fmtDur(t, start, end, now)) : "—"}</td>
-            <td>${mergeHtml(x)}</td>
+            <td>${mergeHtml(x)}</td><td>${panel.taskCostHtml(t, x, taskCosts[x.id])}</td>
             <td>${esc(x.note)}${decisionHtml(x, st.decision_defaults || [], t)}</td>
             <td><button class="act" data-task="${esc(x.id)}" data-action="${removed ? "restore_task" : "remove_task"}">
               ${esc(removed ? t("restore") : t("remove"))}</button></td></tr>`;
         }).join(""),
-      agentsHtml: !agentList.length ? `<tr><td colspan="6" class="empty">${esc(t("noAgents"))}</td></tr>` :
+      agentsHtml: !agentList.length ? `<tr><td colspan="8" class="empty">${esc(t("noAgents"))}</td></tr>` :
         agentList.slice(0, 30).map((a) => `<tr><td>${esc(a.type)}</td><td>${esc(a.task || "—")}</td>
           <td>${badge(t, a.status)}</td><td class="muted">${esc(fmtStamp(a.started, now))}</td>
           <td class="muted">${esc(a.status === "denied" ? "—" : fmtDur(t, a.started, a.ended, now))}</td>
-          <td>${esc(a.reason || a.description)}</td></tr>`).join(""),
+          ${a.status === "denied" ? `<td class="muted" colspan="2">—</td>` : panel.agentCostCells(t, agentRows.rows[a.key])}
+          <td>${esc(a.reason || a.description)}</td></tr>`).join("") + panel.agentTotalRow(t, agentRows),
+      agentsHelp: agentList.length ? `<p>${esc(t("undercount"))}</p><p>${esc(t("agentRowsNote"))}</p>` : "",
     };
   }
 
@@ -194,7 +151,11 @@
     let t = makeT(lang);
     let lastState = null;
     let project = readKey(win, PROJECT_KEY);
+    let skills = [];
+    const drafts = { queue: {}, skill: {} };  // what the user typed or picked, kept across redraws
     const $ = (id) => doc.getElementById(id);
+    const focused = (key) => Boolean(doc.activeElement && doc.activeElement.dataset &&
+      doc.activeElement.dataset[key]);
 
     function applyStatic() {
       doc.documentElement.lang = lang;
@@ -205,8 +166,9 @@
 
     function render(st) {
       lastState = st;
-      const v = view(st, t);
+      const v = view(st, t, new Date(), { skills, drafts });
       $("mode").textContent = v.mode;
+      $("modes").innerHTML = v.modesHtml;
       $("last").textContent = v.last;
       $("dot").className = "dot" + (v.turnOpen ? " on" : "");
       $("turn").textContent = v.turnText;
@@ -214,9 +176,11 @@
       $("banner").classList.toggle("show", v.allDone);
       $("roles").innerHTML = v.rolesHtml;
       // Typing a note: do not redraw the table under the cursor, or the text is lost.
-      const typing = doc.activeElement && doc.activeElement.dataset && doc.activeElement.dataset.noteFor;
-      if (!typing) $("tasks").innerHTML = v.tasksHtml;
+      if (!focused("noteFor")) $("tasks").innerHTML = v.tasksHtml;
+      if (!focused("queueFor") && !focused("skillFor")) $("sessions").innerHTML = v.sessionsHtml;
+      $("sessionsHelp").innerHTML = v.sessionsHelp;
       $("agents").innerHTML = v.agentsHtml;
+      $("agentsHelp").innerHTML = v.agentsHelp;
     }
 
     async function refresh() {
@@ -242,6 +206,22 @@
       const refused = res.ok ? "" : (await res.json()).error;
       await refresh();  // refresh clears the error line, so a refusal is written after it
       if (refused) $("err").textContent = refused;
+      return !refused;
+    }
+
+    /** Send what the user typed or picked for a session; the draft comes back if refused. */
+    async function sendTo(kind, sid, action, value, extra) {
+      const kept = drafts[kind][sid];
+      delete drafts[kind][sid];
+      const ok = await control(action, value, extra);
+      if (!ok && kept !== undefined) drafts[kind][sid] = kept;
+      return ok;
+    }
+
+    function onInput(e) {
+      const d = e.target.dataset || {};
+      if (d.queueFor) drafts.queue[d.queueFor] = e.target.value;
+      if (d.skillFor) drafts.skill[d.skillFor] = e.target.value;
     }
 
     function onClick(e) {
@@ -265,6 +245,26 @@
         const noteEl = doc.querySelector(`[data-note-for="${task}"]`);
         return control("decide", task, { choice: pick.dataset.choice, note: noteEl ? noteEl.value : "" });
       }
+      const queue = e.target.closest("[data-queue-send]");
+      if (queue) {
+        const sid = queue.dataset.queueSend;
+        const input = doc.querySelector(`[data-queue-for="${sid}"]`);
+        return sendTo("queue", sid, "queue_task", sid, { text: input ? input.value : "" })
+          .then((ok) => { if (ok && input) input.value = ""; return ok; });  // sent: the field empties
+      }
+      const run = e.target.closest("[data-skill-run]");
+      if (run) {
+        const sid = run.dataset.skillRun;
+        const pickEl = doc.querySelector(`[data-skill-for="${sid}"]`);
+        if (!pickEl || !pickEl.value) { $("err").textContent = t("pickSkill"); return null; }
+        return sendTo("skill", sid, "run_skill", pickEl.value, { session: sid });
+      }
+      const mode = e.target.closest("[data-mode]");
+      if (mode) {
+        // A mode costs 1x-14x (modes/README.md): one misclick must not switch it.
+        if (!win.confirm(fill(t("confirmMode"), { mode: mode.dataset.mode }))) return null;
+        return control("set_mode", mode.dataset.mode);
+      }
       const sw = e.target.closest("[data-role]");
       if (sw) return control(sw.getAttribute("aria-checked") === "true" ? "disable_role" : "enable_role", sw.dataset.role);
       const btn = e.target.closest("[data-task]");
@@ -272,10 +272,19 @@
     }
 
     doc.addEventListener("click", onClick);
+    doc.addEventListener("input", onInput);
+    doc.addEventListener("change", onInput);
     applyStatic();
-    const first = refresh();
+    const skillsLoaded = fetchImpl("/api/skills", { cache: "no-store" }).then((r) => r.json())
+      .then((list) => { skills = Array.isArray(list) ? list : []; })
+      .catch((err) => win.console.error("board skills failed", err));
+    const sw = win.navigator && win.navigator.serviceWorker;
+    const swReady = sw ? sw.register(SW_PATH).catch((err) => win.console.error("service worker failed", err))
+      : Promise.resolve();
+    const first = skillsLoaded.then(refresh);
     win.setInterval(refresh, POLL_MS);
-    return { first, refresh, control, onClick, lang: () => lang, project: () => project };
+    return { first, swReady, refresh, control, onClick, onInput, drafts, lang: () => lang,
+      project: () => project, skills: () => skills };
   }
 
   return { I18N, makeT, esc, fmtDate, fmtTime, fmtStamp, fmtDur, view, projectsHtml, decisionHtml, mergeHtml, start };

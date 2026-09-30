@@ -7,8 +7,8 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-from board_config import (ACK_FILE, CONTROL_FILE, EVENTS_FILE, AgentStatus,
-                          ControlAction, TaskStatus)
+from board_config import (ACK_FILE, CHANGES_KEPT, CONTROL_FILE, EVENTS_FILE, AgentStatus,
+                          ControlAction, SessionState, TaskStatus)
 
 
 def now_iso() -> str:
@@ -49,7 +49,28 @@ def _task(state: dict, tid: str) -> dict:
         "id": tid, "title": tid, "branch": "", "role": "", "note": "",
         "status": TaskStatus.PLANNED, "agents": [], "updated": None,
         "options": [], "decision": None, "commits": [],
+        "eta_min": None, "est_cost": None, "started": None,
     })
+
+
+def _mark_started(task: dict, ts: str | None) -> None:
+    if ts and (task["started"] is None or ts < task["started"]):
+        task["started"] = ts
+
+
+def _session(state: dict, sid: str, kind: str | None, ev: dict) -> None:
+    """busy from a turn_start until the turn_stop; `since` = when that state began."""
+    ts = ev.get("ts")
+    sess = state["sessions"].setdefault(sid, {"id": sid, "turn_open": True, "last": ts,
+                                              "state": SessionState.UNKNOWN, "since": ts,
+                                              "transcript": None})
+    sess["last"] = ts
+    sess["turn_open"] = kind != "turn_stop"
+    if ev.get("transcript"):
+        sess["transcript"] = ev["transcript"]
+    turn = {"turn_start": SessionState.BUSY, "turn_stop": SessionState.IDLE}.get(kind or "")
+    if turn and turn != sess["state"]:
+        sess["state"], sess["since"] = turn, ts
 
 
 def _refresh_task_after_agent(state: dict, tid: str | None, ts: str) -> None:
@@ -66,19 +87,20 @@ def _refresh_task_after_agent(state: dict, tid: str | None, ts: str) -> None:
 
 def fold(events: list[dict], control: dict | None = None) -> dict:
     state = {"mode": None, "roles": None, "tasks": {}, "agents": {}, "sessions": {},
-             "last_event": None}
+             "last_event": None, "mode_by": None, "agent_links": {}, "agent_transcripts": {}}
     by_agent_id: dict[str, str] = {}
     for ev in events:
         kind, ts = ev.get("type"), ev.get("ts")
         state["last_event"] = ts
         sid = ev.get("session")
         if sid:
-            sess = state["sessions"].setdefault(sid, {"id": sid, "turn_open": True, "last": ts})
-            sess["last"] = ts
-            sess["turn_open"] = kind != "turn_stop"
+            _session(state, sid, kind, ev)
         if kind == "plan":
             state["mode"] = ev.get("mode")
             state["roles"] = list(ev.get("roles", []))
+            state["mode_by"] = None
+        elif kind == "mode_set":  # the user picked the mode on the board (#27)
+            state["mode"], state["mode_by"] = ev.get("mode"), ev.get("by")
         elif kind == "task_add":
             t = _task(state, ev["id"])
             for k in ("title", "branch", "role", "note", "commits"):
@@ -87,9 +109,14 @@ def fold(events: list[dict], control: dict | None = None) -> dict:
             t["updated"] = ts
         elif kind == "task_set":
             t = _task(state, ev["id"])
-            for k in ("status", "note", "branch", "role", "title", "options", "commits"):
+            for k in ("status", "note", "branch", "role", "title", "options", "commits",
+                      "eta_min", "est_cost"):
                 if ev.get(k) is not None:
                     t[k] = ev[k]
+            if ev.get("status") == TaskStatus.RUNNING:
+                _mark_started(t, ts)
+            if ev.get("agent"):  # board.py set T-n --agent <id>: the agent's cost is this task's
+                state["agent_links"][ev["agent"]] = ev["id"]
             t["updated"] = ts
         elif kind in ("agent_pre", "agent_denied"):
             key = ev["tool_use_id"]
@@ -106,19 +133,23 @@ def fold(events: list[dict], control: dict | None = None) -> dict:
                 t["agents"].append(key)
                 if not t["role"]:
                     t["role"] = ev.get("agent_type", "")
+                _mark_started(t, ts)
                 _refresh_task_after_agent(state, ev["task"], ts)
         elif kind == "agent_post":
             a = state["agents"].get(ev["tool_use_id"])
             if not a or a["status"] == AgentStatus.DENIED:  # a denied spawn never comes alive
                 continue
-            if ev.get("launched") and ev.get("agent_id"):
+            if ev.get("agent_id"):  # a foreground call reports its agentId too
                 a["agent_id"] = ev["agent_id"]
-                a["status"] = AgentStatus.RUNNING
                 by_agent_id[ev["agent_id"]] = a["key"]
+            if ev.get("launched") and ev.get("agent_id"):
+                a["status"] = AgentStatus.RUNNING
             else:
                 a["status"], a["ended"] = AgentStatus.DONE, ts
             _refresh_task_after_agent(state, a["task"], ts)
         elif kind == "agent_stop":
+            if ev.get("agent_id") and ev.get("agent_transcript"):
+                state["agent_transcripts"][ev["agent_id"]] = ev["agent_transcript"]
             key = by_agent_id.get(ev.get("agent_id", ""))
             if key:
                 a = state["agents"][key]
@@ -178,9 +209,13 @@ def apply_control(bdir: Path, action: str, value: str,
     items = set(ctl[field])
     items.add(value) if add else items.discard(value)
     ctl[field] = sorted(items)
+    return record_change(bdir, ctl, {"action": action, "value": value})
+
+
+def record_change(bdir: Path, ctl: dict, change: dict) -> dict:
+    """Numbers a change, keeps the last CHANGES_KEPT, and writes the control file."""
     ctl["version"] += 1
-    ctl["changes"] = (ctl["changes"] + [{"v": ctl["version"], "action": action,
-                                         "value": value, "ts": now_iso()}])[-50:]
+    ctl["changes"] = (ctl["changes"] + [{"v": ctl["version"], "ts": now_iso(), **change}])[-CHANGES_KEPT:]
     atomic_write(bdir / CONTROL_FILE, ctl)
     return ctl
 
@@ -188,14 +223,10 @@ def apply_control(bdir: Path, action: str, value: str,
 def _decide(bdir: Path, ctl: dict, tid: str, choice: str | None, note: str | None) -> dict:
     if not choice:
         raise ValueError("a decision needs a choice")
-    ctl["version"] += 1
-    decision = {"choice": choice, "note": note or "", "ts": now_iso(), "v": ctl["version"]}
+    decision = {"choice": choice, "note": note or "", "ts": now_iso(), "v": ctl["version"] + 1}
     ctl["decisions"][tid] = decision
-    ctl["changes"] = (ctl["changes"] + [{"v": ctl["version"], "action": ControlAction.DECIDE,
-                                         "value": tid, "choice": choice, "note": note or "",
-                                         "ts": decision["ts"]}])[-50:]
-    atomic_write(bdir / CONTROL_FILE, ctl)
-    return ctl
+    return record_change(bdir, ctl, {"action": ControlAction.DECIDE, "value": tid,
+                                     "choice": choice, "note": note or "", "ts": decision["ts"]})
 
 
 def _acks(bdir: Path) -> dict:

@@ -6,6 +6,8 @@
   python3 $B set T-1 --status waiting --note "tests later"
   python3 $B set T-1 --commit 3e2e5e2,5d3067f     # the Merge column reads these from git
   python3 $B set T-2 --status needs_decision --note "Split the PR?" --options "split|keep one"
+  python3 $B set T-1 --eta 45 --est-cost 3.5      # the board projects time and cost from these
+  python3 $B set T-1 --agent a3f971dd8bd84040e    # this agent's cost counts for T-1
   python3 $B list
 Agents are linked to a task by putting "[T-1]" in the Agent tool's description.
 """
@@ -15,8 +17,8 @@ import argparse
 import re
 import sys
 
-from board_config import (CHOICE_MAX, COMMIT_PATTERN, ROLE_PATTERN, TASK_ID_PATTERN, TaskStatus,
-                          board_dir)
+from board_config import (AGENT_ID_PATTERN, CHOICE_MAX, COMMIT_PATTERN, EST_COST_MAX_USD,
+                          ETA_MAX_MIN, ROLE_PATTERN, TASK_ID_PATTERN, TaskStatus, board_dir)
 from board_store import append_event, fold, read_control, read_events
 
 
@@ -48,6 +50,32 @@ def _commits(value: str) -> list[str]:
     return commits
 
 
+def _eta(value: str) -> int:
+    try:
+        minutes = int(value)
+    except ValueError:
+        minutes = 0
+    if not 0 < minutes <= ETA_MAX_MIN:
+        raise argparse.ArgumentTypeError(f"--eta: whole minutes, 1-{ETA_MAX_MIN}")
+    return minutes
+
+
+def _usd(value: str) -> float:
+    try:
+        usd = float(value)
+    except ValueError:
+        usd = -1.0
+    if not 0 <= usd <= EST_COST_MAX_USD:  # also refuses nan and inf
+        raise argparse.ArgumentTypeError(f"--est-cost: dollars, 0-{EST_COST_MAX_USD}")
+    return usd
+
+
+def _agent(value: str) -> str:
+    if not re.match(AGENT_ID_PATTERN, value):
+        raise argparse.ArgumentTypeError(f"--agent: an agent id, got {value!r}")
+    return value
+
+
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="board")
     sub = p.add_subparsers(dest="cmd", required=True)
@@ -70,6 +98,9 @@ def build_parser() -> argparse.ArgumentParser:
     st.add_argument("--title")
     st.add_argument("--commit", dest="commits", type=_commits, help="the task's commit(s): 'sha[,sha]'")
     st.add_argument("--options", type=_options, help="choices for a needs_decision task: 'a|b'")
+    st.add_argument("--eta", dest="eta_min", type=_eta, help="estimated minutes for the task")
+    st.add_argument("--est-cost", dest="est_cost", type=_usd, help="estimated dollars for the task")
+    st.add_argument("--agent", type=_agent, help="count this agent's cost for the task")
     sub.add_parser("list")
     return p
 
@@ -85,7 +116,7 @@ def run(argv: list[str]) -> int:
                             **({"commits": args.commits} if args.commits else {})})
     elif args.cmd == "set":
         fields = {k: getattr(args, k) for k in ("status", "note", "branch", "role", "title", "options",
-                                               "commits")
+                                               "commits", "eta_min", "est_cost", "agent")
                   if getattr(args, k) is not None}
         if not fields:
             print("board set: nothing to change", file=sys.stderr)
