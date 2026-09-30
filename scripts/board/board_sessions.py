@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from board_config import (BURN_WINDOW_S, CONTEXT_WARN_RATIO, SESSION_HIDE_AFTER_S, SUBAGENT_DIR,
+from board_config import (BURN_WINDOW_S, AgentStatus, CONTEXT_WARN_RATIO, SESSION_HIDE_AFTER_S, SUBAGENT_DIR,
                           SUBAGENT_PREFIX, TRANSCRIPT_SUFFIX, TaskStatus)
 from board_cost import context_use, epoch, summarize
 
@@ -109,6 +109,26 @@ def session_view(sess: dict, cache, basis: dict, now: float) -> dict:
             else round(total["cost"] + rate * basis["remaining_h"], 4)}
 
 
+def agent_costs(state: dict, cache) -> dict:
+    """Per Agent-activity row (keyed like state["agents"]) what its transcript has cost so far —
+    a running agent's transcript is read incrementally. A row whose agent id or transcript is not
+    known yet is `measured: False` (the page says "cannot be measured yet"). `total` covers
+    the measured rows only; `by_type` is the same per agent type (the roles panel)."""
+    paths = agent_paths(state)
+    rows, measured, by_type = {}, [], {}
+    for key, a in state["agents"].items():
+        tr = cache.get(paths.get(a.get("agent_id") or ""))
+        rows[key] = {"measured": tr is not None, "summary": summarize([tr]) if tr else None}
+        if tr:
+            measured.append(tr)
+            by_type.setdefault(a["type"], []).append(tr)
+    return {"rows": rows, "total": summarize(measured),
+            # a DENIED agent never ran: it has nothing to measure, so it is not "not measured yet"
+            "unmeasured": sum(1 for k, r in rows.items()
+                              if not r["measured"] and state["agents"][k]["status"] != AgentStatus.DENIED),
+            "by_type": {t: summarize(trs) for t, trs in by_type.items()}}
+
+
 def board_costs(state: dict, cache, now: float) -> dict:
     """Everything cost-related /api/state adds: per session, per task, and the basis."""
     basis = open_eta(state, now)
@@ -119,4 +139,5 @@ def board_costs(state: dict, cache, now: float) -> dict:
     return {"sessions": [session_view(s, cache, basis, now) for s in shown],
             "tasks": {tid: task_cost(t, owners.get(tid, []), paths, cache, now)
                       for tid, t in state["tasks"].items()},
+            "agent_rows": agent_costs(state, cache),
             "basis": basis, "warn_ratio": CONTEXT_WARN_RATIO}

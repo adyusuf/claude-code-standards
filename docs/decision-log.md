@@ -566,6 +566,9 @@ The board gained cost tracking, session views, task/skill queueing, and app mode
   may record output_tokens at stream start, so agent cost may be undercounted; the board
   shows this as a note. Cost lives in task and session projections as estimates, each
   carrying its basis (the rate and ETA it rests on).
+- **Agents carry their own cost (user request, 30/09/2026).** Each Agent-activity row shows
+  tokens and cost from its transcript, with a total row over the measured agents; an
+  agent whose id or transcript is unknown is "cannot be measured yet", never zero.
 - **Sessions are the unit of work.** The board shows session state (busy/idle) with the
   24-hour visibility window. A task's cost is the sum of its linked agents' transcripts (by
   [T-n] tag in the Agent call or explicit `board.py set --agent` link). A projection is an

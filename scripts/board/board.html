@@ -74,6 +74,7 @@ button.act:hover{border-color:var(--muted)}
 .send select{max-width:190px;border:1px solid var(--line);border-radius:6px;padding:3px 5px;background:var(--panel);color:var(--ink);font:inherit;font-size:12px}
 .modes{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
 button.mode.on{border-color:var(--run);color:var(--run);font-weight:650}
+tr.total td{background:var(--chip);border-top:1px solid var(--line)}
 .help{font-size:12px;color:var(--muted);margin:6px 2px 0}.help p{margin:3px 0}
 </style>
 </head>
@@ -116,9 +117,11 @@ button.mode.on{border-color:var(--run);color:var(--run);font-weight:650}
   <h2 data-i18n="activityHdr"></h2>
   <div class="card"><table>
     <thead><tr><th data-i18n="colAgent"></th><th data-i18n="colTask"></th><th data-i18n="colStatus"></th>
-      <th data-i18n="colStarted"></th><th data-i18n="colTime"></th><th data-i18n="colNote"></th></tr></thead>
+      <th data-i18n="colStarted"></th><th data-i18n="colTime"></th><th data-i18n="colTokens"></th>
+      <th data-i18n="colCost"></th><th data-i18n="colNote"></th></tr></thead>
     <tbody id="agents"></tbody>
   </table></div>
+  <div class="help" id="agentsHelp"></div>
 </main>
 <script src="board_ui_text.js"></script>
 <script src="board_ui_sessions.js"></script>

@@ -115,6 +115,14 @@ The hook records the paths to Claude Code's own transcript files (`transcript_pa
 are found in `<session-transcript-path-without-.jsonl>/subagents/agent-<id>.jsonl`. The cost
 cache holds one `Transcript` object per path (thread-safe) and updates in place.
 
+**Agents:** every row of the Agent activity table carries its own tokens (in / out / cache
+read / cache write) and cost, read from that agent's transcript (the `SubagentStop` path, else
+`<session>/subagents/agent-<id>.jsonl`); a running agent shows its cost so far, read
+incrementally. A row whose agent id or transcript is not known yet says "cannot be measured
+yet" and is left out of the total row, which counts the measured agents and names how many
+are not. The roles panel adds each role's cost. Rows for resumed / Workflow agents exist only
+once T-2 opens them on `SubagentStart`, so their cost column depends on it.
+
 **Context:** the last main-thread call's input + cache read + cache write tokens, set against
 the model's window size. The board shows **"context warn" at ≥80%** — a UX reminder, never a
 block. Compacting the context (`/compact`) is the user's own command in Claude Code; neither

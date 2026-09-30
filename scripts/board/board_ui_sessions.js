@@ -110,6 +110,36 @@
     return lines.map((l, i) => (i ? muted(l) : l)).join("");
   }
 
+  /** in / out / cache read / cache write, each abbreviated the same way everywhere. */
+  function tokenBreakdown(t, tokens) {
+    const write = (tokens.cache_write_5m || 0) + (tokens.cache_write_1h || 0);
+    return [[t("tokIn"), tokens.input], [t("tokOut"), tokens.output], [t("tokCacheR"), tokens.cache_read],
+      [t("tokCacheW"), write]].map(([label, n]) => `${esc(label)} ${esc(fmtTok(n || 0))}`).join(" · ");
+  }
+
+  /** An Agent-activity row's Tokens and Cost cells. Not measured = no agent id or no transcript yet. */
+  function agentCostCells(t, row) {
+    if (!row || !row.measured) return `<td class="muted" colspan="2">${esc(t("notMeasuredYet"))}</td>`;
+    const s = row.summary;
+    const unpriced = s.unpriced.length ? muted(`${esc(t("unpriced"))}: ${s.unpriced.map(esc).join(", ")}`) : "";
+    return `<td class="muted">${tokenBreakdown(t, s.tokens)}</td><td><b>${esc(fmtUsd(t, s.cost))}</b>${unpriced}</td>`;
+  }
+
+  /** The closing row of the Agent-activity table: every measured agent, and how many are not. */
+  function agentTotalRow(t, agentRows) {
+    if (!agentRows || !agentRows.total) return "";  // an older server sends no costs
+    const s = agentRows.total;
+    const missing = agentRows.unmeasured ? muted(`${agentRows.unmeasured} ${esc(t("notMeasuredYet"))}`) : "";
+    return `<tr class="total"><td colspan="5"><b>${esc(t("total"))}</b></td><td class="muted">${
+      tokenBreakdown(t, s.tokens)}</td><td><b>${esc(fmtUsd(t, s.cost))}</b>${missing}</td><td></td></tr>`;
+  }
+
+  /** What a role's agents have cost so far, for the roles panel; empty until one is measured. */
+  function roleCostText(t, agentRows, role) {
+    const s = agentRows && agentRows.by_type[role];
+    return s ? ` · ${fmtUsd(t, s.cost)}` : "";
+  }
+
   /** Mode buttons A-E; the active one is marked. */
   function modesHtml(t, st) {
     const note = st.mode_by === "board" ? ` <span class="muted">(${esc(t("modeByBoard"))})</span>` : "";
@@ -117,5 +147,5 @@
       `<button class="act mode${m === st.mode ? " on" : ""}" data-mode="${esc(m)}" aria-pressed="${m === st.mode}">${esc(m)}</button>`).join("")}${note}`;
   }
 
-  return { fmtUsd, fmtTok, sessionsHtml, helpHtml, taskCostHtml, modesHtml, contextHtml, costHtml, projectionHtml };
+  return { fmtUsd, fmtTok, tokenBreakdown, agentCostCells, agentTotalRow, roleCostText, sessionsHtml, helpHtml, taskCostHtml, modesHtml, contextHtml, costHtml, projectionHtml };
 });

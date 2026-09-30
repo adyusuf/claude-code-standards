@@ -73,6 +73,7 @@
     const skills = extra.skills || [];
     const drafts = extra.drafts || {};
     const taskCosts = (st.costs && st.costs.tasks) || {};
+    const agentRows = (st.costs && st.costs.agent_rows) || { rows: {}, by_type: {}, unmeasured: 0, total: null };
     const tasks = Object.values(st.tasks);
     const agents = st.agents;
     const agentList = Object.values(agents).sort((a, b) => (b.started || "").localeCompare(a.started || ""));
@@ -106,7 +107,7 @@
         const n = agentList.filter((a) => a.type === r && LIVE.has(a.status)).length;
         return `<div class="role${on ? "" : " off"}"><button class="switch" role="switch" aria-checked="${on}"
           aria-label="${esc(r)} ${esc(on ? t("roleOn") : t("roleOff"))}" data-role="${esc(r)}"></button>
-          <span>${esc(r)}</span><span class="cnt">${n} ${esc(t("running"))}</span></div>`;
+          <span>${esc(r)}</span><span class="cnt">${n} ${esc(t("running"))}${esc(panel.roleCostText(t, st.costs && st.costs.agent_rows, r))}</span></div>`;
       }).join(""),
       sessionsHtml: panel.sessionsHtml(t, st, skills, drafts, now),
       sessionsHelp: panel.helpHtml(t, st.costs, st.stop_wait_s),
@@ -125,11 +126,13 @@
             <td><button class="act" data-task="${esc(x.id)}" data-action="${removed ? "restore_task" : "remove_task"}">
               ${esc(removed ? t("restore") : t("remove"))}</button></td></tr>`;
         }).join(""),
-      agentsHtml: !agentList.length ? `<tr><td colspan="6" class="empty">${esc(t("noAgents"))}</td></tr>` :
+      agentsHtml: !agentList.length ? `<tr><td colspan="8" class="empty">${esc(t("noAgents"))}</td></tr>` :
         agentList.slice(0, 30).map((a) => `<tr><td>${esc(a.type)}</td><td>${esc(a.task || "—")}</td>
           <td>${badge(t, a.status)}</td><td class="muted">${esc(fmtStamp(a.started, now))}</td>
           <td class="muted">${esc(a.status === "denied" ? "—" : fmtDur(t, a.started, a.ended, now))}</td>
-          <td>${esc(a.reason || a.description)}</td></tr>`).join(""),
+          ${a.status === "denied" ? `<td class="muted" colspan="2">—</td>` : panel.agentCostCells(t, agentRows.rows[a.key])}
+          <td>${esc(a.reason || a.description)}</td></tr>`).join("") + panel.agentTotalRow(t, agentRows),
+      agentsHelp: agentList.length ? `<p>${esc(t("undercount"))}</p><p>${esc(t("agentRowsNote"))}</p>` : "",
     };
   }
 
@@ -177,6 +180,7 @@
       if (!focused("queueFor") && !focused("skillFor")) $("sessions").innerHTML = v.sessionsHtml;
       $("sessionsHelp").innerHTML = v.sessionsHelp;
       $("agents").innerHTML = v.agentsHtml;
+      $("agentsHelp").innerHTML = v.agentsHelp;
     }
 
     async function refresh() {
