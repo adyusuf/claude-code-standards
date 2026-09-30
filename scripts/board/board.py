@@ -21,7 +21,7 @@ import sys
 
 from board_config import (AGENT_ID_PATTERN, AUTO_TASK_ID, CHOICE_MAX, COMMIT_PATTERN, EST_COST_MAX_USD,
                           ETA_MAX_MIN, EVENTS_FILE, ROLE_PATTERN, TASK_ID_PATTERN, TaskStatus, board_dir)
-from board_enable import enable
+from board_enable import checkout_root, enable
 from board_registry import register, register_if_missing
 from board_store import append_event, fold, read_control, read_events
 from board_tasks import TaskExists, add_task
@@ -131,9 +131,9 @@ def run(argv: list[str]) -> int:
               file=sys.stderr)
         return 2
     if args.cmd == "enable":
-        root = bdir.parent.parent
+        root = bdir.parent.parent  # the main checkout: where the board is listed
         try:
-            changes = enable(root)
+            changes = enable(checkout_root(root))  # the checkout you are in: where the files are written
         except ValueError as exc:
             print(f"board: {exc}", file=sys.stderr)
             return 2
