@@ -118,12 +118,31 @@ When writing a comment: **what** is wrong + **why** it matters + **a suggestion*
 
 - Into `dev`: a **merge commit** (`--no-ff`) that keeps every task's own commit. Never squash: a squashed
   batch loses the per-task history (#26).
-- **Batch merge (#26, user decision 29/09/2026 — gates are long):** finished tasks, each in its own
-  commit(s), are collected on one batch branch off `dev` (or their branches are merged into it with
-  `--no-ff`), the gate runs ONCE on the batch, and the batch is merged to `dev` in one merge commit.
-  A red batch gate is not waved through: bisect the batch (drop the newest task, re-run) to find the
-  task that broke it, fix it in its own commit, and re-run the gate.
+- **Batch promotion (#26, user decisions 29/09/2026 and 30/09/2026 — gates are long).** Promotions to
+  `dev` and to `test` are made in batches, never one feature / worktree at a time:
+  1. **Collect:** every READY sub-branch (feature branch or worktree branch, each task in its own
+     commit(s)) is merged with `--no-ff` into one batch branch cut from the fresh target. No
+     per-branch test or gate run happens before this — the tests and the gate run ONCE, on the batch.
+  2. **Run:** the full test suite and the gate run on the batch (#31: the whole run, no stop at the
+     first failure; every failure classified and attributed to the sub-branch that caused it).
+  3. **Fix where it was born:** each failure is fixed **on its own sub-branch** (its own commit),
+     never as a patch on the batch branch; the fixed sub-branches are merged into the batch again,
+     together.
+  4. **Re-verify — this is where `dev` and `test` differ:**
+     - **→ `dev`:** re-run **only the failed tests** (plus what the fix could affect, `00` §11.3),
+       then the gate, then merge the batch to `dev` in one merge commit.
+     - **→ `test`:** re-run the **FULL test suite** (not only what failed), then the gate, then merge
+       to `test`. A narrow re-run is not enough on the way to `test`.
+  5. **A red batch is never waved through**, and the gate's step set is never trimmed to fit a
+     narrow re-run (#25).
+- **"Batch" does NOT chain the stages.** A batch reaching `dev` says nothing about `test`: the
+  `dev → test` promotion is a separate batch, a separate full run and gate, and the user's own
+  decision (#26.4). Never read "batch" as "merged to `dev` ⇒ also merged to `test`".
 - `dev → test → prod`: a **promotion**, fast-forward/merge. Never a merge in the reverse direction.
+- **The `prod` gate runs on the tip of `test` itself** — a detached checkout of `origin/test` —
+  never on a `test`-into-`prod` merge candidate: its deploy step compares `HEAD` with the SHA the
+  test environment runs, so a candidate's new merge commit fails it by construction (measured
+  29/09/2026). The merge to `prod` follows the green run.
 - **No** direct commit or PR to `test` and `prod` — only from the previous stage, with the user's approval.
 - Before merging, `git fetch` and update if you are behind — a gate running against stale code gives false confidence.
 - A `--force` push happens only on your own feature branch and only with explicit approval.

@@ -238,6 +238,8 @@ repeatedly, although each fix could be proven by running only the step that fail
 5. **A moving base is not a failure:** if `dev` moved, rebase and re-run the narrow check; do not restart the world.
 6. **Never run two gates/test batteries in the same worktree at the same time** (shared ports, temp DB clusters,
    coverage dirs, branch checkout) — the second run invalidates the first.
+7. **On a batch promotion to `test` the narrow re-run of step 3 is not enough:** after the fixes the FULL
+   suite runs again before the gate. On the way to `dev` step 3 stands (`13-pr-and-review.md` §8).
 
 ## 12. Parallelism and reuse in test / coverage / gate runs (PERMANENT, all projects)
 
