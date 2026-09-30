@@ -946,3 +946,24 @@ subagent runs in the same window the median was 52,313 tokens. Method and repeat
 green on the third attempt — the gate itself worked, but each commit that claimed to
 fix it was written without measuring first. Lesson: the size gate is run BEFORE
 committing.
+
+## MCP channels to reach an idle session — measurement (30/09/2026, T-24 phase 1)
+
+Question: can the live board push a new task into an IDLE Claude Code session? Hooks
+cannot (they need a running turn). Claude Code 2.1.281 has MCP channels.
+
+- **Measured:** a minimal stdlib stdio server (capability `claude/channel`) pushed a
+  message into an idle interactive CLI session; the session woke and answered correctly
+  (2/2). Enqueue → dequeue 20 ms. The notification shape is `params: {content, meta}`
+  (reference: the official `fakechat` channel plugin).
+- **Constraints found:** a manually configured server needs
+  `--dangerously-load-development-channels server:<name>` plus a startup confirmation
+  dialog; claude.ai Teams/Enterprise needs `channelsEnabled: true`; a server that
+  negotiates a "modern" protocol revision is skipped by the client (the probe echoing the
+  client's protocol version was NOT skipped); the desktop app passes no channel flag.
+- **Decision:** channels are an OPTIONAL extra for terminal sessions, never a replacement
+  for hooks (deterministic, zero tokens, can block). Phase 2 (a board channel server,
+  UI toggle) depends on T-23's session registry and control queue and is built after
+  T-23 is on `dev`.
+- **Why the probe is not committed:** it was a throwaway measurement; the product server
+  (phase 2) will carry tests and coverage (#29).
