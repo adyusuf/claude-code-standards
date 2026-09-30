@@ -232,7 +232,17 @@ node_test() {
 node_audit() {
   for d in "$WEB_DIR" "$MOBILE_DIR"; do
     [ -n "$d" ] || continue
-    if have npm; then
+    # A pnpm workspace has pnpm-lock.yaml and NO package-lock.json, so `npm audit` fails with
+    # ENOLOCK on every run: the step "failed" for the wrong reason and the dependencies were never
+    # scanned (30/09/2026: 2 critical + 27 high production advisories nobody had seen). Use the
+    # tool that owns the lockfile; a missing pnpm is SKIPPED, never a pass.
+    if [ -f "$d/pnpm-lock.yaml" ] || { [ "$d" != "." ] && [ -f "pnpm-lock.yaml" ]; }; then
+      if have pnpm; then
+        local out; out="$(mktemp)"
+        if pnpm --dir "$d" audit --audit-level=high >"$out" 2>&1; then ok "pnpm audit ($d)"; else bad "pnpm audit ($d): high or critical"; tail -10 "$out" | sed 's/^/      /'; fi
+        rm -f "$out"
+      else skip "pnpm audit ($d): pnpm missing"; fi
+    elif have npm; then
       local out; out="$(mktemp)"
       if npm --prefix "$d" audit --audit-level=high >"$out" 2>&1; then ok "npm audit ($d)"; else bad "npm audit ($d): high or critical"; tail -10 "$out" | sed 's/^/      /'; fi
       rm -f "$out"
@@ -338,7 +348,7 @@ if [ "$TARGET" != "prod" ]; then
   say "dependency CVE"
   if [ "$LIST_ONLY" = 1 ]; then
     [ "$HAS_DOTNET" = 1 ] && { printf '  → %-42s %s\n' "dotnet vulnerable packages" "dotnet list package --vulnerable${SLN:+ ($SLN)}"; PASS+=("dotnet cve"); }
-    for d in "$WEB_DIR" "$MOBILE_DIR"; do [ -n "$d" ] && { printf '  → %-42s %s\n' "npm audit ($d)" "npm --prefix $d audit --audit-level=high"; PASS+=("npm audit $d"); }; done
+    for d in "$WEB_DIR" "$MOBILE_DIR"; do [ -n "$d" ] && { if [ -f "$d/pnpm-lock.yaml" ] || { [ "$d" != "." ] && [ -f "pnpm-lock.yaml" ]; }; then printf '  → %-42s %s\n' "pnpm audit ($d)" "pnpm --dir $d audit --audit-level=high"; PASS+=("pnpm audit $d"); else printf '  → %-42s %s\n' "npm audit ($d)" "npm --prefix $d audit --audit-level=high"; PASS+=("npm audit $d"); fi; }; done
   else
   # ⚠️ FAIL-CLOSED. This step used to pipe the listing straight into a grep for
   # "critical|high" and call everything else a pass — so a listing that never
