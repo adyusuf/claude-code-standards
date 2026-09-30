@@ -7,6 +7,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from board_todos import TODO_EVENTS, apply as apply_todo
 from board_config import (ACK_FILE, CHANGES_KEPT, CONTROL_FILE, EVENTS_FILE, AgentStatus,
                           ControlAction, SessionState, TaskStatus)
 
@@ -99,8 +100,8 @@ def fold(events: list[dict], control: dict | None = None) -> dict:
             state["mode"] = ev.get("mode")
             state["roles"] = list(ev.get("roles", []))
             state["mode_by"] = None
-        elif kind == "todo_sync" and sid:  # the session's todo list, replaced as a whole
-            state["sessions"][sid]["todos"] = ev.get("todos") or []
+        elif kind in TODO_EVENTS and sid:  # the session's todo list (board_todos.py)
+            apply_todo(state["sessions"][sid], kind, ev)
         elif kind == "mode_set":  # the user picked the mode on the board (#27)
             state["mode"], state["mode_by"] = ev.get("mode"), ev.get("by")
         elif kind == "task_add":

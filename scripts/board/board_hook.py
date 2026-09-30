@@ -14,8 +14,9 @@ import sys
 import time
 
 from board_config import (AGENT_TOOL, DECISION_POLL_S, DECISION_WAIT_S, TASK_TAG_PATTERN,
-                          TODO_MAX_ITEMS, TODO_TEXT_MAX, TODO_TOOL, ControlAction, TaskStatus,
-                          TodoStatus, board_dir)
+                          TASK_CREATE_TOOL, TASK_UPDATE_TOOL, TODO_TOOL, ControlAction, TaskStatus,
+                          board_dir)
+import board_todos
 from board_channel_ack import confirm as _channel_confirm
 from board_channel_ack import peek_changes as _peek_changes
 from board_channel_ack import unseen_changes
@@ -95,21 +96,19 @@ def wait_for_decision(bdir, session: str, wait_s: float, poll_s: float = DECISIO
         time.sleep(poll_s)
 
 
-def todo_snapshot(tool_input: dict) -> list[dict] | None:
-    """The main session's todo list as TodoWrite sent it (the whole list every time), cut down to
-    what the board shows. None = the payload is not the shape the CLI documents: nothing is
-    recorded, the board just has no todo line (fail-safe, never a guess)."""
-    todos = tool_input.get("todos")
-    if not isinstance(todos, list):
-        return None
-    items = []
-    for t in todos[:TODO_MAX_ITEMS]:
-        if not isinstance(t, dict) or t.get("status") not in TodoStatus.ALL:
-            continue
-        label = t.get("activeForm") if t["status"] == TodoStatus.IN_PROGRESS else None
-        items.append({"content": str(t.get("content") or "")[:TODO_TEXT_MAX], "status": t["status"],
-                      "active": str(label or t.get("content") or "")[:TODO_TEXT_MAX]})
-    return items
+def _record_todo(bdir, session: str, tool: str, tin: dict, resp) -> None:
+    """The main session's todo tools (a subagent's own list is not the session's) — see board_todos.py."""
+    if tool == TODO_TOOL:
+        items = board_todos.snapshot(tin)
+        event = None if items is None else {"type": "todo_sync", "todos": items}
+    elif tool == TASK_CREATE_TOOL:
+        item = board_todos.created(tin, resp)
+        event = None if item is None else {"type": "todo_add", "item": item}
+    else:
+        change = board_todos.updated(tin)
+        event = None if change is None else {"type": "todo_update", "change": change}
+    if event:
+        append_event(bdir, {"session": session, **event})
 
 
 def _context(event_name: str, text: str) -> dict:
@@ -149,10 +148,8 @@ def handle(payload: dict) -> dict | None:
             append_event(bdir, {"type": "agent_post", "session": session,
                                 "tool_use_id": payload.get("tool_use_id"),
                                 "launched": launched, "agent_id": resp.get("agentId")})
-        if tool == TODO_TOOL and not payload.get("agent_id"):
-            items = todo_snapshot(tin)
-            if items is not None:
-                append_event(bdir, {"type": "todo_sync", "session": session, "todos": items})
+        if tool in (TODO_TOOL, TASK_CREATE_TOOL, TASK_UPDATE_TOOL) and not payload.get("agent_id"):
+            _record_todo(bdir, session, tool, tin, payload.get("tool_response"))
         if payload.get("agent_id"):
             # A subagent's tool call (modes C/D/E): it must not consume a notice meant
             # for the orchestrator, or the orchestrator would never see the change.

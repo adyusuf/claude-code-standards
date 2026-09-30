@@ -76,6 +76,8 @@ ACK_FILE = "control_ack.json"
 
 AGENT_TOOL = "Agent"
 TODO_TOOL = "TodoWrite"  # its input is {todos: [{content, status, activeForm}]}, the whole list each time
+TASK_CREATE_TOOL = "TaskCreate"  # the incremental task tools; shapes in board_todos.py
+TASK_UPDATE_TOOL = "TaskUpdate"
 TODO_MAX_ITEMS = 50
 TODO_TEXT_MAX = 200
 TASK_TAG_PATTERN = r"\[(T-\d+)\]"
@@ -134,6 +136,7 @@ class TodoStatus:
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
+    DELETED = "deleted"  # TaskUpdate only
     ALL = (PENDING, IN_PROGRESS, COMPLETED)
 
 
