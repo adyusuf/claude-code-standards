@@ -608,6 +608,19 @@ The board gained cost tracking, session views, task/skill queueing, and app mode
 → `standards/22-live-board.md` §2c §2d §2e, rule #27 (mode selection from the board is
 the user's approval)
 
+## §19 — the dependency scan must run in a pnpm workspace too (30/09/2026, T-26)
+
+The gate's Node step was `npm audit`, which needs a `package-lock.json`. A pnpm workspace has
+`pnpm-lock.yaml` only, so it failed with `ENOLOCK` on every run — the step was red for the wrong
+reason and nobody read it, so the dependencies were never scanned. Run by hand (`pnpm audit`), the
+production dependencies of one project carried **2 critical and 27 high** advisories (`next` 14,
+`multer`, `adm-zip`, `js-yaml`, `lodash`, `nanoid`, `postcss`), none of them ever shown by the gate.
+`gate-core.sh` now uses `pnpm --dir <d> audit --audit-level=high` when the directory (or, for a
+sub-package, the repository root) has `pnpm-lock.yaml`; a missing pnpm is SKIPPED, a scan that could
+not run is a failure, and an npm project still uses `npm audit`. `test_gate_core_pnpm_audit.py`
+pins six cases (the four pnpm ones fail on the old loop). Lesson: a gate step that always fails is
+as blind as one that never runs — read the *reason* on a red step, not only the colour.
+
 ## §16 · §28 · never-do list — the enforcement tooling
 
 Rules that stayed prose were the ones that failed silently, so each was given a check
