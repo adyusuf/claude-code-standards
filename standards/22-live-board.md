@@ -48,6 +48,7 @@ call to its `SubagentStop.agent_id`; `UserPromptSubmit` carries `prompt`.
     "SessionStart": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_ensure.py\" || true" }] }],
     "PreToolUse": [{ "matcher": "Agent", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
     "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
+    "SubagentStart": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
     "SubagentStop": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
     "Stop": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true", "timeout": 900 }] }],
     "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }]
@@ -120,8 +121,20 @@ read / cache write) and cost, read from that agent's transcript (the `SubagentSt
 `<session>/subagents/agent-<id>.jsonl`); a running agent shows its cost so far, read
 incrementally. A row whose agent id or transcript is not known yet says "cannot be measured
 yet" and is left out of the total row, which counts the measured agents and names how many
-are not. The roles panel adds each role's cost. Rows for resumed / Workflow agents exist only
-once T-2 opens them on `SubagentStart`, so their cost column depends on it.
+are not. The roles panel adds each role's cost. A resumed agent (`SendMessage`) or a Workflow
+agent never passes through the Agent tool's `PreToolUse`, so `SubagentStart` (with a non-empty
+`agent_type`) opens its row and `SubagentStop` closes it; an agent that already has a row from the
+Agent tool runs again in that row (no duplicate), and an untyped internal subagent is ignored.
+Projects enabled before 30/09/2026 add the `SubagentStart` line to their settings block to get
+these rows; without it everything else keeps working.
+
+**Todo list:** the sessions panel shows each session's own todo progress ("todo 2/5 · what is
+running now"). The main session's `TodoWrite` call (input `{todos:[{content,status,activeForm}]}`,
+the whole list each time — verified in the CLI binary, not guessed) is recorded by the existing
+`PostToolUse` `*` hook as `todo_sync`; the latest list replaces the previous one, an empty list
+clears it, a subagent's call is ignored, and any other shape records nothing (no todo line, never
+an invented one). `TaskCreate`/`TaskUpdate` (the incremental task tools) are not mirrored: their
+response carries the id the board would need and that shape is not documented, so that stays open.
 
 **Context:** the last main-thread call's input + cache read + cache write tokens, set against
 the model's window size. The board shows **"context warn" at ≥80%** — a UX reminder, never a
@@ -209,6 +222,20 @@ files in the repository** — icons are generated on request from the server.
 
 **Service worker** (`/sw.js`): caches nothing. The board is ephemeral and always fresh; a
 stale cache would be worse than a reload.
+
+## 2f. Task ids and where the CLI writes (T-28, 30/09/2026)
+
+Several sessions write to one board, and ids were typed by hand: T-25 was taken by three
+sessions and T-26 by two, so a later `add` silently replaced an earlier task's title. And
+`board.py` finds the board from the working directory's repository, so a `set` typed in another
+project's tree created a stray `.claude/board/` there.
+
+- `board.py add auto "<title>"` reads the log and appends **under an exclusive lock**
+  (`tasks.lock`), so parallel sessions cannot draw the same number; it prints the id.
+- `add T-n` with an id that already exists is **refused** (exit 2) and writes nothing.
+- A repository with no board (no `events.jsonl`) is **refused** for `plan`/`add`/`set` unless
+  `--init` is given; `list` there prints nothing and creates nothing. A repository whose hooks
+  are wired already has a board (the first hook event creates it), so nothing changes for it.
 
 ## 3. Permanent rules
 

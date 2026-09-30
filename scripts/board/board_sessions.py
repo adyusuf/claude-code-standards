@@ -9,7 +9,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from board_config import (BURN_WINDOW_S, AgentStatus, CONTEXT_WARN_RATIO, SESSION_HIDE_AFTER_S, SUBAGENT_DIR,
-                          SUBAGENT_PREFIX, TRANSCRIPT_SUFFIX, TaskStatus)
+                          SUBAGENT_PREFIX, TRANSCRIPT_SUFFIX, TaskStatus, TodoStatus)
 from board_cost import context_use, epoch, summarize
 
 CLOSED = (TaskStatus.DONE, TaskStatus.FAILED, TaskStatus.REMOVED)
@@ -88,6 +88,15 @@ def open_eta(state: dict, now: float) -> dict:
             "no_eta_tasks": len(lefts) - len(known), "window_s": BURN_WINDOW_S}
 
 
+def todo_summary(todos: list | None) -> dict | None:
+    """done/total and what is being worked on now; None = this session never sent a todo list."""
+    if not todos:
+        return None
+    now = next((t["active"] for t in todos if t["status"] == TodoStatus.IN_PROGRESS), None)
+    return {"done": sum(1 for t in todos if t["status"] == TodoStatus.COMPLETED),
+            "total": len(todos), "current": now}
+
+
 def session_view(sess: dict, cache, basis: dict, now: float) -> dict:
     main = cache.get(sess.get("transcript"))
     subs = [t for t in (cache.get(str(f)) for f in subagent_files(sess.get("transcript"))) if t]
@@ -101,7 +110,7 @@ def session_view(sess: dict, cache, basis: dict, now: float) -> dict:
             "last": sess.get("last"), "has_transcript": main is not None,
             "orchestration": summarize([main]) if main else None,
             "agents": summarize(subs), "subagents": len(subs), "total": total,
-            "rate_per_h": rate, "context": ctx,
+            "rate_per_h": rate, "context": ctx, "todos": todo_summary(sess.get("todos")),
             "context_warn": bool(ctx and ctx["ratio"] is not None
                                  and ctx["ratio"] >= CONTEXT_WARN_RATIO),
             # basis: rate over the last BURN_WINDOW_S x the open tasks' remaining ETA

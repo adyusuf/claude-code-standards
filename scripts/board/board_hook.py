@@ -1,6 +1,6 @@
 """Claude Code hook entrypoint: records agent lifecycle and enforces board controls.
 
-Wire it for PreToolUse/PostToolUse (matcher "Agent"), SubagentStop, Stop,
+Wire it for PreToolUse/PostToolUse (matcher "Agent"), SubagentStart, SubagentStop, Stop,
 UserPromptSubmit and PostToolUse (matcher "*") — the settings block is in
 standards/22-live-board.md. The Stop hook also waits, for a bounded time, for the
 user's answer to a question Claude put on the board (needs_decision). A task or skill the
@@ -14,7 +14,8 @@ import sys
 import time
 
 from board_config import (AGENT_TOOL, DECISION_POLL_S, DECISION_WAIT_S, TASK_TAG_PATTERN,
-                          ControlAction, TaskStatus, board_dir)
+                          TODO_MAX_ITEMS, TODO_TEXT_MAX, TODO_TOOL, ControlAction, TaskStatus,
+                          TodoStatus, board_dir)
 from board_channel_ack import confirm as _channel_confirm
 from board_channel_ack import peek_changes as _peek_changes
 from board_channel_ack import unseen_changes
@@ -94,6 +95,23 @@ def wait_for_decision(bdir, session: str, wait_s: float, poll_s: float = DECISIO
         time.sleep(poll_s)
 
 
+def todo_snapshot(tool_input: dict) -> list[dict] | None:
+    """The main session's todo list as TodoWrite sent it (the whole list every time), cut down to
+    what the board shows. None = the payload is not the shape the CLI documents: nothing is
+    recorded, the board just has no todo line (fail-safe, never a guess)."""
+    todos = tool_input.get("todos")
+    if not isinstance(todos, list):
+        return None
+    items = []
+    for t in todos[:TODO_MAX_ITEMS]:
+        if not isinstance(t, dict) or t.get("status") not in TodoStatus.ALL:
+            continue
+        label = t.get("activeForm") if t["status"] == TodoStatus.IN_PROGRESS else None
+        items.append({"content": str(t.get("content") or "")[:TODO_TEXT_MAX], "status": t["status"],
+                      "active": str(label or t.get("content") or "")[:TODO_TEXT_MAX]})
+    return items
+
+
 def _context(event_name: str, text: str) -> dict:
     return {"hookSpecificOutput": {"hookEventName": event_name, "additionalContext": text}}
 
@@ -131,12 +149,24 @@ def handle(payload: dict) -> dict | None:
             append_event(bdir, {"type": "agent_post", "session": session,
                                 "tool_use_id": payload.get("tool_use_id"),
                                 "launched": launched, "agent_id": resp.get("agentId")})
+        if tool == TODO_TOOL and not payload.get("agent_id"):
+            items = todo_snapshot(tin)
+            if items is not None:
+                append_event(bdir, {"type": "todo_sync", "session": session, "todos": items})
         if payload.get("agent_id"):
             # A subagent's tool call (modes C/D/E): it must not consume a notice meant
             # for the orchestrator, or the orchestrator would never see the change.
             return None
         text = _change_text(unseen_changes(bdir, session), session)
         return _context("PostToolUse", text) if text else None
+
+    if event == "SubagentStart":
+        # Opens a row for agents that never pass through the Agent tool (SendMessage resumes,
+        # Workflow agents); an untyped internal subagent has no agent_type and is ignored.
+        if payload.get("agent_id") and payload.get("agent_type"):
+            append_event(bdir, {"type": "agent_start", "session": session,
+                                "agent_id": payload["agent_id"], "agent_type": payload["agent_type"]})
+        return None
 
     if event == "SubagentStop":
         append_event(bdir, {"type": "agent_stop", "session": session,
