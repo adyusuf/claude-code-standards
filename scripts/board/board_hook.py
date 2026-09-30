@@ -15,8 +15,8 @@ import sys
 import time
 
 from board_config import (AGENT_TOOL, DECISION_POLL_S, DECISION_WAIT_S, TASK_TAG_PATTERN,
-                          TASK_CREATE_TOOL, TASK_UPDATE_TOOL, TODO_TOOL, ControlAction, TaskStatus,
-                          board_dir)
+                          BASH_TOOL, BOARD_CMD_PATTERN, TASK_CREATE_TOOL, TASK_UPDATE_TOOL, TODO_TOOL,
+                          ControlAction, TaskStatus, board_dir)
 import board_todos
 from board_registry import register_if_missing
 from board_channel_ack import confirm as _channel_confirm
@@ -154,6 +154,11 @@ def handle(payload: dict) -> dict | None:
                                 "launched": launched, "agent_id": resp.get("agentId")})
         if tool in (TODO_TOOL, TASK_CREATE_TOOL, TASK_UPDATE_TOOL) and not payload.get("agent_id"):
             _record_todo(bdir, session, tool, tin, payload.get("tool_response"))
+        if tool == BASH_TOOL and session and not payload.get("agent_id"):
+            # A session that runs `board.py add|set T-n` is the one working on T-n: its own (orchestrator) cost
+            # in the task's time window belongs to the task even when no agent is linked to it.
+            for tid in dict.fromkeys(re.findall(BOARD_CMD_PATTERN, str(tin.get("command") or ""))):
+                append_event(bdir, {"type": "task_session", "session": session, "id": tid})
         if payload.get("agent_id"):
             # A subagent's tool call (modes C/D/E): it must not consume a notice meant
             # for the orchestrator, or the orchestrator would never see the change.
