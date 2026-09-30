@@ -15,8 +15,10 @@ import time
 
 from board_config import (AGENT_TOOL, DECISION_POLL_S, DECISION_WAIT_S, TASK_TAG_PATTERN,
                           ControlAction, TaskStatus, board_dir)
-from board_store import (append_event, fold, peek_changes as _peek_changes, read_control,
-                         read_events, unseen_changes)
+from board_channel_ack import confirm as _channel_confirm
+from board_channel_ack import peek_changes as _peek_changes
+from board_channel_ack import unseen_changes
+from board_store import append_event, fold, read_control, read_events
 
 
 def task_tag(text: str) -> str | None:
@@ -146,11 +148,13 @@ def handle(payload: dict) -> dict | None:
     if event == "Stop":
         append_event(bdir, {"type": "turn_stop", "session": session,
                             "transcript": payload.get("transcript_path")})
+        _channel_confirm(bdir, session)
         return wait_for_decision(bdir, session, DECISION_WAIT_S)
 
     if event == "UserPromptSubmit":
         append_event(bdir, {"type": "turn_start", "session": session,
                             "transcript": payload.get("transcript_path")})
+        _channel_confirm(bdir, session)
         text = _change_text(unseen_changes(bdir, session), session)
         return _context("UserPromptSubmit", text) if text else None
 

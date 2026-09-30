@@ -29,8 +29,10 @@
   const muted = (html) => `<div class="muted">${html}</div>`;
 
   function stateHtml(t, s, now) {
+    const channel = s.channel
+      ? ` <span class="badge ch" title="${esc(t("channelTitle"))}">${esc(t("channel"))}</span>` : "";
     return `<span class="badge st-${esc(s.state)}">${esc(t(s.state))} ${
-      esc(fmtDur(t, s.since, null, now))}</span>`;
+      esc(fmtDur(t, s.since, null, now))}</span>${channel}`;
   }
 
   function contextHtml(t, s) {
@@ -73,11 +75,14 @@
       <button class="act" data-skill-run="${id}">${esc(t("runSkill"))}</button></div>${queued}`;
   }
 
-  /** The sessions table body: one row per session the server shows. */
-  function sessionsHtml(t, st, skills, drafts, now) {
+  const reachable = (costs) => ((costs && costs.sessions) || []).filter((s) => s.channel);
+
+  /** The sessions table body: one row per session the server shows, or only the ones a channel
+      server can reach when `channelOnly` (the page's checkbox). */
+  function sessionsHtml(t, st, skills, drafts, now, channelOnly = false) {
     const costs = st.costs;
-    const list = (costs && costs.sessions) || [];
-    if (!list.length) return `<tr><td colspan="7" class="empty">${esc(t("noSessions"))}</td></tr>`;
+    const list = channelOnly ? reachable(costs) : (costs && costs.sessions) || [];
+    if (!list.length) return `<tr><td colspan="7" class="empty">${esc(t(channelOnly ? "noChannelSessions" : "noSessions"))}</td></tr>`;
     return list.map((s) => `<tr><td><code title="${esc(s.id)}">${esc(s.id.slice(0, 8))}</code></td>
       <td>${stateHtml(t, s, now)}</td><td>${contextHtml(t, s)}</td><td>${costHtml(t, s)}</td>
       <td>${esc(fmtUsd(t, s.rate_per_h))}${s.rate_per_h == null ? "" : esc(t("perHour"))}</td>
@@ -88,7 +93,8 @@
   function helpHtml(t, costs, waitS) {
     const undercount = ((costs && costs.sessions) || []).some((s) => s.subagents > 0)
       ? `<p>${esc(t("undercount"))}</p>` : "";
-    return `<p>${esc(t("helpCompact"))}</p><p>${esc(fill(t("helpQueue"), { s: waitS }))}</p>${undercount}`;
+    const channel = fill(t("helpChannel"), { n: reachable(costs).length, name: "board-channel" });
+    return `<p>${esc(t("helpCompact"))}</p><p>${esc(fill(t("helpQueue"), { s: waitS }))}</p><p>${esc(channel)}</p>${undercount}`;
   }
 
   /** A task's Cost / ETA cell: spent by its agents, time left, the user's estimate, projection. */

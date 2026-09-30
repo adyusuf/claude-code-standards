@@ -224,3 +224,33 @@ test("taskCostHtml: the first line is plain, every later line is muted, in order
     '<div class="muted">tahmini bütçe $5.00 · kalan $3.50</div>' +
     '<div class="muted">bitiş ≈ $9.00 <span class="muted">(tahmin: görevin kendi $/sa hızı × kalan ETA)</span></div>');
 });
+
+test("a channel-reachable session carries the channel badge, the others do not (tr + en)", () => {
+  const html = rows(stateOf([session({ channel: true, state: "idle" })]));
+  assert.match(html, /<span class="badge ch" title="[^"]*board-channel[^"]*">kanal<\/span>/);
+  assert.match(rows(stateOf([session({ channel: true })]), {}, en), /<span class="badge ch" title="[^"]+">channel<\/span>/);
+  assert.doesNotMatch(rows(stateOf([session({ channel: false })])), /badge ch/);
+  assert.doesNotMatch(rows(stateOf([session()])), /badge ch/);  // an older server sends no flag
+});
+
+test("the channel-only filter keeps just the reachable sessions and says so when there are none", () => {
+  const list = [session({ id: "aaaaaaaa11111111", channel: true }), session({ id: "bbbbbbbb22222222", channel: false })];
+  const all = panel.sessionsHtml(tr, stateOf(list), [], {}, NOW);
+  const only = panel.sessionsHtml(tr, stateOf(list), [], {}, NOW, true);
+  assert.match(all, /aaaaaaaa/);
+  assert.match(all, /bbbbbbbb/);
+  assert.match(only, /aaaaaaaa/);
+  assert.doesNotMatch(only, /bbbbbbbb/);
+  const none = panel.sessionsHtml(tr, stateOf([session({ channel: false })]), [], {}, NOW, true);
+  assert.match(none, /<td colspan="7" class="empty">Kanalla ulaşılabilen oturum yok\.<\/td>/);
+  assert.match(panel.sessionsHtml(en, stateOf([]), [], {}, NOW, true), /No session a channel can reach\./);
+  assert.match(panel.sessionsHtml(en, stateOf([]), [], {}, NOW), /No session in the last 24 hours\./);
+});
+
+test("helpHtml names how many sessions a channel reaches and how to start one", () => {
+  const costs = { sessions: [session({ channel: true }), session({ channel: true }), session({ channel: false })] };
+  assert.match(panel.helpHtml(tr, costs, 180), /Kanal: 2 oturum kanalla ulaşılabilir[^<]*server:board-channel/);
+  assert.match(panel.helpHtml(en, costs, 180), /Channel: 2 session\(s\) reachable by channel[^<]*desktop app cannot/);
+  assert.match(panel.helpHtml(en, { sessions: [] }, 180), /Channel: 0 session/);
+  assert.match(panel.helpHtml(en, undefined, 180), /Channel: 0 session/);
+});
