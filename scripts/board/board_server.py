@@ -17,13 +17,14 @@ from urllib.parse import parse_qs, urlsplit
 
 from board_api import apply, decision_fields, list_skills, validate_control  # noqa: F401 (re-export)
 from board_app import SVG_ICON_PATH, icon_png, icon_size, icon_svg, manifest
+from board_channel_ack import peek_changes
 from board_config import (API_VERSION, DECISION_WAIT_S, HOST, MODES, PORT, QUEUE_TEXT_MAX, REGISTRY,
                           SKILLS_DIR, ControlAction, DecisionChoice)
 from board_cost import Cache
 from board_merge import merged
 from board_registry import load, project_id, summary
 from board_sessions import board_costs
-from board_store import fold, peek_changes, read_control, read_events
+from board_store import fold, read_control, read_events
 
 JS = "text/javascript; charset=utf-8"
 STATIC = {"/": ("board.html", "text/html; charset=utf-8"),

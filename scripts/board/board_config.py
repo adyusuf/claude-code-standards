@@ -177,3 +177,18 @@ APP_ICON_SIZES = (192, 512)
 MAC_CHROME_APP = "Google Chrome"
 CHROME_BINARIES = ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")
 OPEN_TIMEOUT_S = 15
+
+# ---- Channel: pushing a queued task into an IDLE session (standards/22 §5) ----
+CHANNEL_SERVER = "board-channel"        # the MCP server name; `server:<this>` in the start flag
+CHANNEL_CAPABILITY = "claude/channel"   # experimental capability, and the notification's method prefix
+CHANNEL_METHOD = "notifications/claude/channel"
+CHANNEL_SESSION_ENV = "CLAUDE_CODE_SESSION_ID"  # set by Claude Code for its MCP children (measured 30/09/2026)
+CHANNEL_FLAGS = ("--dangerously-load-development-channels", "--channels")
+CHANNEL_DIR = "channels"                # <board dir>/channels/<session>.json — one file per live server
+CHANNEL_DELIVERED_FILE = "channel_delivered.json"
+CHANNEL_POLL_S = 1.0
+CHANNEL_BEAT_S = 5.0     # a live server rewrites its file this often
+CHANNEL_TTL_S = 20.0     # a file older than this is a crashed server: the session is not reachable
+CHANNEL_CONFIRM_S = 30.0  # a pushed task the hooks hold back this long; unconfirmed after it -> hooks deliver it
+CHANNEL_DELIVERED_KEPT = 200
+CHANNEL_FALLBACK_PROTOCOL = "2024-11-05"
