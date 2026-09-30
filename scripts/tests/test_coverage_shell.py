@@ -34,9 +34,10 @@ class ShellCoverageRunsEndToEnd(Repo):
         '</lines></class>'
         '</classes></package></packages></coverage>\n')
 
-    def build(self, hits_second_line):
+    def build(self, hits_second_line, failure=None):
         """A repo with one shell script, one trivial test, and a stub kcov whose
-        reports cover 1 or 2 of that script's 2 lines."""
+        reports cover 1 or 2 of that script's 2 lines. `failure` makes the trivial
+        test fail with that message, standing in for a red suite."""
         # ⚠️ realpath, not the tempfile path. On macOS /var is a symlink to
         # /private/var, so `git rev-parse --show-toplevel` inside the script
         # reports the physical path while tempfile hands out the logical one —
@@ -64,7 +65,8 @@ class ShellCoverageRunsEndToEnd(Repo):
                 'import subprocess, unittest\n'
                 'class T(unittest.TestCase):\n'
                 '    def test_it(self):\n'
-                f'        subprocess.run(["bash", {target!r}], check=True)\n')
+                f'        subprocess.run(["bash", {target!r}], check=True)\n'
+                + (f'        self.fail({failure!r})\n' if failure else ''))
         report = self.COBERTURA.format(path=target, second=hits_second_line)
         report_file = os.path.join(root, 'report.xml')
         with open(report_file, 'w', encoding='utf-8') as handle:
@@ -114,6 +116,24 @@ class ShellCoverageRunsEndToEnd(Repo):
         # runs behind it would be a number with nothing under it.
         out, _ = self.build(hits_second_line=1)
         self.assertRegex(out, r'\(\d+ traced runs\)')
+
+    def test_the_kcov_path_symptom_is_an_environment_failure(self):
+        # The symptom of a too-long checkout path. It must not read as a product
+        # failure (exit 1): exit 2 is "environment", and the message names the
+        # measured limit and the way out.
+        out, code = self.build(hits_second_line=1,
+                               failure='kcov: error: /x/bin/bash is not an integer')
+        self.assertEqual(2, code, out)
+        self.assertIn('ENVIRONMENT', out)
+        self.assertIn('70 or fewer', out)
+        self.assertNotIn('the tests are red', out)
+
+    def test_an_ordinary_red_suite_is_still_a_failure(self):
+        # The environment branch must not swallow a real red suite.
+        out, code = self.build(hits_second_line=1, failure='expected 1, got 2')
+        self.assertEqual(1, code, out)
+        self.assertIn('the tests are red', out)
+        self.assertNotIn('ENVIRONMENT', out)
 
 
 if __name__ == '__main__':
