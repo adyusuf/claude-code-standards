@@ -148,6 +148,14 @@ class SessionState:
 
 
 SESSION_ID_PATTERN = r"^[0-9A-Za-z-]{8,64}$"
+# Where Claude Code keeps <project>/<session-id>.jsonl — the fallback for a session whose events never
+# carried a transcript path (recorded before the hook did, or hooks that do not send it).
+TRANSCRIPTS_ROOT = Path(os.environ.get("BOARD_TRANSCRIPTS_ROOT", Path.home() / ".claude" / "projects"))
+TRANSCRIPT_LOOKUP_TTL_S = 30.0    # a lookup that found nothing is not repeated on every poll
+# A session's name as Claude Code writes it into the transcript: entry type -> the field holding it,
+# in the order they win (a title set by the user or the app beats an agent's own name).
+TITLE_ENTRIES = {"custom-title": "customTitle", "agent-name": "agentName"}
+TITLE_MAX = 80
 SESSION_HIDE_AFTER_S = 24 * 3600  # the panel leaves out sessions silent for longer than this
 SUBAGENT_DIR = "subagents"        # <session transcript without .jsonl>/subagents/agent-<id>.jsonl
 SUBAGENT_PREFIX = "agent-"

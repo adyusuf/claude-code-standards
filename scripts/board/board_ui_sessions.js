@@ -85,7 +85,7 @@
     const costs = st.costs;
     const list = channelOnly ? reachable(costs) : (costs && costs.sessions) || [];
     if (!list.length) return `<tr><td colspan="7" class="empty">${esc(t(channelOnly ? "noChannelSessions" : "noSessions"))}</td></tr>`;
-    return list.map((s) => `<tr><td><code title="${esc(s.id)}">${esc(s.id.slice(0, 8))}</code></td>
+    return list.map((s) => `<tr><td>${s.title ? `<div class="sname" title="${esc(s.title)}">${esc(s.title)}</div>` : ""}<code title="${esc(s.id)}">${esc(s.id.slice(0, 8))}</code></td>
       <td>${stateHtml(t, s, now)}</td><td>${contextHtml(t, s)}</td><td>${costHtml(t, s)}</td>
       <td>${esc(fmtUsd(t, s.rate_per_h))}${s.rate_per_h == null ? "" : esc(t("perHour"))}</td>
       <td>${projectionHtml(t, s, costs.basis)}</td><td>${sendHtml(t, s, skills, drafts, st.queue_text_max)}</td></tr>`).join("");

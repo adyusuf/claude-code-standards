@@ -517,6 +517,13 @@ including tsc/lint, after the code and the tests are written.
      fix → targeted repeat).
   5. If the record is green it ships to `prod`. If it is red, stale or absent, it
      does not.
+- **Amendment 30/09/2026 (user decision, general rule): "for `test`, e2e runs after the release."**
+  E2E belongs AFTER the code has gone out to `test` (merged and deployed), against the deployed test
+  environment — never as a check that gates the merge to `test`. This restates, for the `test` stage, what
+  #33 already says for `dev` (not run) and makes the order explicit: merge → deploy → e2e against `test`
+  → (only then) `prod`. Projects that run a selective e2e straight after their `test` merge already follow
+  it; a red result there stops `prod`, it does not roll `test` back. → `standards/11-playwright.md` §9,
+  `standards/13-pr-and-review.md` §8.
 - **The only exception is a hotfix:** the report reads "e2e skipped (hotfix)".
 
 **Why:** e2e was moved to just before `prod`, with no run in the `dev`/`test`

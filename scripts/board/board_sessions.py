@@ -6,16 +6,40 @@ and the projections — every projection is an ESTIMATE and carries the numbers 
 """
 from __future__ import annotations
 
+import re
+import time
 from pathlib import Path
 
-from board_config import (BURN_WINDOW_S, AgentStatus, CONTEXT_WARN_RATIO, SESSION_HIDE_AFTER_S, SUBAGENT_DIR,
-                          SUBAGENT_PREFIX, TRANSCRIPT_SUFFIX, TaskStatus, TodoStatus)
+from board_config import (BURN_WINDOW_S, AgentStatus, CONTEXT_WARN_RATIO, SESSION_HIDE_AFTER_S,
+                          SESSION_ID_PATTERN, SUBAGENT_DIR, SUBAGENT_PREFIX, TRANSCRIPT_LOOKUP_TTL_S,
+                          TRANSCRIPT_SUFFIX, TRANSCRIPTS_ROOT, TaskStatus, TodoStatus)
 from board_cost import context_use, epoch, summarize
 
 CLOSED = (TaskStatus.DONE, TaskStatus.FAILED, TaskStatus.REMOVED)
 SECONDS_PER_HOUR = 3600
 SECONDS_PER_MIN = 60
 MIN_PER_HOUR = 60
+
+_LOOKUPS: dict = {}  # session id -> (looked up at, path | None)
+
+
+def find_transcript(session_id: str, root: Path | None = None, now: float | None = None) -> str | None:
+    """<root>/<project>/<session-id>.jsonl, for a session whose events carried no transcript path.
+    The id is checked against SESSION_ID_PATTERN first (it becomes part of a glob); a miss is
+    remembered for TRANSCRIPT_LOOKUP_TTL_S so an unmeasurable session is not searched on every poll."""
+    if not re.fullmatch(SESSION_ID_PATTERN, session_id or ""):
+        return None
+    root, now = root or TRANSCRIPTS_ROOT, time.time() if now is None else now
+    hit = _LOOKUPS.get((str(root), session_id))
+    if hit and (hit[1] or now - hit[0] < TRANSCRIPT_LOOKUP_TTL_S):
+        return hit[1]
+    found = next(iter(sorted(root.glob(f"*/{session_id}{TRANSCRIPT_SUFFIX}"))), None) if root.is_dir() else None
+    _LOOKUPS[(str(root), session_id)] = (now, str(found) if found else None)
+    return str(found) if found else None
+
+
+def session_transcript(sess: dict) -> str | None:
+    return sess.get("transcript") or find_transcript(sess.get("id", ""))
 
 
 def subagent_files(transcript: str | None) -> list:
@@ -33,7 +57,7 @@ def agent_paths(state: dict) -> dict:
     SubagentStop hook reported (they win)."""
     paths = {}
     for sess in state["sessions"].values():
-        for f in subagent_files(sess.get("transcript")):
+        for f in subagent_files(session_transcript(sess)):
             paths[f.name[len(SUBAGENT_PREFIX):-len(TRANSCRIPT_SUFFIX)]] = str(f)
     paths.update(state.get("agent_transcripts") or {})
     return paths
@@ -98,8 +122,9 @@ def todo_summary(todos: list | None) -> dict | None:
 
 
 def session_view(sess: dict, cache, basis: dict, now: float) -> dict:
-    main = cache.get(sess.get("transcript"))
-    subs = [t for t in (cache.get(str(f)) for f in subagent_files(sess.get("transcript"))) if t]
+    path = session_transcript(sess)
+    main = cache.get(path)
+    subs = [t for t in (cache.get(str(f)) for f in subagent_files(path)) if t]
     since = now - BURN_WINDOW_S
     total = summarize(([main] if main else []) + subs, since)
     rate = None
@@ -107,7 +132,7 @@ def session_view(sess: dict, cache, basis: dict, now: float) -> dict:
         rate = round(total["window_cost"] * SECONDS_PER_HOUR / BURN_WINDOW_S, 4)
     ctx = context_use(main)
     return {"id": sess["id"], "state": sess.get("state"), "since": sess.get("since"),
-            "last": sess.get("last"), "has_transcript": main is not None,
+            "last": sess.get("last"), "has_transcript": main is not None, "title": main.title if main else None,
             "orchestration": summarize([main]) if main else None,
             "agents": summarize(subs), "subagents": len(subs), "total": total,
             "rate_per_h": rate, "context": ctx, "todos": todo_summary(sess.get("todos")),
