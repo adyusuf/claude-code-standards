@@ -39,7 +39,7 @@ cd "$root" || exit 2
 
 # The twins. Kept in step with md-hook.sh's list on purpose — two lists that
 # disagree would mean a script is checked in one place and not the other.
-TWINS="${TWIN_FILES:-gate-core.sh md-size-gate.sh md-rule-gate.py md-split.py pre-commit.sh guard-destructive.sh doc-check.py evidence-check.py real-name-check.sh commit-msg.sh}"
+TWINS="${TWIN_FILES:-gate-core.sh audit-triage.py md-size-gate.sh md-rule-gate.py md-split.py pre-commit.sh guard-destructive.sh doc-check.py evidence-check.py real-name-check.sh commit-msg.sh}"
 search="${TWIN_SEARCH_ROOT:-$(dirname "$root")}"
 
 echo "▶ Twin drift (project copies vs. the canonical set in $(basename "$root"))"

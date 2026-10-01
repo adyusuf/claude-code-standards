@@ -76,7 +76,7 @@ X-Frame-Options: DENY            (alongside CSP frame-ancestors)
 
 - The lock file is committed; versions are pinned.
 - CVE scanning in CI (`dotnet list package --vulnerable`, `npm audit` / `pnpm audit`, Dependabot/Renovate).
-- A critical/high vulnerability → the merge is blocked. If there is no patch, the risk acceptance is written down and time-boxed.
+- A critical/high vulnerability → the merge is blocked. If there is no patch, the risk acceptance is written down and time-boxed — for `npm audit` that is `audit-triage.tsv` (`GHSA id · package · expires YYYY-MM-DD · reason`), read by `scripts/audit-triage.py` only AFTER the audit has failed: an entry with no reason or an expired date waives nothing, and an unlisted advisory keeps the step red. A breaking override is not a fix until the app still builds (measured: an `image-size` major override cleared the audit and broke the Android Metro bundle).
 - For a new package: is it maintained, how many downloads, the last commit, the licence, the number of transitive dependencies.
 - A typosquatting check — read the package name twice.
 - CI actions are pinned to a commit SHA (`uses: actions/checkout@<sha>`), never to a tag.
