@@ -57,8 +57,9 @@ else
 fi
 
 # JavaScript: MEASURED with Node's built-in coverage, so there is no package to
-# install. The live board's page script (scripts/board/, standards/22-live-board.md) is the
-# JavaScript here. Node only reports files a test LOADED, so a file no test touches
+# install. This repository has none since the live board moved to claude-monitor, where the same
+# step measures its page script; a project that copies this file gets it either way. Node only
+# reports files a test LOADED, so a file no test touches
 # would silently leave the denominator: every file must appear in the report, or
 # the codebase is NOT MEASURED (#29).
 echo "▶ JavaScript (threshold ${min}%)"

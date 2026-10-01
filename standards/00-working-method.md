@@ -220,6 +220,30 @@ finished into one row and give the remaining work its own rows.
   file for its final line. **Before reporting "still running", verify with `ps` that a
   REAL process is there and not just the waiter.**
 
+### 10c. Background task names show what they cost (PERMANENT, all projects)
+
+Every background task and every delegated agent is named so the reader can tell at a
+glance whether it is spending tokens. The prefix goes at the START of the name — the
+`description` of a background `Bash`, an `Agent`, a `Workflow` or a scheduled task, and
+the title of the board row that tracks it.
+
+| The task | Prefix | Examples |
+|---|---|---|
+| **No model runs in it** — a shell process, wait loop, gate, test run, build, server | `FREE - ` | `FREE - dev gate (batch e2e4)`, `FREE - wait for other gates` |
+| **A model runs in it** — a subagent, a workflow agent, `claude -p`, a loop or wake-up that re-enters the model | the **model name** | `Sonnet 5.5 - review T-56`, `Opus 5.5 - diagnose gate failure`, `Haiku 4.5 - classify failures` |
+
+- ⚠️ **The prefix is the model that actually runs**, as the `model` of the call or the
+  agent definition says — never a guess. An agent with no override inherits the parent's
+  model: name that one.
+- **FREE means no model runs INSIDE the task.** The notification that wakes the session
+  when the task ends is a turn of the session, not of the task, and is not what the
+  prefix describes.
+- **A task that starts as FREE and later calls a model is renamed**, or split in two
+  (rule #20 still applies: no autonomous loop without approval).
+- An already-running task cannot be renamed; the rule applies to every task started
+  after it. When asked "what is running and does it cost tokens", answer from the
+  prefixes and verify with `ps` (§10b).
+
 ## 11. The failure cycle — EVERY test / gate / build run, not only e2e (PERMANENT, all projects)
 
 Generalises `CLAUDE.md` #31 (which was written for e2e). The mistake it prevents: after
