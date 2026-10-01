@@ -1,5 +1,7 @@
 # 22 — The live board (per project, or for every project from the user settings)
 
+> The page, the app window and the SessionStart line call it **Claude Monitor** (renamed from "Live Work Board" / "Canlı İş Panosu" at the user's request, 01/10/2026, in the `claude-monitor` repository); this document keeps the name "live board".
+
 A local page that shows, while Claude works, which task is where, which agent is
 running on it, what finished — and lets the user **remove a task** or **switch an
 agent off**. It is an **extra view**: the status table in the reply stays mandatory
