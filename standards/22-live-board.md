@@ -6,13 +6,26 @@ agent off**. It is an **extra view**: the status table in the reply stays mandat
 (`00-working-method.md` §10). Nothing is published; the page is served on
 `127.0.0.1` only.
 
-Code: `scripts/board/` (auto-start, CLI, hooks, server, registry, state folding,
-cost parsing, session views, API, icons, browser app) · skill: `skills/board-plan/` · tests:
-`scripts/tests/test_board*.py`, `scripts/tests/board_ui.test.js`.
+**The application lives in its own repository, `claude-monitor`**
+(<https://github.com/adyusuf/claude-monitor>, public). This document covers what stays
+here: how it is brought up on a machine, how it is wired into projects and how it is used
+while working. Its design, code and tests are in that repository (`docs/live-board.md`);
+the skill is `skills/board-plan/`.
+
+## 0. Bringing it up on a machine
+
+1. Clone it once: `git clone https://github.com/adyusuf/claude-monitor.git ~/ClaudeCode/claude-monitor`
+   (another location: set `CLAUDE_MONITOR_HOME`).
+2. Nothing else. The hooks and the CLI are called at a stable path,
+   `~/.claude/scripts/board/<script>.py`; the scripts there are **launchers**
+   (`scripts/board/board_launcher.py`) that run the same-named script of the clone, with the same
+   arguments and standard input. A project's committed `.claude/settings.json` therefore never
+   changes when the application does, and updating the board is `git pull` in the clone.
+3. **Not installed is harmless:** `board_hook.py` stays silent and exits 0, `board_ensure.py` prints one
+   line with the clone command, and the command-line scripts exit 2 with it. A session is never blocked.
 
 **One page for every project:** `http://127.0.0.1:8765`, one tab per project. It
 comes up by itself when a Claude session starts in any project that enables the board.
-
 ## 1. How it works
 
 | Piece | What it does | Who drives it |
@@ -82,7 +95,7 @@ listed it. Without the hooks the page shows the tasks but no sessions, agents or
    running after the session ends; after a reboot the next session starts it again.
    By hand, if ever needed: `python3 ~/.claude/scripts/board/board_ensure.py < /dev/null`.
    `BOARD_DIR`, `BOARD_HOST`, `BOARD_PORT`, `BOARD_REGISTRY` override the defaults
-   (single source: `scripts/board/board_config.py`). The server's own log is
+   (single source: `board_config.py` in claude-monitor). The server's own log is
    `~/.cache/claude-board/server.log`.
 5. If the auto-start reports an **older** board server on the port (one project per
    server, before 29/09/2026), stop that process once; the next session starts the
@@ -107,157 +120,27 @@ for the orchestrator.
 
 ## 2b. The Merge column
 
-Each task can carry its commit(s): `board.py set T-n --commit <sha>[,<sha>]`. The page then
-shows, per task, whether **every** one of them is in `origin/dev`, `origin/test` and
-`origin/prod` — read live from the project's git (`scripts/board/board_merge.py`; the branch
-names and the remote are in `board_config.py`). A branch that does not exist is left out; an
-unknown commit counts as not merged. It is **as of the project's last `git fetch`** — the
-board never fetches; branch tips are re-read at most every 10 s.
+Moved with the application: each task can carry its commit(s) (`board.py set T-n --commit <sha>[,<sha>]`)
+and the page shows whether every one is in `origin/dev`, `origin/test` and `origin/prod`, as of the
+project's last `git fetch`. Reference: `docs/live-board.md` in the claude-monitor repository, §2b.
 
 ## 2c. Sessions, cost and context
 
-**Cost:** measured from Claude Code transcripts (`board_cost.py`), **never estimated**.
-The sole source of prices is `board_config.py` (pricing table cached 25/09/2026 from the
-claude-api skill); a model not listed there shows **"cannot be measured"** in the UI, never
-a guess. Tokens are read incrementally — each call parses only the bytes added since the
-previous read, and a half-written last line waits for the next read. Subagent transcripts
-may record output_tokens at stream start, so agent cost may be undercounted; the board
-shows this as a note when subagents are active.
-
-The hook records the paths to Claude Code's own transcript files (`transcript_path` on
-`UserPromptSubmit`/`Stop`, `agent_transcript_path` on `SubagentStop`). Subagent transcripts
-are found in `<session-transcript-path-without-.jsonl>/subagents/agent-<id>.jsonl`. The cost
-cache holds one `Transcript` object per path (thread-safe) and updates in place.
-
-**Agents:** every row of the Agent activity table carries its own tokens (in / out / cache
-read / cache write) and cost, read from that agent's transcript (the `SubagentStop` path, else
-`<session>/subagents/agent-<id>.jsonl`); a running agent shows its cost so far, read
-incrementally. A row whose agent id or transcript is not known yet says "cannot be measured
-yet" and is left out of the total row, which counts the measured agents and names how many
-are not. The roles panel adds each role's cost. A resumed agent (`SendMessage`) or a Workflow
-agent never passes through the Agent tool's `PreToolUse`, so `SubagentStart` (with a non-empty
-`agent_type`) opens its row and `SubagentStop` closes it; an agent that already has a row from the
-Agent tool runs again in that row (no duplicate), and an untyped internal subagent is ignored.
-Projects enabled before 30/09/2026 add the `SubagentStart` line to their settings block to get
-these rows; without it everything else keeps working.
-
-**Todo list:** the sessions panel shows each session's own todo progress ("todo 2/5 · what is
-running now"). The main session's todo tools are recorded by the existing `PostToolUse` `*` hook,
-with shapes read from the CLI binary, not guessed: `TodoWrite` (`{todos:[{content,status,activeForm}]}`,
-the whole list each time → `todo_sync`), `TaskCreate` (result `{task:{id,subject}}` or the text
-"Task #<id> created successfully" → `todo_add`) and `TaskUpdate` (`{taskId,status,subject?,activeForm?}`,
-status `pending|in_progress|completed|deleted` → `todo_update`). The latest list replaces the previous
-one, an empty list clears it, a subagent's call is ignored, and anything else — a payload without an id,
-an update for a task the board never saw created, an undocumented status — records nothing (no todo
-line, never an invented one). Not verified live: this repository's sessions have no `TaskCreate` tool, so
-the result shape is checked against the binary's source and the tests, not against a real call.
-
-**A task's orchestrator cost (no agent linked):** a main-thread `Bash` call that runs `board.py add|set T-n` links
-that session to the task (`task_session`; a subagent's call and `board.py add auto`, whose id is not known yet,
-do not). The task's Cost cell then adds `orchestrator ≈ $x` — the session's **main** transcript inside the task's
-time window (first touch to now while the task is `running`, to the last touch otherwise), labelled an estimate
-with its basis and "N other tasks in the same window" when windows of the same session overlap, because the
-session may have done other work in those hours. The session's subagents are not counted there (their cost
-reaches the task through `board.py set T-n --agent`, counting them twice would overstate it); a model without a
-price makes the figure "cannot be measured", never zero. Tasks written before this existed have no linked
-session and keep showing "no agent linked".
-
-**Session names and unmeasured sessions:** the sessions table shows each session's name above its id.
-The name is read from the session's own transcript — the last `custom-title` entry (`customTitle`, set by
-the user or the app), else the last `agent-name` entry (`agentName`) — cut to 80 characters; a session
-without either shows the id alone. A session whose events never carried a transcript path (recorded
-before the hooks sent it, or a client that does not) is looked up as `<session-id>.jsonl` under
-`~/.claude/projects/*/` (`BOARD_TRANSCRIPTS_ROOT` overrides the root; the id is checked against the
-session-id pattern before it is globbed, and a miss is not retried for 30 s). A session whose transcript
-does not exist at all (deleted, or the client keeps none there) stays "cannot be measured": the board
-says so instead of guessing.
-
-**Context:** the last main-thread call's input + cache read + cache write tokens, set against
-the model's window size. The board shows **"context warn" at ≥80%** — a UX reminder, never a
-block. Compacting the context (`/compact`) is the user's own command in Claude Code; neither
-Claude nor a hook can trigger it, and the board shows a warning, never a fake button.
-
-**Sessions:** visible on the board for up to 24 hours after their last activity; state is
-**busy** (from `UserPromptSubmit` to `Stop`) or **idle**. Sessions with no transcript file
-yet show orchestration cost as **"cannot be measured"**; the agents row counts only measured
-subagent files.
-
-**Projections** (task and session): each is an **ESTIMATE** carrying its basis.
-- **Task:** spent by its agents + (spent ÷ elapsed hours from the earlier of task start or
-  first agent message) × the task's own remaining ETA minutes. Agents that ran before the
-  task was marked running are real; their cost must not inflate the rate.
-- **Session:** spent + $/h over the last 3600 s × remaining ETA hours of open tasks (those
-  with an ETA; tasks without are counted and named, not included in the estimate).
-
-| What is measured | Signal | When updated |
-|---|---|---|
-| Tokens (input, output, cache read, cache write 5m, cache write 1h) | `message.usage` in transcript | parsed by `/api/state` (page polls every 1.5 s) |
-| Cost per model | pricing table in `board_config.py` | on every `/api/state`; only the bytes added since the last read are parsed |
-| Task spent cost | all agents' transcripts by `agent_links` or [T-n] tag | per-session view, once per /api/state |
-| Task projection | task start/first agent msg, ETA, spent, rate | estimated, per-session view |
-| Session total cost | orchestration + all subagents | per-session view, once per /api/state |
-| Session projection | $/h over last 3600 s, open task ETA | estimated, per-session view |
-| Context use | main thread's last call's input+cache | per-session view, once per /api/state |
+Moved with the application. What binds you while working: **cost is measured from the transcripts, never
+estimated** — a model without a price shows "cannot be measured", and an estimate (a projection, the
+orchestrator's share of a task) always carries its basis. The status table in the reply quotes
+`board.py list`, not the page's money figures from memory. Reference: `docs/live-board.md` in the claude-monitor repository, §2c.
 
 ## 2d. Sending work to a session
 
-**Queuing a task:** the user writes a task on the board (text field, max 1000 chars),
-picks a session and taps **Send**. The control enters `control.json`'s `changes` list and
-the hook delivers it via `PostToolUse` `additionalContext`:
-
-| Session state | Delivery | Notes |
-|---|---|---|
-| Busy (turn in progress) | After the session's next main-thread tool call | same turn; subagent tool calls never consume it |
-| Idle (turn ended) | Only inside the Stop hook's wait window (while a needs_decision question is unanswered, ≤180 s) or when the user types a new message | other sessions never see the notice |
-| At Stop | The Stop hook blocks (`{"decision":"block","reason":…}`) and the turn continues with the queued task | no wait needed; the turn keeps going |
-
-**Running a skill:** the page's skill picker sends `POST /api/control` `run_skill` to the
-server (not `board.py`). The control text becomes `"invoke the /<skill> skill"` and
-delivery follows the same rules as queued tasks.
-
-**Switching mode:** the user picks a mode letter (A–E) and confirms. The control writes
-`<project root>/.claude/mode` with the new letter and records a `mode_set` event with
-`"by": "board"` in the event log. This **selection is the approval per #27** — no chat
-approval needed. The mode-change notice goes to every session and asks Claude (not the user)
-to re-declare the plan: `board.py plan --mode <X> --roles <that mode's role set>`.
-
-**Validation (fail-closed):** every control is validated server-side before writing:
-- `queue_task`: the target session must exist in the folded state
-- `run_skill`: the skill must be in the list built from `~/.claude/skills/` (plain
-  `<dir>/SKILL.md` and plugins' `<name>/skills/<dir>/SKILL.md` and
-  `<name>/commands/<name>.md`)
-- `set_mode`: the mode letter must match A–E
-- Text and JSON fields are checked for control characters; queued task text is limited to
-  1000 chars
-
-**Unreached sessions:** `control.json` keeps the last 50 changes. A session that never runs
-a hook again (e.g. it crashes before the next tool call) can have its queued tasks fall out
-of the list. A queued item is bound to ONE session id: another or a new session never receives
-it. This is **by design**: the control file is a delivery channel, not permanent storage; the
-user re-sends from the board. The panel lists what is still undelivered per session ("queued").
-
-**Irreversible work:** a queued task or mode switch are not approval. A task that says
-"deploy to prod" or "run DROP" still needs explicit chat approval — the board is a local
-file channel, not an approval channel. Link: the existing §3 rule "A board decision steers
-the work; it is not an approval."
+Moved with the application. What binds you while working: a task the user queues on the page reaches the
+session as a hook notice (after its next tool call, or at `Stop`); a click on the board **steers the work,
+it is not an approval** (§3). Reference: `docs/live-board.md` in the claude-monitor repository, §2d.
 
 ## 2e. App mode
 
-The board is a web app: it can be installed via the browser's **Install** menu to run as its
-own window, or opened via `python3 ~/.claude/scripts/board/board_open.py` which:
-1. Ensures the server is up (via `board_ensure.py`, no blocking)
-2. Tries to open it in a Chrome app window (`--app=<url>`; no tabs, no address bar)
-3. Falls back to the default browser if Chrome is not found or the command fails
-
-**Web app manifest** (`/manifest.webmanifest`): name, short name, theme colour, background
-colour, scope, display mode, and icons.
-
-**Icons:** drawn at 192×192 and 512×512 PNG (via `board_app.py`), and as SVG. They show the
-theme colour (blue) with three white columns (the board's three-column layout). **No binary
-files in the repository** — icons are generated on request from the server.
-
-**Service worker** (`/sw.js`): caches nothing. The board is ephemeral and always fresh; a
-stale cache would be worse than a reload.
+Moved with the application: the page installs as its own window from the browser's Install menu, or opens
+with `python3 ~/.claude/scripts/board/board_open.py`. Reference: `docs/live-board.md` in the claude-monitor repository, §2e.
 
 ## 2f. Task ids and where the CLI writes (T-28, 30/09/2026)
 
@@ -298,49 +181,12 @@ project's tree created a stray `.claude/board/` there.
 
 ## 4. Cost (measured 29/09/2026)
 
-The hooks and the server cost **no tokens** while silent. What enters the context:
+The hooks and the server cost **no tokens** while silent; a 7-task hour adds about 1,800–2,000 tokens of
+reminders and notices (estimate), and a hook call takes about 65 ms. The per-item table moved with the
+application: `docs/live-board.md` in the claude-monitor repository, §4.
 
-| Item | Size | ≈ tokens (chars/4, estimate) | When |
-|---|---|---|---|
-| Skill description | 186 chars | ~46 | listed in every session |
-| `SKILL.md` body | 2,380 chars | ~595 | loaded when planning |
-| `board.py add` call | 191 chars | ~48 | once per task |
-| `board.py set` call | 80 chars | ~20 | per status change |
-| Board-change reminder (2 changes) | 203 chars | ~51 | when the user changes a control |
-| Queued task notice (measured 30/09/2026) | 303 chars (with text "add a changelog entry for T-23") | ~76 | when a task is queued for the session |
-| Mode-change notice (measured 30/09/2026) | 346 chars (mode C) | ~87 | when mode is switched on the board |
-| Deny reason | 115 chars | ~29 | per denied agent call |
-| Decision reminder (one decision with a note) | 253 chars | ~63 | per decision |
-| Auto-start line (`SessionStart`) | 69 chars | ~17 | once per session |
+## 5. Channels — pushing a task into an IDLE session
 
-A 7-task hour ≈ 1,800–2,000 new tokens (estimate); every added token is then
-re-read from cache on later calls. Hook latency: **65 ms median** per tool call
-(20 runs, no-op `PostToolUse`).
-
-## 5. Channels — pushing a task into an IDLE session (measured 30/09/2026, T-24 phase 1)
-
-Hooks reach a BUSY session only (`PostToolUse` mid-turn, `Stop` at turn end). An idle
-session can be reached through an MCP **channel**: a stdio server that declares
-`capabilities.experimental["claude/channel"] = {}` and sends
-`notifications/claude/channel` with `params: {content: string, meta?: {key: string}}`
-(meta keys must match `^[a-zA-Z_][a-zA-Z0-9_]*$`, others are dropped).
-
-- **Measured (Claude Code 2.1.281, interactive CLI):** a minimal stdlib server pushed a
-  message into an idle session; it was enqueued and dequeued within 20 ms, arrived as a
-  user message `<channel source="<server>" <meta…>>text</channel>` (`origin.kind:
-  channel`) and the session started a turn and acted on it — 2 of 2 runs.
-- **How to start such a session:** `claude --mcp-config <file> --dangerously-load-development-channels server:<name>`
-  (`--channels` alone only accepts marketplace plugins on the approved list). The flag
-  shows a confirmation dialog at every start; the user must accept it.
-- **Org opt-in:** on claude.ai Teams/Enterprise the managed setting `channelsEnabled: true`
-  is required (default off). Not needed on the measured account (no managed settings).
-- ⚠️ **Not reachable:** the Claude desktop app (Code tab) starts its sessions without any
-  `--channels` flag and has no setting for it, so those sessions cannot receive a channel
-  push (not tested live — inferred from the session argv and the app bundle).
-- ⚠️ **A session whose login has expired wakes but fails** ("Login expired"): delivery is
-  not the same as the session acting.
-- **Stays hook-based:** hooks are deterministic, cost no tokens while silent and can block;
-  a channel message is only text the model may or may not follow. Channels close the
-  idle-session gap only — they never replace the hooks.
-- **Fail-closed rule for any board channel server:** it pushes only text the board queued
-  for a registered session — never arbitrary text.
+Moved with the application (measured 30/09/2026, T-24 phase 1). The rule that stays here: a board channel
+server pushes **only text the board queued for a registered session**, never arbitrary text; hooks stay the
+primary path and a channel only closes the idle-session gap. Reference: `docs/live-board.md` in the claude-monitor repository, §5.

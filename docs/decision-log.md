@@ -1027,3 +1027,22 @@ whether a model was running in it.
   waiver; an unparseable report or a finding with no advisory behind it → exit 2 (fail closed).
 - **Scope:** npm only; `pnpm audit` is unchanged. The audit level is not lowered, the step is
   not removed, and a project lists each advisory by id — the rule itself stays on (#19).
+
+## The live board became its own repository, claude-monitor (01/10/2026, user decision)
+
+- **Decision:** the application (hooks, CLI, server, page, cost, their 264 Python and 96 Node tests and the
+  design doc) moved to <https://github.com/adyusuf/claude-monitor>, **public**, in `~/ClaudeCode/claude-monitor`.
+  This repository keeps what is about bringing it up and using it: `standards/22`, the `board-plan` skill, the
+  hook block in `.claude/settings.json`, and launchers at the stable `~/.claude/scripts/board/` path.
+- **Why launchers, not a changed path:** the hook block is committed in every project that enabled the board;
+  a new path would have meant editing all of them in step. The launchers keep that path valid and make an
+  update `git pull` in the clone.
+- **Why a fresh history:** the old history of these files carries real project names and measurements from
+  private projects (`real-name-check.sh` exists because of three such leaks). A public repository starts from
+  a scrubbed tree; the history stays here.
+- **Fail-soft by design:** with no clone present a hook exits 0 silently (it runs on every tool call), session
+  start prints one clone line, a typed command exits 2. A machine without the clone has no board, never a broken
+  session.
+- **Rule #29 in the new repository:** coverage is measured per codebase there (Python and JavaScript); the shared
+  gate copies beside the application are not traced, and `scripts/coverage.sh` says so in its header.
+
