@@ -1011,3 +1011,19 @@ whether a model was running in it.
   task list, the board, the notification), and it is read before anything else.
 - **Boundary:** FREE describes the task, not the session — the notification that wakes
   the session when a FREE task ends is a turn of the session.
+
+## Dependency-audit triage: a written, expiring acceptance (01/10/2026, T-58, user approved)
+
+- **Trigger:** a project's mobile app had one HIGH advisory left (`image-size`, a parser DoS
+  in a bundler-only package) that its parent tool pins to a vulnerable major; the fix exists
+  only in a major the parent does not accept. `npm audit fix` cannot reach it.
+- **Tried first, rejected:** a `package.json` override to the fixed major. The audit went
+  clean and `tsc` and the unit tests stayed green, but the real Metro bundle FAILED (control
+  without the override: succeeded). Lesson: a dependency override is verified by building the
+  artifact, not by the unit suite.
+- **Decision:** `audit-triage.tsv` + `scripts/audit-triage.py`. The step runs
+  `npm audit` as before; only on failure does it ask the helper whether every HIGH/CRITICAL
+  advisory has an entry with a reason and an unexpired date. No file → no waiver; expired → no
+  waiver; an unparseable report or a finding with no advisory behind it → exit 2 (fail closed).
+- **Scope:** npm only; `pnpm audit` is unchanged. The audit level is not lowered, the step is
+  not removed, and a project lists each advisory by id — the rule itself stays on (#19).

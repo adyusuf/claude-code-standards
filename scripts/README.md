@@ -12,6 +12,7 @@ lost: it sat under a directory that belonged to no git repository, and although
 |---|---|---|
 | `md-size-gate.sh` | Ties every `CLAUDE.md`'s size to a **ratchet**: the ceiling only goes down (`--update`); raising it is manual and needs a reason in the `note` column. A file with no budget is fail-closed red. | **Automatically**, in the project's merge gate |
 | `md-rule-gate.py` | Measures **rule loss** in a simplification: ❌ items, lines carrying a prohibition or obligation, backticked identifiers. A dropped identifier requires **justified triage**. | **By hand**, while splitting |
+| `audit-triage.py` | Decides whether every HIGH/CRITICAL `npm audit` advisory is covered by a written, unexpired entry in `audit-triage.tsv`; fails closed on anything it cannot trust. | Called by `gate-core.sh` only after `npm audit` failed. |
 | `md-split.py` | Splits a decision log into two layers — **moving verbatim, never paraphrasing**. | **By hand**, while splitting |
 
 ## Installing into a project
@@ -112,7 +113,7 @@ Not everything here is meant to be copied, and some copied files must be edited.
 | `gate-core.sh` | **Copy as is** | Configure it through `scripts/merge-gate.conf`, never by editing the copy. |
 | `merge-gate.sh` | **Write your own** | The project's orchestrator: pull, merge, push, and a call to `gate-core.sh`. This repository ships no template for it. |
 | `merge-gate.conf` | **Create, values are yours** | The commands, `TEST_VERSION_URL`, `ACCEPTED_GAPS` with a written reason. The values shown in `gate-core.sh`'s header are examples, not defaults to keep. |
-| `md-size-gate.sh`, `md-rule-gate.py`, `md-split.py` | **Copy as is** | |
+| `md-size-gate.sh`, `md-rule-gate.py`, `md-split.py`, `audit-triage.py` | **Copy as is** | `audit-triage.tsv` is yours and starts absent: no file, no waiver. |
 | `md-budget.tsv` | **Copy, then `md-size-gate.sh --update`** | The ceilings are this repository's. Yours become your files' size today. |
 | `pre-commit.sh` | **Copy as is, then `--install` in every clone** | A git hook is per clone; it is not committed. |
 | `guard-destructive.sh` | **Copy as is; register it** | In `.claude/settings.json` (shared) with `"$CLAUDE_PROJECT_DIR/scripts/guard-destructive.sh"`, or in your user settings. See `standards/18-setup-and-environment.md` §11. |
