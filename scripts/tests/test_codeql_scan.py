@@ -174,8 +174,8 @@ class WhenItCannotRun(Scan):
 
 
 class JavaScriptIsScannedToo(Scan):
-    """The live board ships a page script (scripts/board/board_ui.js). CodeQL
-    scans it in a pass of its own; with only a Python pass that file would sit
+    """A repository that ships JavaScript (the live board's page script was the case that found
+    this). CodeQL scans it in a pass of its own; with only a Python pass that file would sit
     outside SAST while the gate said "passed"."""
 
     def add_js(self):

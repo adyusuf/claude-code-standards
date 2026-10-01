@@ -997,3 +997,52 @@ cannot (they need a running turn). Claude Code 2.1.281 has MCP channels.
   T-23 is on `dev`.
 - **Why the probe is not committed:** it was a throwaway measurement; the product server
   (phase 2) will carry tests and coverage (#29).
+
+## Background task names show their cost (01/10/2026, user decision)
+
+Question that prompted it: "do the background tasks running now spend tokens?" — the
+answer needed a `ps` listing and a paragraph, because nothing in a task's name said
+whether a model was running in it.
+
+- **Decision:** a task in which no model runs is named `FREE - <name>`; a task in which a
+  model runs starts with that model's name. The prefix covers background `Bash`, `Agent`,
+  `Workflow`, scheduled tasks and the board row. → `standards/00` §10c.
+- **Why a prefix and not a column:** the name is the one thing every view shows (the
+  task list, the board, the notification), and it is read before anything else.
+- **Boundary:** FREE describes the task, not the session — the notification that wakes
+  the session when a FREE task ends is a turn of the session.
+
+## Dependency-audit triage: a written, expiring acceptance (01/10/2026, T-58, user approved)
+
+- **Trigger:** a project's mobile app had one HIGH advisory left (`image-size`, a parser DoS
+  in a bundler-only package) that its parent tool pins to a vulnerable major; the fix exists
+  only in a major the parent does not accept. `npm audit fix` cannot reach it.
+- **Tried first, rejected:** a `package.json` override to the fixed major. The audit went
+  clean and `tsc` and the unit tests stayed green, but the real Metro bundle FAILED (control
+  without the override: succeeded). Lesson: a dependency override is verified by building the
+  artifact, not by the unit suite.
+- **Decision:** `audit-triage.tsv` + `scripts/audit-triage.py`. The step runs
+  `npm audit` as before; only on failure does it ask the helper whether every HIGH/CRITICAL
+  advisory has an entry with a reason and an unexpired date. No file → no waiver; expired → no
+  waiver; an unparseable report or a finding with no advisory behind it → exit 2 (fail closed).
+- **Scope:** npm only; `pnpm audit` is unchanged. The audit level is not lowered, the step is
+  not removed, and a project lists each advisory by id — the rule itself stays on (#19).
+
+## The live board became its own repository, claude-monitor (01/10/2026, user decision)
+
+- **Decision:** the application (hooks, CLI, server, page, cost, their 264 Python and 96 Node tests and the
+  design doc) moved to <https://github.com/adyusuf/claude-monitor>, **public**, in `~/ClaudeCode/claude-monitor`.
+  This repository keeps what is about bringing it up and using it: `standards/22`, the `board-plan` skill, the
+  hook block in `.claude/settings.json`, and launchers at the stable `~/.claude/scripts/board/` path.
+- **Why launchers, not a changed path:** the hook block is committed in every project that enabled the board;
+  a new path would have meant editing all of them in step. The launchers keep that path valid and make an
+  update `git pull` in the clone.
+- **Why a fresh history:** the old history of these files carries real project names and measurements from
+  private projects (`real-name-check.sh` exists because of three such leaks). A public repository starts from
+  a scrubbed tree; the history stays here.
+- **Fail-soft by design:** with no clone present a hook exits 0 silently (it runs on every tool call), session
+  start prints one clone line, a typed command exits 2. A machine without the clone has no board, never a broken
+  session.
+- **Rule #29 in the new repository:** coverage is measured per codebase there (Python and JavaScript); the shared
+  gate copies beside the application are not traced, and `scripts/coverage.sh` says so in its header.
+

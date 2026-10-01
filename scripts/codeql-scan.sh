@@ -5,8 +5,9 @@
 # thresholds CI uses — never two different rules in two places. gate-core.sh
 # calls this file through SAST_CMD in scripts/merge-gate.conf.
 #
-# Scope: Python and JavaScript via CodeQL, shell via ShellCheck. The JavaScript is
-# the live board's page script (scripts/board/, standards/22-live-board.md).
+# Scope: Python and JavaScript via CodeQL, shell via ShellCheck. This repository carries no
+# JavaScript since the live board moved to its own repository (claude-monitor); the pass stays
+# because every project that copies this script has some, and a pass that finds none says so.
 # CodeQL has no shell analyser, and this repository is mostly shell — "SAST passed" would have read as
 # "everything was scanned" while more than half the code was never looked at.
 # ShellCheck closes that half. Both tools are PROBED; a missing one is reported
