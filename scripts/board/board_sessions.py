@@ -14,6 +14,7 @@ from board_config import (BURN_WINDOW_S, AgentStatus, CONTEXT_WARN_RATIO, SESSIO
                           SESSION_ID_PATTERN, SUBAGENT_DIR, SUBAGENT_PREFIX, TRANSCRIPT_LOOKUP_TTL_S,
                           TRANSCRIPT_SUFFIX, TRANSCRIPTS_ROOT, TaskStatus, TodoStatus)
 from board_cost import context_use, epoch, summarize
+from board_task_cost import orchestration, shared_counts
 
 CLOSED = (TaskStatus.DONE, TaskStatus.FAILED, TaskStatus.REMOVED)
 SECONDS_PER_HOUR = 3600
@@ -84,7 +85,8 @@ def remaining_min(task: dict, now: float) -> float | None:
     return max(0.0, task["eta_min"] - elapsed)
 
 
-def task_cost(task: dict, agent_ids: list, paths: dict, cache, now: float) -> dict:
+def task_cost(task: dict, agent_ids: list, paths: dict, cache, now: float, sessions: dict | None = None,
+              shared: int = 0) -> dict:
     trs = [t for t in (cache.get(paths.get(a)) for a in agent_ids) if t is not None]
     spent = summarize(trs) if trs else None
     left = remaining_min(task, now)
@@ -97,6 +99,7 @@ def task_cost(task: dict, agent_ids: list, paths: dict, cache, now: float) -> di
         projected = round(spent["cost"] + spent["cost"] / elapsed_h * left / MIN_PER_HOUR, 4)
     est, cost = task.get("est_cost"), spent["cost"] if spent else None
     return {"agents": len(agent_ids), "measured_agents": len(trs), "spent": spent,
+            "orchestration": orchestration(task, sessions or {}, cache, now, shared),  # an estimate, see board_task_cost
             "remaining_min": None if left is None else round(left, 1),
             "projected": projected,  # basis: the task's own $/h x its remaining ETA
             "est_left": None if est is None or cost is None else round(max(0.0, est - cost), 4),
@@ -169,9 +172,9 @@ def board_costs(state: dict, cache, now: float) -> dict:
     shown = [s for s in state["sessions"].values()
              if (epoch(s.get("last")) or 0) >= now - SESSION_HIDE_AFTER_S]
     shown.sort(key=lambda s: s.get("last") or "", reverse=True)
-    paths, owners = agent_paths(state), task_agents(state)
+    paths, owners, shared = agent_paths(state), task_agents(state), shared_counts(state, now)
     return {"sessions": [session_view(s, cache, basis, now) for s in shown],
-            "tasks": {tid: task_cost(t, owners.get(tid, []), paths, cache, now)
+            "tasks": {tid: task_cost(t, owners.get(tid, []), paths, cache, now, state["sessions"], shared.get(tid, 0))
                       for tid, t in state["tasks"].items()},
             "agent_rows": agent_costs(state, cache),
             "basis": basis, "warn_ratio": CONTEXT_WARN_RATIO}

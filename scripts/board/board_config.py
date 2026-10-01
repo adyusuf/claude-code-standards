@@ -75,6 +75,10 @@ CONTROL_FILE = "control.json"
 ACK_FILE = "control_ack.json"
 
 AGENT_TOOL = "Agent"
+BASH_TOOL = "Bash"
+# `board.py add|set T-n ...` typed in a session links that session to the task (cost attribution, T-35)
+BOARD_CMD_PATTERN = r"board\.py\s+(?:--init\s+)?(?:add|set)\s+(T-\d+)"
+TASK_SESSIONS_MAX = 5
 TODO_TOOL = "TodoWrite"  # its input is {todos: [{content, status, activeForm}]}, the whole list each time
 TASK_CREATE_TOOL = "TaskCreate"  # the incremental task tools; shapes in board_todos.py
 TASK_UPDATE_TOOL = "TaskUpdate"
