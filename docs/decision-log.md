@@ -517,6 +517,13 @@ including tsc/lint, after the code and the tests are written.
      fix → targeted repeat).
   5. If the record is green it ships to `prod`. If it is red, stale or absent, it
      does not.
+- **Amendment 30/09/2026 (user decision, general rule): "for `test`, e2e runs after the release."**
+  E2E belongs AFTER the code has gone out to `test` (merged and deployed), against the deployed test
+  environment — never as a check that gates the merge to `test`. This restates, for the `test` stage, what
+  #33 already says for `dev` (not run) and makes the order explicit: merge → deploy → e2e against `test`
+  → (only then) `prod`. Projects that run a selective e2e straight after their `test` merge already follow
+  it; a red result there stops `prod`, it does not roll `test` back. → `standards/11-playwright.md` §9,
+  `standards/13-pr-and-review.md` §8.
 - **The only exception is a hotfix:** the report reads "e2e skipped (hotfix)".
 
 **Why:** e2e was moved to just before `prod`, with no run in the `dev`/`test`
@@ -620,6 +627,15 @@ sub-package, the repository root) has `pnpm-lock.yaml`; a missing pnpm is SKIPPE
 not run is a failure, and an npm project still uses `npm audit`. `test_gate_core_pnpm_audit.py`
 pins six cases (the four pnpm ones fail on the old loop). Lesson: a gate step that always fails is
 as blind as one that never runs — read the *reason* on a red step, not only the colour.
+
+## Board task ids are allocated, not typed (30/09/2026, T-28)
+
+Two failures in one day on the shared live board: T-25 (three sessions) and T-26 (two) were typed
+by hand, so a later `add` replaced an earlier task's title and one session's "done" note ended up
+under another's task; and `board.py set` typed from another project's working tree created a
+`.claude/board/` in three project checkouts. `add auto` now allocates under a lock, an existing id
+is refused, and a repository without a board needs `--init`. `test_board_tasks.py` pins nine cases
+(twelve parallel sessions get twelve distinct ids). → `standards/22` §2f
 
 ## §16 · §28 · never-do list — the enforcement tooling
 
@@ -959,3 +975,24 @@ subagent runs in the same window the median was 52,313 tokens. Method and repeat
 green on the third attempt — the gate itself worked, but each commit that claimed to
 fix it was written without measuring first. Lesson: the size gate is run BEFORE
 committing.
+
+## MCP channels to reach an idle session — measurement (30/09/2026, T-24 phase 1)
+
+Question: can the live board push a new task into an IDLE Claude Code session? Hooks
+cannot (they need a running turn). Claude Code 2.1.281 has MCP channels.
+
+- **Measured:** a minimal stdlib stdio server (capability `claude/channel`) pushed a
+  message into an idle interactive CLI session; the session woke and answered correctly
+  (2/2). Enqueue → dequeue 20 ms. The notification shape is `params: {content, meta}`
+  (reference: the official `fakechat` channel plugin).
+- **Constraints found:** a manually configured server needs
+  `--dangerously-load-development-channels server:<name>` plus a startup confirmation
+  dialog; claude.ai Teams/Enterprise needs `channelsEnabled: true`; a server that
+  negotiates a "modern" protocol revision is skipped by the client (the probe echoing the
+  client's protocol version was NOT skipped); the desktop app passes no channel flag.
+- **Decision:** channels are an OPTIONAL extra for terminal sessions, never a replacement
+  for hooks (deterministic, zero tokens, can block). Phase 2 (a board channel server,
+  UI toggle) depends on T-23's session registry and control queue and is built after
+  T-23 is on `dev`.
+- **Why the probe is not committed:** it was a throwaway measurement; the product server
+  (phase 2) will carry tests and coverage (#29).

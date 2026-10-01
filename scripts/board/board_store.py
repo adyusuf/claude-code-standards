@@ -7,6 +7,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from board_todos import TODO_EVENTS, apply as apply_todo
 from board_config import (ACK_FILE, CHANGES_KEPT, CONTROL_FILE, EVENTS_FILE, AgentStatus,
                           ControlAction, SessionState, TaskStatus)
 
@@ -49,7 +50,7 @@ def _task(state: dict, tid: str) -> dict:
         "id": tid, "title": tid, "branch": "", "role": "", "note": "",
         "status": TaskStatus.PLANNED, "agents": [], "updated": None,
         "options": [], "decision": None, "commits": [],
-        "eta_min": None, "est_cost": None, "started": None,
+        "eta_min": None, "est_cost": None, "started": None, "sessions": {},
     })
 
 
@@ -99,6 +100,8 @@ def fold(events: list[dict], control: dict | None = None) -> dict:
             state["mode"] = ev.get("mode")
             state["roles"] = list(ev.get("roles", []))
             state["mode_by"] = None
+        elif kind in TODO_EVENTS and sid:  # the session's todo list (board_todos.py)
+            apply_todo(state["sessions"][sid], kind, ev)
         elif kind == "mode_set":  # the user picked the mode on the board (#27)
             state["mode"], state["mode_by"] = ev.get("mode"), ev.get("by")
         elif kind == "task_add":
@@ -107,6 +110,9 @@ def fold(events: list[dict], control: dict | None = None) -> dict:
                 if ev.get(k) is not None:
                     t[k] = ev[k]
             t["updated"] = ts
+        elif kind == "task_session" and ev.get("id") and sid:  # the session that worked on the task: first/last touch
+            span = _task(state, ev["id"])["sessions"].setdefault(sid, {"first": ts, "last": ts})
+            span["last"] = ts
         elif kind == "task_set":
             t = _task(state, ev["id"])
             for k in ("status", "note", "branch", "role", "title", "options", "commits",
@@ -135,11 +141,35 @@ def fold(events: list[dict], control: dict | None = None) -> dict:
                     t["role"] = ev.get("agent_type", "")
                 _mark_started(t, ts)
                 _refresh_task_after_agent(state, ev["task"], ts)
+        elif kind == "agent_start":
+            # SubagentStart: an agent that did not pass through the Agent tool's PreToolUse (resumed
+            # with SendMessage, or a Workflow agent) has no row yet. Untyped internal subagents are
+            # not agents the user picked and are ignored.
+            aid = ev.get("agent_id")
+            if not aid or not ev.get("agent_type"):
+                continue
+            key = by_agent_id.get(aid)
+            if key:  # already known: it runs (again) in its own row
+                a = state["agents"][key]
+                if a["status"] != AgentStatus.DENIED:
+                    a["status"], a["ended"] = AgentStatus.RUNNING, None
+                    _refresh_task_after_agent(state, a["task"], ts)
+                continue
+            key = f"agent:{aid}"
+            by_agent_id[aid] = key
+            state["agents"][key] = {
+                "key": key, "agent_id": aid, "type": ev["agent_type"], "task": None,
+                "description": "(resumed or workflow agent)", "background": True, "session": sid,
+                "status": AgentStatus.RUNNING, "reason": None, "started": ts, "ended": None,
+            }
         elif kind == "agent_post":
             a = state["agents"].get(ev["tool_use_id"])
             if not a or a["status"] == AgentStatus.DENIED:  # a denied spawn never comes alive
                 continue
             if ev.get("agent_id"):  # a foreground call reports its agentId too
+                prior = by_agent_id.get(ev["agent_id"])
+                if prior and prior.startswith("agent:") and prior != a["key"]:
+                    del state["agents"][prior]  # SubagentStart got here first: one row per agent
                 a["agent_id"] = ev["agent_id"]
                 by_agent_id[ev["agent_id"]] = a["key"]
             if ev.get("launched") and ev.get("agent_id"):

@@ -14,7 +14,7 @@ from datetime import datetime
 from pathlib import Path
 
 from board_config import (CACHE_WRITE_1H_X, CACHE_WRITE_5M_X, CONTEXT_WINDOW, MODEL_SUFFIX_CHARS,
-                          PRICING_USD_PER_MTOK, TOKENS_PER_MTOK)
+                          PRICING_USD_PER_MTOK, TITLE_ENTRIES, TITLE_MAX, TOKENS_PER_MTOK)
 
 TOKEN_KEYS = ("input", "output", "cache_read", "cache_write_5m", "cache_write_1h")
 
@@ -67,6 +67,7 @@ class Transcript:
         self.offset = 0
         self.messages: dict = {}  # message id -> (epoch | None, model, tokens)
         self.context = None       # (model, tokens) of the last main-thread call
+        self.titles: dict = {}    # title entry type -> its last value (see title)
 
     def update(self) -> "Transcript":
         try:
@@ -86,12 +87,24 @@ class Transcript:
         self.offset += end
         return self
 
+    @property
+    def title(self) -> str | None:
+        return next((self.titles[t] for t in TITLE_ENTRIES if t in self.titles), None)
+
     def _take(self, line: bytes) -> None:
         try:
             entry = json.loads(line)
         except ValueError:
             return
-        if not isinstance(entry, dict) or entry.get("type") != "assistant":
+        if not isinstance(entry, dict):
+            return
+        field = TITLE_ENTRIES.get(entry.get("type"))
+        if field:  # the last one written wins: a session can be renamed
+            value = entry.get(field)
+            if isinstance(value, str) and value.strip():
+                self.titles[entry["type"]] = value.strip()[:TITLE_MAX]
+            return
+        if entry.get("type") != "assistant":
             return
         msg = entry.get("message") or {}
         usage = msg.get("usage")
@@ -104,14 +117,19 @@ class Transcript:
             self.context = (model, tok[0] + tok[2] + tok[3] + tok[4])
 
 
-def summarize(transcripts: list, since: float | None = None) -> dict:
+def summarize(transcripts: list, since: float | None = None, start: float | None = None,
+              end: float | None = None) -> dict:
     """Totals over several transcripts. cost is None when any non-empty message used a model
     that has no price; `window_cost` counts only messages at or after `since` (epoch);
-    `first` is the earliest message (epoch)."""
+    `first` is the earliest message (epoch). With `start`/`end` only the messages inside that
+    time window are counted at all (a message without a timestamp is outside any window)."""
     tokens = dict.fromkeys(TOKEN_KEYS, 0)
     cost, window, unpriced, count, first = 0.0, 0.0, set(), 0, None
     for tr in transcripts:
         for at, model, tok in tr.messages.values():
+            if (start is not None or end is not None) and (
+                    at is None or (start is not None and at < start) or (end is not None and at > end)):
+                continue
             count += 1
             if at is not None and (first is None or at < first):
                 first = at

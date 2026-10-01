@@ -75,8 +75,19 @@ CONTROL_FILE = "control.json"
 ACK_FILE = "control_ack.json"
 
 AGENT_TOOL = "Agent"
+BASH_TOOL = "Bash"
+# `board.py add|set T-n ...` typed in a session links that session to the task (cost attribution, T-35)
+BOARD_CMD_PATTERN = r"board\.py\s+(?:--init\s+)?(?:add|set)\s+(T-\d+)"
+TASK_SESSIONS_MAX = 5
+TODO_TOOL = "TodoWrite"  # its input is {todos: [{content, status, activeForm}]}, the whole list each time
+TASK_CREATE_TOOL = "TaskCreate"  # the incremental task tools; shapes in board_todos.py
+TASK_UPDATE_TOOL = "TaskUpdate"
+TODO_MAX_ITEMS = 50
+TODO_TEXT_MAX = 200
 TASK_TAG_PATTERN = r"\[(T-\d+)\]"
 TASK_ID_PATTERN = r"^T-\d+$"
+AUTO_TASK_ID = "auto"  # `board.py add auto ...`: the next free id, taken under a lock
+TASK_LOCK_FILE = "tasks.lock"
 ROLE_PATTERN = r"^[a-z0-9][a-z0-9:_-]{0,63}$"
 AGENT_ID_PATTERN = r"^[0-9A-Za-z_-]{6,64}$"
 ETA_MAX_MIN = 7 * 24 * 60   # board.py set --eta: minutes, 1..this
@@ -125,6 +136,14 @@ class DecisionChoice:
 
 # ---- Sessions, cost, context (standards/22 §2c) ----
 
+class TodoStatus:
+    PENDING = "pending"
+    IN_PROGRESS = "in_progress"
+    COMPLETED = "completed"
+    DELETED = "deleted"  # TaskUpdate only
+    ALL = (PENDING, IN_PROGRESS, COMPLETED)
+
+
 class SessionState:
     BUSY = "busy"        # UserPromptSubmit seen, no Stop yet
     IDLE = "idle"        # the turn ended
@@ -133,6 +152,14 @@ class SessionState:
 
 
 SESSION_ID_PATTERN = r"^[0-9A-Za-z-]{8,64}$"
+# Where Claude Code keeps <project>/<session-id>.jsonl — the fallback for a session whose events never
+# carried a transcript path (recorded before the hook did, or hooks that do not send it).
+TRANSCRIPTS_ROOT = Path(os.environ.get("BOARD_TRANSCRIPTS_ROOT", Path.home() / ".claude" / "projects"))
+TRANSCRIPT_LOOKUP_TTL_S = 30.0    # a lookup that found nothing is not repeated on every poll
+# A session's name as Claude Code writes it into the transcript: entry type -> the field holding it,
+# in the order they win (a title set by the user or the app beats an agent's own name).
+TITLE_ENTRIES = {"custom-title": "customTitle", "agent-name": "agentName"}
+TITLE_MAX = 80
 SESSION_HIDE_AFTER_S = 24 * 3600  # the panel leaves out sessions silent for longer than this
 SUBAGENT_DIR = "subagents"        # <session transcript without .jsonl>/subagents/agent-<id>.jsonl
 SUBAGENT_PREFIX = "agent-"
@@ -177,3 +204,18 @@ APP_ICON_SIZES = (192, 512)
 MAC_CHROME_APP = "Google Chrome"
 CHROME_BINARIES = ("google-chrome", "google-chrome-stable", "chromium", "chromium-browser")
 OPEN_TIMEOUT_S = 15
+
+# ---- Channel: pushing a queued task into an IDLE session (standards/22 §5) ----
+CHANNEL_SERVER = "board-channel"        # the MCP server name; `server:<this>` in the start flag
+CHANNEL_CAPABILITY = "claude/channel"   # experimental capability, and the notification's method prefix
+CHANNEL_METHOD = "notifications/claude/channel"
+CHANNEL_SESSION_ENV = "CLAUDE_CODE_SESSION_ID"  # set by Claude Code for its MCP children (measured 30/09/2026)
+CHANNEL_FLAGS = ("--dangerously-load-development-channels", "--channels")
+CHANNEL_DIR = "channels"                # <board dir>/channels/<session>.json — one file per live server
+CHANNEL_DELIVERED_FILE = "channel_delivered.json"
+CHANNEL_POLL_S = 1.0
+CHANNEL_BEAT_S = 5.0     # a live server rewrites its file this often
+CHANNEL_TTL_S = 20.0     # a file older than this is a crashed server: the session is not reachable
+CHANNEL_CONFIRM_S = 30.0  # a pushed task the hooks hold back this long; unconfirmed after it -> hooks deliver it
+CHANNEL_DELIVERED_KEPT = 200
+CHANNEL_FALLBACK_PROTOCOL = "2024-11-05"

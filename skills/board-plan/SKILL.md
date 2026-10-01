@@ -19,9 +19,15 @@ Read the mode in the order `modes/README.md` gives (session selection →
 Mode A has no agents: declare `--roles ""` and the board tracks tasks only.
 
 ## 2. Break the work down
-One item per unit that merges to `dev` on its own (#26). Ids are `T-1`, `T-2`, …
+One item per unit that merges to `dev` on its own (#26). Never type an id: `add auto`
+takes the next free one under a lock and prints it (several sessions share a board; typed
+ids collided — T-25 was used by three of them). Use the printed id everywhere after.
 
-    B add T-1 "<short title>" --branch <branch> --role <role that will do it>
+    B add auto "<short title>" --branch <branch> --role <role that will do it>
+
+An id that already exists is refused. The board is found from the working directory's
+repository; run `B` from the repository whose board you mean (a repository with no board
+hooks is refused unless you pass `--init`).
 
 Route by `modes/role-selection.md`. A role outside the active mode is not started;
 propose the mode change in one line (#27).

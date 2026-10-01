@@ -29,8 +29,12 @@
   const muted = (html) => `<div class="muted">${html}</div>`;
 
   function stateHtml(t, s, now) {
+    const channel = s.channel
+      ? ` <span class="badge ch" title="${esc(t("channelTitle"))}">${esc(t("channel"))}</span>` : "";
+    const todo = s.todos
+      ? muted(`${esc(t("todos"))} ${s.todos.done}/${s.todos.total}${s.todos.current ? ` · ${esc(s.todos.current)}` : ""}`) : "";
     return `<span class="badge st-${esc(s.state)}">${esc(t(s.state))} ${
-      esc(fmtDur(t, s.since, null, now))}</span>`;
+      esc(fmtDur(t, s.since, null, now))}</span>${channel}${todo}`;
   }
 
   function contextHtml(t, s) {
@@ -73,12 +77,15 @@
       <button class="act" data-skill-run="${id}">${esc(t("runSkill"))}</button></div>${queued}`;
   }
 
-  /** The sessions table body: one row per session the server shows. */
-  function sessionsHtml(t, st, skills, drafts, now) {
+  const reachable = (costs) => ((costs && costs.sessions) || []).filter((s) => s.channel);
+
+  /** The sessions table body: one row per session the server shows, or only the ones a channel
+      server can reach when `channelOnly` (the page's checkbox). */
+  function sessionsHtml(t, st, skills, drafts, now, channelOnly = false) {
     const costs = st.costs;
-    const list = (costs && costs.sessions) || [];
-    if (!list.length) return `<tr><td colspan="7" class="empty">${esc(t("noSessions"))}</td></tr>`;
-    return list.map((s) => `<tr><td><code title="${esc(s.id)}">${esc(s.id.slice(0, 8))}</code></td>
+    const list = channelOnly ? reachable(costs) : (costs && costs.sessions) || [];
+    if (!list.length) return `<tr><td colspan="7" class="empty">${esc(t(channelOnly ? "noChannelSessions" : "noSessions"))}</td></tr>`;
+    return list.map((s) => `<tr><td>${s.title ? `<div class="sname" title="${esc(s.title)}">${esc(s.title)}</div>` : ""}<code title="${esc(s.id)}">${esc(s.id.slice(0, 8))}</code></td>
       <td>${stateHtml(t, s, now)}</td><td>${contextHtml(t, s)}</td><td>${costHtml(t, s)}</td>
       <td>${esc(fmtUsd(t, s.rate_per_h))}${s.rate_per_h == null ? "" : esc(t("perHour"))}</td>
       <td>${projectionHtml(t, s, costs.basis)}</td><td>${sendHtml(t, s, skills, drafts, st.queue_text_max)}</td></tr>`).join("");
@@ -88,16 +95,30 @@
   function helpHtml(t, costs, waitS) {
     const undercount = ((costs && costs.sessions) || []).some((s) => s.subagents > 0)
       ? `<p>${esc(t("undercount"))}</p>` : "";
-    return `<p>${esc(t("helpCompact"))}</p><p>${esc(fill(t("helpQueue"), { s: waitS }))}</p>${undercount}`;
+    const channel = fill(t("helpChannel"), { n: reachable(costs).length, name: "board-channel" });
+    return `<p>${esc(t("helpCompact"))}</p><p>${esc(fill(t("helpQueue"), { s: waitS }))}</p><p>${esc(channel)}</p>${undercount}`;
   }
 
   /** A task's Cost / ETA cell: spent by its agents, time left, the user's estimate, projection. */
+  /** The orchestrator's share of a task: the linked session's own transcript inside the task's time window.
+      Always labelled an estimate with its basis, and says how many other tasks share that window. */
+  function orchestrationHtml(t, o) {
+    const s = o.summary;
+    const basis = fill(t("orchBasis"), { s: o.sessions.map((id) => id.slice(0, 8)).join(", ") });
+    const shared = o.shared ? ` · ${fill(t("orchShared"), { n: o.shared })}` : "";
+    return `${esc(t("orchEst"))} <b>${esc(fmtUsd(t, s.cost))}</b> · ${esc(fmtTok(tokSum(s.tokens)))} ${esc(t("tokens"))}`
+      + muted(`${esc(basis)}${esc(shared)}`);
+  }
+
   function taskCostHtml(t, task, cost) {
     if (!cost) return "—";
+    const orch = cost.orchestration;
     let spent = esc(t("noAgentLinked"));
     if (cost.spent) spent = `${esc(t("spent"))} <b>${esc(fmtUsd(t, cost.spent.cost))}</b> · ${esc(fmtTok(tokSum(cost.spent.tokens)))} ${esc(t("tokens"))}`;
     else if (cost.agents) spent = `${esc(t("spent"))} ${esc(t("notMeasured"))}`;
-    const lines = [spent];
+    // No agent linked but the orchestrating session is known: that estimate replaces "no agent linked".
+    const lines = !cost.spent && !cost.agents && orch ? [] : [spent];
+    if (orch) lines.push(orchestrationHtml(t, orch));
     if (cost.remaining_min != null) lines.push(`${esc(t("etaLeft"))} ${Math.round(cost.remaining_min)} ${esc(t("min"))}`);
     if (task.est_cost != null) {
       const left = cost.est_left == null ? "" : ` · ${esc(t("left"))} ${esc(fmtUsd(t, cost.est_left))}`;

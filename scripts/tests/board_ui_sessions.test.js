@@ -224,3 +224,63 @@ test("taskCostHtml: the first line is plain, every later line is muted, in order
     '<div class="muted">tahmini bütçe $5.00 · kalan $3.50</div>' +
     '<div class="muted">bitiş ≈ $9.00 <span class="muted">(tahmin: görevin kendi $/sa hızı × kalan ETA)</span></div>');
 });
+
+test("a channel-reachable session carries the channel badge, the others do not (tr + en)", () => {
+  const html = rows(stateOf([session({ channel: true, state: "idle" })]));
+  assert.match(html, /<span class="badge ch" title="[^"]*board-channel[^"]*">kanal<\/span>/);
+  assert.match(rows(stateOf([session({ channel: true })]), {}, en), /<span class="badge ch" title="[^"]+">channel<\/span>/);
+  assert.doesNotMatch(rows(stateOf([session({ channel: false })])), /badge ch/);
+  assert.doesNotMatch(rows(stateOf([session()])), /badge ch/);  // an older server sends no flag
+});
+
+test("the channel-only filter keeps just the reachable sessions and says so when there are none", () => {
+  const list = [session({ id: "aaaaaaaa11111111", channel: true }), session({ id: "bbbbbbbb22222222", channel: false })];
+  const all = panel.sessionsHtml(tr, stateOf(list), [], {}, NOW);
+  const only = panel.sessionsHtml(tr, stateOf(list), [], {}, NOW, true);
+  assert.match(all, /aaaaaaaa/);
+  assert.match(all, /bbbbbbbb/);
+  assert.match(only, /aaaaaaaa/);
+  assert.doesNotMatch(only, /bbbbbbbb/);
+  const none = panel.sessionsHtml(tr, stateOf([session({ channel: false })]), [], {}, NOW, true);
+  assert.match(none, /<td colspan="7" class="empty">Kanalla ulaşılabilen oturum yok\.<\/td>/);
+  assert.match(panel.sessionsHtml(en, stateOf([]), [], {}, NOW, true), /No session a channel can reach\./);
+  assert.match(panel.sessionsHtml(en, stateOf([]), [], {}, NOW), /No session in the last 24 hours\./);
+});
+
+test("helpHtml names how many sessions a channel reaches and how to start one", () => {
+  const costs = { sessions: [session({ channel: true }), session({ channel: true }), session({ channel: false })] };
+  assert.match(panel.helpHtml(tr, costs, 180), /Kanal: 2 oturum kanalla ulaşılabilir[^<]*server:board-channel/);
+  assert.match(panel.helpHtml(en, costs, 180), /Channel: 2 session\(s\) reachable by channel[^<]*desktop app cannot/);
+  assert.match(panel.helpHtml(en, { sessions: [] }, 180), /Channel: 0 session/);
+  assert.match(panel.helpHtml(en, undefined, 180), /Channel: 0 session/);
+});
+
+test("todo line: done/total and the running item; absent when the session sent no list; escaped", () => {
+  const withTodos = rows(stateOf([session({ todos: { done: 2, total: 5, current: "Running <b>tests</b>" } })]));
+  assert.match(withTodos, /yapılacaklar 2\/5 · Running &lt;b&gt;tests&lt;\/b&gt;/);
+  assert.match(rows(stateOf([session({ todos: { done: 0, total: 1, current: null } })]), {}, en), /todo 0\/1</);
+  assert.doesNotMatch(rows(stateOf([session({ todos: null })])), /yapılacaklar/);
+  assert.doesNotMatch(rows(stateOf([session()])), /yapılacaklar/);
+});
+
+test("session name: shown above the id, escaped, absent when the transcript has none", () => {
+  const named = rows(stateOf([session({ title: "live board <b>x</b>" })]));
+  assert.match(named, /<div class="sname" title="live board &lt;b&gt;x&lt;\/b&gt;">live board &lt;b&gt;x&lt;\/b&gt;<\/div><code title="abcdef1234567890">abcdef12<\/code>/);
+  assert.doesNotMatch(rows(stateOf([session({ title: null })])), /sname/);
+  assert.doesNotMatch(rows(stateOf([session()])), /sname/);
+});
+
+test("task cost cell: the orchestrator estimate replaces 'no agent linked', with its basis and sharing", () => {
+  const orch = { summary: { cost: 2.5, tokens: tokens(1000, 500) }, sessions: ["abcdef1234567890", "<i>x</i>zzzzzzz"], shared: 2 };
+  const only = panel.taskCostHtml(tr, { est_cost: null }, { agents: 0, spent: null, orchestration: orch });
+  assert.doesNotMatch(only, /bağlı ajan yok/);
+  assert.match(only, /orkestratör ≈ <b>\$2\.50<\/b> · 2k token/);
+  assert.match(only, /oturum abcdef12, &lt;i&gt;x&lt;\/i&gt;, görevin zaman penceresi/);
+  assert.match(only, /aynı pencerede 2 başka görev/);
+  const none = panel.taskCostHtml(tr, { est_cost: null }, { agents: 0, spent: null, orchestration: null });
+  assert.match(none, /bağlı ajan yok/);
+  const both = panel.taskCostHtml(en, { est_cost: null }, { agents: 1, spent: { cost: 1, tokens: tokens() }, orchestration: { ...orch, shared: 0 } });
+  assert.match(both, /spent/);
+  assert.match(both, /orchestrator ≈/);
+  assert.doesNotMatch(both, /other task/);
+});

@@ -193,3 +193,26 @@ test("without navigator.serviceWorker nothing is registered and nothing is logge
   }
   assert.equal(typeof ui.start, "function");
 });
+
+test("the channel-only checkbox filters the sessions table without another fetch", async () => {
+  const st = withSession();
+  st.costs.sessions.push({ ...st.costs.sessions[0], id: "chan-0002-bbbb", channel: true });
+  const page = fakePage({ server: { state: st } });
+  await page.app.first;
+  assert.match(page.els.sessions.innerHTML, /sess-000/);
+  assert.match(page.els.sessions.innerHTML, /chan-000/);
+  const fetches = page.calls.length;
+  page.els.channelOnly.checked = true;
+  page.change({ id: "channelOnly", dataset: {} });
+  assert.doesNotMatch(page.els.sessions.innerHTML, /sess-000/);
+  assert.match(page.els.sessions.innerHTML, /chan-000/);
+  assert.equal(page.calls.length, fetches);
+  page.els.channelOnly.checked = false;
+  page.change({ id: "channelOnly", dataset: {} });
+  assert.match(page.els.sessions.innerHTML, /sess-000/);
+});
+
+test("ticking the checkbox before any state has loaded is harmless", () => {
+  const page = fakePage({ server: { state: withSession() } });
+  assert.doesNotThrow(() => page.change({ id: "channelOnly", dataset: {} }));
+});

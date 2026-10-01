@@ -40,6 +40,19 @@ call to its `SubagentStop.agent_id`; `UserPromptSubmit` carries `prompt`.
 
 ## 2. Enabling it in a project
 
+**One command:** from the repository, `python3 ~/.claude/scripts/board/board.py enable` does steps 1 and 2 below
+and lists the project on the page. It is idempotent (a hook already there is left alone, everything else in
+`settings.json` is kept, a file that is not valid JSON is never touched); commit the two files it changed.
+Run it in the checkout whose files you will commit: from a linked worktree it writes THAT worktree's
+`settings.json` and `.gitignore` (never the main checkout's) and lists the main checkout's board. Settings a
+worktree does not have yet can be given locally without a commit through `.claude/settings.local.json` (git-ignored).
+The steps below are what it does, for a project that wants to do it by hand.
+
+**A project is listed as soon as its board is written** — by `board.py plan|add|set` or by any hook event —
+not only by the `SessionStart` hook (`board_registry.register_if_missing`; not when `BOARD_DIR` overrides the
+directory). Seen live 30/09/2026: ryan had ten tasks on a board and no `.claude/settings.json`, so no page
+listed it. Without the hooks the page shows the tasks but no sessions, agents or costs: those need step 1.
+
 1. Merge this block into the project's `.claude/settings.json` (committed):
 
 ```json
@@ -48,6 +61,7 @@ call to its `SubagentStop.agent_id`; `UserPromptSubmit` carries `prompt`.
     "SessionStart": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_ensure.py\" || true" }] }],
     "PreToolUse": [{ "matcher": "Agent", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
     "PostToolUse": [{ "matcher": "*", "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
+    "SubagentStart": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
     "SubagentStop": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }],
     "Stop": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true", "timeout": 900 }] }],
     "UserPromptSubmit": [{ "hooks": [{ "type": "command", "command": "python3 \"$HOME/.claude/scripts/board/board_hook.py\" || true" }] }]
@@ -120,8 +134,43 @@ read / cache write) and cost, read from that agent's transcript (the `SubagentSt
 `<session>/subagents/agent-<id>.jsonl`); a running agent shows its cost so far, read
 incrementally. A row whose agent id or transcript is not known yet says "cannot be measured
 yet" and is left out of the total row, which counts the measured agents and names how many
-are not. The roles panel adds each role's cost. Rows for resumed / Workflow agents exist only
-once T-2 opens them on `SubagentStart`, so their cost column depends on it.
+are not. The roles panel adds each role's cost. A resumed agent (`SendMessage`) or a Workflow
+agent never passes through the Agent tool's `PreToolUse`, so `SubagentStart` (with a non-empty
+`agent_type`) opens its row and `SubagentStop` closes it; an agent that already has a row from the
+Agent tool runs again in that row (no duplicate), and an untyped internal subagent is ignored.
+Projects enabled before 30/09/2026 add the `SubagentStart` line to their settings block to get
+these rows; without it everything else keeps working.
+
+**Todo list:** the sessions panel shows each session's own todo progress ("todo 2/5 · what is
+running now"). The main session's todo tools are recorded by the existing `PostToolUse` `*` hook,
+with shapes read from the CLI binary, not guessed: `TodoWrite` (`{todos:[{content,status,activeForm}]}`,
+the whole list each time → `todo_sync`), `TaskCreate` (result `{task:{id,subject}}` or the text
+"Task #<id> created successfully" → `todo_add`) and `TaskUpdate` (`{taskId,status,subject?,activeForm?}`,
+status `pending|in_progress|completed|deleted` → `todo_update`). The latest list replaces the previous
+one, an empty list clears it, a subagent's call is ignored, and anything else — a payload without an id,
+an update for a task the board never saw created, an undocumented status — records nothing (no todo
+line, never an invented one). Not verified live: this repository's sessions have no `TaskCreate` tool, so
+the result shape is checked against the binary's source and the tests, not against a real call.
+
+**A task's orchestrator cost (no agent linked):** a main-thread `Bash` call that runs `board.py add|set T-n` links
+that session to the task (`task_session`; a subagent's call and `board.py add auto`, whose id is not known yet,
+do not). The task's Cost cell then adds `orchestrator ≈ $x` — the session's **main** transcript inside the task's
+time window (first touch to now while the task is `running`, to the last touch otherwise), labelled an estimate
+with its basis and "N other tasks in the same window" when windows of the same session overlap, because the
+session may have done other work in those hours. The session's subagents are not counted there (their cost
+reaches the task through `board.py set T-n --agent`, counting them twice would overstate it); a model without a
+price makes the figure "cannot be measured", never zero. Tasks written before this existed have no linked
+session and keep showing "no agent linked".
+
+**Session names and unmeasured sessions:** the sessions table shows each session's name above its id.
+The name is read from the session's own transcript — the last `custom-title` entry (`customTitle`, set by
+the user or the app), else the last `agent-name` entry (`agentName`) — cut to 80 characters; a session
+without either shows the id alone. A session whose events never carried a transcript path (recorded
+before the hooks sent it, or a client that does not) is looked up as `<session-id>.jsonl` under
+`~/.claude/projects/*/` (`BOARD_TRANSCRIPTS_ROOT` overrides the root; the id is checked against the
+session-id pattern before it is globbed, and a miss is not retried for 30 s). A session whose transcript
+does not exist at all (deleted, or the client keeps none there) stays "cannot be measured": the board
+says so instead of guessing.
 
 **Context:** the last main-thread call's input + cache read + cache write tokens, set against
 the model's window size. The board shows **"context warn" at ≥80%** — a UX reminder, never a
@@ -210,6 +259,20 @@ files in the repository** — icons are generated on request from the server.
 **Service worker** (`/sw.js`): caches nothing. The board is ephemeral and always fresh; a
 stale cache would be worse than a reload.
 
+## 2f. Task ids and where the CLI writes (T-28, 30/09/2026)
+
+Several sessions write to one board, and ids were typed by hand: T-25 was taken by three
+sessions and T-26 by two, so a later `add` silently replaced an earlier task's title. And
+`board.py` finds the board from the working directory's repository, so a `set` typed in another
+project's tree created a stray `.claude/board/` there.
+
+- `board.py add auto "<title>"` reads the log and appends **under an exclusive lock**
+  (`tasks.lock`), so parallel sessions cannot draw the same number; it prints the id.
+- `add T-n` with an id that already exists is **refused** (exit 2) and writes nothing.
+- A repository with no board (no `events.jsonl`) is **refused** for `plan`/`add`/`set` unless
+  `--init` is given; `list` there prints nothing and creates nothing. A repository whose hooks
+  are wired already has a board (the first hook event creates it), so nothing changes for it.
+
 ## 3. Permanent rules
 
 - ⚠️ **The board is an extra view, never the report.** The table in the reply
@@ -253,3 +316,31 @@ The hooks and the server cost **no tokens** while silent. What enters the contex
 A 7-task hour ≈ 1,800–2,000 new tokens (estimate); every added token is then
 re-read from cache on later calls. Hook latency: **65 ms median** per tool call
 (20 runs, no-op `PostToolUse`).
+
+## 5. Channels — pushing a task into an IDLE session (measured 30/09/2026, T-24 phase 1)
+
+Hooks reach a BUSY session only (`PostToolUse` mid-turn, `Stop` at turn end). An idle
+session can be reached through an MCP **channel**: a stdio server that declares
+`capabilities.experimental["claude/channel"] = {}` and sends
+`notifications/claude/channel` with `params: {content: string, meta?: {key: string}}`
+(meta keys must match `^[a-zA-Z_][a-zA-Z0-9_]*$`, others are dropped).
+
+- **Measured (Claude Code 2.1.281, interactive CLI):** a minimal stdlib server pushed a
+  message into an idle session; it was enqueued and dequeued within 20 ms, arrived as a
+  user message `<channel source="<server>" <meta…>>text</channel>` (`origin.kind:
+  channel`) and the session started a turn and acted on it — 2 of 2 runs.
+- **How to start such a session:** `claude --mcp-config <file> --dangerously-load-development-channels server:<name>`
+  (`--channels` alone only accepts marketplace plugins on the approved list). The flag
+  shows a confirmation dialog at every start; the user must accept it.
+- **Org opt-in:** on claude.ai Teams/Enterprise the managed setting `channelsEnabled: true`
+  is required (default off). Not needed on the measured account (no managed settings).
+- ⚠️ **Not reachable:** the Claude desktop app (Code tab) starts its sessions without any
+  `--channels` flag and has no setting for it, so those sessions cannot receive a channel
+  push (not tested live — inferred from the session argv and the app bundle).
+- ⚠️ **A session whose login has expired wakes but fails** ("Login expired"): delivery is
+  not the same as the session acting.
+- **Stays hook-based:** hooks are deterministic, cost no tokens while silent and can block;
+  a channel message is only text the model may or may not follow. Channels close the
+  idle-session gap only — they never replace the hooks.
+- **Fail-closed rule for any board channel server:** it pushes only text the board queued
+  for a registered session — never arbitrary text.

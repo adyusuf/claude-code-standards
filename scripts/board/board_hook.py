@@ -1,6 +1,6 @@
 """Claude Code hook entrypoint: records agent lifecycle and enforces board controls.
 
-Wire it for PreToolUse/PostToolUse (matcher "Agent"), SubagentStop, Stop,
+Wire it for PreToolUse/PostToolUse (matcher "Agent"), SubagentStart, SubagentStop, Stop,
 UserPromptSubmit and PostToolUse (matcher "*") — the settings block is in
 standards/22-live-board.md. The Stop hook also waits, for a bounded time, for the
 user's answer to a question Claude put on the board (needs_decision). A task or skill the
@@ -9,14 +9,20 @@ user queued for a session reaches it after its next main-thread tool call, or at
 from __future__ import annotations
 
 import json
+import os
 import re
 import sys
 import time
 
 from board_config import (AGENT_TOOL, DECISION_POLL_S, DECISION_WAIT_S, TASK_TAG_PATTERN,
+                          BASH_TOOL, BOARD_CMD_PATTERN, TASK_CREATE_TOOL, TASK_UPDATE_TOOL, TODO_TOOL,
                           ControlAction, TaskStatus, board_dir)
-from board_store import (append_event, fold, peek_changes as _peek_changes, read_control,
-                         read_events, unseen_changes)
+import board_todos
+from board_registry import register_if_missing
+from board_channel_ack import confirm as _channel_confirm
+from board_channel_ack import peek_changes as _peek_changes
+from board_channel_ack import unseen_changes
+from board_store import append_event, fold, read_control, read_events
 
 
 def task_tag(text: str) -> str | None:
@@ -92,6 +98,21 @@ def wait_for_decision(bdir, session: str, wait_s: float, poll_s: float = DECISIO
         time.sleep(poll_s)
 
 
+def _record_todo(bdir, session: str, tool: str, tin: dict, resp) -> None:
+    """The main session's todo tools (a subagent's own list is not the session's) — see board_todos.py."""
+    if tool == TODO_TOOL:
+        items = board_todos.snapshot(tin)
+        event = None if items is None else {"type": "todo_sync", "todos": items}
+    elif tool == TASK_CREATE_TOOL:
+        item = board_todos.created(tin, resp)
+        event = None if item is None else {"type": "todo_add", "item": item}
+    else:
+        change = board_todos.updated(tin)
+        event = None if change is None else {"type": "todo_update", "change": change}
+    if event:
+        append_event(bdir, {"session": session, **event})
+
+
 def _context(event_name: str, text: str) -> dict:
     return {"hookSpecificOutput": {"hookEventName": event_name, "additionalContext": text}}
 
@@ -100,6 +121,8 @@ def handle(payload: dict) -> dict | None:
     event = payload.get("hook_event_name")
     session = payload.get("session_id", "")
     bdir = board_dir(payload.get("cwd"))
+    if not os.environ.get("BOARD_DIR"):  # a project with only some hooks (no SessionStart) is still listed
+        register_if_missing(bdir.parent.parent, bdir)
     tool = payload.get("tool_name")
     tin = payload.get("tool_input") or {}
 
@@ -129,12 +152,27 @@ def handle(payload: dict) -> dict | None:
             append_event(bdir, {"type": "agent_post", "session": session,
                                 "tool_use_id": payload.get("tool_use_id"),
                                 "launched": launched, "agent_id": resp.get("agentId")})
+        if tool in (TODO_TOOL, TASK_CREATE_TOOL, TASK_UPDATE_TOOL) and not payload.get("agent_id"):
+            _record_todo(bdir, session, tool, tin, payload.get("tool_response"))
+        if tool == BASH_TOOL and session and not payload.get("agent_id"):
+            # A session that runs `board.py add|set T-n` is the one working on T-n: its own (orchestrator) cost
+            # in the task's time window belongs to the task even when no agent is linked to it.
+            for tid in dict.fromkeys(re.findall(BOARD_CMD_PATTERN, str(tin.get("command") or ""))):
+                append_event(bdir, {"type": "task_session", "session": session, "id": tid})
         if payload.get("agent_id"):
             # A subagent's tool call (modes C/D/E): it must not consume a notice meant
             # for the orchestrator, or the orchestrator would never see the change.
             return None
         text = _change_text(unseen_changes(bdir, session), session)
         return _context("PostToolUse", text) if text else None
+
+    if event == "SubagentStart":
+        # Opens a row for agents that never pass through the Agent tool (SendMessage resumes,
+        # Workflow agents); an untyped internal subagent has no agent_type and is ignored.
+        if payload.get("agent_id") and payload.get("agent_type"):
+            append_event(bdir, {"type": "agent_start", "session": session,
+                                "agent_id": payload["agent_id"], "agent_type": payload["agent_type"]})
+        return None
 
     if event == "SubagentStop":
         append_event(bdir, {"type": "agent_stop", "session": session,
@@ -146,11 +184,13 @@ def handle(payload: dict) -> dict | None:
     if event == "Stop":
         append_event(bdir, {"type": "turn_stop", "session": session,
                             "transcript": payload.get("transcript_path")})
+        _channel_confirm(bdir, session)
         return wait_for_decision(bdir, session, DECISION_WAIT_S)
 
     if event == "UserPromptSubmit":
         append_event(bdir, {"type": "turn_start", "session": session,
                             "transcript": payload.get("transcript_path")})
+        _channel_confirm(bdir, session)
         text = _change_text(unseen_changes(bdir, session), session)
         return _context("UserPromptSubmit", text) if text else None
 
