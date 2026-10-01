@@ -997,3 +997,17 @@ cannot (they need a running turn). Claude Code 2.1.281 has MCP channels.
   T-23 is on `dev`.
 - **Why the probe is not committed:** it was a throwaway measurement; the product server
   (phase 2) will carry tests and coverage (#29).
+
+## Background task names show their cost (01/10/2026, user decision)
+
+Question that prompted it: "do the background tasks running now spend tokens?" — the
+answer needed a `ps` listing and a paragraph, because nothing in a task's name said
+whether a model was running in it.
+
+- **Decision:** a task in which no model runs is named `FREE - <name>`; a task in which a
+  model runs starts with that model's name. The prefix covers background `Bash`, `Agent`,
+  `Workflow`, scheduled tasks and the board row. → `standards/00` §10c.
+- **Why a prefix and not a column:** the name is the one thing every view shows (the
+  task list, the board, the notification), and it is read before anything else.
+- **Boundary:** FREE describes the task, not the session — the notification that wakes
+  the session when a FREE task ends is a turn of the session.
