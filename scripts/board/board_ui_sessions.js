@@ -100,12 +100,25 @@
   }
 
   /** A task's Cost / ETA cell: spent by its agents, time left, the user's estimate, projection. */
+  /** The orchestrator's share of a task: the linked session's own transcript inside the task's time window.
+      Always labelled an estimate with its basis, and says how many other tasks share that window. */
+  function orchestrationHtml(t, o) {
+    const s = o.summary;
+    const basis = fill(t("orchBasis"), { s: o.sessions.map((id) => id.slice(0, 8)).join(", ") });
+    const shared = o.shared ? ` · ${fill(t("orchShared"), { n: o.shared })}` : "";
+    return `${esc(t("orchEst"))} <b>${esc(fmtUsd(t, s.cost))}</b> · ${esc(fmtTok(tokSum(s.tokens)))} ${esc(t("tokens"))}`
+      + muted(`${esc(basis)}${esc(shared)}`);
+  }
+
   function taskCostHtml(t, task, cost) {
     if (!cost) return "—";
+    const orch = cost.orchestration;
     let spent = esc(t("noAgentLinked"));
     if (cost.spent) spent = `${esc(t("spent"))} <b>${esc(fmtUsd(t, cost.spent.cost))}</b> · ${esc(fmtTok(tokSum(cost.spent.tokens)))} ${esc(t("tokens"))}`;
     else if (cost.agents) spent = `${esc(t("spent"))} ${esc(t("notMeasured"))}`;
-    const lines = [spent];
+    // No agent linked but the orchestrating session is known: that estimate replaces "no agent linked".
+    const lines = !cost.spent && !cost.agents && orch ? [] : [spent];
+    if (orch) lines.push(orchestrationHtml(t, orch));
     if (cost.remaining_min != null) lines.push(`${esc(t("etaLeft"))} ${Math.round(cost.remaining_min)} ${esc(t("min"))}`);
     if (task.est_cost != null) {
       const left = cost.est_left == null ? "" : ` · ${esc(t("left"))} ${esc(fmtUsd(t, cost.est_left))}`;

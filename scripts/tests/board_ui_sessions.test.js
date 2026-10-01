@@ -269,3 +269,18 @@ test("session name: shown above the id, escaped, absent when the transcript has 
   assert.doesNotMatch(rows(stateOf([session({ title: null })])), /sname/);
   assert.doesNotMatch(rows(stateOf([session()])), /sname/);
 });
+
+test("task cost cell: the orchestrator estimate replaces 'no agent linked', with its basis and sharing", () => {
+  const orch = { summary: { cost: 2.5, tokens: tokens(1000, 500) }, sessions: ["abcdef1234567890", "<i>x</i>zzzzzzz"], shared: 2 };
+  const only = panel.taskCostHtml(tr, { est_cost: null }, { agents: 0, spent: null, orchestration: orch });
+  assert.doesNotMatch(only, /bağlı ajan yok/);
+  assert.match(only, /orkestratör ≈ <b>\$2\.50<\/b> · 2k token/);
+  assert.match(only, /oturum abcdef12, &lt;i&gt;x&lt;\/i&gt;, görevin zaman penceresi/);
+  assert.match(only, /aynı pencerede 2 başka görev/);
+  const none = panel.taskCostHtml(tr, { est_cost: null }, { agents: 0, spent: null, orchestration: null });
+  assert.match(none, /bağlı ajan yok/);
+  const both = panel.taskCostHtml(en, { est_cost: null }, { agents: 1, spent: { cost: 1, tokens: tokens() }, orchestration: { ...orch, shared: 0 } });
+  assert.match(both, /spent/);
+  assert.match(both, /orchestrator ≈/);
+  assert.doesNotMatch(both, /other task/);
+});
