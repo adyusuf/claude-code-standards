@@ -17,7 +17,7 @@ mobile client**, so there is no `.env` file to fill in and no port to open. What
 
 ## 1. Prerequisites
 
-The version column is what this setup was **last verified with** (1 Oct 2026, macOS);
+The version column is what this setup was **last verified with** (01/10/2026, macOS);
 older versions are not claimed to work. Pin your own in `.tool-versions` if you
 want it enforced.
 
@@ -27,12 +27,12 @@ want it enforced.
 | Python | 3.9.13 | `brew install python` | Every script under `scripts/` and the unit tests |
 | bash | 5.3 | `brew install bash` | The gate scripts; the shell coverage tracer cannot trace macOS's `/bin/bash` (SIP) |
 | gitleaks | 8.30 | `brew install gitleaks` | Secret scan: pre-commit hook and the gate |
-| ShellCheck | current | `brew install shellcheck` | SAST for the shell scripts |
-| CodeQL CLI | current | `brew install --cask codeql` | SAST for the Python |
-| kcov | current | `brew install kcov` | Line coverage of the shell scripts |
-| `coverage` (Python package) | current | §2, step 3 | Line coverage of the Python scripts |
+| ShellCheck | 0.11.0 | `brew install shellcheck` | SAST for the shell scripts |
+| CodeQL CLI | 2.27.1 | `brew install --cask codeql` | SAST for the Python |
+| kcov | 43 | `brew install kcov` | Line coverage of the shell scripts |
+| `coverage` (Python package) | 7.10.7 | §2, step 3 | Line coverage of the Python scripts |
 | Node.js | 22 | `brew install node` | Only to run the coverage step on a copy of the scripts that carries JavaScript; this repository has none |
-| GitHub CLI (`gh`) | current | `brew install gh` | Only for `require-private-remote.sh` and opening pull requests |
+| GitHub CLI (`gh`) | 2.23.0 | `brew install gh` | Only for `require-private-remote.sh` and opening pull requests |
 
 A missing tool is never silent: the gate reports the step as **NOT RUN**, the
 result is INCOMPLETE and the exit code is not 0 (#19, #25). You can start with
@@ -45,20 +45,23 @@ git clone https://github.com/adyusuf/claude-code-standards
 cd claude-code-standards
 ```
 
-1. Work on a branch off `dev`, in a worktree, never on `prod` (#26):
+1. Install the commit hooks (the `CLAUDE.md` size gate, `gitleaks` over staged
+   content, the documentation check, the real-name check on file names, added
+   lines and the commit message). **Run this once, in the main checkout you just
+   cloned, not in a linked worktree**: there `.git` is a file, not a directory,
+   and the installer fails. The hooks are symlinks in the shared git directory
+   that point at `scripts/` of that main checkout, so they run that checkout's
+   scripts whichever worktree you commit from:
+
+   ```bash
+   bash scripts/pre-commit.sh --install
+   ```
+
+2. Work on a branch off `dev`, in a worktree, never on `prod` (#26):
 
    ```bash
    git fetch origin
    git worktree add ../claude-code-standards-wt-<topic> -b <type>/<topic> origin/dev
-   ```
-
-2. Install the commit hooks (the `CLAUDE.md` size gate, `gitleaks` over staged
-   content, the documentation check, the real-name check on file names, added
-   lines and the commit message). Hooks live in the shared git directory, so
-   once per clone is enough:
-
-   ```bash
-   bash scripts/pre-commit.sh --install
    ```
 
 3. Create the Python environment the coverage step expects. It is kept **outside**
@@ -77,13 +80,14 @@ library and the tools in §1.
 
 ## 3. Secret and token inventory
 
-**This repository holds no secrets and needs none to run.** Nothing is read from
-a `.env` file, so there is no `.env.example` either; the optional settings in §4
-are plain shell variables.
+**This repository holds no secrets and needs none to run.** Nothing reads a `.env`
+file: the optional settings in §4 are plain shell variables. [`.env.example`](.env.example)
+lists all of them, commented, for the checklist in rule #16; it is documentation
+and nothing loads it.
 
 | Name | What it is for | Where to obtain it | Where it is stored | Owner | Rotation |
 |---|---|---|---|---|---|
-| GitHub CLI login (`gh auth login`) | `require-private-remote.sh` asks GitHub whether a remote is private; opening pull requests | GitHub → your account; `gh auth login` and follow the prompts | The system keychain, written by `gh` | The person running the commands | Whenever the token is revoked; `gh auth refresh` |
+| GitHub CLI login (`gh auth login`) | `require-private-remote.sh` asks GitHub whether a remote is private; opening pull requests | GitHub → your account; `gh auth login` and follow the prompts | `~/.config/gh/hosts.yml`, a plain-text file written by `gh` (check with `gh auth status`) | The person running the commands | Whenever the token is revoked; `gh auth refresh` |
 | `TEST_VERSION_URL` (optional) | A test-deploy version endpoint the gate may `curl` | Your own test environment. **Not a secret**, and unused by this repository | Your shell, only if you set it | The person running the gate | n/a |
 
 Rules that apply here and are enforced by the hooks: a secret never enters the
@@ -91,7 +95,7 @@ repository (#3); a leak is rotated first and cleaned up second.
 
 ## 4. Environment variables (all optional)
 
-Set them in your shell or in the command line. None has to be set.
+Set them in your shell or on the command line. None has to be set; the same list, commented, is in [`.env.example`](.env.example).
 
 | Variable | Default | Effect |
 |---|---|---|
@@ -121,7 +125,9 @@ python3 -m unittest discover -s scripts/tests -p 'test_*.py'
 # 2. What the gate would run, without running it
 bash scripts/gate-core.sh dev --list
 
-# 3. The real gate for a promotion to dev; the exit code is the verdict
+# 3. The real gate for a promotion to dev; the exit code is the verdict.
+#    It reports and does not merge or push. Its twin-drift step compares this
+#    repository with sibling project checkouts and prints n/a when there are none.
 bash scripts/merge-gate.sh dev
 
 # 4. Coverage of the scripts, per codebase (Python and shell, threshold 80%)
@@ -129,6 +135,9 @@ bash scripts/coverage.sh
 
 # 5. The hooks are installed
 ls -l "$(git rev-parse --git-common-dir)/hooks/pre-commit" "$(git rev-parse --git-common-dir)/hooks/commit-msg"
+
+# 6. The personal settings file is untracked: prints the .gitignore rule that matches
+git check-ignore -v .claude/settings.local.json
 ```
 
 Then prove the pre-commit hook is wired, because a gate you have never watched
