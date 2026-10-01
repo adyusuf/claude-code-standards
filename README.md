@@ -425,6 +425,9 @@ flowchart LR
 Take the smallest amount that is useful to you. Each level works on its own, and
 nothing later is required to make an earlier one pay off.
 
+To work on this repository itself (hooks, tests, the gate), or to see every tool
+and setting in one place, follow [`SETUP.md`](SETUP.md).
+
 ### Level 0 — read it, install nothing
 
 `CLAUDE.md` is the whole rule set in one file, and
