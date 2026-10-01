@@ -94,7 +94,7 @@ use: {
 ## 9. Run policy
 
 - Never **mixed into** the fast CI gate (unit/lint/tsc) — a separate workflow.
-- Trigger: the **`prod` gate only** (`scripts/merge-gate.sh prod`), plus optionally nightly. On `dev` and `test` the gate does not run e2e; it only checks whether a spec is missing (#25, #33). **E2E for `test` runs AFTER the code has gone out to `test`** (merged and deployed), against the test environment — never as a step that must be green BEFORE the merge to `test` (user decision 30/09/2026, general rule).
+- Trigger: the **`prod` gate only** (`scripts/merge-gate.sh prod`), plus optionally nightly. On `dev` and `test` the gate does not run e2e; it only checks whether a spec is missing (#25, #33). **E2E is never a requirement of the `test` promotion** — not before the merge and not after the release (a project may run one optionally). What is **mandatory** is that the whole suite has run **on the test environment against the SHA going to `prod`** before `prod` (#33; user decision 30/09/2026, general rule).
 - The last run's result (commit, time, outcome) is recorded in a file; before a prod merge that record is checked for **staleness**. If it is stale or red, nothing proceeds without approval.
 - Nothing ships to prod while e2e is red.
 
