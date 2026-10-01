@@ -1,4 +1,4 @@
-# 22 — The live board (OPT-IN per project)
+# 22 — The live board (per project, or for every project from the user settings)
 
 A local page that shows, while Claude works, which task is where, which agent is
 running on it, what finished — and lets the user **remove a task** or **switch an
@@ -60,6 +60,15 @@ Run it in the checkout whose files you will commit: from a linked worktree it wr
 `settings.json` and `.gitignore` (never the main checkout's) and lists the main checkout's board. Settings a
 worktree does not have yet can be given locally without a commit through `.claude/settings.local.json` (git-ignored).
 The steps below are what it does, for a project that wants to do it by hand.
+
+**Every repository and folder, with nothing per project (user decision 01/10/2026):**
+`python3 ~/.claude/scripts/board/board.py enable --user` merges the same block into the USER settings,
+`~/.claude/settings.json` (backup in `~/.claude/backups/` first; other settings and hooks kept; invalid JSON
+never touched). A session in any new repository or folder is then listed on the page by itself. A project that
+also enabled the hooks fires each hook once (identical commands from two sources are de-duplicated — measured).
+The home directory and `/` are never a board, and a board a hook creates is hidden from `git status` through the
+repository's local `.git/info/exclude`. Both guards are in claude-monitor, so they apply once its clone is on a
+version that has them. The per-project `enable` below stays for a project that wants its hooks committed.
 
 **A project is listed as soon as its board is written** — by `board.py plan|add|set` or by any hook event —
 not only by the `SessionStart` hook (`board_registry.register_if_missing`; not when `BOARD_DIR` overrides the
