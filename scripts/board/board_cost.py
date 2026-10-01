@@ -117,14 +117,19 @@ class Transcript:
             self.context = (model, tok[0] + tok[2] + tok[3] + tok[4])
 
 
-def summarize(transcripts: list, since: float | None = None) -> dict:
+def summarize(transcripts: list, since: float | None = None, start: float | None = None,
+              end: float | None = None) -> dict:
     """Totals over several transcripts. cost is None when any non-empty message used a model
     that has no price; `window_cost` counts only messages at or after `since` (epoch);
-    `first` is the earliest message (epoch)."""
+    `first` is the earliest message (epoch). With `start`/`end` only the messages inside that
+    time window are counted at all (a message without a timestamp is outside any window)."""
     tokens = dict.fromkeys(TOKEN_KEYS, 0)
     cost, window, unpriced, count, first = 0.0, 0.0, set(), 0, None
     for tr in transcripts:
         for at, model, tok in tr.messages.values():
+            if (start is not None or end is not None) and (
+                    at is None or (start is not None and at < start) or (end is not None and at > end)):
+                continue
             count += 1
             if at is not None and (first is None or at < first):
                 first = at

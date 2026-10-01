@@ -152,6 +152,16 @@ an update for a task the board never saw created, an undocumented status — rec
 line, never an invented one). Not verified live: this repository's sessions have no `TaskCreate` tool, so
 the result shape is checked against the binary's source and the tests, not against a real call.
 
+**A task's orchestrator cost (no agent linked):** a main-thread `Bash` call that runs `board.py add|set T-n` links
+that session to the task (`task_session`; a subagent's call and `board.py add auto`, whose id is not known yet,
+do not). The task's Cost cell then adds `orchestrator ≈ $x` — the session's **main** transcript inside the task's
+time window (first touch to now while the task is `running`, to the last touch otherwise), labelled an estimate
+with its basis and "N other tasks in the same window" when windows of the same session overlap, because the
+session may have done other work in those hours. The session's subagents are not counted there (their cost
+reaches the task through `board.py set T-n --agent`, counting them twice would overstate it); a model without a
+price makes the figure "cannot be measured", never zero. Tasks written before this existed have no linked
+session and keep showing "no agent linked".
+
 **Session names and unmeasured sessions:** the sessions table shows each session's name above its id.
 The name is read from the session's own transcript — the last `custom-title` entry (`customTitle`, set by
 the user or the app), else the last `agent-name` entry (`agentName`) — cut to 80 characters; a session

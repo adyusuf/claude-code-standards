@@ -50,7 +50,7 @@ def _task(state: dict, tid: str) -> dict:
         "id": tid, "title": tid, "branch": "", "role": "", "note": "",
         "status": TaskStatus.PLANNED, "agents": [], "updated": None,
         "options": [], "decision": None, "commits": [],
-        "eta_min": None, "est_cost": None, "started": None,
+        "eta_min": None, "est_cost": None, "started": None, "sessions": {},
     })
 
 
@@ -110,6 +110,9 @@ def fold(events: list[dict], control: dict | None = None) -> dict:
                 if ev.get(k) is not None:
                     t[k] = ev[k]
             t["updated"] = ts
+        elif kind == "task_session" and ev.get("id") and sid:  # the session that worked on the task: first/last touch
+            span = _task(state, ev["id"])["sessions"].setdefault(sid, {"first": ts, "last": ts})
+            span["last"] = ts
         elif kind == "task_set":
             t = _task(state, ev["id"])
             for k in ("status", "note", "branch", "role", "title", "options", "commits",
