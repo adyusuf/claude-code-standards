@@ -45,7 +45,9 @@ Types: `feat` `fix` `refactor` `perf` `test` `docs` `chore` `build` `ci` `revert
 
 > **Scope (global rule #25):** the gate below is SHARED — `scripts/gate-core.sh <dev|test|prod>`,
 > a copy of the canonical script committed in every project and called by that project's
-> own `scripts/merge-gate.sh` orchestrator. Everything in it runs at **every**
+> own `scripts/merge-gate.sh` orchestrator. It is four twin files (`gate-core.sh` plus
+> `gate-lib.sh`, `gate-lib-node.sh`, `gate-lib-prod.sh`, listed in `scripts/twins.txt`): copy them
+> together, a core without its libraries refuses to run. Everything in it runs at **every**
 > promotion, `feature/* → dev` included; **the single deferred step is RUNNING e2e**, which belongs
 > to the `prod` gate (#33). On `dev` and `test` the gate also CHECKS whether an e2e spec is missing:
 > a warning in BOTH directions, never blocking — the gaps are written at the `test → prod` gate
