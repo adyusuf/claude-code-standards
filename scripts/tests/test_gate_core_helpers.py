@@ -27,6 +27,7 @@ import unittest
 
 SCRIPTS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 GATE = os.path.join(SCRIPTS, 'gate-core.sh')
+LIB = os.path.join(SCRIPTS, 'gate-lib.sh')   # the helper definitions live in the library since the split
 ANSI = re.compile(r'\x1b\[[0-9;]*m')
 
 
@@ -36,7 +37,7 @@ class HelpersAlwaysSucceed(unittest.TestCase):
     HELPERS = ('ok', 'bad', 'na', 'warn', 'skip')
 
     def call(self, snippet):
-        """Source gate-core.sh's helper definitions and run `snippet`.
+        """Take gate-lib.sh's helper definitions and run `snippet`.
 
         The file is sourced with no arguments, which makes it print its usage and
         `exit 2` — so it is sourced inside a subshell whose exit is swallowed, and
@@ -47,7 +48,7 @@ class HelpersAlwaysSucceed(unittest.TestCase):
         set -uo pipefail
         PASS=(); FAIL=(); SKIP=(); WARN=(); NA=(); ACCEPTED=()
         # The helper definitions, taken from the gate itself rather than copied.
-        eval "$(sed -n '/^say()/,/^have()/p' "{GATE}")"
+        eval "$(sed -n '/^say()/,/^have()/p' "{LIB}")"
         {snippet}
         '''
         result = subprocess.run(['bash', '-c', script], capture_output=True, text=True)
