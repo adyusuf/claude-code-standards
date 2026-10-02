@@ -1046,3 +1046,22 @@ whether a model was running in it.
 - **Rule #29 in the new repository:** coverage is measured per codebase there (Python and JavaScript); the shared
   gate copies beside the application are not traced, and `scripts/coverage.sh` says so in its header.
 
+
+## The gate core is four twin files, listed once (02/10/2026, user decision: option B)
+
+- **Why:** `scripts/gate-core.sh` had grown to 554 lines, against global rule #9 (no file over 300 lines).
+  Options weighed: leave it and write an exception into #9 (A); split it into libraries that are twins too (B);
+  have every project fetch the core from this repository (C - rejected: it breaks rule #25's premise that a
+  project's gate cannot depend on a path outside its repository, because CI has no configuration checkout).
+- **Decision:** B. `gate-core.sh` (260 lines) orchestrates; `gate-lib.sh` (helpers, stack detection, verdict),
+  `gate-lib-node.sh` (the Node steps and the parallel track) and `gate-lib-prod.sh` (the test -> prod steps) are
+  sourced from beside it. The code moved by line range and was not rewritten: the old and the new gate gave
+  identical output on 48 runs (`--list` and real, serial and parallel, dev/test/prod, four fixture projects).
+- **Fail closed:** a core copied without its libraries exits 2 and names the missing file; it never runs a
+  partial gate. A project still on the old single file keeps working until it takes the new four.
+- **One twin list:** `scripts/twins.txt` is read by both `md-hook.sh` (a project against the live copy) and
+  `twin-drift.sh` (every project's `origin/dev` against this branch). Before, the two kept separate lists that
+  had already diverged (`audit-triage.py` was in one, `evidence-block.schema.json` in the other). A missing list
+  is announced (hook) or refused (drift check), never treated as "nothing to compare".
+- **How to apply:** a new gate file is added to `twins.txt` in the same commit; a project takes all four gate
+  files together (`cp scripts/gate-*.sh`). Rollout is project by project; `twin-drift.sh` shows who is behind.
