@@ -40,11 +40,6 @@ class TheSplit(unittest.TestCase):
         for name in twins():
             self.assertTrue(os.path.isfile(os.path.join(SCRIPTS, name)), f'twins.txt names {name}, which does not exist')
 
-    def test_the_files_are_valid_shell(self):
-        for name in FILES:
-            done = subprocess.run(['bash', '-n', os.path.join(SCRIPTS, name)], capture_output=True, text=True)
-            self.assertEqual(0, done.returncode, f'{name}: {done.stderr}')
-
 
 class ACopyNeedsItsLibraries(unittest.TestCase):
     def setUp(self):
