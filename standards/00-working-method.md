@@ -134,8 +134,8 @@ main worktree has checked out.** So:
   force in every session.
 - Work happens in a **separate `dev` worktree** (`git worktree add ../<repo>-dev dev`),
   so an unfinished rule never becomes live by accident.
-- A change reaches the live configuration only when the user promotes
-  `dev → test → prod`. Never check out `dev` in the main worktree to "try something".
+- A change reaches the live configuration only by promotion `dev → test → prod`,
+  which Claude performs and pushes through the gate. Never check out `dev` in the main worktree to "try something".
 
 ⚠️ **Our skills and commands are ONE plugin: `adyusuf`.** Every skill in `skills/`
 and every command in `commands/` is invoked as `/adyusuf:<name>`, so ours are
@@ -180,7 +180,7 @@ list, and nobody could answer "what is waiting on me?" from one place.*
 **What belongs in it** (one row each, with the exact command, menu path or the options):
 
 - a decision Claude was not given — owners, rotation periods, domains, targets (RPO/RTO), accepting a gap or a risk;
-- an approval that #8 or #26 reserves for the user — a `test`/`prod` promotion, a deploy, a dependency, a new cost line, a push or a PR, sending anything outward;
+- an approval that #8 or #26 reserves for the user — a deploy, a dependency, a new cost line, a push outside `dev`/`test`/`prod` or a PR, sending anything outward;
 - a credential, token or account step — creating, rotating or entering one (Claude never handles secret values);
 - a step in a console or UI that Claude cannot or must not drive — Vercel, Neon, Cloudflare, a password manager;
 - a destructive step Claude was not allowed to run (a `DROP`, deleting data, removing a container or a database it left behind);

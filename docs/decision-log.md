@@ -249,14 +249,15 @@ Additional detail shortened out of the active file:
 3. **Each task is committed on its own;** finished tasks may be merged to `dev`
    together through one gate run. (Until 29/09/2026: each task with its own commit,
    its own verification and its own merge — see the amendment below.)
-4. **The USER decides on the `test` and `prod` promotions.** There is no
-   self-initiated merge to `test`/`prod`; those branches are not touched until the
-   user explicitly says "merge" / "prod merge" (#25 and the project's own rules
-   still apply).
+4. **Claude performs the `dev`/`test`/`prod` merges and pushes.** Amended
+   03/10/2026 on the user's instruction ("do the dev/test/prod merges and pushes
+   yourself, make it standard"); before that the user decided each promotion and
+   said "merge" / "prod merge". What did NOT change: the gate (#25) and the prod
+   e2e rule (#33) must be green, a missing tool is INCOMPLETE, never `--force`.
 
 ⚠️ **The configuration repository's own layout:** branches `dev` / `test` / `prod`,
-with `prod` as the default. Work is committed to `dev`; the **user** decides on each
-promotion. The repo is a **shared working tree** — parallel sessions work in the same
+with `prod` as the default. Work is committed to `dev`; Claude performs each
+promotion through the gate (amended 03/10/2026, see item 4). The repo is a **shared working tree** — parallel sessions work in the same
 directory, so `git status` is verified before switching branches and only your own
 diff is committed.
 
