@@ -53,9 +53,9 @@
  - If something is knowingly deferred, **list it explicitly in the final report** — never skip it silently.
  - Say "done" only after passing the check; do not narrate the check, fold its result into the report.
  → rationale and application notes: `docs/decision-log.md` §24
-25. **The gate is SHARED and runs at every promotion; only running e2e is deferred to `prod`.** Two layers: `scripts/gate-core.sh <dev|test|prod>` owns the SHARED STEP SET (canonical copy in the configuration repository, a committed copy in every project), and the project's own `scripts/merge-gate.sh` stays the orchestrator (pull, merge, push, project extras) and CALLS the core. A project's gate cannot depend on a path outside the repository, because CI runners do not have the configuration checked out. `gate-core.sh <target> --list` prints what would run without running it.
- - **`feature/* → dev` and `dev → test`:** EVERYTHING EXCEPT RUNNING E2E — formatter/linter, typecheck, build, unit tests, **coverage: the 80% threshold per codebase (#29)**, secret scan, dependency CVE, SAST, backward-compatibility scan, the CLAUDE.md size and rule gates, and a **CHECK for missing e2e specs** — a **warning in both directions**, never blocking; the gaps it lists are written at the `test → prod` gate (#33 step 2).
- - **`test → prod`:** the code must already be **deployed to the test environment** and the **FULL e2e suite** must run green against it (#33).
+25. **The gate is SHARED and runs at every promotion; running e2e is OPTIONAL (#33).** Two layers: `scripts/gate-core.sh <dev|test|prod>` owns the SHARED STEP SET (canonical copy in the configuration repository, a committed copy in every project), and the project's own `scripts/merge-gate.sh` stays the orchestrator (pull, merge, push, project extras) and CALLS the core. A project's gate cannot depend on a path outside the repository, because CI runners do not have the configuration checked out. `gate-core.sh <target> --list` prints what would run without running it.
+ - **`feature/* → dev` and `dev → test`:** EVERYTHING EXCEPT RUNNING E2E — formatter/linter, typecheck, build, unit tests, **coverage: the 80% threshold per codebase (#29)**, secret scan, dependency CVE, SAST, backward-compatibility scan, the CLAUDE.md size and rule gates, and a **CHECK for missing e2e specs** — a **warning**, never blocking (#33).
+ - **`test → prod`:** the code must already be **deployed to the test environment** (deploy verified); e2e is **not run** — the gate warns (#33).
  - **A step that did not run did not pass.** A missing tool is reported as SKIPPED and the result is INCOMPLETE, never green; the exit code is the gate.
  - A project may ADD steps to the shared gate; it may never remove one. → the step list: `standards/13-pr-and-review.md` §4; rationale: `docs/decision-log.md` §25
 26. **Once the work is planned: pull `dev` → branch/worktree off `dev` → work there → one commit per task, merged to `dev` through a gate.** The order is binding:
@@ -92,20 +92,17 @@
  - **The WHOLE suite runs first**, without stopping at the first failure. Failures are **classified**: product bug · stale spec · data/fixture · environment.
  - **Failures are fixed** — each fix in its own commit; fixes may share one gate and one merge (#26). Raising retries or loosening assertions does not count as a fix.
  - **Then ONLY the fixed tests** (and those they could affect) run.
- - ⚠️ **E2E runs only against code that has reached the `test` environment.** While a fix is on `dev`, verification means **unit tests + tsc/lint** (#25).
- - ⛔ **Nothing ships to `prod` without e2e.** **The only exception is a hotfix:** when the user explicitly says "hotfix" it ships without e2e and the report reads "e2e skipped (hotfix)" — which does not count as passing.
+ - ⚠️ **E2E is optional (#33):** if run, only against code on `test`; verification on `dev` is unit tests + tsc/lint (#25).
  - **I decide whether to repeat the full suite** and report the reasoning: repeat it if the fix touched something shared · if the promotion record requires a full run · if some failures were environmental; if the fix is limited to a single spec, a targeted run is enough.
  - **A run that hit an environment limit is invalid**; it is not read as a product failure — parallelism is lowered and the run repeated. → detail `standards/11-playwright.md` §9a; rationale `docs/decision-log.md` §31
-32. **Order: ALL the code first → then unit tests are written → then unit tests run; e2e is WRITTEN and run once the code reaches `test`.**
+32. **Order: ALL the code first → then unit tests are written → then unit tests run; e2e is optional (#33).**
  - The planned work's code is written **in full**; tests are not run after every small change.
  - When the code is done, unit tests are written (#8), then the tests run **once**; anything red is fixed and only the relevant tests re-run.
- - **E2E is neither written nor run at the `dev` stage** — #33 narrowed this further: writing and running e2e belong to the pre-production gate.
+ - **E2E is optional and never run by a gate (#33).**
  - #26 still holds: each task gets its own commit and reaches `dev` through a gate — alone or in a batch — once its unit run is green. → rationale: `docs/decision-log.md` §32
-33. **E2E runs at the `prod` gate only, and the code must be on `test` first.**
- - **`feature → dev` and `dev → test`:** e2e is not RUN and is NOT required after the release to `test` either (optional); the ONLY mandatory e2e is before `prod`, on `test`. The gate only CHECKS whether a spec is missing (#25) — no deploy wait, no status file.
- - **`test → prod`, in order:** 1) the code is deployed to `test` and the deploy is **verified** (the version endpoint reports this SHA) · 2) any missing spec is written and verified against the test environment · 3) the **WHOLE** e2e suite runs against `test` (#31's cycle applies to failures) · 4) nothing red ⇒ merge to `prod`. Red, stale or absent ⇒ no merge.
- - **No test environment (`E2E_BASE_URL` unset):** start the app locally (API + web, own test DB) and run the FULL suite there — this is the fallback, not a skip. The report reads "e2e ran locally (no test env)"; the version check is against the local SHA.
- - **The only exception is a hotfix:** the report reads "e2e skipped (hotfix)", which does not count as passing.
+33. **E2E is OPTIONAL — no gate runs it and it never blocks a promotion** (user decision 03/10/2026, general rule: not enough resources to run it).
+ - Every promotion to `test` and to `prod` **WARNS "e2e was NOT run"** and carries on; the warning is part of the report and never reads as a pass. Run it by hand or with `GATE_RUN_E2E=1` (a red result then blocks like any step).
+ - `test → prod` still needs the code **deployed to `test`** and the deploy **verified** (the version endpoint reports this SHA). The missing-spec check stays a warning. No hotfix exception is needed.
  → `docs/decision-log.md` §33
 
 ## Never-do list
