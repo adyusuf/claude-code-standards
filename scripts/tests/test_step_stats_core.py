@@ -14,6 +14,7 @@ mentions inflates every figure the document reports.
 import importlib.util
 import json
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -24,44 +25,50 @@ _spec = importlib.util.spec_from_file_location('step_stats_core', os.path.join(S
 stats = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(stats)
 
+# `shape(..., deny=None)` computes the deny list from the machine (every folder under ~/ClaudeCode and
+# every Claude project name), so a test that passed None failed whenever an unrelated project
+# happened to be named after a word the test uses ('coverage'). These tests check the SHAPE rules, not
+# the deny list, so they pass a pattern that matches nothing.
+NO_DENY = re.compile(r'(?!)')
+
 
 class Shape(unittest.TestCase):
     """Every VALUE must become a placeholder; only the shape of a command is kept."""
 
     def test_a_path_argument_becomes_a_placeholder(self):
-        self.assertEqual('cat <path>', stats.shape('cat /Users/someone/secret.txt', deny=None))
+        self.assertEqual('cat <path>', stats.shape('cat /Users/someone/secret.txt', deny=NO_DENY))
 
     def test_a_leading_variable_assignment_is_not_mistaken_for_a_command(self):
         # The recorded regression: `L=/tmp/x.log; cmd` — taking the basename kept
         # the path tail, so the value rode along inside the "command name".
-        shaped = stats.shape('L=/private/tmp/run.log; dotnet build', deny=None)
+        shaped = stats.shape('L=/private/tmp/run.log; dotnet build', deny=NO_DENY)
         self.assertTrue(shaped.startswith('<var>'), shaped)
         self.assertNotIn('run.log', shaped)
 
     def test_flags_are_kept_because_they_are_shape_not_value(self):
-        shaped = stats.shape('npm test -- --run --coverage', deny=None)
+        shaped = stats.shape('npm test -- --run --coverage', deny=NO_DENY)
         self.assertIn('--run', shaped)
         self.assertIn('--coverage', shaped)
 
     def test_a_flag_value_is_dropped(self):
-        self.assertNotIn('secret', stats.shape('curl --token=secret123', deny=None))
+        self.assertNotIn('secret', stats.shape('curl --token=secret123', deny=NO_DENY))
 
     def test_a_sha_becomes_a_placeholder(self):
-        shaped = stats.shape('git checkout d401a71eefa6e931dfad5828b0c4825f33dfea20', deny=None)
+        shaped = stats.shape('git checkout d401a71eefa6e931dfad5828b0c4825f33dfea20', deny=NO_DENY)
         self.assertIn('<sha>', shaped)
         self.assertNotIn('d401a71', shaped)
 
     def test_repeated_placeholders_collapse(self):
-        shaped = stats.shape('cp /a/one /b/two /c/three /d/four', deny=None)
+        shaped = stats.shape('cp /a/one /b/two /c/three /d/four', deny=NO_DENY)
         self.assertIn('…', shaped, shaped)
 
     def test_the_result_is_length_capped(self):
-        self.assertLessEqual(len(stats.shape('cmd ' + 'x' * 500, deny=None)), 64)
+        self.assertLessEqual(len(stats.shape('cmd ' + 'x' * 500, deny=NO_DENY)), 64)
 
     def test_only_the_first_shell_segment_is_kept(self):
         # What follows a `&&` is a different command and is summarised separately;
         # keeping it here would let a later argument leak into this shape.
-        shaped = stats.shape('ls && cat /Users/someone/secret.txt', deny=None)
+        shaped = stats.shape('ls && cat /Users/someone/secret.txt', deny=NO_DENY)
         self.assertNotIn('secret', shaped)
 
 

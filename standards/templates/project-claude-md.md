@@ -93,6 +93,7 @@ The hooks in `.claude/settings.json`:
 ## Quick reference
 
 - Setup: `SETUP.md`
+- **What is waiting on a person: `docs/human-actions.md`** (`standards/00-working-method.md` §14)
 - Deploy / servers / DNS / certificates: `DEPLOY.md`
 - Backup drills: `docs/backup-drills.md`
 - Vision / requirements: `docs/vision.md`, `docs/requirements.md`

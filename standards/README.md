@@ -6,7 +6,7 @@ token cost stays low.
 
 | File | Topic |
 |---|---|
-| `00-working-method.md` | The protocol for working with Claude: planning, approval, verification, context management |
+| `00-working-method.md` | The protocol for working with Claude: planning, approval, verification, context management, **human actions kept in one file (§14)** |
 | `01-product-design.md` | Problem definition, user stories, acceptance criteria, scope, MVP, ADRs |
 | `02-ui-ux.md` | Design system, state design, responsive layout, accessibility, i18n |
 | `03-coding-general.md` | Naming, file size, error handling, logging, dead code, comments |
@@ -31,7 +31,7 @@ token cost stays low.
 | `22-live-board.md` | The opt-in **live board**: hooks track agents, Claude writes the plan, the user removes tasks and switches agents off; cost measured |
 | `23-delivery-flow-tuning.md` | Tuning a project's delivery flow for cost · quality · speed, and the **mandatory recurring flow-research task** (§13a) |
 | `../docs/decision-log.md` | **The decision log** — rationale, measurements and retired rule text moved out of `CLAUDE.md` |
-| `templates/` | Project CLAUDE.md, **module CLAUDE.md**, **SETUP.md**, PR, ADR and user-story templates |
+| `templates/` | Project CLAUDE.md, **module CLAUDE.md**, **SETUP.md**, **human-actions.md**, PR, ADR and user-story templates |
 
 ## Order of precedence (when things conflict)
 
