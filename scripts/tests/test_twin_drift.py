@@ -85,6 +85,26 @@ class Fleet(unittest.TestCase):
         return result.stdout + result.stderr, result.returncode
 
 
+class TheTwinList(Fleet):
+    def run_without_override(self):
+        env = {k: v for k, v in os.environ.items() if k != 'TWIN_FILES'}
+        env['TWIN_SEARCH_ROOT'] = self.home
+        return subprocess.run(['bash', DRIFT], cwd=self.canon, capture_output=True, text=True, env=env)
+
+    def test_with_no_list_it_refuses_rather_than_compare_nothing(self):
+        done = self.run_without_override()
+        self.assertEqual(2, done.returncode)
+        self.assertIn('twins.txt is missing', done.stderr)
+
+    def test_the_list_file_is_read_and_comments_are_ignored(self):
+        self.write(self.canon, 'scripts/twins.txt', '# a comment\n\ngate-core.sh\n')
+        git(self.canon, 'add', '-A')
+        self.project('alpha', '#!/usr/bin/env bash\necho STALE\n')
+        done = self.run_without_override()
+        self.assertEqual(1, done.returncode, done.stdout + done.stderr)
+        self.assertIn('gate-core.sh', done.stdout)
+
+
 class Alignment(Fleet):
     def test_an_identical_copy_is_aligned(self):
         self.project('alpha', '#!/usr/bin/env bash\necho canonical\n')

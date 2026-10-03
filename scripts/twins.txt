@@ -1,0 +1,22 @@
+# The TWINS: scripts that every project COPIES into its own scripts/ and commits (global rule #25 - a
+# project's gate cannot depend on a path outside its repository). The canonical copies live here.
+# ONE list, read by md-hook.sh (a project against the live copy) and twin-drift.sh (every project's
+# origin/dev against this branch). One name per line; '#' starts a comment.
+#
+# gate-core.sh needs its three libraries: it is split so that no file passes 300 lines (rule #9), and a
+# copy without them refuses to run (exit 2). Copy all four together.
+gate-core.sh
+gate-lib.sh
+gate-lib-node.sh
+gate-lib-prod.sh
+audit-triage.py
+md-size-gate.sh
+md-rule-gate.py
+md-split.py
+pre-commit.sh
+guard-destructive.sh
+doc-check.py
+evidence-check.py
+evidence-block.schema.json
+real-name-check.sh
+commit-msg.sh

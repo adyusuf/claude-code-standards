@@ -5,7 +5,9 @@ import subprocess
 import tempfile
 import unittest
 
-HOOK = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'md-hook.sh'))
+SCRIPTS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
+HOOK = os.path.join(SCRIPTS, 'md-hook.sh')
+TWINS = os.path.join(SCRIPTS, 'twins.txt')   # the one list of copied scripts, shared with twin-drift.sh
 
 
 class MdHookDrift(unittest.TestCase):
@@ -14,6 +16,7 @@ class MdHookDrift(unittest.TestCase):
         self.project = tempfile.mkdtemp()
         os.makedirs(os.path.join(self.home, '.claude', 'scripts'))
         os.makedirs(os.path.join(self.project, 'scripts'))
+        shutil.copy(TWINS, os.path.join(self.home, '.claude', 'scripts', 'twins.txt'))
         subprocess.run(['git', 'init', '-q', self.project], check=True)
         # The hook calls the canonical size gate first; a silent stub keeps this test about drift only.
         self.write(self.canonical('md-size-gate.sh'), '#!/usr/bin/env bash\nexit 0\n')
@@ -53,6 +56,25 @@ class MdHookDrift(unittest.TestCase):
                      'commit-msg.sh'):
             self.assertIn(name, output)
         self.assertIn('DRIFTED', output)
+
+    def test_a_drifted_gate_library_is_reported_like_the_gate_itself(self):
+        # gate-core.sh is split over four files; a copy of the core with a stale library is a stale gate.
+        for name in ('gate-core.sh', 'gate-lib.sh', 'gate-lib-node.sh', 'gate-lib-prod.sh'):
+            self.write(self.canonical(name), 'canonical\n')
+            self.write(self.copy(name), 'canonical\n')
+        self.assertEqual(self.stop_event(), '')
+        self.write(self.copy('gate-lib-node.sh'), 'stale\n')
+        output = self.stop_event()
+        self.assertIn('gate-lib-node.sh', output)
+        self.assertNotIn('gate-lib.sh', output)
+
+    def test_a_missing_twin_list_is_announced_not_silently_skipped(self):
+        os.remove(self.canonical('twins.txt'))
+        self.write(self.canonical('gate-core.sh'), 'canonical\n')
+        self.write(self.copy('gate-core.sh'), 'edited\n')
+        output = self.stop_event()
+        self.assertIn('twin list is missing', output)
+        self.assertNotIn('DRIFTED', output)           # nothing was compared, and it says so
 
     def test_a_script_the_project_did_not_copy_is_ignored(self):
         self.write(self.canonical('gate-core.sh'), 'canonical\n')
@@ -97,6 +119,7 @@ class MdHookPathsAndBudget(unittest.TestCase):
         self.project = tempfile.mkdtemp()
         os.makedirs(os.path.join(self.home, '.claude', 'scripts'))
         os.makedirs(os.path.join(self.project, 'scripts'))
+        shutil.copy(TWINS, os.path.join(self.home, '.claude', 'scripts', 'twins.txt'))
         subprocess.run(['git', 'init', '-q', self.project], check=True)
 
     def tearDown(self):
