@@ -2,8 +2,9 @@
 """Advisory triage for the dependency-audit step of the shared gate.
 
 Usage:  npm audit --json | python3 scripts/audit-triage.py <scripts/audit-triage.tsv> [--today YYYY-MM-DD]
+        pnpm audit --json | python3 scripts/audit-triage.py <scripts/audit-triage.tsv>
 
-Reads the `npm audit --json` report on stdin and the project's triage file, and
+Reads the `npm audit --json` or `pnpm audit --json` report on stdin and the project's triage file, and
 decides whether every HIGH / CRITICAL advisory is covered by a written, unexpired
 triage entry. The audit step calls this only AFTER `npm audit --audit-level=high`
 has already failed, so an empty or missing triage file changes nothing: the step
@@ -60,7 +61,27 @@ def load_triage(path):
     return entries
 
 
+def pnpm_severe_advisories(report):
+    """The same map from a `pnpm audit --json` report: `advisories` keyed by id, GHSA in github_advisory_id."""
+    advisories = report.get('advisories')
+    if not isinstance(advisories, dict):
+        raise Untrusted('the report has no "advisories" object')
+    found = {}
+    for key, adv in advisories.items():
+        if not isinstance(adv, dict) or adv.get('severity') not in SEVERE:
+            continue
+        match = GHSA.search(str(adv.get('github_advisory_id') or adv.get('url') or ''))
+        ident = canonical(match.group(0)) if match else 'source-%s' % adv.get('id', key)
+        found[ident] = (adv.get('module_name', ''), adv.get('title', ''))
+    counts = (report.get('metadata') or {}).get('vulnerabilities') or {}
+    if any(counts.get(level) for level in SEVERE) and not found:
+        raise Untrusted('a high/critical finding is reported but no advisory is behind it')
+    return found
+
+
 def severe_advisories(report):
+    if 'vulnerabilities' not in report and 'advisories' in report:
+        return pnpm_severe_advisories(report)
     """{GHSA: (package, title)} for every high/critical advisory in an npm audit report."""
     vulns = report.get('vulnerabilities')
     if not isinstance(vulns, dict):
@@ -90,7 +111,7 @@ def main(argv):
         try:
             report = json.load(sys.stdin)
         except ValueError:
-            raise Untrusted('stdin is not an npm audit JSON report')
+            raise Untrusted('stdin is not an npm or pnpm audit JSON report')
         triage = load_triage(argv[1])
         advisories = severe_advisories(report)
     except (Untrusted, OSError) as error:
