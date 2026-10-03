@@ -168,6 +168,38 @@ When the user says "from now on, always do it this way":
    gets reverted by accident later.
 4. Write it in the same turn; never say "I'll add it later".
 
+## 14. Human actions are written down in one file (PERMANENT, all projects)
+
+Anything only a **person** can or should do goes into `docs/human-actions.md` of that project
+(template: [`templates/human-actions-md.md`](templates/human-actions-md.md)), **in the same turn**
+the need is found. A line in the chat is not a record: it scrolls away and the next session never
+sees it. *Reason: user decision 03/10/2026 — after a long run the open decisions, approvals and
+manual steps were spread over the reply, `<TODO>` fields in documents and a "reported, not fixed"
+list, and nobody could answer "what is waiting on me?" from one place.*
+
+**What belongs in it** (one row each, with the exact command, menu path or the options):
+
+- a decision Claude was not given — owners, rotation periods, domains, targets (RPO/RTO), accepting a gap or a risk;
+- an approval that #8 or #26 reserves for the user — a `test`/`prod` promotion, a deploy, a dependency, a new cost line, a push or a PR, sending anything outward;
+- a credential, token or account step — creating, rotating or entering one (Claude never handles secret values);
+- a step in a console or UI that Claude cannot or must not drive — Vercel, Neon, Cloudflare, a password manager;
+- a destructive step Claude was not allowed to run (a `DROP`, deleting data, removing a container or a database it left behind);
+- anything that needs a real environment, device or network Claude does not have — and every claim that stayed **unverified** for that reason;
+- a second person's review the process asks for;
+- every item a report lists as "conflicts with the standards — reported, not fixed", and every `<TODO: ...>` left in a project document.
+
+**How it is kept:**
+
+1. One table row per item with an ID (`H-n`), what to do, why it is a person's, **what it blocks**, the date added and the exact way to do it. Items are never silently removed: they move to **Done** (with the date, who, and the evidence) or **Dropped** (with the person's reason).
+2. Claude **adds** and **links**; it never closes an item on its own. Closing needs the person's word, or evidence that can be observed.
+3. A document `<TODO: ...>` and a blocked task both name the `H-n` they wait for.
+4. **Every final report** says how many items are open and links the file; an item that blocks the work being reported is named in the report, not only in the file.
+5. No secret values, ever. A secret's source and owner belong in `SETUP.md` §3; this file points there.
+6. The file is read **first** by anyone asking "what is waiting on me?" — and at the start of a session in a project that has one, Claude reads its open rows before proposing work that depends on them.
+
+Not yet enforced by the gate (`gate-core.sh`'s project-documents step does not check for the file);
+adding that check is a separate request.
+
 ## 10. Status reporting — during a long gate or run (PERMANENT, all projects)
 
 When a gate, run or deploy takes minutes (merge gate, CI, test battery, publish/deploy
