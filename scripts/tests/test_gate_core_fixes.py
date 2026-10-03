@@ -364,7 +364,7 @@ class MissingE2eSpecOnlyWarns(unittest.TestCase):
     def test_the_gap_is_still_said_out_loud(self):
         out, _ = self.build('test')
         self.assertIn('no e2e spec was touched', out)
-        self.assertIn('test -> prod gate', out)
+        self.assertIn('reminder only: e2e is optional', out)
 
     def test_a_suite_in_the_web_tier_is_checked_too(self):
         out, _ = self.build('dev', suite='web/e2e/smoke.spec.ts', changed=('web/lib/thing.ts',),
