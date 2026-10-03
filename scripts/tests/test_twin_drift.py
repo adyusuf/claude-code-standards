@@ -58,6 +58,14 @@ class Fleet(unittest.TestCase):
         with open(path, 'w', encoding='utf-8') as handle:
             handle.write(text)
 
+    core_text = '#!/usr/bin/env bash\nfor lib in gate-lib-x.sh gate-lib-y.sh; do . "$lib"; done\n'
+
+    def canonical_with_libs(self):
+        """The canonical gate-core.sh now sources two libraries, both present here."""
+        self.write(self.canon, 'scripts/gate-core.sh', self.core_text)
+        self.write(self.canon, 'scripts/gate-lib-x.sh', 'lib x\n')
+        self.write(self.canon, 'scripts/gate-lib-y.sh', 'lib y\n')
+
     def project(self, name, gate_body, commit=True, on_branch='dev'):
         """A sibling project whose origin/dev carries `gate_body`."""
         origin = os.path.join(self.home, name + '.git')
@@ -170,6 +178,39 @@ class WhatCountsAsDrift(Fleet):
 
 
 class NothingToCompare(Fleet):
+    def test_a_project_with_the_core_but_without_its_libraries_is_drift(self):
+        self.canonical_with_libs()
+        self.project('half', self.core_text)
+        out, code = self.run_drift()
+        self.assertEqual(code, 1, out)
+        self.assertIn('gate-lib-x.sh (missing', out)
+        self.assertIn('half', out)
+
+    def test_a_project_that_carries_the_libraries_is_aligned(self):
+        self.canonical_with_libs()
+        work = self.project('whole', self.core_text, commit=False)
+        self.write(work, 'scripts/gate-lib-x.sh', 'lib x\n')
+        self.write(work, 'scripts/gate-lib-y.sh', 'lib y\n')
+        git(work, 'add', '-A')
+        git(work, 'commit', '-qm', 'libs')
+        git(work, 'push', '-q', 'origin', 'dev:dev')
+        git(work, 'fetch', '-q', 'origin')
+        out, code = self.run_drift()
+        self.assertEqual(code, 0, out)
+        self.assertIn('whole: aligned', out)
+
+    def test_a_project_without_the_core_is_not_asked_for_its_libraries(self):
+        self.canonical_with_libs()
+        work = self.project('nocore', 'x\n', commit=False)
+        os.remove(os.path.join(work, 'scripts/gate-core.sh'))
+        self.write(work, 'scripts/other.sh', 'other\n')
+        git(work, 'add', '-A')
+        git(work, 'commit', '-qm', 'no core')
+        git(work, 'push', '-q', 'origin', 'dev:dev')
+        git(work, 'fetch', '-q', 'origin')
+        out, _ = self.run_drift()
+        self.assertNotIn('missing', out)
+
     def test_no_sibling_checkout_is_n_a_and_passes(self):
         empty = tempfile.mkdtemp()
         try:
