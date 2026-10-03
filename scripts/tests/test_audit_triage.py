@@ -42,6 +42,16 @@ def report(*advisories, derived=()):
     return json.dumps({'auditReportVersion': 2, 'vulnerabilities': vulns})
 
 
+def pnpm_report(*pairs, counts=None):
+    """A `pnpm audit --json` report: advisories keyed by numeric id, the GHSA in github_advisory_id."""
+    advisories = {}
+    for number, (ident, name, severity) in enumerate(pairs, 1000):
+        advisories[str(number)] = {'id': number, 'module_name': name, 'severity': severity, 'title': 'a title',
+                                   'github_advisory_id': ident, 'url': 'https://github.com/advisories/' + ident}
+    levels = counts if counts is not None else {s: sum(1 for p in pairs if p[2] == s) for s in ('high', 'critical')}
+    return json.dumps({'advisories': advisories, 'metadata': {'vulnerabilities': levels}})
+
+
 def triage(*rows):
     return ''.join('\t'.join(r) + '\n' for r in rows)
 
@@ -122,14 +132,41 @@ class Helper(unittest.TestCase):
         self.assertEqual(run_helper(report(advisory(IMG, 'image-size')), text)[0], 0)
 
 
+class PnpmHelper(unittest.TestCase):
+    def test_a_triaged_pnpm_advisory_passes_and_prints_the_reason(self):
+        code, out = run_helper(pnpm_report((IMG, 'image-size', 'high')), triage(ROW))
+        self.assertEqual(code, 0)
+        self.assertIn('build tool only', out)
+
+    def test_an_untriaged_pnpm_advisory_fails_and_is_named(self):
+        code, out = run_helper(pnpm_report((IMG, 'image-size', 'high'), (AXI, 'axios', 'critical')), triage(ROW))
+        self.assertEqual(code, 1)
+        self.assertIn(AXI, out)
+
+    def test_an_expired_entry_waives_nothing_for_pnpm_either(self):
+        code, out = run_helper(pnpm_report((IMG, 'image-size', 'high')), triage(ROW), today='2027-01-01')
+        self.assertEqual(code, 1)
+        self.assertIn('EXPIRED', out)
+
+    def test_moderate_pnpm_advisories_are_not_this_steps_business(self):
+        self.assertEqual(run_helper(pnpm_report((AXI, 'axios', 'moderate')), '')[0], 0)
+
+    def test_a_pnpm_high_count_with_no_advisory_behind_it_fails_closed(self):
+        bare = json.dumps({'advisories': {}, 'metadata': {'vulnerabilities': {'high': 1}}})
+        self.assertEqual(run_helper(bare, triage(ROW))[0], 2)
+
+    def test_a_pnpm_report_without_an_advisories_object_cannot_be_trusted(self):
+        self.assertEqual(run_helper(json.dumps({'advisories': []}), triage(ROW))[0], 2)
+
+
 def install(path, content):
     with open(path, 'w', encoding='utf-8') as handle:
         handle.write(content)
     os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC)
 
 
-def gate_audit_lines(with_triage, json_report, helper_present=True):
-    """Run the gate in a stub project with a failing `npm audit`; return the audit step's lines."""
+def gate_audit_lines(with_triage, json_report, helper_present=True, tool='npm'):
+    """Run the gate in a stub project with a failing `<tool> audit`; return the audit step's lines."""
     root, shims = tempfile.mkdtemp(), tempfile.mkdtemp()
     try:
         subprocess.run(['git', 'init', '-q', root], check=True)
@@ -144,12 +181,15 @@ def gate_audit_lines(with_triage, json_report, helper_present=True):
         report_file = os.path.join(shims, 'report.json')
         with open(report_file, 'w', encoding='utf-8') as handle:
             handle.write(json_report)
-        install(os.path.join(shims, 'npm'),
+        if tool == 'pnpm':
+            with open(os.path.join(root, 'pnpm-lock.yaml'), 'w', encoding='utf-8') as handle:
+                handle.write('lockfileVersion: 9\n')
+        install(os.path.join(shims, tool),
                 '#!/bin/sh\ncase "$*" in\n  *audit*--json*) cat "%s"; exit 1 ;;\n  *audit*) echo "high severity"; exit 1 ;;\n  *) exit 0 ;;\nesac\n' % report_file)
         env = dict(os.environ, PATH=shims + ':/usr/bin:/bin:' + os.path.dirname(shutil.which('python3')))
         result = subprocess.run(['bash', GATE, 'dev'], cwd=root, capture_output=True, text=True, env=env, timeout=120)
         out = ANSI.sub('', result.stdout)
-        return '\n'.join(l for l in out.splitlines() if 'npm audit' in l)
+        return '\n'.join(l for l in out.splitlines() if '%s audit' % tool in l)
     finally:
         shutil.rmtree(root, ignore_errors=True)
         shutil.rmtree(shims, ignore_errors=True)
@@ -181,6 +221,32 @@ class GateStep(unittest.TestCase):
         lines = gate_audit_lines(triage(('GHSA-5p2g-fcmc-qvqq', 'image-size', '2999-01-01', 'build tool only')),
                                  report(advisory(IMG, 'image-size')), helper_present=False)
         self.assertIn(self.RED, lines)
+
+
+class PnpmGateStep(unittest.TestCase):
+    RED = '✗ pnpm audit (.): high or critical'
+    ROWS = triage(('GHSA-5p2g-fcmc-qvqq', 'image-size', '2999-01-01', 'build tool only'))
+
+    def lines(self, rows, text, **kw):
+        return gate_audit_lines(rows, text, tool='pnpm', **kw)
+
+    def test_a_triaged_pnpm_advisory_turns_the_step_green_and_says_why(self):
+        lines = self.lines(self.ROWS, pnpm_report((IMG, 'image-size', 'high')))
+        self.assertIn('✓ pnpm audit (.): every high advisory is triaged', lines)
+        self.assertNotIn(self.RED, lines)
+
+    def test_without_a_triage_file_the_pnpm_step_stays_red(self):
+        self.assertIn(self.RED, self.lines(None, pnpm_report((IMG, 'image-size', 'high'))))
+
+    def test_an_unlisted_pnpm_advisory_stays_red(self):
+        self.assertIn(self.RED, self.lines(self.ROWS, pnpm_report((IMG, 'image-size', 'high'), (AXI, 'axios', 'high'))))
+
+    def test_an_expired_pnpm_entry_stays_red(self):
+        expired = triage(('GHSA-5p2g-fcmc-qvqq', 'image-size', '2020-01-01', 'build tool only'))
+        self.assertIn(self.RED, self.lines(expired, pnpm_report((IMG, 'image-size', 'high'))))
+
+    def test_a_missing_helper_never_waives_for_pnpm(self):
+        self.assertIn(self.RED, self.lines(self.ROWS, pnpm_report((IMG, 'image-size', 'high')), helper_present=False))
 
 
 if __name__ == '__main__':
