@@ -72,7 +72,7 @@ name + agent set + who reviews + cost multiplier. Do not paste the whole matrix;
 - **In mode A** no agent is ever invoked; if an agent is needed, propose changing
   the mode instead of starting one.
 - The mode **never** loosens any of these: approval for irreversible work, the
-  `test`/`prod` promotions belonging to the user, the completeness check before
+  promotions over a red or incomplete gate, the completeness check before
   "done", secrets staying out of the repository.
 - A mode change is **not retroactive** — work done in earlier turns is not
   re-evaluated.
