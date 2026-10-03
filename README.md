@@ -201,7 +201,7 @@ because something broke first.
 | What | Where | Count |
 |---|---|---|
 | Working rules (index loaded every session) | `CLAUDE.md` | 33 rules |
-| Engineering standards | `standards/` | 24 documents + 6 templates |
+| Engineering standards | `standards/` | 24 documents + 7 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
 | Gate and measurement scripts | `scripts/` | 25 scripts + 410 tests |
@@ -210,7 +210,7 @@ because something broke first.
 
 ```mermaid
 pie showData title Repository composition (files)
- "standards/ (24 docs + 6 templates)" : 31
+ "standards/ (24 docs + 7 templates)" : 32
  "agents/ (14 roles)" : 14
  "modes/ (5 modes + selection guide)" : 13
  "scripts/ (gates, hooks, measurement, tests)" : 36

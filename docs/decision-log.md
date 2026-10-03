@@ -1065,3 +1065,20 @@ whether a model was running in it.
   is announced (hook) or refused (drift check), never treated as "nothing to compare".
 - **How to apply:** a new gate file is added to `twins.txt` in the same commit; a project takes all four gate
   files together (`cp scripts/gate-*.sh`). Rollout is project by project; `twin-drift.sh` shows who is behind.
+
+## Human actions are written down in one file (03/10/2026, user decision)
+
+- **Trigger:** after a long run in a project the things only a person could do — decisions not
+  delegated, approvals, secrets and console steps, a `DROP` Claude was not allowed to run, claims
+  left unverified — were spread over the final reply, `<TODO>` fields in documents and a
+  "reported, not fixed" list. Nobody could answer "what is waiting on me?" from one place, and a
+  line in the chat is gone by the next session.
+- **Decision:** every project keeps a human-actions file under its own docs folder (file name `human-actions.md`); Claude adds an entry in the same turn it
+  finds the need, links the file in every final report, and never closes an entry itself. Rule text:
+  `standards/00-working-method.md` §14; template: `standards/templates/human-actions-md.md`.
+- **Where it lives:** in standards, not in `CLAUDE.md`. The root file is at its size ceiling and "a new
+  permanent rule goes into standards/ first" (§6a); the working-method paragraph there already points
+  at `standards/00`, which is where this rule is read.
+- **Not done:** the project-documents step of `gate-core.sh` does not check for the file. Doing so is
+  a separate request (it changes a shared, twinned gate).
+
