@@ -1083,3 +1083,17 @@ whether a model was running in it.
 - **Not done:** the project-documents step of `gate-core.sh` does not check for the file. Doing so is
   a separate request (it changes a shared, twinned gate).
 
+## The gate finds an e2e suite inside the web tier (03/10/2026, user instruction "fill the accepted gaps")
+
+- **Trigger:** a project that keeps its Playwright suite in `web/e2e/` (market-copilot) was reported by the
+  shared gate as "no e2e suite": the detection looked for `e2e/` or `tests/e2e/` at the root only. The project
+  had to list the e2e spec check as an ACCEPTED GAP although it had a real suite, and on the `prod` path the
+  suite would not have run at all ("nothing proves this promotion").
+- **Decision:** `gate-lib.sh` also looks for `<web tier>/e2e` (the same `WEB_DIR` the lint/tsc/test steps use);
+  the prod step runs the suite from the directory that holds it; the spec check treats `<dir>/e2e/` as spec
+  territory (a change to a helper there is not "behaviour"). A web directory with no `e2e` folder is still
+  "no suite", and a root suite still runs from the root.
+- **Effect on projects:** none until they copy the new twins; a project that listed the spec check as an
+  accepted gap because of this blind spot can then remove the entry. Tests: `test_gate_core_prod.py`
+  (3) and `test_gate_core_fixes.py` (3); the detection was mutation-checked.
+

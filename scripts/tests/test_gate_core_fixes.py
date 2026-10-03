@@ -322,16 +322,19 @@ class MissingE2eSpecOnlyWarns(unittest.TestCase):
     def tearDown(self):
         shutil.rmtree(getattr(self, 'root', ''), ignore_errors=True)
 
-    def build(self, target):
+    def build(self, target, suite='e2e/smoke.spec.ts', changed=('src/thing.ts',), extra=None):
         """A repo with an e2e suite, plus a commit that changes behaviour and
-        touches no spec — which is exactly the condition the check fires on."""
+        touches no spec — which is exactly the condition the check fires on.
+        `suite` is where the suite lives (e2e/ at the root, or web/e2e/ in the web tier) and
+        `changed` are the files the second commit touches."""
         root = tempfile.mkdtemp()
         subprocess.run(['git', 'init', '-q', root], check=True)
         subprocess.run(['git', 'config', 'user.email', 't@t'], cwd=root, check=True)
         subprocess.run(['git', 'config', 'user.name', 't'], cwd=root, check=True)
         os.makedirs(os.path.join(root, 'scripts'))
         files = dict(self.DOCS)
-        files['e2e/smoke.spec.ts'] = "test('smoke', () => {})\n"
+        files[suite] = "test('smoke', () => {})\n"
+        files.update(extra or {})
         files['scripts/merge-gate.conf'] = 'COVERAGE_CMD="true"\n'
         for name, text in files.items():
             path = os.path.join(root, name)
@@ -341,9 +344,11 @@ class MissingE2eSpecOnlyWarns(unittest.TestCase):
         subprocess.run(['git', 'add', '-A'], cwd=root, check=True)
         subprocess.run(['git', 'commit', '-qm', 'base'], cwd=root, check=True)
         # Behaviour changes, no spec touched.
-        os.makedirs(os.path.join(root, 'src'), exist_ok=True)
-        with open(os.path.join(root, 'src', 'thing.ts'), 'w', encoding='utf-8') as handle:
-            handle.write('export const x = 1\n')
+        for name in changed:
+            path = os.path.join(root, name)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path, 'w', encoding='utf-8') as handle:
+                handle.write('export const x = 1\n')
         subprocess.run(['git', 'add', '-A'], cwd=root, check=True)
         subprocess.run(['git', 'commit', '-qm', 'behaviour change, no spec'], cwd=root, check=True)
         self.root = root
@@ -360,6 +365,24 @@ class MissingE2eSpecOnlyWarns(unittest.TestCase):
         out, _ = self.build('test')
         self.assertIn('no e2e spec was touched', out)
         self.assertIn('test -> prod gate', out)
+
+    def test_a_suite_in_the_web_tier_is_checked_too(self):
+        out, _ = self.build('dev', suite='web/e2e/smoke.spec.ts', changed=('web/lib/thing.ts',),
+                            extra={'web/package.json': '{"name":"w"}\n'})
+        self.assertIn('no e2e spec was touched', out)
+        self.assertNotIn('has no e2e suite', out)
+
+    def test_touching_a_spec_in_the_web_tier_clears_the_warning(self):
+        out, _ = self.build('dev', suite='web/e2e/smoke.spec.ts',
+                            changed=('web/lib/thing.ts', 'web/e2e/other.spec.ts'),
+                            extra={'web/package.json': '{"name":"w"}\n'})
+        self.assertNotIn('no e2e spec was touched', out)
+        self.assertIn('nothing missing for this change', out)
+
+    def test_changing_only_a_web_tier_e2e_helper_is_not_behaviour(self):
+        out, _ = self.build('dev', suite='web/e2e/smoke.spec.ts', changed=('web/e2e/env.ts',),
+                            extra={'web/package.json': '{"name":"w"}\n'})
+        self.assertNotIn('no e2e spec was touched', out)
 
     def test_dev_says_it_too_and_does_not_block(self):
         out, _ = self.build('dev')
