@@ -62,7 +62,7 @@
  1. **First `git fetch` and update `dev`.** Do not branch from a stale base.
  2. **Create a new branch (or worktree) off `dev` and work there.** Never commit directly on `dev`.
  3. **Each task is committed on its own** (its own commit(s), the task named in the message) — never mixed into another task's commit. Ready branches reach `dev`/`test` **as ONE batch: one test run, one gate**; fixes go on their own branch; `dev` never implies `test`; never squashed. → `standards/13-pr-and-review.md` §8
- 4. **Claude performs the `dev`/`test`/`prod` merges AND their pushes** — no per-step question, never `--force`, never over a red or incomplete gate (#25, #33).
+ 4. **Claude performs the `dev`/`test`/`prod` merges and the `dev`/`test` pushes; the `prod` push stays the user's** — never `--force`, not over a red gate (#25, #33).
  5. **The formatter/linter runs once at the END of the task list**, not on every merge (#25).
  - ⚠️ **The configuration repository's own layout:** branches `dev` / `test` / `prod`. The live `~/.claude` is a **symlink into the main worktree, which stays on `prod`**; work happens in a separate `dev` worktree and reaches the live config only by promotion, which Claude performs (`standards/00-working-method.md` §7a). Commit only your own diff. → rationale: `docs/decision-log.md` §26
 27. **The operating mode (A/B/C/D/E) is selectable per project; the selection IS the approval.** The mode determines agent usage, review and approval policy together. Single source: `~/.claude/modes/README.md`; the selection lives in the project's `.claude/mode` file. To change it: `/adyusuf:working-mode <letter>`.
