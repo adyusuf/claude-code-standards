@@ -204,7 +204,7 @@ because something broke first.
 | Engineering standards | `standards/` | 24 documents + 6 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate and measurement scripts | `scripts/` | 22 scripts + 410 tests |
+| Gate and measurement scripts | `scripts/` | 25 scripts + 410 tests |
 | Slash commands and skills — one plugin, `/adyusuf:<name>` | `commands/`, `skills/`, `plugin/` | 7 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 

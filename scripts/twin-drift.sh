@@ -37,9 +37,10 @@ set -uo pipefail
 root="$(git rev-parse --show-toplevel 2>/dev/null)" || { echo "not inside a git repository" >&2; exit 2; }
 cd "$root" || exit 2
 
-# The twins. Kept in step with md-hook.sh's list on purpose — two lists that
-# disagree would mean a script is checked in one place and not the other.
-TWINS="${TWIN_FILES:-gate-core.sh audit-triage.py md-size-gate.sh md-rule-gate.py md-split.py pre-commit.sh guard-destructive.sh doc-check.py evidence-check.py real-name-check.sh commit-msg.sh}"
+# The twins: scripts/twins.txt, the one list md-hook.sh reads as well (two lists that disagreed would
+# mean a script is checked in one place and not the other). TWIN_FILES overrides it, for tests.
+TWINS="${TWIN_FILES:-$(grep -vE '^[[:space:]]*(#|$)' "$root/scripts/twins.txt" 2>/dev/null | tr '\n' ' ')}"
+if [ -z "$TWINS" ]; then echo "scripts/twins.txt is missing or empty: nothing to compare" >&2; exit 2; fi
 search="${TWIN_SEARCH_ROOT:-$(dirname "$root")}"
 
 echo "▶ Twin drift (project copies vs. the canonical set in $(basename "$root"))"
