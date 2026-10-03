@@ -169,6 +169,16 @@ project's tree created a stray `.claude/board/` there.
 
 ## 3. Permanent rules
 
+- ⚠️ **The plan goes on the board BEFORE the first piece starts (PERMANENT, 03/10/2026).** In a project
+  that enables the board, work that splits into 2+ pieces is planned with `/adyusuf:board-plan`
+  (`board.py plan`, then `add auto` per task) *before* the first piece, each task's status moves with the work
+  in the same turn (`running` → `done` / `waiting` / `needs_decision`), and a task that reached a branch
+  carries its `--commit`. The hooks cannot do this for you: they record agents, and in a mode without agents
+  (A, or B used without calling one) they record nothing about the work. *Reason: a session ran 100+ tool
+  calls in a board-enabled project and the page showed no task; the plan was written afterwards in one
+  batch, which is a log, not a live view.* A board that is empty while work is going on is a **defect to
+  report**, not a cosmetic one. The monitor backs this up: after `BOARD_NUDGE_AFTER` (default 8) main-session
+  tool calls with no `board.py add|set` from that session, it adds one reminder line, once per session.
 - ⚠️ **The board is an extra view, never the report.** The table in the reply
   stays the deliverable, and its figures come from `board.py list`, not memory.
 - ⚠️ **No published board.** Artifact dashboards and hosted pages stay out of the
