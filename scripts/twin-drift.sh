@@ -43,6 +43,15 @@ TWINS="${TWIN_FILES:-$(grep -vE '^[[:space:]]*(#|$)' "$root/scripts/twins.txt" 2
 if [ -z "$TWINS" ]; then echo "scripts/twins.txt is missing or empty: nothing to compare" >&2; exit 2; fi
 search="${TWIN_SEARCH_ROOT:-$(dirname "$root")}"
 
+# A project that carries gate-core.sh must carry the libraries it sources too: gate-core.sh stops
+# with "library missing" without them. Reading the names from the canonical gate-core.sh keeps this
+# in step with the split by itself. Without it a project that had not taken the libraries was reported
+# "aligned" — a twin that is ABSENT looked the same as one that was never needed.
+core_libs=""
+if [ -f "$root/scripts/gate-core.sh" ]; then
+  core_libs="$(grep -oE 'gate-lib[A-Za-z0-9._-]*\.sh' "$root/scripts/gate-core.sh" | sort -u | tr '\n' ' ')"
+fi
+
 echo "▶ Twin drift (project copies vs. the canonical set in $(basename "$root"))"
 
 drifted=0 checked=0 projects=0
@@ -51,19 +60,29 @@ for candidate in "$search"/*; do
   # Skip this repository and any of its worktrees: it IS the canonical set.
   [ -f "$candidate/standards/README.md" ] && [ -d "$candidate/modes" ] && continue
   name="$(basename "$candidate")"
-  had_any=0 lines=""
+  had_any=0 lines="" has_core=0
   for tool in $TWINS; do
     [ -f "$root/scripts/$tool" ] || continue            # not canonical here
     ours="$(git hash-object "$root/scripts/$tool")"
     theirs="$(git -C "$candidate" rev-parse "origin/dev:scripts/${tool}" 2>/dev/null)" || continue
     [ -n "$theirs" ] || continue
     had_any=1; checked=$((checked + 1))
+    [ "$tool" = gate-core.sh ] && has_core=1
     if [ "$ours" != "$theirs" ]; then
       lines="$lines
     ✗ $tool"
       drifted=$((drifted + 1))
     fi
   done
+  if [ "$has_core" = 1 ]; then
+    for lib in $core_libs; do
+      [ -f "$root/scripts/$lib" ] || continue
+      git -C "$candidate" rev-parse -q --verify "origin/dev:scripts/${lib}" >/dev/null 2>&1 && continue
+      lines="$lines
+    ✗ $lib (missing — gate-core.sh sources it)"
+      drifted=$((drifted + 1))
+    done
+  fi
   [ "$had_any" = 1 ] || continue
   projects=$((projects + 1))
   if [ -n "$lines" ]; then
