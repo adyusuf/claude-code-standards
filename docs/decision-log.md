@@ -1098,3 +1098,21 @@ whether a model was running in it.
   accepted gap because of this blind spot can then remove the entry. Tests: `test_gate_core_prod.py`
   (3) and `test_gate_core_fixes.py` (3); the detection was mutation-checked.
 
+## The board stayed empty during a long session (03/10/2026, user report "no tasks on the board")
+
+- **What happened:** one session in a board-enabled project made 100+ tool calls over several hours and
+  the live board page listed no task. The hooks had recorded 45 events (turns, a subagent stop), but not one
+  task.
+- **Why (root cause, in order):** (1) the board has two sources — hooks record agents by themselves, the
+  *plan* exists only when the session runs `board.py add|set`; (2) the session worked in mode B and called no
+  agent, so the hooks had nothing to turn into a row; (3) the plan step lives in the `board-plan` skill, whose
+  trigger ("whenever work splits into 2+ pieces") depends on the model remembering to use it, and it did not;
+  (4) `/adyusuf:apply-project-standards` §6a *enables* the board but never says "now plan on it", and §3 calls
+  the board "an extra view", which read as optional; (5) nothing detected the omission, so it ran for hours.
+- **Fix, three parts:** the rule is now binding and says when (before the first piece) — `standards/22` §3;
+  the monitor detects the omission — `board_nudge.py` (PostToolUse, once per session after
+  `BOARD_NUDGE_AFTER` calls, claude-monitor docs §2j); and the session wrote the missing plan and uses the
+  board from then on.
+- **Not done:** no block, no gate. A reminder is advisory by design: a one-step question must not be forced
+  through a plan. Making it a gate step would be a separate request.
+
