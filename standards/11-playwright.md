@@ -94,9 +94,9 @@ use: {
 ## 9. Run policy
 
 - Never **mixed into** the fast CI gate (unit/lint/tsc) — a separate workflow.
-- Trigger: the **`prod` gate only** (`scripts/merge-gate.sh prod`), plus optionally nightly. On `dev` and `test` the gate does not run e2e; it only checks whether a spec is missing (#25, #33). **E2E is never a requirement of the `test` promotion** — not before the merge and not after the release (a project may run one optionally). What is **mandatory** is that the whole suite has run **on the test environment against the SHA going to `prod`** before `prod` (#33; user decision 30/09/2026, general rule).
-- The last run's result (commit, time, outcome) is recorded in a file; before a prod merge that record is checked for **staleness**. If it is stale or red, nothing proceeds without approval.
-- Nothing ships to prod while e2e is red.
+- Trigger: **never a gate.** E2E is optional (CLAUDE.md #33, 03/10/2026, not enough resources): run it by hand, nightly, or with `GATE_RUN_E2E=1`. The shared gate only WARNS that it was not run at `test` and `prod`, and checks whether a spec is missing (a warning).
+- A run's result may still be recorded; the shared gate does not read it.
+- A red e2e run you chose to make is information, not a gate — unless it was requested with `GATE_RUN_E2E=1`, where red blocks like any step.
 
 ### 9a. The run cycle (CLAUDE.md #31)
 
@@ -110,8 +110,8 @@ use: {
 3. **The fix.** Each fix in its own commit (off `dev`); fixes may share one gate and one merge (#26). Raising retries, blindly increasing a wait, or loosening an assertion does not count as a fix. For a failure in the environment class the fix is a run setting (parallelism, the wait window), not the spec.
 4. **The targeted run.** Only the fixed tests and the tests the fix could affect run (`--only-failed` where the project has it, otherwise a file/line filter).
    ⚠️ **E2E runs only against code that has reached `test`.** While a fix is on `dev`, verification means unit tests + tsc/lint. The targeted run and the full repeat happen after the fix reaches `test` and is deployed. Running a spec from the `dev` branch against the test environment is also running e2e — forbidden.
-   ⚠️ **The timing is set by #33:** in the `dev` and `test` directions e2e is never RUN — the shared gate only CHECKS for a missing spec, and that check is a **warning in both directions** — it never blocks a promotion to `test`. The run itself belongs to the gate BEFORE `prod`, which first VERIFIES the deploy: is the code on `test` → are any e2e specs missing → write them → if it has not been run against this code, run it → prod. The list of gaps is produced **once**, not twice (previously it was produced in `dev`/`test` and recomputed at the prod gate). This item and the "once it reaches test" phrasing in item 4 are read in the light of that rule.
-   ⛔ **Nothing ships to `prod` without e2e;** only work the user explicitly calls a "hotfix" ships without it, and the report then reads "e2e skipped (hotfix)".
+   ⚠️ **Optional since 03/10/2026 (#33):** no gate runs e2e; the `dev`, `test` and `prod` promotions only warn that it was not run.
+   ⚠️ The old "nothing ships to `prod` without e2e" rule and its hotfix exception are gone: nothing waits on e2e any more.
 5. **The decision to repeat the full suite — Claude makes it and reports the reasoning.** The full run is repeated if:
    - the fix touched something shared (layout, auth/session, a common component, a fixture helper, the Playwright config);
    - the promotion record (a commit status or similar) requires a valid full-run result;

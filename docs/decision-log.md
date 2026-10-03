@@ -498,6 +498,8 @@ including tsc/lint, after the code and the tests are written.
 
 ## §33 — The only place for e2e is the pre-production gate
 
+**Amended 03/10/2026 — e2e is OPTIONAL (user decision, general rule).** The machine runs several sessions, a live Android emulator and the project stacks at once (load average 100–340 on 10 cores); the suites could not run, and a gate that cannot run only blocks. From now on no gate runs e2e: the `test` and `prod` promotions print a warning that e2e was NOT run (the report never reads it as a pass), `GATE_RUN_E2E=1` runs the suite and a red result then blocks like any step, and the `test → prod` deploy verification stays. The hotfix exception is void. What follows is the original rationale, kept for the record.
+
 - **`feature → dev` and `dev → test`:** e2e **does not run**. There is no run, no
   waiting on a deploy, no reading a status file.
   > ⛔ **This bullet used to say the "was a spec written" check had been REMOVED.

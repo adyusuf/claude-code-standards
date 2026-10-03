@@ -1,15 +1,16 @@
 """The prod branch of the shared gate — the one that had no tests.
 
 This is where rule #33 is enforced: prod never carries code that is not already
-running on test, and it never carries code the e2e suite has not run against.
-Both checks are the kind that are worthless if they fail OPEN, so the tests here
+running on test. E2E is OPTIONAL (03/10/2026): by default the gate does not run it and
+WARNS that it did not; GATE_RUN_E2E=1 runs the suite and a red result then blocks.
+The deploy check is the kind that is worthless if it fails OPEN, so the tests here
 are mostly about what happens when something is missing or ambiguous:
 
   · no way to read the deployed SHA -> SKIPPED, and a skip is not a pass;
   · the version endpoint answers with the SPA's HTML instead of a SHA -> failure,
     not "looks fine" (the fallback swallowing /version is a recorded incident);
   · several sites on test reporting DIFFERENT SHAs -> not deployed;
-  · no e2e suite at all -> "nothing proves this promotion".
+  · e2e requested (GATE_RUN_E2E=1) with no suite at all -> "nothing proves this promotion".
 
 The gate is run from its real path so the measurement lands on it; see the note
 in test_gate_core_fixes.py.
@@ -68,9 +69,11 @@ class ProdGate(unittest.TestCase):
             self.write(name, text)
         return self.commit()
 
-    def run_gate(self, *args):
-        env = dict(os.environ, PATH=self.bin + os.pathsep + os.environ['PATH'])
-        result = subprocess.run(['bash', GATE, 'prod', *args], cwd=self.root,
+    def run_gate(self, *args, env_extra=None, target='prod'):
+        env = dict(os.environ, PATH=self.bin + os.pathsep + os.environ['PATH'], **(env_extra or {}))
+        if not env_extra or 'GATE_RUN_E2E' not in env_extra:
+            env.pop('GATE_RUN_E2E', None)
+        result = subprocess.run(['bash', GATE, target, *args], cwd=self.root,
                                 capture_output=True, text=True, env=env)
         return ANSI.sub('', result.stdout), result.returncode
 
@@ -129,7 +132,13 @@ class DeployVerification(ProdGate):
         self.assertIn('the test environment is running this code', out)
 
 
-class E2eIsRequired(ProdGate):
+class E2eRunsOnRequest(ProdGate):
+    """GATE_RUN_E2E=1: the previous behaviour, now opt-in."""
+
+    def run_gate(self, *args, **kw):
+        kw.setdefault('env_extra', {'GATE_RUN_E2E': '1'})
+        return super().run_gate(*args, **kw)
+
     def test_with_no_suite_the_promotion_is_unproven(self):
         self.setup_project(conf='TEST_DEPLOY_SHA_CMD="echo x"\n')
         out, code = self.run_gate()
@@ -183,6 +192,45 @@ class E2eIsRequired(ProdGate):
         self.assertIn('GATE CLOSED', out)
         self.assertEqual(1, code)
 
+
+class E2eIsOptionalByDefault(ProdGate):
+    def test_a_present_suite_is_not_run_and_the_gate_warns(self):
+        marker = os.path.join(self.root, 'e2e-ran.txt')
+        sha = self.setup_project(extra={'e2e/smoke.spec.ts': "test('s', () => {})\n"})
+        self.write('scripts/merge-gate.conf',
+                   f'TEST_DEPLOY_SHA_CMD="echo {sha}"\nE2E_WEB_CMD="touch {marker}"\n')
+        out, code = self.run_gate()
+        self.assertFalse(os.path.exists(marker), f'e2e must not run by default:\n{out}')
+        self.assertIn('e2e was NOT run', out)
+        self.assertEqual(0, code, out)
+
+    def test_a_project_without_a_suite_is_not_blocked_by_e2e(self):
+        sha = self.setup_project()
+        self.write('scripts/merge-gate.conf', f'TEST_DEPLOY_SHA_CMD="echo {sha}"\n')
+        out, code = self.run_gate()
+        self.assertIn('e2e was NOT run', out)
+        self.assertNotIn('nothing proves this promotion', out)
+        self.assertEqual(0, code, out)
+
+    def test_the_warning_never_hides_a_failed_deploy_check(self):
+        self.setup_project(conf='TEST_DEPLOY_SHA_CMD="echo deadbeefdeadbeef"\n')
+        out, code = self.run_gate()
+        self.assertIn('e2e was NOT run', out)
+        self.assertIn('GATE CLOSED', out)
+        self.assertEqual(1, code)
+
+    def test_the_test_promotion_warns_too(self):
+        self.setup_project()
+        out, _ = self.run_gate(target='test')
+        self.assertIn('e2e was NOT run', out)
+
+    def test_the_dev_promotion_does_not_mention_it(self):
+        self.setup_project()
+        out, _ = self.run_gate(target='dev')
+        self.assertNotIn('e2e was NOT run', out)
+
+
+class ListMode(ProdGate):
     def test_the_list_mode_names_the_deploy_check_without_running_it(self):
         self.stub('curl', '#!/bin/sh\necho SHOULD_NOT_RUN\n')
         self.setup_project(conf='TEST_VERSION_URL="http://test.example/version"\n')
