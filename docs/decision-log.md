@@ -249,9 +249,10 @@ Additional detail shortened out of the active file:
 3. **Each task is committed on its own;** finished tasks may be merged to `dev`
    together through one gate run. (Until 29/09/2026: each task with its own commit,
    its own verification and its own merge — see the amendment below.)
-4. **Claude performs the `dev`/`test`/`prod` merges and pushes.** Amended
-   03/10/2026 on the user's instruction ("do the dev/test/prod merges and pushes
-   yourself, make it standard"); before that the user decided each promotion and
+4. **Claude performs the `dev`/`test`/`prod` merges and the `dev`/`test` pushes;
+   the `prod` push stays the user's.** Amended 03/10/2026 on the user's instruction
+   ("do the merges and pushes yourself", then narrowed: "but only the dev and test
+   pushes"; `guard-destructive.sh` blocks a push to prod either way); before that the user decided each promotion and
    said "merge" / "prod merge". What did NOT change: the gate (#25) and the prod
    e2e rule (#33) must be green, a missing tool is INCOMPLETE, never `--force`.
 

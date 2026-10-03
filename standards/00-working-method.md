@@ -135,7 +135,7 @@ main worktree has checked out.** So:
 - Work happens in a **separate `dev` worktree** (`git worktree add ../<repo>-dev dev`),
   so an unfinished rule never becomes live by accident.
 - A change reaches the live configuration only by promotion `dev → test → prod`,
-  which Claude performs and pushes through the gate. Never check out `dev` in the main worktree to "try something".
+  which Claude merges through the gate; the `prod` push is the user's. Never check out `dev` in the main worktree to "try something".
 
 ⚠️ **Our skills and commands are ONE plugin: `adyusuf`.** Every skill in `skills/`
 and every command in `commands/` is invoked as `/adyusuf:<name>`, so ours are
