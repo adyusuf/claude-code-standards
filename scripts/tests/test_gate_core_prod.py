@@ -145,6 +145,36 @@ class E2eIsRequired(ProdGate):
         self.assertTrue(os.path.exists(marker), f'the e2e command was never run:\n{out}')
         self.assertIn('web e2e', out)
 
+    def test_a_suite_inside_the_web_tier_is_found_and_run_from_there(self):
+        # web/e2e used to be invisible: the gate looked for e2e/ or tests/e2e/ at the root only and
+        # said "no e2e suite" about a project that had one.
+        marker = os.path.join(self.root, 'e2e-cwd.txt')
+        self.stub('npx', f'#!/bin/sh\npwd > "{marker}"\n')
+        sha = self.setup_project(extra={'web/package.json': '{"name":"w"}\n',
+                                        'web/e2e/smoke.spec.ts': "test('s', () => {})\n"})
+        self.write('scripts/merge-gate.conf', f'TEST_DEPLOY_SHA_CMD="echo {sha}"\n')
+        out, _ = self.run_gate()
+        self.assertNotIn('no e2e suite', out)
+        self.assertIn('web e2e', out)
+        with open(marker, encoding='utf-8') as handle:
+            self.assertTrue(handle.read().strip().endswith('/web'), 'the suite must run inside web/')
+
+    def test_a_root_suite_still_runs_from_the_root(self):
+        marker = os.path.join(self.root, 'e2e-cwd.txt')
+        self.stub('npx', f'#!/bin/sh\npwd > "{marker}"\n')
+        sha = self.setup_project(extra={'web/package.json': '{"name":"w"}\n',
+                                        'e2e/smoke.spec.ts': "test('s', () => {})\n"})
+        self.write('scripts/merge-gate.conf', f'TEST_DEPLOY_SHA_CMD="echo {sha}"\n')
+        self.run_gate()
+        with open(marker, encoding='utf-8') as handle:
+            self.assertEqual(os.path.realpath(self.root), os.path.realpath(handle.read().strip()))
+
+    def test_a_web_directory_without_an_e2e_folder_is_still_no_suite(self):
+        self.setup_project(conf='TEST_DEPLOY_SHA_CMD="echo x"\n',
+                           extra={'web/package.json': '{"name":"w"}\n'})
+        out, _ = self.run_gate()
+        self.assertIn('nothing proves this promotion', out)
+
     def test_a_failing_e2e_suite_closes_the_gate(self):
         sha = self.setup_project(extra={'e2e/smoke.spec.ts': "test('s', () => {})\n"})
         self.write('scripts/merge-gate.conf',
