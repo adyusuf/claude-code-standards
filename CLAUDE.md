@@ -55,7 +55,7 @@
  → rationale and application notes: `docs/decision-log.md` §24
 25. **The gate is SHARED and runs at every promotion; running e2e is OPTIONAL (#33).** Two layers: `scripts/gate-core.sh <dev|test|prod>` owns the SHARED STEP SET (canonical copy in the configuration repository, a committed copy in every project), and the project's own `scripts/merge-gate.sh` stays the orchestrator (pull, merge, push, project extras) and CALLS the core. A project's gate cannot depend on a path outside the repository, because CI runners do not have the configuration checked out. `gate-core.sh <target> --list` prints what would run without running it.
  - **`feature/* → dev` and `dev → test`:** EVERYTHING EXCEPT RUNNING E2E — formatter/linter, typecheck, build, unit tests, **coverage: the 80% threshold per codebase (#29)**, secret scan, dependency CVE, SAST, backward-compatibility scan, the CLAUDE.md size and rule gates, and a **CHECK for missing e2e specs** — a **warning**, never blocking (#33).
- - **`test → prod`:** the code must already be **deployed to the test environment** (deploy verified); e2e is **not run** — the gate warns (#33).
+ - **`test → prod`:** the gate does **not** check the `test` branch or the test environment, and e2e is **not run** — it warns for both (#33).
  - **A step that did not run did not pass.** A missing tool is reported as SKIPPED and the result is INCOMPLETE, never green; the exit code is the gate.
  - A project may ADD steps to the shared gate; it may never remove one. → the step list: `standards/13-pr-and-review.md` §4; rationale: `docs/decision-log.md` §25
 26. **Once the work is planned: pull `dev` → branch/worktree off `dev` → work there → one commit per task, merged to `dev` through a gate.** The order is binding:
@@ -102,7 +102,7 @@
  - #26 still holds: each task gets its own commit and reaches `dev` through a gate — alone or in a batch — once its unit run is green. → rationale: `docs/decision-log.md` §32
 33. **E2E is OPTIONAL — no gate runs it and it never blocks a promotion** (user decision 03/10/2026, general rule: not enough resources to run it).
  - Every promotion to `test` and to `prod` **WARNS "e2e was NOT run"** and carries on; the warning is part of the report and never reads as a pass. Run it by hand or with `GATE_RUN_E2E=1` (a red result then blocks like any step).
- - `test → prod` still needs the code **deployed to `test`** and the deploy **verified** (the version endpoint reports this SHA). The missing-spec check stays a warning. No hotfix exception is needed.
+ - **`test → prod` does NOT check the `test` branch or the test environment either** (user decision 04/10/2026, general rule): a branch may go to `prod` without having been on `test`. The gate WARNS it was not checked; `GATE_CHECK_TEST_DEPLOY=1` verifies the deployed SHA and a mismatch then blocks. The missing-spec check stays a warning. No hotfix exception is needed.
  → `docs/decision-log.md` §33
 
 ## Never-do list
