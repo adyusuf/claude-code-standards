@@ -179,6 +179,10 @@ def install(server=None, run=default_run, env=os.environ, system=platform.system
     if registered not in (0, 1):
         print(f'✗ cm-agent install failed (exit {registered})')
         return 2
+    # Its `claude plugin install` ENABLES the plugin: until the login below is approved (minutes), every session
+    # ran its hooks and queued events (6 seen 04/10/2026). Off again at once unless already connected.
+    if set_plugin(home, os.path.join(agent_home(env, system), 'claude-plugin'), is_connected(run, binary)) is None:
+        return 2
     return connect(server, run, env, system, home) if server else sync(run, env, system, home)
 
 

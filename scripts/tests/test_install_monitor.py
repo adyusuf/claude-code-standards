@@ -189,6 +189,23 @@ class ServerMeansActive(Home):
         login = run.ran('login')[0]
         self.assertEqual(login, [INSTALLED, 'login', '--server', 'https://monitor.example'])
 
+    def test_the_plugin_is_off_while_the_login_waits_for_approval(self):
+        # `cm-agent install` registers through the claude CLI, which ENABLES the plugin; the login then waits
+        # minutes for a person. In that window no hook may run and nothing may be queued.
+        home = self
+        class EnablingInstall(FakeRun):
+            def __call__(self, command, capture=False):
+                if command[-1:] == ['install']:
+                    home.write({'enabledPlugins': {monitor.PLUGIN: True}})
+                if 'login' in command:
+                    self.during_login = home.enabled()
+                return super().__call__(command, capture)
+        run = EnablingInstall()
+        code, _ = self.install(run, server='https://monitor.example')
+        self.assertEqual(code, 0)
+        self.assertIs(run.during_login, False)
+        self.assertIs(self.enabled(), True)                     # and on once connected
+
     def test_connecting_an_installed_agent_does_not_rebuild_it(self):
         run = FakeRun()
         code, _ = self.install(run, server='https://monitor.example', exists=lambda path: path == INSTALLED)
