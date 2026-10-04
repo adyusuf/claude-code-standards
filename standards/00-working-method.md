@@ -42,6 +42,46 @@ schema/model → API → contract test → client → e2e → documentation
 
 **Never count a step you did not run as "passed".** If you could not run it, write why.
 
+### 4a. The request list — written before the work, closed before "done" (PERMANENT, #24)
+
+"Every gate is green" and "every requested item was done" are not the same claim.
+Gates prove that gates passed, not that the request was met. A multi-part task was
+once reported finished and the user asked "is anything missing?" four or five times
+in a row — and every time something real was.
+
+1. **Before starting, write the request list.** Any task with more than one request
+   (numbered sections, bullets, "also do X" sentences) gets one line per request
+   **before the work begins**. Extract it from the request text, not from memory: a
+   sentence holding two requests is two lines. On long tasks the list is kept as a
+   file and is part of the delivery. A request that arrives mid-task is added to the
+   list the moment it arrives.
+2. **"Done" means every line is closed.** Each line points either to **evidence** or to
+   a **written reason** it was not done. Evidence is a command that was run plus its
+   output, or a test that was written **and run**. "I looked and it is there" is not
+   evidence. One open line means the task is not done.
+3. **Status labels:** ✅ done · ⚠️ partial (what is missing is written) · ❌ not done
+   (the reason is written) · 🔒 infrastructure blocker (what is missing is written).
+   Every line that is not ✅ is reported **unprompted**.
+4. **Forbidden patterns** — each of these happened:
+   - ❌ **Adding a gate/CI step you did not run.** Every step added to CI, a merge gate
+     or a script is run locally in the same session and shown green. (A CI step added
+     without a local run would have gone red on its first real run.)
+   - ❌ **"The file exists" read as "the behaviour is covered".** A coverage claim is made
+     by reading the **assertions**; a file name or a `grep` is not enough. (A test file
+     existed and tested only the happy path.)
+   - ❌ **A scripted edit that does not assert.** Every edit made by a script
+     (`sed`/python/replace) fails loudly when nothing matched. (Twice a file looked
+     edited and was unchanged.)
+   - ❌ **An exit code inferred from a narrow `grep`.** Read `$?`. (`grep "error CS"`
+     reported an MSBuild failure as a success, and a worthless test as verified.)
+   - ❌ **A gate claimed to protect something without a mutation.** Break the rule on
+     purpose, watch the gate turn red, revert. A gate that never failed is not yet a gate.
+   - ❌ **Checking for gaps for the first time when the user asks "is anything missing?"**
+     That check belongs before "done".
+5. **Narrowing the scope is the user's decision.** If an item cannot be done (no
+   infrastructure, a dependency decision is needed, too risky), finish everything else,
+   then say which item was skipped and why. Never drop it silently.
+
 ## 5. Reporting format
 
 - What was done → which files → how it was verified → what was not done / what is left.

@@ -52,7 +52,7 @@
  - If the task spans multiple files or layers (API + client, migration + code, i18n `tr`+`en`), did **all** of them change?
  - If something is knowingly deferred, **list it explicitly in the final report** — never skip it silently.
  - Say "done" only after passing the check; do not narrate the check, fold its result into the report.
- → rationale and application notes: `docs/decision-log.md` §24
+ → the request list, evidence and forbidden patterns: `standards/00-working-method.md` §4a; rationale and application notes: `docs/decision-log.md` §24
 25. **The gate is SHARED and runs at every promotion; running e2e is OPTIONAL (#33).** Two layers: `scripts/gate-core.sh <dev|test|prod>` owns the SHARED STEP SET (canonical copy in the configuration repository, a committed copy in every project), and the project's own `scripts/merge-gate.sh` stays the orchestrator (pull, merge, push, project extras) and CALLS the core. A project's gate cannot depend on a path outside the repository, because CI runners do not have the configuration checked out. `gate-core.sh <target> --list` prints what would run without running it.
  - **`feature/* → dev` and `dev → test`:** EVERYTHING EXCEPT RUNNING E2E — formatter/linter, typecheck, build, unit tests, **coverage: the 80% threshold per codebase (#29)**, secret scan, dependency CVE, SAST, backward-compatibility scan, the CLAUDE.md size and rule gates, and a **CHECK for missing e2e specs** — a **warning**, never blocking (#33).
  - **`test → prod`:** the gate does **not** check the `test` branch or the test environment, and e2e is **not run** — it warns for both (#33).

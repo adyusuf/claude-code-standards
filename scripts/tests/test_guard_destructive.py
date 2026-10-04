@@ -4,6 +4,7 @@ import json
 import shutil
 import tempfile
 import subprocess
+import sys
 import unittest
 
 GUARD = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'guard-destructive.sh'))
@@ -199,6 +200,55 @@ class GuardFailsClosed(unittest.TestCase):
         out = result.stdout + result.stderr
         self.assertEqual(2, result.returncode, out)
         self.assertIn('could not inspect', out)
+
+    def run_with_interpreters(self, interpreters, payload):
+        """Run the copy with a PATH of the basic tools plus the given fake interpreters
+        ({name: shell body}), and nothing else that could answer to python3/python."""
+        bin_dir = os.path.join(self.dir, 'bin')
+        os.makedirs(bin_dir, exist_ok=True)
+        for tool in ('cat', 'grep', 'readlink', 'dirname'):
+            found = shutil.which(tool)
+            if found:
+                os.symlink(found, os.path.join(bin_dir, tool))
+        for name, body in interpreters.items():
+            path = os.path.join(bin_dir, name)
+            with open(path, 'w', encoding='utf-8', newline='\n') as handle:
+                handle.write('#!/bin/sh\n' + body + '\n')
+            os.chmod(path, 0o755)
+        env = dict(os.environ, PATH=bin_dir)
+        result = subprocess.run([shutil.which('bash') or '/bin/bash', self.guard],
+                                input=payload, capture_output=True, text=True, env=env)
+        return result.stdout + result.stderr, result.returncode
+
+    def real_python(self):
+        return 'exec "%s" "$@"' % sys.executable.replace('\\', '/')
+
+    def test_a_python3_less_machine_falls_back_to_a_python_3_python(self):
+        # Windows: Python installs as `python` only. The guard must judge with it rather
+        # than block every keyword-bearing command (seen live 04/10/2026).
+        self.with_inspector('import sys\nsys.exit(0)\n')
+        out, code = self.run_with_interpreters({'python': self.real_python()}, self.ALLOWED)
+        self.assertEqual(0, code, out)
+
+    def test_the_fallback_still_blocks_what_the_inspector_blocks(self):
+        # The control: falling back must not make the guard permissive.
+        self.with_inspector('import sys\nsys.stderr.write("forced push")\nsys.exit(2)\n')
+        out, code = self.run_with_interpreters({'python': self.real_python()}, self.BANNED)
+        self.assertEqual(2, code)
+        self.assertIn('forced push', out)
+
+    def test_a_python3_stub_that_runs_nothing_is_skipped(self):
+        # The Windows Store alias answers to `python3` and exits without running Python.
+        self.with_inspector('import sys\nsys.exit(0)\n')
+        out, code = self.run_with_interpreters({'python3': 'exit 9009', 'python': self.real_python()}, self.ALLOWED)
+        self.assertEqual(0, code, out)
+
+    def test_a_python_2_python_is_never_used_and_the_message_says_why(self):
+        self.with_inspector('import sys\nsys.exit(0)\n')
+        out, code = self.run_with_interpreters({'python': 'exit 1'}, self.ALLOWED)
+        self.assertEqual(2, code, 'Python 2 (or no Python 3) must block, never allow')
+        self.assertIn('no Python 3 interpreter', out)
+        self.assertIn('python3, then python', out)
 
     def test_an_inspector_that_approves_lets_the_command_through(self):
         # The control: these tests must not have made the guard block everything.

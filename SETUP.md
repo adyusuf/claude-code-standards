@@ -33,6 +33,17 @@ want it enforced.
 | `coverage` (Python package) | 7.10.7 | §2, step 3 | Line coverage of the Python scripts |
 | Node.js | 22 | `brew install node` | Only to run the coverage step on a copy of the scripts that carries JavaScript; this repository has none |
 | GitHub CLI (`gh`) | 2.23.0 | `brew install gh` | Only for `require-private-remote.sh` and opening pull requests |
+| .NET SDK | 10.0.300 | `brew install --cask dotnet-sdk` | Only for `install.py --with-monitor`: claude-monitor's agent is built from source |
+
+**Windows** (the live install, §6; last verified 04/10/2026 on Windows Server 2022 with Python 3.12.10 and
+Git 2.54): `bash` is **Git for Windows**' (`C:\Program Files\Git\bin\bash.exe`; it does not have to be on
+`PATH`, Claude Code finds it). The python.org installer provides `python` but **no `python3`**: the guard falls
+back to `python`, but other hooks call `python3` by name, so create it once from an administrator shell —
+`mklink /H "C:\Program Files\Python312\python3.exe" "C:\Program Files\Python312\python.exe"` (adjust the
+version). Symlinks need an administrator shell or Developer Mode, and the clone needs `-c core.symlinks=true`.
+The unit tests need Git's `bin` and `usr\bin` on `PATH` (they call `bash`), and **92 of them fail on Windows
+before any change** (measured 04/10/2026: the gate and coverage scripts assume macOS paths and tools) — the
+suite is verified on macOS.
 
 A missing tool is never silent: the gate reports the step as **NOT RUN**, the
 result is INCOMPLETE and the exit code is not 0 (#19, #25). You can start with
@@ -106,7 +117,8 @@ Set them in your shell or on the command line. None has to be set; the same list
 | `GATE_PARALLEL_NODE` | `0` | `1` runs the Node track in parallel (only meaningful for a project with a Node codebase) |
 | `GATE_CHECK_TEST_DEPLOY` | `0` | `1` makes the prod gate verify the deployed SHA on test (`TEST_VERSION_URL` / `TEST_DEPLOY_SHA_CMD`); by default it does not look at test and warns |
 | `TEST_VERSION_URL`, `TEST_DEPLOY_SHA_CMD`, `E2E_WEB_CMD`, `E2E_MOBILE_CMD` | unset | Test-environment hooks of the gate (read only with `GATE_CHECK_TEST_DEPLOY=1` / `GATE_RUN_E2E=1`). Here the "test tier" is the pushed `test` branch (`scripts/merge-gate.conf`) |
-| `CLAUDE_MONITOR_HOME` | `~/ClaudeCode/claude-monitor` | Only if you use the live board: where its launchers look for the `claude-monitor` clone |
+| `CLAUDE_MONITOR_HOME` | `~/ClaudeCode/claude-monitor` | Where the `claude-monitor` clone is: the live board's launchers look there, and `install.py --with-monitor` clones into it |
+| `CM_AGENT_HOME` | macOS `~/Library/Application Support/ClaudeMonitor`, Windows `%LOCALAPPDATA%\ClaudeMonitor` | claude-monitor's agent reads it; `install.py --with-monitor` reads it only to find the installed `cm-agent` |
 
 **The real-name map.** `docs/project-nicknames.tsv` is git-ignored and local. One
 line per project you work on, tab-separated: `<folder key>`, `<nickname>`, an
@@ -153,6 +165,23 @@ Do this only once you want this repository to be your live configuration. It
 changes your tooling in every session, so read the warning in
 [`README.md` Level 4](README.md#level-4--run-it-live-the-way-i-do) first.
 
+**One command** does steps 2 and 3 below (macOS and Windows; on Windows read the §1 note first):
+
+```bash
+git clone -c core.symlinks=true https://github.com/adyusuf/claude-code-standards ~/ClaudeCode/claude-code-standards
+python3 ~/ClaudeCode/claude-code-standards/scripts/install.py                  # rules, agents, plugin, hooks
+python3 ~/ClaudeCode/claude-code-standards/scripts/install.py --with-monitor   # ... and claude-monitor's agent
+python3 ~/ClaudeCode/claude-code-standards/scripts/install.py --check          # report only
+```
+
+A real file or folder already in `~/.claude` is moved to `~/.claude/backups/<name>.<stamp>`, never deleted.
+`--with-monitor` builds `cm-agent` (needs the .NET 10 SDK) and registers its plugin through `settings.json` (no
+`claude` CLI needed). **The plugin is enabled only while a server is connected:** with none it is registered
+DISABLED — Claude Code runs none of its 11 hooks and no MCP server, the agent never starts, nothing is queued —
+and the output says **DORMANT**. `install.py --monitor-server <url>` connects it (a code to approve on the web)
+and switches it on, without rebuilding; after `cm-agent logout`, `install.py --monitor-sync` switches it off.
+`install.py --remove` takes the links and hooks out again. The manual steps, for reference:
+
 1. Keep one checkout on `prod`; that checkout is what the live configuration
    points at. Work happens in other worktrees and reaches it only by promotion,
    which is the maintainer's decision (#26).
@@ -196,6 +225,12 @@ removing the symlinks you made in step 2.
 | `CLAUDE.md` size gate refuses a commit | The file grew past its ceiling in `scripts/md-budget.tsv` | Move the rule into `standards/<topic>.md` first; raise the ceiling only with a written reason |
 | A hook runs twice per tool call | Hooks wired by both `settings.example.json` and the installer | Keep one: `install-live-hooks.py --remove`, or drop the `hooks` block you copied |
 | `install-live-hooks.py` aborts and touches nothing | `~/.claude/settings.json` is not valid JSON | Fix the JSON, rerun |
+| `install.py`: `plugin/commands is a plain file, not a symlink` | Cloned without symlinks (Windows default) | `git config core.symlinks true && git checkout -- plugin`, from an administrator shell or with Developer Mode on |
+| `install.py`: `Windows would not create a symlink` | No symlink privilege | Turn on Developer Mode, or run from an administrator shell |
+| Every Bash call mentioning push/rm/drop is BLOCKED with "no Python 3 interpreter" | Neither `python3` nor a Python 3 `python` on the hook's `PATH` | Install Python 3; on Windows add `python3.exe` (§1) |
+| `install.py --with-monitor` prints "DORMANT" | No server is connected, so the agent's plugin is deliberately disabled | `install.py --monitor-server <url>` and approve the code on the web |
+| `cm-agent install` prints "Claude Code could not be reached" | The `claude` CLI is not on `PATH` (e.g. only the desktop app) | Nothing to do when run through `install.py`: it registers the plugin through `settings.json` |
+| `install.py --check --with-monitor` reports `MISMATCH` | The connection changed (login/logout) without a sync | `install.py --monitor-sync` |
 | Gate runs on stale branches | The local `dev`/`test` are behind `origin` | `git fetch`, and branch off `origin/dev` |
 
 ## 8. When this file must change
