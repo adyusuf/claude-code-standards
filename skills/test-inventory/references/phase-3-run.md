@@ -22,7 +22,7 @@ reported as a product failure (global #31).
 - Suites that fight for the same resource are not run in parallel (§12); two batteries
   never share a worktree (§11.6).
 - Unit and integration only. E2E runs here only when the target is the `test → prod`
-  gate and the code is deployed to the test environment (global #33).
+  gate, was requested (`GATE_RUN_E2E=1`) and the code is deployed to the test environment (global #33).
 
 ## 3. List each failure on its own row
 
