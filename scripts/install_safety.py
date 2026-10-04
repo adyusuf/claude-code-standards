@@ -90,9 +90,15 @@ def digest(path):
         return hasher.hexdigest()
     for base, dirs, names in os.walk(path):
         dirs.sort()
-        for name in sorted(names):
+        # A link inside the folder is hashed as a link (its target), never followed: a broken one crashed the
+        # install, and a move keeps links as links (shutil.move, copytree(symlinks=True)) — so must the proof.
+        linked = [name for name in dirs if os.path.islink(os.path.join(base, name))]
+        for name in sorted(names + linked):
             full = os.path.join(base, name)
             hasher.update(os.path.relpath(full, path).replace(os.sep, '/').encode())
+            if os.path.islink(full):
+                hasher.update(b'link:' + os.readlink(full).encode())
+                continue
             with open(full, 'rb') as handle:
                 hasher.update(handle.read())
     return hasher.hexdigest()
@@ -177,7 +183,11 @@ def restore_latest(home):
             if os.path.lexists(place):
                 print(f'  restore   {place} is occupied — left as it is; your copy stays in {item["backup"]}')
                 continue
-            (shutil.copytree if os.path.isdir(item['backup']) else shutil.copy2)(item['backup'], place)
+            os.makedirs(os.path.dirname(place), exist_ok=True)     # e.g. ~/.claude/skills gone since the install
+            if os.path.isdir(item['backup']) and not os.path.islink(item['backup']):
+                shutil.copytree(item['backup'], place, symlinks=True)
+            else:
+                shutil.copy2(item['backup'], place, follow_symlinks=False)
             print(f'  restored  {place}  (from {item["backup"]}; the backup is kept)')
     if not done:
         print('  restore   no install backup holds anything of yours — nothing to put back')
