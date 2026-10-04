@@ -250,7 +250,7 @@ The manual steps, for reference:
    python3 scripts/install-live-hooks.py           # symlinks under ~/.claude/hooks + settings entries
    ```
 
-   It backs up `settings.json` to `~/.claude/backups` first, aborts on a file it
+   It backs up `settings.json` to `~/.claude-standards/backups/settings` first (outside `~/.claude`, whose cleanup prunes old files), aborts on a file it
    cannot parse and is safe to run twice.
 4. If you also want the live board, follow `standards/22-live-board.md` §0: its
    code lives in the separate `claude-monitor` repository, and the launchers

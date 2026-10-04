@@ -77,7 +77,7 @@ class Home(unittest.TestCase):
         return self.settings().get('enabledPlugins', {}).get(monitor.PLUGIN)
 
     def backups(self):
-        folder = os.path.join(self.home, '.claude', 'backups')
+        folder = os.path.join(self.home, '.claude-standards', 'backups', 'settings')
         return os.listdir(folder) if os.path.isdir(folder) else []
 
     def quiet(self, function, *args, **kwargs):

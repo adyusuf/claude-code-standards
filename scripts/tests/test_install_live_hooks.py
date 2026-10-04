@@ -65,7 +65,7 @@ class Fixture(unittest.TestCase):
         return os.path.join(self.home, '.claude', 'hooks')
 
     def backups(self):
-        folder = os.path.join(self.home, '.claude', 'backups')
+        folder = os.path.join(self.home, '.claude-standards', 'backups', 'settings')
         return sorted(os.listdir(folder)) if os.path.isdir(folder) else []
 
 
@@ -92,8 +92,10 @@ class Install(Fixture):
     def test_settings_are_backed_up_before_the_change(self):
         self.run_installer()
         self.assertEqual(len(self.backups()), 1)
-        with open(os.path.join(self.home, '.claude', 'backups', self.backups()[0]), encoding='utf-8') as handle:
+        with open(os.path.join(self.home, '.claude-standards', 'backups', 'settings', self.backups()[0]), encoding='utf-8') as handle:
             self.assertEqual(json.load(handle), EXISTING)
+        # Outside ~/.claude: Claude Code's cleanup prunes old files there, and a backup that can vanish is not one.
+        self.assertFalse(os.path.exists(os.path.join(self.home, '.claude', 'backups')))
 
     def test_running_it_twice_changes_nothing(self):
         self.run_installer()

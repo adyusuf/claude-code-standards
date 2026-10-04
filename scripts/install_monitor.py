@@ -117,7 +117,7 @@ def set_plugin(home, plugin_dir, enabled):
         return enabled
     data.setdefault('extraKnownMarketplaces', {})[MARKETPLACE] = marketplace
     data.setdefault('enabledPlugins', {})[PLUGIN] = enabled
-    settings_io.backup(path, os.path.join(claude, 'backups'))
+    settings_io.backup(path, settings_io.backups_dir(home))
     os.makedirs(claude, exist_ok=True)
     settings_io.save_settings(path, data, newline)
     return enabled
@@ -226,7 +226,7 @@ def remove(run=default_run, env=os.environ, system=platform.system(), exists=os.
         for key in ('extraKnownMarketplaces', 'enabledPlugins'):
             if key in data and not data[key]:
                 del data[key]
-        settings_io.backup(path, os.path.join(home, '.claude', 'backups'))
+        settings_io.backup(path, settings_io.backups_dir(home))
         settings_io.save_settings(path, data, newline)
         print('  removed   the monitor plugin from settings.json')
     return 0
