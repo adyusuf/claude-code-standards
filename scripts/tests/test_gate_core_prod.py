@@ -28,6 +28,9 @@ GATE = os.path.join(SCRIPTS, 'gate-core.sh')
 ANSI = re.compile(r'\x1b\[[0-9;]*m')
 
 RULE_16_DOCS = {'SETUP.md': '# Setup\n## Secret and token inventory\n', '.env.example': ''}
+# Records the directory it ran in. `pwd -W` gives Git Bash's Windows form (C:/...): its plain `pwd`
+# says /c/..., which Python on Windows reads as C:\c\.... Elsewhere -W fails and plain pwd answers.
+PWD_STUB = '#!/bin/sh\n{{ pwd -W 2>/dev/null || pwd; }} > "{marker}"\n'
 
 
 class ProdGate(unittest.TestCase):
@@ -199,8 +202,8 @@ class E2eRunsOnRequest(ProdGate):
     def test_a_configured_web_suite_is_run(self):
         marker = os.path.join(self.root, 'e2e-ran.txt')
         sha = self.setup_project(extra={'e2e/smoke.spec.ts': "test('s', () => {})\n"})
-        self.write('scripts/merge-gate.conf',
-                   f'TEST_DEPLOY_SHA_CMD="echo {sha}"\nE2E_WEB_CMD="touch {marker}"\n')
+        self.write('scripts/merge-gate.conf',     # '/': the gate evals it, and sh eats Windows' '\'
+                   f'TEST_DEPLOY_SHA_CMD="echo {sha}"\nE2E_WEB_CMD="touch {marker.replace(os.sep, "/")}"\n')
         out, code = self.run_gate()
         self.assertTrue(os.path.exists(marker), f'the e2e command was never run:\n{out}')
         self.assertIn('web e2e', out)
@@ -209,7 +212,7 @@ class E2eRunsOnRequest(ProdGate):
         # web/e2e used to be invisible: the gate looked for e2e/ or tests/e2e/ at the root only and
         # said "no e2e suite" about a project that had one.
         marker = os.path.join(self.root, 'e2e-cwd.txt')
-        self.stub('npx', f'#!/bin/sh\npwd > "{marker}"\n')
+        self.stub('npx', PWD_STUB.format(marker=marker.replace(os.sep, '/')))
         sha = self.setup_project(extra={'web/package.json': '{"name":"w"}\n',
                                         'web/e2e/smoke.spec.ts': "test('s', () => {})\n"})
         self.write('scripts/merge-gate.conf', f'TEST_DEPLOY_SHA_CMD="echo {sha}"\n')
@@ -221,7 +224,7 @@ class E2eRunsOnRequest(ProdGate):
 
     def test_a_root_suite_still_runs_from_the_root(self):
         marker = os.path.join(self.root, 'e2e-cwd.txt')
-        self.stub('npx', f'#!/bin/sh\npwd > "{marker}"\n')
+        self.stub('npx', PWD_STUB.format(marker=marker.replace(os.sep, '/')))
         sha = self.setup_project(extra={'web/package.json': '{"name":"w"}\n',
                                         'e2e/smoke.spec.ts': "test('s', () => {})\n"})
         self.write('scripts/merge-gate.conf', f'TEST_DEPLOY_SHA_CMD="echo {sha}"\n')
@@ -248,8 +251,8 @@ class E2eIsOptionalByDefault(ProdGate):
     def test_a_present_suite_is_not_run_and_the_gate_warns(self):
         marker = os.path.join(self.root, 'e2e-ran.txt')
         sha = self.setup_project(extra={'e2e/smoke.spec.ts': "test('s', () => {})\n"})
-        self.write('scripts/merge-gate.conf',
-                   f'TEST_DEPLOY_SHA_CMD="echo {sha}"\nE2E_WEB_CMD="touch {marker}"\n')
+        self.write('scripts/merge-gate.conf',     # '/': the gate evals it, and sh eats Windows' '\'
+                   f'TEST_DEPLOY_SHA_CMD="echo {sha}"\nE2E_WEB_CMD="touch {marker.replace(os.sep, "/")}"\n')
         out, code = self.run_gate()
         self.assertFalse(os.path.exists(marker), f'e2e must not run by default:\n{out}')
         self.assertIn('e2e was NOT run', out)

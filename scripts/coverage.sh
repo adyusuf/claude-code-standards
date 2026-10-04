@@ -28,24 +28,31 @@ cd "$root" || exit 2
 venv="${COVERAGE_VENV:-$HOME/.cache/claude-standards/venv}"
 min="${COVERAGE_MIN:-80}"
 status=0
+# A Windows venv keeps its executables in Scripts/, not bin/.
+vbin="$venv/bin"
+[ -d "$vbin" ] || [ ! -d "$venv/Scripts" ] || vbin="$venv/Scripts"
+# UTF-8 mode for the tests AND every Python they start (PEP 540): on Windows the locale
+# codec is cp1252, which garbled every ✓/✗ the scripts print and left subprocess output
+# as None where it could not be decoded (42 of 92 Windows failures, 04/10/2026).
+export PYTHONUTF8=1
 
 echo "▶ Python scripts (threshold ${min}%)"
-if [ ! -x "$venv/bin/coverage" ]; then
+if [ ! -x "$vbin/coverage" ] && [ ! -x "$vbin/coverage.exe" ]; then
   echo "  NOT MEASURED: no coverage in $venv"
-  echo "  create it: python3 -m venv \"$venv\" && \"$venv/bin/pip\" install coverage"
+  echo "  create it: python3 -m venv \"$venv\" && \"$vbin/pip\" install coverage"
   status=3
 else
-  purelib="$("$venv/bin/python" -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"
+  purelib="$("$vbin/python" -c 'import sysconfig; print(sysconfig.get_paths()["purelib"])')"
   [ -f "$purelib/coverage-subprocess.pth" ] || echo 'import coverage; coverage.process_startup()' > "$purelib/coverage-subprocess.pth"
   data="$(mktemp -d)"
   export COVERAGE_SRC="$root/scripts" COVERAGE_DATA="$data/.coverage" COVERAGE_PROCESS_START="$root/.coveragerc"
-  if ! PATH="$venv/bin:$PATH" coverage run -m unittest discover -s scripts/tests -p 'test_*.py' >"$data/tests.log" 2>&1; then
+  if ! PATH="$vbin:$PATH" coverage run -m unittest discover -s scripts/tests -p 'test_*.py' >"$data/tests.log" 2>&1; then
     tail -20 "$data/tests.log" | sed 's/^/  /'
     echo "  ✗ the tests are red — coverage of a red suite is not a measurement"
     status=1
   else
-    PATH="$venv/bin:$PATH" coverage combine >/dev/null 2>&1
-    if PATH="$venv/bin:$PATH" coverage report --fail-under="$min" | sed 's/^/  /'; then
+    PATH="$vbin:$PATH" coverage combine >/dev/null 2>&1
+    if PATH="$vbin:$PATH" coverage report --fail-under="$min" | sed 's/^/  /'; then
       echo "  ✓ at or above ${min}%"
     else
       echo "  ✗ below ${min}% — the gap and the plan to close it: docs/coverage-gap.md"
@@ -65,10 +72,18 @@ fi
 echo "▶ JavaScript (threshold ${min}%)"
 js_files="$(find scripts -name '*.js' -not -path '*/tests/*' -not -path '*/node_modules/*' 2>/dev/null | sort)"
 js_status=0
+# Anything but a number counts as too old (fail closed: an unreadable version must not run).
+node_major="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null | tr -d '\r')"
+case "$node_major" in ''|*[!0-9]*) node_major=0 ;; esac
 if [ -z "$js_files" ]; then
   echo "  n/a: no JavaScript here"
 elif ! command -v node >/dev/null 2>&1; then
   echo "  NOT MEASURED: node is not installed"
+  js_status=3
+elif [ "$node_major" -lt 22 ]; then
+  # Node 20 rejects the --test-coverage-* flags and the run reads as a RED suite — an
+  # environment problem reported as a product one (Windows machine, 04/10/2026).
+  echo "  NOT MEASURED: node $(node --version 2>/dev/null) is too old — the coverage flags need Node 22+"
   js_status=3
 else
   js_log="$(mktemp)"

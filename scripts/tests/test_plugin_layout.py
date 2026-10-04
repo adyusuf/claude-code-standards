@@ -36,7 +36,8 @@ class ManifestTest(unittest.TestCase):
         for part in ('skills', 'commands'):
             link = os.path.join(PLUGIN, part)
             self.assertTrue(os.path.islink(link), f'plugin/{part} must be a link, not a copy')
-            self.assertEqual(os.readlink(link), f'../{part}', 'relative, so it follows the checkout')
+            # Windows reads the same relative link back with '\' (git stores '../part' either way).
+            self.assertEqual(os.readlink(link).replace('\\', '/'), f'../{part}', 'relative, so it follows the checkout')
             self.assertEqual(os.path.realpath(link), os.path.realpath(os.path.join(REPO, part)))
 
     def test_no_agents_component(self):

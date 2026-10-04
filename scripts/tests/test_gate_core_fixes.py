@@ -54,6 +54,10 @@ def project(runner, stub):
     with open(path, 'w', encoding='utf-8') as handle:
         handle.write(stub)
     os.chmod(path, os.stat(path).st_mode | stat.S_IEXEC)
+    if os.name == 'nt':
+        # npm runs scripts through cmd.exe there, which finds only the .cmd shim a real install writes.
+        with open(path + '.cmd', 'w', encoding='utf-8') as handle:
+            handle.write('@"%s" "%%~dp0%s" %%*\r\n' % (shutil.which('bash'), runner))
     with open(os.path.join(root, 'web', 'package.json'), 'w', encoding='utf-8') as handle:
         handle.write('{"name":"w","scripts":{"test":"%s"}}' % runner)
     return root
