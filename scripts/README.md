@@ -91,7 +91,7 @@ each resolves to, and runs nothing — use it when rolling the gate into a proje
 | Target | What runs |
 |---|---|
 | `dev`, `test` | **Everything except running e2e:** formatter/linter, typecheck, build, unit tests, coverage (80% per codebase), secret scan, dependency CVE, SAST, backward-compatibility scan, the **project documents check** (`SETUP.md`, `.env.example`, the secret inventory heading — missing ones FAIL, rule #16), the CLAUDE.md size and rule gates, and a CHECK for missing e2e specs — a warning in BOTH directions, never blocking; the gaps are written at the `test → prod` gate (#33 step 2). |
-| `prod` | The code must already be **deployed to the test environment** (verified through the version endpoint). **E2E is optional and is not run** — the gate warns "e2e was NOT run" and carries on; `GATE_RUN_E2E=1` runs the suite and a red result then blocks. |
+| `prod` | The `test` branch and the test environment are **not checked** (04/10/2026) — the gate warns; `GATE_CHECK_TEST_DEPLOY=1` verifies the deployed SHA through the version endpoint and a mismatch then blocks. **E2E is optional and is not run** — the gate warns "e2e was NOT run" and carries on; `GATE_RUN_E2E=1` runs the suite and a red result then blocks. |
 
 Stacks are auto-detected (.NET solution, `web/`, `mobile/`, `e2e/`, `.maestro/`).
 Per-project settings live in `scripts/merge-gate.conf` (sourced if present):

@@ -104,7 +104,8 @@ Set them in your shell or on the command line. None has to be set; the same list
 | `REAL_NAMES_MAP` | `docs/project-nicknames.tsv` in this or the main worktree | Path of the real-name map |
 | `REAL_NAMES_STRICT` | `0` | `1` makes a missing map a failure instead of a warning |
 | `GATE_PARALLEL_NODE` | `0` | `1` runs the Node track in parallel (only meaningful for a project with a Node codebase) |
-| `TEST_VERSION_URL`, `TEST_DEPLOY_SHA_CMD`, `E2E_WEB_CMD`, `E2E_MOBILE_CMD` | unset | Test-environment hooks of the gate. Here the "test tier" is the pushed `test` branch (`scripts/merge-gate.conf`) |
+| `GATE_CHECK_TEST_DEPLOY` | `0` | `1` makes the prod gate verify the deployed SHA on test (`TEST_VERSION_URL` / `TEST_DEPLOY_SHA_CMD`); by default it does not look at test and warns |
+| `TEST_VERSION_URL`, `TEST_DEPLOY_SHA_CMD`, `E2E_WEB_CMD`, `E2E_MOBILE_CMD` | unset | Test-environment hooks of the gate (read only with `GATE_CHECK_TEST_DEPLOY=1` / `GATE_RUN_E2E=1`). Here the "test tier" is the pushed `test` branch (`scripts/merge-gate.conf`) |
 | `CLAUDE_MONITOR_HOME` | `~/ClaudeCode/claude-monitor` | Only if you use the live board: where its launchers look for the `claude-monitor` clone |
 
 **The real-name map.** `docs/project-nicknames.tsv` is git-ignored and local. One

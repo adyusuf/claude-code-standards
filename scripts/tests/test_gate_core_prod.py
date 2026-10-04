@@ -1,8 +1,8 @@
 """The prod branch of the shared gate — the one that had no tests.
 
-This is where rule #33 is enforced: prod never carries code that is not already
-running on test. E2E is OPTIONAL (03/10/2026): by default the gate does not run it and
-WARNS that it did not; GATE_RUN_E2E=1 runs the suite and a red result then blocks.
+This is where rule #33 is enforced. Two checks are OPT-IN: e2e (03/10/2026, GATE_RUN_E2E=1)
+and the test deploy check (04/10/2026, GATE_CHECK_TEST_DEPLOY=1). By default the gate runs
+neither and WARNS that it did not; once requested, a red result blocks.
 The deploy check is the kind that is worthless if it fails OPEN, so the tests here
 are mostly about what happens when something is missing or ambiguous:
 
@@ -71,14 +71,21 @@ class ProdGate(unittest.TestCase):
 
     def run_gate(self, *args, env_extra=None, target='prod'):
         env = dict(os.environ, PATH=self.bin + os.pathsep + os.environ['PATH'], **(env_extra or {}))
-        if not env_extra or 'GATE_RUN_E2E' not in env_extra:
-            env.pop('GATE_RUN_E2E', None)
+        for flag in ('GATE_RUN_E2E', 'GATE_CHECK_TEST_DEPLOY'):
+            if not env_extra or flag not in env_extra:
+                env.pop(flag, None)
         result = subprocess.run(['bash', GATE, target, *args], cwd=self.root,
                                 capture_output=True, text=True, env=env)
         return ANSI.sub('', result.stdout), result.returncode
 
 
 class DeployVerification(ProdGate):
+    """GATE_CHECK_TEST_DEPLOY=1: the previous behaviour, now opt-in."""
+
+    def run_gate(self, *args, **kw):
+        kw.setdefault('env_extra', {'GATE_CHECK_TEST_DEPLOY': '1'})
+        return super().run_gate(*args, **kw)
+
     def test_with_no_source_configured_it_skips_and_does_not_pass(self):
         self.setup_project()
         out, code = self.run_gate()
@@ -130,6 +137,50 @@ class DeployVerification(ProdGate):
         self.stub('curl', f'#!/bin/sh\necho "{sha[:7]}"\n')  # the short SHA must satisfy it
         out, _ = self.run_gate()
         self.assertIn('the test environment is running this code', out)
+
+
+class TestEnvironmentIsNotCheckedByDefault(ProdGate):
+    """User decision 04/10/2026 (CLAUDE.md #33): the prod gate does not look at the test branch or the
+    test environment unless GATE_CHECK_TEST_DEPLOY=1 asks for it."""
+
+    def test_a_project_with_no_test_environment_is_not_blocked(self):
+        self.setup_project()
+        out, code = self.run_gate()
+        self.assertIn('NOT checked', out)
+        self.assertNotIn('the deployed SHA cannot be read', out)
+        self.assertNotIn('GATE INCOMPLETE', out)
+        self.assertEqual(0, code, out)
+
+    def test_a_configured_source_is_not_consulted(self):
+        self.stub('curl', '#!/bin/sh\necho SHOULD_NOT_RUN\n')
+        self.setup_project(conf='TEST_VERSION_URL="http://test.example/version"\n')
+        out, code = self.run_gate()
+        self.assertNotIn('SHOULD_NOT_RUN', out)
+        self.assertEqual(0, code, out)
+
+    def test_a_stale_test_environment_does_not_close_the_gate(self):
+        self.setup_project(conf='TEST_DEPLOY_SHA_CMD="echo deadbeefdeadbeef"\n')
+        out, code = self.run_gate()
+        self.assertNotIn('GATE CLOSED', out)
+        self.assertEqual(0, code, out)
+
+    def test_the_warning_says_what_was_not_proven(self):
+        self.setup_project()
+        out, _ = self.run_gate()
+        self.assertIn('does not prove the code ran on test', out)
+
+    def test_the_list_mode_agrees_with_the_real_run(self):
+        self.setup_project()
+        listed, list_code = self.run_gate('--list')
+        self.assertIn('NOT checked', listed)
+        self.assertNotIn('deploy verification', listed)
+        self.assertEqual(0, list_code, listed)
+
+    def test_the_dev_and_test_promotions_do_not_mention_it(self):
+        self.setup_project()
+        for target in ('dev', 'test'):
+            out, _ = self.run_gate(target=target)
+            self.assertNotIn('test branch / test environment', out, target)
 
 
 class E2eRunsOnRequest(ProdGate):
@@ -214,7 +265,7 @@ class E2eIsOptionalByDefault(ProdGate):
 
     def test_the_warning_never_hides_a_failed_deploy_check(self):
         self.setup_project(conf='TEST_DEPLOY_SHA_CMD="echo deadbeefdeadbeef"\n')
-        out, code = self.run_gate()
+        out, code = self.run_gate(env_extra={'GATE_CHECK_TEST_DEPLOY': '1'})
         self.assertIn('e2e was NOT run', out)
         self.assertIn('GATE CLOSED', out)
         self.assertEqual(1, code)
@@ -231,6 +282,12 @@ class E2eIsOptionalByDefault(ProdGate):
 
 
 class ListMode(ProdGate):
+    """--list with the deploy check requested (GATE_CHECK_TEST_DEPLOY=1)."""
+
+    def run_gate(self, *args, **kw):
+        kw.setdefault('env_extra', {'GATE_CHECK_TEST_DEPLOY': '1'})
+        return super().run_gate(*args, **kw)
+
     def test_the_list_mode_names_the_deploy_check_without_running_it(self):
         self.stub('curl', '#!/bin/sh\necho SHOULD_NOT_RUN\n')
         self.setup_project(conf='TEST_VERSION_URL="http://test.example/version"\n')
