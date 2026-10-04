@@ -222,7 +222,7 @@ class GuardFailsClosed(unittest.TestCase):
             script = os.path.join(bin_dir, name)
             with open(script, 'w', encoding='utf-8', newline='\n') as handle:
                 handle.write('#!/bin/sh\n' + body + '\n')
-            os.chmod(script, 0o755)
+            os.chmod(script, 0o700)
         env = dict(os.environ, PATH=path)
         result = subprocess.run([shutil.which('bash') or '/bin/bash', self.guard],
                                 input=payload, capture_output=True, text=True, env=env)
@@ -270,7 +270,7 @@ class GuardFailsClosed(unittest.TestCase):
         os.makedirs(bin_dir, exist_ok=True)
         with open(os.path.join(bin_dir, 'grep'), 'w', encoding='utf-8', newline='\n') as handle:
             handle.write('#!/bin/sh\nexit 127\n')          # a grep that does not run
-        os.chmod(os.path.join(bin_dir, 'grep'), 0o755)
+        os.chmod(os.path.join(bin_dir, 'grep'), 0o700)
         env = dict(os.environ, PATH=bin_dir + os.pathsep + os.environ['PATH'])
         result = subprocess.run([shutil.which('bash') or '/bin/bash', self.guard],
                                 input=self.BANNED, capture_output=True, text=True, env=env)
