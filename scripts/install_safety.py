@@ -130,8 +130,12 @@ class Backup:
         name = os.path.relpath(link, self.claude).replace(os.sep, '/')
         destination = os.path.join(self.folder, *name.split('/'))
         os.makedirs(os.path.dirname(destination), exist_ok=True)
-        shutil.move(link, destination)
+        # The manifest is written BEFORE the move: a step that fails after it (Windows refusing the symlink, for
+        # one) used to leave your file in the backup with no manifest naming it, and --remove said "nothing to
+        # put back". A move that fails leaves the original in place, which restore then finds occupied.
         self.items[name]['backup'] = destination
+        self.save()
+        shutil.move(link, destination)
         return destination
 
     def copy_settings(self):
