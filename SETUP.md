@@ -175,10 +175,12 @@ python3 ~/ClaudeCode/claude-code-standards/scripts/install.py --check          #
 ```
 
 A real file or folder already in `~/.claude` is moved to `~/.claude/backups/<name>.<stamp>`, never deleted.
-`--with-monitor` builds `cm-agent` (needs the .NET 10 SDK) and registers it with Claude Code (needs the `claude`
-CLI on `PATH`); `--monitor-server <url>` also connects it, which shows a code to approve on the web. Until it is
-connected the result is **INCOMPLETE** (exit 3), not done. `install.py --remove` takes the links and hooks out
-again. The manual steps, for reference:
+`--with-monitor` builds `cm-agent` (needs the .NET 10 SDK) and registers its plugin through `settings.json` (no
+`claude` CLI needed). **The plugin is enabled only while a server is connected:** with none it is registered
+DISABLED — Claude Code runs none of its 11 hooks and no MCP server, the agent never starts, nothing is queued —
+and the output says **DORMANT**. `install.py --monitor-server <url>` connects it (a code to approve on the web)
+and switches it on, without rebuilding; after `cm-agent logout`, `install.py --monitor-sync` switches it off.
+`install.py --remove` takes the links and hooks out again. The manual steps, for reference:
 
 1. Keep one checkout on `prod`; that checkout is what the live configuration
    points at. Work happens in other worktrees and reaches it only by promotion,
@@ -226,8 +228,9 @@ removing the symlinks you made in step 2.
 | `install.py`: `plugin/commands is a plain file, not a symlink` | Cloned without symlinks (Windows default) | `git config core.symlinks true && git checkout -- plugin`, from an administrator shell or with Developer Mode on |
 | `install.py`: `Windows would not create a symlink` | No symlink privilege | Turn on Developer Mode, or run from an administrator shell |
 | Every Bash call mentioning push/rm/drop is BLOCKED with "no Python 3 interpreter" | Neither `python3` nor a Python 3 `python` on the hook's `PATH` | Install Python 3; on Windows add `python3.exe` (§1) |
-| `install.py --with-monitor` exits 3, "plugin is NOT registered" | The `claude` CLI is not on `PATH` (e.g. only the desktop app) | Run the two `claude plugin` commands it printed, from a shell where `claude` works |
-| `install.py --with-monitor` exits 3, "NOT CONNECTED" | No `--monitor-server` given | `cm-agent login --server <url>` and approve the code on the web |
+| `install.py --with-monitor` prints "DORMANT" | No server is connected, so the agent's plugin is deliberately disabled | `install.py --monitor-server <url>` and approve the code on the web |
+| `cm-agent install` prints "Claude Code could not be reached" | The `claude` CLI is not on `PATH` (e.g. only the desktop app) | Nothing to do when run through `install.py`: it registers the plugin through `settings.json` |
+| `install.py --check --with-monitor` reports `MISMATCH` | The connection changed (login/logout) without a sync | `install.py --monitor-sync` |
 | Gate runs on stale branches | The local `dev`/`test` are behind `origin` | `git fetch`, and branch off `origin/dev` |
 
 ## 8. When this file must change

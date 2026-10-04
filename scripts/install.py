@@ -4,7 +4,8 @@
 Usage:
     python3 scripts/install.py                         # rules, standards, modes, docs, scripts, agents, plugin, hooks
     python3 scripts/install.py --with-monitor          # ... and the claude-monitor agent (cm-agent, built from source)
-    python3 scripts/install.py --with-monitor --monitor-server URL   # ... and connect it (approve the code on the web)
+    python3 scripts/install.py --monitor-server URL    # connect it (approve the code on the web) -> agent + hooks ON
+    python3 scripts/install.py --monitor-sync          # re-derive ON/OFF from the connection (e.g. after logout)
     python3 scripts/install.py --check                 # report only; exit 1 if anything is missing or wrong
     python3 scripts/install.py --remove                # take the links and the hooks out again (backups stay)
 
@@ -20,9 +21,10 @@ What it does, in order — and what it never does:
        deleted, never overwritten. A link already pointing here is left alone; a link pointing elsewhere is
        re-pointed (a link holds no data).
     3. Wires the hooks through install-live-hooks.py (settings.json is backed up first).
-    4. With --with-monitor: install_monitor.py (clone, dotnet publish, cm-agent install, optional login).
-Exit codes: 0 done · 1 --check found a problem · 2 refused (nothing changed by the refused step) ·
-3 installed but INCOMPLETE (a monitor step could not run; the output names it — never reported as done).
+    4. With --with-monitor: install_monitor.py (clone, dotnet publish, cm-agent install, optional login). The
+       agent's plugin is ENABLED only while a server is connected; with none it is DISABLED (no hooks, no agent,
+       nothing queued) and the output says DORMANT.
+Exit codes: 0 done · 1 --check found a problem · 2 refused or failed (nothing changed by the refused step).
 """
 import argparse
 import datetime
@@ -167,6 +169,8 @@ def main(argv):
     parser.add_argument('--remove', action='store_true')
     parser.add_argument('--with-monitor', action='store_true')
     parser.add_argument('--monitor-server', help='connect cm-agent to this claude-monitor API (implies --with-monitor)')
+    parser.add_argument('--monitor-sync', action='store_true',
+                        help="switch the agent's plugin on or off to match its connection, nothing else")
     parser.add_argument('--repo', default=DEFAULT_REPO)
     parser.add_argument('--home', default=os.path.expanduser('~'))
     args = parser.parse_args(argv)
@@ -177,18 +181,20 @@ def main(argv):
         # follows it: a block-buffered pipe printed the steps after the build log (seen 04/10/2026).
         sys.stdout.reconfigure(errors='replace', line_buffering=True)
 
+    if args.monitor_sync:
+        return load('install_monitor', 'install_monitor.py').sync(home=home)
     if args.check:
         print(f'live configuration (repo: {repo})')
         problems = check(repo, home)
         if monitor:
-            problems += load('install_monitor', 'install_monitor.py').check()
+            problems += load('install_monitor', 'install_monitor.py').check(home=home)
         print('✓ everything is in place' if not problems else f'✗ {problems} problem(s)')
         return 1 if problems else 0
     if args.remove:
         remove_links(repo, home)
         code = hooks.remove(repo, home)
         if monitor:
-            load('install_monitor', 'install_monitor.py').remove()
+            load('install_monitor', 'install_monitor.py').remove(home=home)
         print('removed; anything moved aside is still in ~/.claude/backups')
         return code
 
@@ -206,9 +212,8 @@ def main(argv):
     code = hooks.install(repo, home)
     if code == 0 and monitor:
         print('monitor:')
-        code = load('install_monitor', 'install_monitor.py').install(args.monitor_server)
-    print({0: '✓ installed — open a NEW Claude Code session to load it',
-           3: '⚠️  installed but INCOMPLETE — the step(s) marked above did not run'}.get(code, f'✗ stopped (exit {code})'))
+        code = load('install_monitor', 'install_monitor.py').install(args.monitor_server, home=home)
+    print('✓ installed — open a NEW Claude Code session to load it' if code == 0 else f'✗ stopped (exit {code})')
     return code
 
 

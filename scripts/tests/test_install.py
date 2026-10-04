@@ -132,6 +132,22 @@ class CheckAndRemove(Fixture):
         self.assertTrue(os.path.isfile(os.path.join(self.repo, 'CLAUDE.md')), 'the checkout itself is untouched')
 
 
+class MonitorSwitch(Fixture):
+    def test_monitor_sync_without_an_agent_registers_the_plugin_disabled(self):
+        # No cm-agent at CM_AGENT_HOME -> not connected -> the plugin is switched OFF, other settings kept.
+        agent_home = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, agent_home, True)
+        result = subprocess.run([sys.executable, INSTALL, '--home', self.home, '--monitor-sync'],
+                                capture_output=True, text=True, encoding='utf-8', errors='replace',
+                                env=dict(os.environ, CM_AGENT_HOME=agent_home))
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('DORMANT', result.stdout)
+        with open(self.settings, encoding='utf-8') as handle:
+            data = json.load(handle)
+        self.assertIs(data['enabledPlugins']['monitor-agent@monitor-agent-local'], False)
+        self.assertEqual(data['theme'], 'dark')
+
+
 class Refusals(Fixture):
     def test_plugin_checked_out_without_symlinks_refuses_and_touches_nothing(self):
         # Windows without core.symlinks checks plugin/commands out as a text file holding "../commands".
