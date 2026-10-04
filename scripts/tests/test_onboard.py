@@ -52,7 +52,8 @@ class TestDescribe(Fixture):
 
     def test_falls_back_to_the_path_without_a_git_remote(self):
         result = self.run_onboard('describe')
-        self.assertIn(self.repo, result.stdout)
+        # The script prints the RESOLVED path; on Windows mkdtemp may hand out the 8.3 short form (ADMINI~1).
+        self.assertIn(os.path.realpath(self.repo), result.stdout)
 
 
 class TestStatus(Fixture):

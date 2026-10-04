@@ -29,6 +29,7 @@ def run(script, *argv, home=None, user_home=None, stdin=""):
         env[launcher.HOME_ENV] = str(home)
     if user_home is not None:
         env["HOME"] = str(user_home)
+        env["USERPROFILE"] = str(user_home)     # what expanduser reads on Windows
     return subprocess.run([sys.executable, str(BOARD / script), *argv], input=stdin,
                           capture_output=True, text=True, env=env)
 

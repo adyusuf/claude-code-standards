@@ -4,9 +4,23 @@ import json
 import shutil
 import tempfile
 import subprocess
+import sys
 import unittest
 
 GUARD = os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'guard-destructive.sh'))
+
+
+def basic_tools_path(bin_dir):
+    """bin_dir plus cat/grep/readlink/dirname, and no Python. Elsewhere the tools are linked INTO bin_dir,
+    because /usr/bin also holds python3. On Windows Git Bash's tools cannot run from a link (no .exe, and
+    their DLLs live beside them), and their directory holds no Python, so it goes on PATH as it is."""
+    if os.name == 'nt':
+        return os.pathsep.join([bin_dir, os.path.dirname(shutil.which('cat'))])
+    for tool in ('cat', 'grep', 'readlink', 'dirname'):
+        found = shutil.which(tool)
+        if found:
+            os.symlink(found, os.path.join(bin_dir, tool))
+    return bin_dir
 
 
 def code(command):
@@ -188,23 +202,80 @@ class GuardFailsClosed(unittest.TestCase):
         self.with_inspector('import sys\nsys.exit(0)\n')
         bin_dir = os.path.join(self.dir, 'bin')
         os.makedirs(bin_dir, exist_ok=True)
-        for tool in ('cat', 'grep', 'readlink', 'dirname'):
-            found = shutil.which(tool)
-            if found:
-                os.symlink(found, os.path.join(bin_dir, tool))
-        self.assertIsNone(shutil.which('python3', path=bin_dir), 'the fixture must not expose python3')
-        env = dict(os.environ, PATH=bin_dir)
+        path = basic_tools_path(bin_dir)
+        self.assertIsNone(shutil.which('python3', path=path), 'the fixture must not expose python3')
+        self.assertIsNone(shutil.which('python', path=path), 'nor a python to fall back to')
+        env = dict(os.environ, PATH=path)
         result = subprocess.run([shutil.which('bash') or '/bin/bash', self.guard],
                                 input=self.BANNED, capture_output=True, text=True, env=env)
         out = result.stdout + result.stderr
         self.assertEqual(2, result.returncode, out)
         self.assertIn('could not inspect', out)
 
+    def run_with_interpreters(self, interpreters, payload):
+        """Run the copy with a PATH of the basic tools plus the given fake interpreters
+        ({name: shell body}), and nothing else that could answer to python3/python."""
+        bin_dir = os.path.join(self.dir, 'bin')
+        os.makedirs(bin_dir, exist_ok=True)
+        path = basic_tools_path(bin_dir)
+        for name, body in interpreters.items():
+            script = os.path.join(bin_dir, name)
+            with open(script, 'w', encoding='utf-8', newline='\n') as handle:
+                handle.write('#!/bin/sh\n' + body + '\n')
+            os.chmod(script, 0o700)
+        env = dict(os.environ, PATH=path)
+        result = subprocess.run([shutil.which('bash') or '/bin/bash', self.guard],
+                                input=payload, capture_output=True, text=True, env=env)
+        return result.stdout + result.stderr, result.returncode
+
+    def real_python(self):
+        return 'exec "%s" "$@"' % sys.executable.replace('\\', '/')
+
+    def test_a_python3_less_machine_falls_back_to_a_python_3_python(self):
+        # Windows: Python installs as `python` only. The guard must judge with it rather
+        # than block every keyword-bearing command (seen live 04/10/2026).
+        self.with_inspector('import sys\nsys.exit(0)\n')
+        out, code = self.run_with_interpreters({'python': self.real_python()}, self.ALLOWED)
+        self.assertEqual(0, code, out)
+
+    def test_the_fallback_still_blocks_what_the_inspector_blocks(self):
+        # The control: falling back must not make the guard permissive.
+        self.with_inspector('import sys\nsys.stderr.write("forced push")\nsys.exit(2)\n')
+        out, code = self.run_with_interpreters({'python': self.real_python()}, self.BANNED)
+        self.assertEqual(2, code)
+        self.assertIn('forced push', out)
+
+    def test_a_python3_stub_that_runs_nothing_is_skipped(self):
+        # The Windows Store alias answers to `python3` and exits without running Python.
+        self.with_inspector('import sys\nsys.exit(0)\n')
+        out, code = self.run_with_interpreters({'python3': 'exit 9009', 'python': self.real_python()}, self.ALLOWED)
+        self.assertEqual(0, code, out)
+
+    def test_a_python_2_python_is_never_used_and_the_message_says_why(self):
+        self.with_inspector('import sys\nsys.exit(0)\n')
+        out, code = self.run_with_interpreters({'python': 'exit 1'}, self.ALLOWED)
+        self.assertEqual(2, code, 'Python 2 (or no Python 3) must block, never allow')
+        self.assertIn('no Python 3 interpreter', out)
+        self.assertIn('python3, then python', out)
+
     def test_an_inspector_that_approves_lets_the_command_through(self):
         # The control: these tests must not have made the guard block everything.
         self.with_inspector('import sys\nsys.exit(0)\n')
         _, code = self.run_guard(self.ALLOWED)
         self.assertEqual(0, code)
+
+    def test_a_grep_that_cannot_run_BLOCKS_instead_of_allowing_everything(self):
+        # The prefilter read grep's "could not run" as "no keyword" and let every command through.
+        bin_dir = os.path.join(self.dir, 'bin')
+        os.makedirs(bin_dir, exist_ok=True)
+        with open(os.path.join(bin_dir, 'grep'), 'w', encoding='utf-8', newline='\n') as handle:
+            handle.write('#!/bin/sh\nexit 127\n')          # a grep that does not run
+        os.chmod(os.path.join(bin_dir, 'grep'), 0o700)
+        env = dict(os.environ, PATH=bin_dir + os.pathsep + os.environ['PATH'])
+        result = subprocess.run([shutil.which('bash') or '/bin/bash', self.guard],
+                                input=self.BANNED, capture_output=True, text=True, env=env)
+        self.assertEqual(2, result.returncode, result.stdout + result.stderr)
+        self.assertIn('grep did not run', result.stderr)
 
     def test_a_payload_with_no_trigger_word_never_reaches_the_inspector(self):
         # The cheap early exit: no inspector present, and `ls -la` is still allowed.

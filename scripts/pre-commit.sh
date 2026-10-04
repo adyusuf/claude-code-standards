@@ -24,11 +24,21 @@ root="$(git rev-parse --show-toplevel 2>/dev/null)" || exit 0
 [ -n "$root" ] || exit 0
 
 if [ "${1:-}" = "--install" ]; then
+  # Git Bash on Windows: a plain `ln -s` silently makes a COPY, and a copied hook never sees the
+  # next change to the script it came from. nativestrict makes a real symlink or fails loudly
+  # (it needs Developer Mode or an administrator shell). Ignored everywhere else.
+  export MSYS="${MSYS:+$MSYS }winsymlinks:nativestrict"
   mkdir -p "$root/.git/hooks"
-  ln -sf ../../scripts/pre-commit.sh "$root/.git/hooks/pre-commit"
+  ln -sf ../../scripts/pre-commit.sh "$root/.git/hooks/pre-commit" || {
+    echo "NOT installed: could not link $root/.git/hooks/pre-commit (Windows: Developer Mode or an administrator shell)" >&2
+    exit 1
+  }
   echo "installed: $root/.git/hooks/pre-commit -> scripts/pre-commit.sh"
   if [ -f "$root/scripts/commit-msg.sh" ]; then
-    ln -sf ../../scripts/commit-msg.sh "$root/.git/hooks/commit-msg"
+    ln -sf ../../scripts/commit-msg.sh "$root/.git/hooks/commit-msg" || {
+      echo "NOT installed: could not link $root/.git/hooks/commit-msg" >&2
+      exit 1
+    }
     echo "installed: $root/.git/hooks/commit-msg -> scripts/commit-msg.sh"
   fi
   exit 0

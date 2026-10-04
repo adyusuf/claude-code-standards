@@ -99,17 +99,23 @@ def is_git_ignored(root, relative):
         return False
 
 
+def relative(path, root):
+    """A repository path as it is written in documents and findings: with '/' on every OS (Windows gave
+    'standards\\00-a.md', so findings differed by platform and the separator checks below never matched)."""
+    return os.path.relpath(path, root).replace(os.sep, '/')
+
+
 def check_links_and_paths(root, findings):
     config_repo = is_configuration_repo(root)
     for path in markdown_files(root):
-        rel = os.path.relpath(path, root)
+        rel = relative(path, root)
         text = in_code_fence(read(path))
         for target in LINK.findall(text):
             if re.match(r'^(https?:|mailto:|#)', target):
                 continue
             file_part = target.split('#', 1)[0]
             resolved = os.path.normpath(os.path.join(os.path.dirname(path), file_part)) if file_part else ''
-            if file_part and not os.path.exists(resolved) and not is_git_ignored(root, os.path.relpath(resolved, root)):
+            if file_part and not os.path.exists(resolved) and not is_git_ignored(root, relative(resolved, root)):
                 findings.append(f'{rel}: broken link -> {target}')
         for prefix, target in set(PATH.findall(text)):
             # `~/.claude/...` is the user's configuration directory: it can be verified only
@@ -117,7 +123,7 @@ def check_links_and_paths(root, findings):
             if prefix and not config_repo:
                 continue
             # standards/ describes what a PROJECT's docs/ holds, not this repository's.
-            if rel.startswith('standards' + os.sep) and target.startswith('docs/'):
+            if rel.startswith('standards/') and target.startswith('docs/'):
                 continue
             if not os.path.exists(os.path.join(root, target)) and not is_git_ignored(root, target):
                 findings.append(f'{rel}: referenced path does not exist -> {target}')
@@ -178,8 +184,8 @@ def check_rule_refs(root, findings):
     if not last:
         return
     for path in markdown_files(root):
-        rel = os.path.relpath(path, root)
-        if not (rel == 'CLAUDE.md' or rel.split(os.sep)[0] in ('standards', 'modes', 'agents')):
+        rel = relative(path, root)
+        if not (rel == 'CLAUDE.md' or rel.split('/')[0] in ('standards', 'modes', 'agents')):
             continue
         for number in set(RULE_REF.findall(in_code_fence(read(path)))):
             if int(number) > last:
