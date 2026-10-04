@@ -41,9 +41,18 @@ Git 2.54): `bash` is **Git for Windows**' (`C:\Program Files\Git\bin\bash.exe`; 
 back to `python`, but other hooks call `python3` by name, so create it once from an administrator shell —
 `mklink /H "C:\Program Files\Python312\python3.exe" "C:\Program Files\Python312\python.exe"` (adjust the
 version). Symlinks need an administrator shell or Developer Mode, and the clone needs `-c core.symlinks=true`.
-The unit tests need Git's `bin` and `usr\bin` on `PATH` (they call `bash`), and **92 of them fail on Windows
-before any change** (measured 04/10/2026: the gate and coverage scripts assume macOS paths and tools) — the
-suite is verified on macOS.
+To run the unit tests on Windows, put Git's `usr\bin` **before** its `bin` on `PATH` — `bin\bash.exe` is a
+launcher that puts `/mingw64/bin` first and hides the tests' stub tools — and set `PYTHONUTF8=1`
+(`scripts/coverage.sh` sets it; without it the cp1252 console codec garbles every ✓/✗):
+
+```powershell
+$env:PATH = "C:\Program Files\Git\usr\bin;C:\Program Files\Git\bin;$env:PATH"; $env:PYTHONUTF8 = '1'
+python -m unittest discover -s scripts/tests -p 'test_*.py'
+```
+
+Two tests need a real ShellCheck and fail without it (it is a prerequisite, §1); five need a real Node 22+ and are
+skipped without it; five that simulate a kcov run are skipped on Windows. ⚠️ **The test and prod gates cannot be green on Windows:** kcov does not exist
+there, so shell coverage is NOT MEASURED and #29 blocks the promotion, as it must. Promote from macOS.
 
 A missing tool is never silent: the gate reports the step as **NOT RUN**, the
 result is INCOMPLETE and the exit code is not 0 (#19, #25). You can start with

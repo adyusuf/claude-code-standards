@@ -123,7 +123,12 @@ if [ "$js_status" != 0 ] && [ "$status" = 0 ]; then status="$js_status"; fi
 
 echo
 echo "▶ SAST (ShellCheck, shell)"
-if ! command -v shellcheck >/dev/null 2>&1; then
+# Nothing to scan is n/a whether or not shellcheck is installed: asking for the
+# tool first made a repository with no shell at all fail as NOT RUN on any machine
+# without shellcheck (found on Windows, 04/10/2026). With shell files and no tool
+# it is still NOT RUN and blocks.
+shell_files="$(find "$root/scripts" -maxdepth 1 -name '*.sh' -print 2>/dev/null | sort)"
+if [ -n "$shell_files" ] && ! command -v shellcheck >/dev/null 2>&1; then
   echo "  NOT RUN: shellcheck is not installed (brew install shellcheck)"
   echo "  A gate that did not run did not pass (#19)."
   exit 3
@@ -132,7 +137,6 @@ fi
 # The threshold: error and warning BLOCK, info and style are reported. Blocking
 # on style is how a gate gets switched off; letting a warning through is how a
 # quoting bug reaches production.
-shell_files="$(find "$root/scripts" -maxdepth 1 -name '*.sh' -print 2>/dev/null | sort)"
 if [ -z "$shell_files" ]; then
   echo "  n/a: no shell scripts here"
 else

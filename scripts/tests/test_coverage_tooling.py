@@ -20,6 +20,22 @@ SHELL_COVERAGE = os.path.join(SCRIPTS, 'coverage-shell.sh')
 COMMIT_MSG = os.path.join(SCRIPTS, 'commit-msg.sh')
 
 
+def system_path(first):
+    """`first`, then the basic tools only — joined the OS's way. A ':'-joined PATH is unreadable on Windows,
+    where the basic tools are Git Bash's, beside its bash."""
+    if os.name != 'nt':
+        return os.pathsep.join([first, '/usr/bin', '/bin'])
+    # Windows: git is not beside Git Bash's tools, and Git\bin cannot stand in — MSYS maps it to /bin,
+    # which is an alias of usr\bin, so git.exe vanishes. git's own exec path maps to a directory of its own.
+    git_core = subprocess.run(['git', '--exec-path'], capture_output=True, text=True).stdout.strip()
+    return os.pathsep.join([first, os.path.dirname(shutil.which('bash')), os.path.normpath(git_core)])
+
+
+def posix(path):
+    """A path a shell script can carry on every OS: '/' instead of Windows' '\\' (a no-op elsewhere)."""
+    return path.replace('\\', '/')
+
+
 def executable(path, body):
     with open(path, 'w', encoding='utf-8') as handle:
         handle.write(body)
@@ -71,7 +87,7 @@ class MissingToolsBlockRatherThanPass(Repo):
     def test_no_kcov_is_not_measured_and_blocks(self):
         empty_bin = tempfile.mkdtemp()      # a PATH with no kcov on it
         try:
-            out, code = self.run_in(SHELL_COVERAGE, env={'PATH': f'{empty_bin}:/usr/bin:/bin'})
+            out, code = self.run_in(SHELL_COVERAGE, env={'PATH': system_path(empty_bin)})
             self.assertIn('NOT MEASURED', out)
             self.assertIn('kcov', out)
             self.assertEqual(3, code, 'a missing tracer must block, not pass')
@@ -85,7 +101,7 @@ class MissingToolsBlockRatherThanPass(Repo):
         try:
             executable(os.path.join(fake, 'kcov'), '#!/bin/sh\nexit 1\n')
             out, code = self.run_in(SHELL_COVERAGE,
-                                    env={'PATH': f'{fake}:/usr/bin:/bin', 'COVERAGE_BASH': '/nonexistent/bash'})
+                                    env={'PATH': system_path(fake), 'COVERAGE_BASH': '/nonexistent/bash'})
             self.assertIn('NOT MEASURED', out)
             self.assertEqual(3, code)
         finally:
@@ -106,7 +122,7 @@ class CoverageBashOverrideIsHonoured(Repo):
         try:
             executable(os.path.join(fake, 'kcov'), '#!/bin/sh\nexit 1\n')
             out, code = self.run_in(SHELL_COVERAGE,
-                                    env={'PATH': f'{fake}:/usr/bin:/bin',
+                                    env={'PATH': system_path(fake),
                                          'COVERAGE_BASH': '/bin/sh'})
             self.assertEqual(3, code)
             self.assertIn('cannot trace any bash', out)
@@ -133,8 +149,9 @@ class CommitMsgHook(Repo):
 
     def test_it_delegates_to_the_checker_when_present(self):
         marker = os.path.join(self.root, 'called.txt')
+        # Quoted, with '/': sh reads an unquoted Windows path's backslashes as escapes.
         executable(os.path.join(self.root, 'scripts', 'real-name-check.sh'),
-                   f'#!/bin/sh\necho "$@" > {marker}\nexit 7\n')
+                   f'#!/bin/sh\necho "$@" > "{posix(marker)}"\nexit 7\n')
         out, code = self.run_in(COMMIT_MSG, self.message_file('a message\n'))
         self.assertEqual(7, code, 'the checker\'s exit code must be the hook\'s')
         with open(marker) as handle:
@@ -174,9 +191,9 @@ class FakeVenv(Repo):
         executable(os.path.join(venv, 'bin', 'python'),
                    '#!/bin/sh\n'
                    'case "$*" in\n'
-                   '  *sysconfig*) echo "' + purelib + '"; exit 0 ;;\n'
+                   '  *sysconfig*) echo "' + posix(purelib) + '"; exit 0 ;;\n'
                    'esac\n'
-                   'exec ' + sys.executable + ' "$@"\n')
+                   'exec "' + posix(sys.executable) + '" "$@"\n')   # quoted: "Program Files"
         os.makedirs(os.path.join(self.root, 'scripts', 'tests'), exist_ok=True)
         return venv
 

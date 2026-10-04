@@ -22,7 +22,16 @@
 set -uo pipefail
 
 payload="$(cat 2>/dev/null || true)"
-printf '%s' "$payload" | grep -qiE 'push|drop|truncate|rm |no-verify' || exit 0
+# grep's 1 means "no keyword": allowed. Anything else means grep did not run, and reading that as "no
+# keyword" let EVERY command through — `rm -rf ~` included — on a PATH where grep could not start
+# (found on Windows, 04/10/2026). That fails closed now, like every other path here.
+printf '%s' "$payload" | grep -qiE 'push|drop|truncate|rm |no-verify'
+case $? in
+  0) ;;
+  1) exit 0 ;;
+  *) echo "BLOCKED by guard-destructive.sh: could not inspect the command (grep did not run). Ask the user to run it." >&2
+     exit 2 ;;
+esac
 
 # The judgement lives in scripts/guard-inspect.py. It used to be a ~37-line
 # Python program inline in a heredoc here, which meant it could not be tested

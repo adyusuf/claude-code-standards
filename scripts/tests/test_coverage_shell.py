@@ -10,6 +10,12 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from test_coverage_tooling import SHELL_COVERAGE, Repo, executable  # noqa: E402
 
+# kcov does not exist for Windows, so shell coverage is NOT MEASURED there and the gate blocks (#29) —
+# that path is tested on every OS by test_no_kcov_is_not_measured_and_blocks. These tests simulate a
+# kcov RUN: its shim intercepts `bash` on PATH, which Windows process creation never consults (it
+# finds bash.exe), and they use /tmp. They cannot run there, and they say so instead of failing.
+KCOV_RUN = unittest.skipIf(os.name == 'nt', 'kcov does not exist for Windows: a simulated kcov run cannot happen')
+
 
 class ShellCoverageRunsEndToEnd(Repo):
     """coverage-shell.sh's BODY, which nothing reached before.
@@ -101,6 +107,7 @@ class ShellCoverageRunsEndToEnd(Repo):
                                 env=dict(os.environ, **env))
         return result.stdout + result.stderr, result.returncode
 
+    @KCOV_RUN
     def test_full_coverage_passes_the_threshold(self):
         out, code = self.build(hits_second_line=1)
         self.assertIn('thing.sh', out)
@@ -108,6 +115,7 @@ class ShellCoverageRunsEndToEnd(Repo):
         self.assertIn('at or above', out)
         self.assertEqual(0, code, out)
 
+    @KCOV_RUN
     def test_half_coverage_fails_the_threshold(self):
         # 1 of 2 lines = 50%, under 80: the gate must close on it.
         out, code = self.build(hits_second_line=0)
@@ -115,6 +123,7 @@ class ShellCoverageRunsEndToEnd(Repo):
         self.assertIn('below 80%', out)
         self.assertEqual(1, code)
 
+    @KCOV_RUN
     def test_the_traced_run_count_is_reported(self):
         # It is the evidence that the shim was actually reached. A report with no
         # runs behind it would be a number with nothing under it.
@@ -139,6 +148,7 @@ class ShellCoverageRunsEndToEnd(Repo):
         self.assertIn('the tests are red', out)
         self.assertNotIn('ENVIRONMENT', out)
 
+    @KCOV_RUN
     def test_kcov_is_handed_a_short_path_however_deep_the_checkout_is(self):
         # kcov loses the trace lines whose file field is long, and it prefixed every
         # line with the checkout path: from 80 characters up a whole suite measured
@@ -163,6 +173,7 @@ class ShellCoverageRunsEndToEnd(Repo):
             # and it is still the checkout's own script, not a copy (a copy measures 0%)
             self.assertEqual(os.path.join(os.path.realpath(self.root), 'scripts'), resolved)
 
+    @KCOV_RUN
     def test_the_short_link_is_removed_and_the_checkout_survives(self):
         before = set(os.listdir('/tmp'))
         out, code = self.build(hits_second_line=1)
