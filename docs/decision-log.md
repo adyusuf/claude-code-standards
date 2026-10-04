@@ -44,6 +44,24 @@ one- or two-second mental pass — no separate step or report is needed. For
 multi-step, multi-file work, or anything where "done" leads to a PR or a merge, the
 checklist is run deliberately.
 
+**Extended 04/10/2026 — the request list (`standards/00-working-method.md` §4a).**
+The check above runs at the END; the same incident showed that is too late on a
+multi-part task, because the root cause was mistaking "every gate is green" for
+"every requested item was done". These items lived only in a machine-local copy of
+the global rules and were carried over when this repository replaced that copy: the
+request list written before the work, the evidence-or-reason definition of done, the
+status labels, the six forbidden patterns, and scope narrowing as the user's decision.
+The three other sections of that copy were **not** carried over, because this rule
+set decided them the other way on purpose: per-call approval before an agent (#27
+replaced it with the mode as the approval), the published Artifact board (retired —
+see the board entries further down; the status table of `standards/00` §10 instead), and no gate on `dev`
+(#25 runs the shared gate on every promotion).
+
+The scripted-edit pattern paid for itself on the day it was carried over: a
+PowerShell mutation test wrote through `[IO.File]` with a relative path, which .NET
+resolves against its own working directory rather than PowerShell's — the assert on
+"nothing matched" fired instead of a silent no-op on the wrong checkout.
+
 ## §25 — Merging to `dev` is fast; heavy gates run on promotion
 
 > ⛔ **SUPERSEDED — this section records the original design, not the active rule.**
