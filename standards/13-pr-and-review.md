@@ -141,11 +141,14 @@ When writing a comment: **what** is wrong + **why** it matters + **a suggestion*
   `dev → test` promotion is a separate batch, a separate full run and gate, and the user's own
   decision (#26.4). Never read "batch" as "merged to `dev` ⇒ also merged to `test`".
 - `dev → test → prod`: a **promotion**, fast-forward/merge. Never a merge in the reverse direction.
-- **The `prod` gate runs on the tip of `test` itself** — a detached checkout of `origin/test` —
-  never on a `test`-into-`prod` merge candidate: its deploy step compares `HEAD` with the SHA the
-  test environment runs, so a candidate's new merge commit fails it by construction (measured
-  29/09/2026). The merge to `prod` follows the green run.
-- **E2E is optional and never run by a gate (user decision 03/10/2026, general rule; it replaces the 30/09/2026 "mandatory before `prod`" rule — there are not enough resources to run it).** The `test` and `prod` promotions WARN that e2e was not run and continue; `GATE_RUN_E2E=1` runs the suite and a red result then blocks like any step. The deploy check on `test → prod` stays.
+- **The `prod` gate runs on the ref being promoted** — normally a detached checkout of `origin/test`
+  (the usual source), never on a `test`-into-`prod` merge candidate. It does **not** check the `test`
+  branch or the test environment (user decision 04/10/2026, general rule): a branch may go to `prod`
+  without having been on `test`. The gate WARNS it did not look; `GATE_CHECK_TEST_DEPLOY=1` opts in to
+  the deployed-SHA check, and that check compares `HEAD` with the SHA the test environment runs, so a
+  merge candidate's new commit fails it by construction (measured 29/09/2026). The merge to `prod`
+  follows the green run.
+- **E2E is optional and never run by a gate (user decision 03/10/2026, general rule; it replaces the 30/09/2026 "mandatory before `prod`" rule — there are not enough resources to run it).** The `test` and `prod` promotions WARN that e2e was not run and continue; `GATE_RUN_E2E=1` runs the suite and a red result then blocks like any step. The deployed-to-`test` check on `test → prod` is optional as well (04/10/2026, `GATE_CHECK_TEST_DEPLOY=1`).
 - **No** direct commit or PR to `test` and `prod` — only from the previous stage, with the user's approval.
 - Before merging, `git fetch` and update if you are behind — a gate running against stale code gives false confidence.
 - A `--force` push happens only on your own feature branch and only with explicit approval.
