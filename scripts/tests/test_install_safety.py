@@ -152,6 +152,22 @@ class UninstallRestores(Fixture):
         with open(self.claude('CLAUDE.md'), encoding='utf-8') as handle:
             self.assertEqual(handle.read(), 'newer\n')
 
+    def test_a_link_that_fails_after_the_move_still_leaves_a_restorable_manifest(self):
+        with open(self.claude('CLAUDE.md'), 'w', encoding='utf-8') as handle:
+            handle.write('my own rules\n')
+        backup = safety.Backup(self.home, 'failed')
+
+        def refuse(*_args, **_kwargs):
+            raise SystemExit('Windows would not create a symlink')
+        with mock.patch('sys.stdout', new=__import__('io').StringIO()), self.assertRaises(SystemExit):
+            install.install_links(self.repo, self.home, backup, symlink=refuse)
+        self.assertFalse(os.path.lexists(self.claude('CLAUDE.md')))
+        with open(os.path.join(backup.folder, 'manifest.json'), encoding='utf-8') as handle:
+            self.assertIn('backup', json.load(handle)['items']['CLAUDE.md'])
+        self.assertIn('restored', self.run_install('--remove').stdout)
+        with open(self.claude('CLAUDE.md'), encoding='utf-8') as handle:
+            self.assertEqual(handle.read(), 'my own rules\n')
+
     def test_two_backups_in_one_second_get_two_folders(self):
         first, second = safety.Backup(self.home, 'same'), safety.Backup(self.home, 'same')
         self.assertNotEqual(first.folder, second.folder)
