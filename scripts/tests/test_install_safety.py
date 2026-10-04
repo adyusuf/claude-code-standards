@@ -168,6 +168,27 @@ class UninstallRestores(Fixture):
         with open(self.claude('CLAUDE.md'), encoding='utf-8') as handle:
             self.assertEqual(handle.read(), 'my own rules\n')
 
+    def test_a_folder_with_a_broken_link_inside_is_moved_and_proven(self):
+        os.makedirs(self.claude('agents'))
+        os.symlink(os.path.join(self.home, 'gone'), self.claude('agents', 'dangling.md'))
+        result = self.run_install()
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assertIn('✓ proven  agents', result.stdout)
+        self.assertNotIn('Traceback', result.stderr)
+
+    def test_restore_recreates_a_parent_folder_that_is_gone(self):
+        # A FILE whose folder is gone: copytree makes its own parents, copy2 does not.
+        os.makedirs(self.claude('skills'))
+        with open(self.claude('skills', 'adyusuf'), 'w', encoding='utf-8') as handle:
+            handle.write('mine\n')
+        self.run_install()
+        install.unlink(self.claude('skills', 'adyusuf'))
+        os.rmdir(self.claude('skills'))
+        result = self.run_install('--remove')
+        self.assertNotIn('Traceback', result.stderr)
+        with open(self.claude('skills', 'adyusuf'), encoding='utf-8') as handle:
+            self.assertEqual(handle.read(), 'mine\n')
+
     def test_two_backups_in_one_second_get_two_folders(self):
         first, second = safety.Backup(self.home, 'same'), safety.Backup(self.home, 'same')
         self.assertNotEqual(first.folder, second.folder)

@@ -88,6 +88,16 @@ class LauncherTests(unittest.TestCase):
         (self.monitor / "scripts" / "board" / "board_open.py").unlink()
         self.assertEqual(run("board_open.py", home=self.monitor).returncode, launcher.EXIT_MISSING)
 
+    def test_a_clone_without_the_board_says_it_was_removed_not_clone_again(self):
+        # claude-monitor removed the Python board (86684df): an updated clone has no scripts/board/board.py.
+        for name in SCRIPTS:
+            (self.monitor / "scripts" / "board" / name).unlink()
+        out = run("board_ensure.py", home=self.monitor, stdin="{}")
+        self.assertEqual(out.returncode, 0)
+        self.assertIn("archive/board-final", out.stdout)
+        self.assertNotIn("git clone", out.stdout)
+        self.assertEqual(run("board_hook.py", home=self.monitor, stdin="{}").stdout, "")
+
     def test_an_unknown_script_name_fails_closed(self):
         with contextlib.redirect_stderr(io.StringIO()):
             self.assertEqual(launcher.main("nope.py"), launcher.EXIT_MISSING)

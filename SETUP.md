@@ -192,6 +192,17 @@ python3 ~/ClaudeCode/claude-code-standards/scripts/install.py --check        # r
 | `--test` | `test` | `https://testmonitor.bitreka.com` |
 | `--dev` | `dev` | `http://localhost:9872` (a local API) |
 
+**`--dev` needs the local API running on 9872.** claude-monitor's own Development profile listens on **5080**
+(`src/ClaudeMonitor.Api/Properties/launchSettings.json`), and nothing there sets 9872 — so start it with the port
+named, from the claude-monitor clone (its `SETUP.md` has the database step):
+
+```bash
+docker compose -f deploy/dev-services.yml up -d
+ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://127.0.0.1:9872 dotnet run --project src/ClaudeMonitor.Api
+```
+
+The agent accepts plain `http` on loopback only. Without a running API the login fails and the agent stays DORMANT.
+
 The clone itself is never switched to another branch: `--test`/`--dev` use an existing worktree on that branch
 or create one beside the clone (`<clone>-test`, `<clone>-dev`), and `~/.claude` links into it. A download without
 git (a GitHub ZIP) installs as prod and says the branch cannot be verified; `--test`/`--dev` need a clone. A
@@ -250,7 +261,7 @@ The manual steps, for reference:
    python3 scripts/install-live-hooks.py           # symlinks under ~/.claude/hooks + settings entries
    ```
 
-   It backs up `settings.json` to `~/.claude/backups` first, aborts on a file it
+   It backs up `settings.json` to `~/.claude-standards/backups/settings` first (outside `~/.claude`, whose cleanup prunes old files), aborts on a file it
    cannot parse and is safe to run twice.
 4. If you also want the live board, follow `standards/22-live-board.md` §0: its
    code lives in the separate `claude-monitor` repository, and the launchers
