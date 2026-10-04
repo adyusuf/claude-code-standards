@@ -23,6 +23,11 @@ import subprocess
 
 HERE = os.path.dirname(os.path.realpath(__file__))
 REPO_URL = 'https://github.com/adyusuf/claude-monitor.git'
+# The ONE place the claude-monitor servers are named (#2); `install.py --prod` (default) / `--test` / `--dev`
+# pick one, `--monitor-server` overrides it. User decision 04/10/2026; dev is a LOCAL API on port 9872 (the
+# agent accepts http only on loopback).
+SERVERS = {'prod': 'https://monitor.bitreka.com', 'test': 'https://testmonitor.bitreka.com',
+           'dev': 'http://localhost:9872'}
 HOME_ENV = 'CLAUDE_MONITOR_HOME'                       # the same variable the board launchers read
 DEFAULT_CLONE = os.path.join('~', 'ClaudeCode', 'claude-monitor')
 PROJECT = os.path.join('src', 'ClaudeMonitor.Agent')
@@ -36,8 +41,16 @@ _spec.loader.exec_module(settings_io)
 
 
 def default_run(command, capture=False):
+    """capture: return the output. Otherwise STREAM it, line by line, through this process's stdout — so that
+    install.py's log holds the git/dotnet/cm-agent output too, not only the console (user request 04/10/2026)."""
     try:
-        return subprocess.run(command, capture_output=capture, text=True)
+        if capture:
+            return subprocess.run(command, capture_output=True, text=True)
+        with subprocess.Popen(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
+                              encoding='utf-8', errors='replace', bufsize=1) as child:
+            for line in child.stdout:
+                print(line, end='')
+        return subprocess.CompletedProcess(command, child.returncode, '', '')
     except OSError as error:                            # the tool is not installed
         return subprocess.CompletedProcess(command, 127, '', str(error))
 
@@ -159,9 +172,23 @@ def install(server=None, run=default_run, env=os.environ, system=platform.system
     return connect(server, run, env, system, home) if server else sync(run, env, system, home)
 
 
+def connected_to(run, binary):
+    """The server cm-agent is connected to, from `status` ("connected: <url>"), or None."""
+    result = run([binary, 'status'], capture=True)
+    for line in (result.stdout or '').splitlines():
+        if result.returncode == 0 and line.startswith('connected: '):
+            return line[len('connected: '):].strip().rstrip('/')
+    return None
+
+
 def connect(server, run=default_run, env=os.environ, system=platform.system(), home=os.path.expanduser('~')):
-    if run([installed_binary(env, system), 'login', '--server', server]).returncode:
-        print('✗ cm-agent login did not complete — the plugin stays as it was')
+    binary = installed_binary(env, system)
+    if connected_to(run, binary) == server.rstrip('/'):
+        print(f'  already connected to {server} — no new code needed')
+        return sync(run, env, system, home)
+    if run([binary, 'login', '--server', server]).returncode:
+        print('✗ cm-agent login did not complete (denied, expired, or the server did not answer)')
+        sync(run, env, system, home)                     # the switch still follows the connection: no dangling hooks
         return 2
     return sync(run, env, system, home)
 

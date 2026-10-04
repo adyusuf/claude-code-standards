@@ -32,26 +32,40 @@ class Fixture(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.repo, True)
         with open(os.path.join(self.repo, 'CLAUDE.md'), 'w') as handle:
             handle.write('# rules\n')
-        for folder in ('agents', 'docs', 'modes', 'scripts', 'standards', 'plugin/commands', 'plugin/skills'):
-            os.makedirs(os.path.join(self.repo, folder))
-        with open(os.path.join(self.repo, 'scripts', 'guard-destructive.sh'), 'w') as handle:
-            handle.write('#!/bin/sh\n')
+        for folder in ('agents', 'docs', 'modes', 'scripts', 'standards', 'plugin/commands', 'plugin/skills/s',
+                       'plugin/.claude-plugin'):
+            os.makedirs(os.path.join(self.repo, *folder.split('/')))
+        for name, text in (('scripts/guard-destructive.sh', '#!/bin/sh\n'), ('agents/qa.md', 'qa\n'),
+                           ('plugin/.claude-plugin/plugin.json', '{"name": "adyusuf", "version": "1.0.0"}'),
+                           ('plugin/skills/s/SKILL.md', 'skill\n'), ('plugin/commands/c.md', 'command\n')):
+            with open(os.path.join(self.repo, *name.split('/')), 'w') as handle:
+                handle.write(text)
         os.makedirs(os.path.join(self.home, '.claude'))
         self.settings = os.path.join(self.home, '.claude', 'settings.json')
         with open(self.settings, 'w') as handle:
             handle.write('{"theme": "dark"}\n')
 
     def run_install(self, *args):
-        return subprocess.run([sys.executable, INSTALL, '--home', self.home, '--repo', self.repo, *args],
+        # --no-monitor: the monitor is on by default, and these tests are about the links and the hooks.
+        return subprocess.run([sys.executable, INSTALL, '--home', self.home, '--repo', self.repo, '--no-monitor', *args],
                               capture_output=True, text=True, encoding='utf-8', errors='replace')
 
     def claude(self, *parts):
         return os.path.join(self.home, '.claude', *parts)
 
+    def store(self, *parts):
+        """~/.claude-standards: backups and logs live outside ~/.claude, out of Claude Code's cleanup."""
+        return os.path.join(self.home, '.claude-standards', *parts)
+
     def backups(self):
-        folder = self.claude('backups')
-        return sorted(name for name in os.listdir(folder) if not name.startswith('settings.json')) \
-            if os.path.isdir(folder) else []
+        """What install backups hold of the user's own things, as '<install-stamp>/<name>' (the manifest and the
+        settings.json copy every install keeps are not listed)."""
+        folder, found = self.store('backups'), []
+        for stamp in sorted(os.listdir(folder)) if os.path.isdir(folder) else []:
+            if stamp.startswith('install-'):
+                found += [f'{stamp}/{name}' for name in sorted(os.listdir(os.path.join(folder, stamp)))
+                          if name not in ('manifest.json', 'settings.json')]
+        return found
 
     def assert_linked(self, name, source):
         link = self.claude(name)
@@ -80,9 +94,9 @@ class Install(Fixture):
         with open(self.claude('CLAUDE.md'), 'w') as handle:
             handle.write('my own rules\n')
         self.assertEqual(self.run_install().returncode, 0)
-        moved = [name for name in self.backups() if name.startswith('CLAUDE.md.')]
+        moved = [name for name in self.backups() if name.endswith('/CLAUDE.md')]
         self.assertEqual(len(moved), 1)
-        with open(self.claude('backups', moved[0])) as handle:
+        with open(self.store('backups', *moved[0].split('/'))) as handle:
             self.assertEqual(handle.read(), 'my own rules\n')
         self.assert_linked('CLAUDE.md', os.path.join(os.path.realpath(self.repo), 'CLAUDE.md'))
 
@@ -91,9 +105,9 @@ class Install(Fixture):
         with open(self.claude('agents', 'mine.md'), 'w') as handle:
             handle.write('x')
         self.assertEqual(self.run_install().returncode, 0)
-        moved = [name for name in self.backups() if name.startswith('agents.')]
+        moved = [name for name in self.backups() if name.endswith('/agents')]
         self.assertEqual(len(moved), 1)
-        self.assertTrue(os.path.exists(self.claude('backups', moved[0], 'mine.md')))
+        self.assertTrue(os.path.exists(self.store('backups', *moved[0].split('/'), 'mine.md')))
 
     def test_running_it_twice_changes_nothing(self):
         self.run_install()
@@ -132,6 +146,33 @@ class CheckAndRemove(Fixture):
         self.assertTrue(os.path.isfile(os.path.join(self.repo, 'CLAUDE.md')), 'the checkout itself is untouched')
 
 
+class InstallLog(Fixture):
+    def logs(self):
+        folder = self.store('logs')
+        return sorted(os.listdir(folder)) if os.path.isdir(folder) else []
+
+    def test_an_install_leaves_its_whole_output_in_a_log(self):
+        result = self.run_install()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        [name] = self.logs()
+        self.assertRegex(name, r'^install-\d{8}-\d{6}\.log$')
+        with open(self.store('logs', name), encoding='utf-8') as handle:
+            text = handle.read()
+        for expected in ('linked', 'registered PreToolUse', '✓ installed'):
+            self.assertIn(expected, text)
+        self.assertIn(name, result.stdout, 'the console must say where the log is')
+
+    def test_a_refusal_is_logged_too(self):
+        os.remove(os.path.join(self.repo, 'CLAUDE.md'))
+        self.assertEqual(self.run_install().returncode, 2)
+        with open(self.store('logs', self.logs()[0]), encoding='utf-8') as handle:
+            self.assertIn('does not exist', handle.read())
+
+    def test_check_is_read_only_and_writes_no_log(self):
+        self.run_install('--check')
+        self.assertEqual(self.logs(), [])
+
+
 class MonitorSwitch(Fixture):
     def test_monitor_sync_without_an_agent_registers_the_plugin_disabled(self):
         # No cm-agent at CM_AGENT_HOME -> not connected -> the plugin is switched OFF, other settings kept.
@@ -157,7 +198,8 @@ class Refusals(Fixture):
         result = self.run_install()
         self.assertEqual(result.returncode, 2)
         self.assertIn('core.symlinks', result.stderr)
-        self.assertEqual(os.listdir(self.claude()), ['settings.json'])
+        # Nothing in ~/.claude changes; the refusal leaves only its log, in ~/.claude-standards.
+        self.assertEqual(sorted(os.listdir(self.claude())), ['settings.json'])
         self.assertFalse(self.guard_registered())
 
     def test_a_missing_source_refuses(self):
@@ -197,17 +239,54 @@ class Units(unittest.TestCase):
         with self.assertRaises(OSError):
             install.make_link('link', 'source', False, symlink=fail)
 
-    def test_a_checkout_off_prod_is_a_warning_not_an_error(self):
-        repo = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, repo, True)
-        subprocess.run(['git', 'init', '-q', '-b', 'dev', repo], check=True)
-        self.assertEqual(install.current_branch(repo), 'dev')
-        _errors, warnings = install.preflight(repo)
-        self.assertTrue(any('not prod' in warning for warning in warnings), warnings)
-        subprocess.run(['git', '-C', repo, 'symbolic-ref', 'HEAD', 'refs/heads/prod'], check=True)
-        _errors, warnings = install.preflight(repo)
-        self.assertFalse(any('not prod' in warning for warning in warnings), warnings)
-        self.assertIsNone(install.current_branch(os.path.join(repo, 'nowhere')))
+class Channels(Fixture):
+    """--prod (default) / --test end to end, from a real clone the way a GitHub user has one."""
+
+    def make_clone(self):
+        def git(cwd, *args):
+            subprocess.run(['git', *args], cwd=cwd, check=True, capture_output=True)
+        for folder in ('agents', 'docs', 'modes', 'standards', 'plugin/commands', 'plugin/skills'):
+            open(os.path.join(self.repo, folder, '.keep'), 'w').close()       # git keeps no empty folder
+        git(self.repo, 'init', '-q', '-b', 'prod')
+        git(self.repo, 'config', 'user.email', 't@t')
+        git(self.repo, 'config', 'user.name', 't')
+        git(self.repo, 'add', '-A')
+        git(self.repo, 'commit', '-qm', 'rules')
+        git(self.repo, 'branch', 'test')
+        top = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, top, True)
+        git(top, 'clone', '-q', '--bare', self.repo, 'origin.git')
+        git(top, 'clone', '-q', 'origin.git', 'standards')
+        return os.path.realpath(os.path.join(top, 'standards'))
+
+    def install_from(self, clone, *args):
+        return subprocess.run([sys.executable, INSTALL, '--home', self.home, '--repo', clone, '--no-monitor', *args],
+                              capture_output=True, text=True, encoding='utf-8', errors='replace')
+
+    def test_test_links_into_a_test_worktree_and_leaves_the_clone_on_prod(self):
+        clone = self.make_clone()
+        result = self.install_from(clone, '--test')
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
+        self.assert_linked('CLAUDE.md', os.path.join(clone + '-test', 'CLAUDE.md'))
+        head = subprocess.run(['git', '-C', clone, 'symbolic-ref', '--short', 'HEAD'], capture_output=True, text=True)
+        self.assertEqual(head.stdout.strip(), 'prod')
+
+    def test_the_default_is_prod(self):
+        clone = self.make_clone()
+        self.assertEqual(self.install_from(clone).returncode, 0)
+        self.assert_linked('CLAUDE.md', os.path.join(clone, 'CLAUDE.md'))
+
+    def test_remove_undoes_a_test_install_without_being_told_the_channel(self):
+        clone = self.make_clone()
+        self.install_from(clone, '--test')
+        self.assertEqual(self.install_from(clone, '--remove').returncode, 0)
+        self.assertFalse(os.path.lexists(self.claude('CLAUDE.md')))
+
+    def test_test_from_a_download_without_git_is_refused_before_anything_changes(self):
+        result = self.run_install('--test')
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('clone the repository', result.stderr)
+        self.assertFalse(os.path.lexists(self.claude('CLAUDE.md')))
 
 
 if __name__ == '__main__':

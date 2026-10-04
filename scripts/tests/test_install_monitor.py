@@ -10,6 +10,7 @@ import json
 import os
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from contextlib import redirect_stdout
@@ -30,20 +31,24 @@ class FakeRun:
     """Records each command; answers by the first word that matches in `codes` (default 0). The agent is NOT
     connected unless status=0 is given, and a successful login connects it, as the real agent does."""
 
-    def __init__(self, **codes):
-        self.calls, self.codes = [], {'status': 1, **codes}
+    def __init__(self, server='https://monitor.example', **codes):
+        self.calls, self.codes, self.server = [], {'status': 1, **codes}, server
 
     def __call__(self, command, capture=False):
         self.calls.append(command)
         if command[:2] == ['dotnet', '--list-sdks']:
             return subprocess.CompletedProcess(command, 0, self.codes.get('sdks', SDKS), '')
+        if 'status' in command:                         # what the real agent prints, first line
+            code = self.codes['status']
+            text = f'connected: {self.server}\n' if code == 0 else 'not connected (cm-agent login --server <url>)\n'
+            return subprocess.CompletedProcess(command, code, text, '')
         for word, code in self.codes.items():
             if word in command:
                 if word == 'login' and code == 0:
-                    self.codes['status'] = 0
+                    self.codes['status'], self.server = 0, command[-1]
                 return subprocess.CompletedProcess(command, code, '', '')
         if 'login' in command:
-            self.codes['status'] = 0
+            self.codes['status'], self.server = 0, command[-1]
         return subprocess.CompletedProcess(command, 0, '', '')
 
     def ran(self, word):
@@ -87,6 +92,24 @@ class Home(unittest.TestCase):
             code = monitor.install(server, run=run, env=ENV, system=system, machine=machine, exists=exists,
                                    home=self.home)
         return code, out.getvalue()
+
+
+class TheRealRunner(unittest.TestCase):
+    """default_run streams a child's output through print(), so install.py's log gets it too."""
+
+    def test_output_is_streamed_and_the_exit_code_kept(self):
+        out = StringIO()
+        with redirect_stdout(out):
+            result = monitor.default_run([sys.executable, '-c', 'import sys; print("one"); print("two"); sys.exit(3)'])
+        self.assertEqual(result.returncode, 3)
+        self.assertEqual(out.getvalue().splitlines(), ['one', 'two'])
+
+    def test_capture_returns_the_output_instead(self):
+        result = monitor.default_run([sys.executable, '-c', 'print("x")'], capture=True)
+        self.assertEqual((result.returncode, result.stdout.strip()), (0, 'x'))
+
+    def test_a_missing_tool_is_127_not_an_exception(self):
+        self.assertEqual(monitor.default_run(['no-such-tool-anywhere-xyz']).returncode, 127)
 
 
 class RuntimeIds(unittest.TestCase):
@@ -151,10 +174,36 @@ class ServerMeansActive(Home):
         self.assertEqual((run.ran('clone'), run.ran('publish')), ([], []))
         self.assertIs(self.enabled(), True)
 
-    def test_a_failed_login_leaves_the_plugin_as_it_was(self):
-        code, _ = self.install(FakeRun(login=1), server='https://monitor.example')
+    def test_a_failed_login_registers_the_plugin_DISABLED(self):
+        # Denied, expired or no answer: nothing is connected, so no hook may run.
+        code, out = self.install(FakeRun(login=1), server='https://monitor.example')
         self.assertEqual(code, 2)
-        self.assertIsNone(self.enabled())
+        self.assertIn('did not complete', out)
+        self.assertIs(self.enabled(), False)
+
+    def test_already_connected_to_that_server_asks_for_no_new_code(self):
+        run = FakeRun(status=0, server='https://monitor.example')
+        code, out = self.install(run, server='https://monitor.example/', exists=lambda path: path == INSTALLED)
+        self.assertEqual(code, 0)
+        self.assertEqual(run.ran('login'), [])
+        self.assertIn('already connected', out)
+        self.assertIs(self.enabled(), True)
+
+    def test_connected_elsewhere_logs_in_to_the_requested_server(self):
+        run = FakeRun(status=0, server='https://other.example')
+        self.install(run, server='https://monitor.example', exists=lambda path: path == INSTALLED)
+        self.assertEqual(run.ran('login')[0][-1], 'https://monitor.example')
+
+    def test_the_channel_servers(self):
+        self.assertEqual(monitor.SERVERS, {'prod': 'https://monitor.bitreka.com',
+                                           'test': 'https://testmonitor.bitreka.com',
+                                           'dev': 'http://localhost:9872'})
+
+    def test_every_server_is_one_the_agent_accepts(self):
+        # cm-agent login takes https, or http only on loopback (Login.cs).
+        for name, url in monitor.SERVERS.items():
+            with self.subTest(channel=name):
+                self.assertTrue(url.startswith('https://') or url.startswith('http://localhost'), url)
 
     def test_a_server_that_goes_away_is_switched_off_by_sync(self):
         run = FakeRun()

@@ -204,7 +204,7 @@ because something broke first.
 | Engineering standards | `standards/` | 24 documents + 7 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate, measurement and install scripts | `scripts/` | 27 scripts + 537 tests |
+| Gate, measurement and install scripts | `scripts/` | 29 scripts + 587 tests |
 | Slash commands and skills — one plugin, `/adyusuf:<name>` | `commands/`, `skills/`, `plugin/` | 7 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
@@ -502,10 +502,15 @@ on Windows ([`SETUP.md`](SETUP.md) §6; Windows needs the §1 note first):
 
 ```bash
 git clone -c core.symlinks=true https://github.com/adyusuf/claude-code-standards ~/ClaudeCode/claude-code-standards
-python3 ~/ClaudeCode/claude-code-standards/scripts/install.py                 # add --with-monitor for claude-monitor's agent
+python3 ~/ClaudeCode/claude-code-standards/scripts/install.py                 # prod rules + claude-monitor's agent
+python3 ~/ClaudeCode/claude-code-standards/scripts/install.py --test          # or --dev; --no-monitor skips the agent
 python3 ~/ClaudeCode/claude-code-standards/scripts/install.py --check         # report only
 python3 ~/ClaudeCode/claude-code-standards/scripts/install.py --remove        # take it back out
 ```
+
+`--prod` is the default; `--test` and `--dev` link to a worktree of that branch
+beside the clone and connect the agent to that channel's monitor API (the table
+is in [`SETUP.md`](SETUP.md) §6).
 
 Anything of yours already in `~/.claude` is moved to `~/.claude/backups`, never
 deleted. The hooks are wired through `scripts/install-live-hooks.py` rather than
