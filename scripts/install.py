@@ -181,8 +181,8 @@ def main(argv):
         # follows it: a block-buffered pipe printed the steps after the build log (seen 04/10/2026).
         sys.stdout.reconfigure(errors='replace', line_buffering=True)
 
-    # FIRST, before even the log (which lives in ~/.claude): no Claude Code, or no access to it, stops here
-    # with nothing created — a log folder would itself make ~/.claude look installed.
+    # FIRST, before even the log (in ~/.claude-standards/logs): no Claude Code, or no access to it, stops here
+    # with nothing created — not a log folder, not a backup.
     refused = safety.claude_errors(home, shutil.which)
     if refused and not args.check:
         for error in refused:
