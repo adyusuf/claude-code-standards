@@ -66,6 +66,16 @@ def runtime_id(system, machine):
     return f'{family}-{arch}' if family and arch else None
 
 
+def native_machine(system, machine, run):
+    """The hardware's architecture, not this Python's: an x86_64 Python under Rosetta on Apple silicon reports
+    x86_64, and cm-agent was built for osx-x64 and ran emulated (seen 04/10/2026). macOS says so itself."""
+    if system == 'Darwin' and machine.lower() == 'x86_64':
+        translated = run(['sysctl', '-n', 'sysctl.proc_translated'], capture=True)
+        if translated.returncode == 0 and (translated.stdout or '').strip() == '1':
+            return 'arm64'
+    return machine
+
+
 def binary_name(system):
     return 'cm-agent.exe' if system == 'Windows' else 'cm-agent'
 
@@ -142,7 +152,7 @@ def install(server=None, run=default_run, env=os.environ, system=platform.system
     binary = installed_binary(env, system)
     if server and exists(binary):                       # already built: connecting needs no rebuild
         return connect(server, run, env, system, home)
-    rid = runtime_id(system, machine)
+    rid = runtime_id(system, native_machine(system, machine, run))
     if not rid:
         print(f'✗ cm-agent ships for macOS and Windows only; this is {system}/{machine}')
         return 2

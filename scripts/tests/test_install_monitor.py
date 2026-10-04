@@ -119,6 +119,28 @@ class RuntimeIds(unittest.TestCase):
         self.assertEqual(monitor.runtime_id('Darwin', 'arm64'), 'osx-arm64')
         self.assertEqual(monitor.runtime_id('Darwin', 'x86_64'), 'osx-x64')
 
+    def test_rosetta_python_on_apple_silicon_builds_for_arm64(self):
+        def sysctl(answer, code=0):
+            return lambda command, capture=False: subprocess.CompletedProcess(command, code, answer, '')
+        self.assertEqual(monitor.native_machine('Darwin', 'x86_64', sysctl('1\n')), 'arm64')
+        self.assertEqual(monitor.native_machine('Darwin', 'x86_64', sysctl('0\n')), 'x86_64')    # a real Intel Mac
+        self.assertEqual(monitor.native_machine('Darwin', 'x86_64', sysctl('', 1)), 'x86_64')     # no such key
+        self.assertEqual(monitor.native_machine('Windows', 'AMD64', sysctl('1\n')), 'AMD64')     # macOS only
+
+    def test_the_build_uses_the_hardware_architecture(self):
+        run = FakeRun()
+        real = run.__call__
+        run_with_sysctl = lambda command, capture=False: (
+            subprocess.CompletedProcess(command, 0, '1\n', '') if command[0] == 'sysctl' else real(command, capture))
+        home = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, home, True)
+        os.makedirs(os.path.join(home, '.claude'))
+        with redirect_stdout(StringIO()):
+            monitor.install(None, run_with_sysctl, ENV, 'Darwin', 'x86_64', exists=lambda p: p.endswith('Agent'),
+                            home=home)
+        publish = [call for call in run.calls if 'publish' in call]
+        self.assertEqual(publish[0][publish[0].index('-r') + 1], 'osx-arm64')
+
     def test_anything_else_is_none(self):
         self.assertIsNone(monitor.runtime_id('Linux', 'x86_64'))
         self.assertIsNone(monitor.runtime_id('Windows', 'i386'))
