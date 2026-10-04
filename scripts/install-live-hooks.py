@@ -79,10 +79,19 @@ def backup(path, backups):
     return target
 
 
+def same_path(a, b):
+    """Path equality that survives Windows: os.readlink there returns the target with
+    the extended-length prefix (\\\\?\\C:\\...), which made a correct link read as
+    'wrong-target' and --check fail on every Windows install (seen 04/10/2026)."""
+    def plain(path):
+        return path[4:] if path.startswith('\\\\?\\') else path
+    return os.path.normcase(plain(a)) == os.path.normcase(plain(b))
+
+
 def link_state(link, source):
     """ok | missing | wrong-target | broken | blocked (a real file is in the way)."""
     if os.path.islink(link):
-        if os.readlink(link) != source:
+        if not same_path(os.readlink(link), source):
             return 'wrong-target'
         return 'ok' if os.path.exists(source) else 'broken'
     return 'blocked' if os.path.exists(link) else 'missing'
@@ -114,7 +123,20 @@ def report(repo, home):
         print(f'  hook {event}: {"registered" if present else "MISSING"}')
         if not present:
             problems.append(event)
+    print(f'  {python3_note()}')
     return problems
+
+
+def python3_note(which=shutil.which):
+    """A WARNING, not a problem: the guard falls back to `python`, but other hooks people
+    wire (the live board's, for one) call `python3` by name and fail silently without it."""
+    if which('python3'):
+        return 'python3: on PATH'
+    if which('python'):
+        return ('python3: NOT on PATH (warning) — the guard falls back to `python`, but hooks that '
+                'call python3 by name (e.g. the live board) will not run. On Windows: '
+                'mklink /H "<python dir>\\python3.exe" "<python dir>\\python.exe"')
+    return 'python3: NOT on PATH and no python either (warning) — the guard will block every keyword-bearing command'
 
 
 def install(repo, home):

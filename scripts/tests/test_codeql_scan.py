@@ -252,6 +252,20 @@ class ShellIsScannedToo(Scan):
         self.assertIn('the merge is blocked', out)
         self.assertEqual(1, code)
 
+    def test_no_shell_files_and_no_shellcheck_is_still_n_a(self):
+        # Nothing to scan needs no scanner. Asking for the tool first failed every
+        # shell-less repository on a machine without shellcheck (Windows, 04/10/2026);
+        # a machine WITH shellcheck could never notice, so the tool is hidden here.
+        self.stub_codeql(sarif())
+        env = dict(os.environ)
+        env['PATH'] = os.pathsep.join(
+            [self.bin] + [entry for entry in env['PATH'].split(os.pathsep)
+                          if not os.path.exists(os.path.join(entry, 'shellcheck'))
+                          and not os.path.exists(os.path.join(entry, 'shellcheck.exe'))])
+        result = subprocess.run(['bash', SCAN], cwd=self.root, capture_output=True, text=True, env=env)
+        self.assertIn('no shell scripts here', result.stdout)
+        self.assertEqual(0, result.returncode, result.stdout + result.stderr)
+
     def test_a_missing_shellcheck_is_NOT_RUN_and_blocks(self):
         self.stub_codeql(sarif())
         with open(os.path.join(self.root, 'scripts', 'thing.sh'), 'w', encoding='utf-8') as handle:

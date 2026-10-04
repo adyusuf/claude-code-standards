@@ -1,3 +1,4 @@
+import importlib.util
 import json
 import os
 import shutil
@@ -9,6 +10,10 @@ import unittest
 SCRIPTS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 INSTALLER = os.path.join(SCRIPTS, 'install-live-hooks.py')
 REAL_REPO = os.path.dirname(os.path.realpath(SCRIPTS))
+
+_spec = importlib.util.spec_from_file_location('install_live_hooks', INSTALLER)
+installer = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(installer)
 
 MD_HOOK = 'bash "$HOME/.claude/scripts/md-hook.sh"'
 GUARD = 'bash "$HOME/.claude/hooks/guard-destructive.sh"'
@@ -75,7 +80,8 @@ class Install(Fixture):
         for name in ('guard-destructive.sh',):
             link = os.path.join(self.hooks_dir(), name)
             self.assertTrue(os.path.islink(link))
-            self.assertEqual(os.readlink(link), os.path.join(os.path.realpath(self.repo), 'scripts', name))
+            self.assertTrue(installer.same_path(os.readlink(link),
+                                                os.path.join(os.path.realpath(self.repo), 'scripts', name)))
         data = self.read_settings()
         self.assertIn(GUARD, commands(data, 'PreToolUse'))
         self.assertEqual(data['hooks']['PreToolUse'][0]['matcher'], 'Bash')
@@ -123,7 +129,8 @@ class Install(Fixture):
                 open(os.path.join(other, 'scripts', name), 'w').close()
             self.assertEqual(self.run_installer(repo=other).returncode, 0)
             link = os.path.join(self.hooks_dir(), 'guard-destructive.sh')
-            self.assertEqual(os.readlink(link), os.path.join(os.path.realpath(other), 'scripts', 'guard-destructive.sh'))
+            self.assertTrue(installer.same_path(
+                os.readlink(link), os.path.join(os.path.realpath(other), 'scripts', 'guard-destructive.sh')))
         finally:
             shutil.rmtree(other, ignore_errors=True)
 
@@ -180,6 +187,47 @@ class CheckAndRemove(Fixture):
         self.assertEqual(self.run_installer('--remove').returncode, 0)
         self.assertEqual(text_of(self.settings), before)
         self.assertEqual(self.backups(), [])
+
+
+class WindowsPaths(unittest.TestCase):
+    """os.readlink on Windows returns \\\\?\\C:\\...; a plain comparison read every correct
+    link as 'wrong-target' (seen 04/10/2026). These run on every platform."""
+
+    def test_the_extended_length_prefix_is_ignored(self):
+        self.assertTrue(installer.same_path('\\\\?\\C:\\Work\\repo\\scripts\\g.sh', 'C:\\Work\\repo\\scripts\\g.sh'))
+
+    def test_a_different_target_is_still_different(self):
+        # The control: the normalisation must not make every link look right.
+        self.assertFalse(installer.same_path('\\\\?\\C:\\Work\\other\\g.sh', 'C:\\Work\\repo\\g.sh'))
+        self.assertFalse(installer.same_path('/a/b', '/a/c'))
+
+
+class Python3Note(unittest.TestCase):
+    def test_python3_present(self):
+        self.assertEqual(installer.python3_note(lambda name: '/usr/bin/' + name), 'python3: on PATH')
+
+    def test_only_python_warns_and_names_the_fix(self):
+        note = installer.python3_note(lambda name: 'C:\\Python\\python.exe' if name == 'python' else None)
+        self.assertIn('NOT on PATH (warning)', note)
+        self.assertIn('falls back to `python`', note)
+        self.assertIn('mklink', note)
+
+    def test_no_python_at_all_warns_that_the_guard_blocks(self):
+        self.assertIn('will block', installer.python3_note(lambda name: None))
+
+    def test_check_prints_the_note_but_does_not_fail_on_it(self):
+        home = tempfile.mkdtemp()
+        try:
+            os.makedirs(os.path.join(home, '.claude'))
+            with open(os.path.join(home, '.claude', 'settings.json'), 'w') as handle:
+                handle.write('{}\n')
+            subprocess.run([sys.executable, INSTALLER, '--home', home, '--repo', REAL_REPO], capture_output=True)
+            result = subprocess.run([sys.executable, INSTALLER, '--home', home, '--repo', REAL_REPO, '--check'],
+                                    capture_output=True, text=True, encoding='utf-8')
+            self.assertIn('python3:', result.stdout)
+            self.assertEqual(result.returncode, 0, result.stdout)
+        finally:
+            shutil.rmtree(home, ignore_errors=True)
 
 
 class InstalledGuardWorks(unittest.TestCase):

@@ -186,7 +186,10 @@ def gate_audit_lines(with_triage, json_report, helper_present=True, tool='npm'):
                 handle.write('lockfileVersion: 9\n')
         install(os.path.join(shims, tool),
                 '#!/bin/sh\ncase "$*" in\n  *audit*--json*) cat "%s"; exit 1 ;;\n  *audit*) echo "high severity"; exit 1 ;;\n  *) exit 0 ;;\nesac\n' % report_file)
-        env = dict(os.environ, PATH=shims + ':/usr/bin:/bin:' + os.path.dirname(shutil.which('python3')))
+        # The shims, the basic tools and python3 — and nothing else. Joined with os.pathsep: a ':'-joined
+        # PATH is unreadable on Windows, where the basic tools are Git Bash's (beside its bash).
+        tools = [os.path.dirname(shutil.which('bash'))] if os.name == 'nt' else ['/usr/bin', '/bin']
+        env = dict(os.environ, PATH=os.pathsep.join([shims, *tools, os.path.dirname(shutil.which('python3'))]))
         result = subprocess.run(['bash', GATE, 'dev'], cwd=root, capture_output=True, text=True, env=env, timeout=120)
         out = ANSI.sub('', result.stdout)
         return '\n'.join(l for l in out.splitlines() if '%s audit' % tool in l)

@@ -204,7 +204,7 @@ because something broke first.
 | Engineering standards | `standards/` | 24 documents + 7 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate and measurement scripts | `scripts/` | 25 scripts + 410 tests |
+| Gate, measurement and install scripts | `scripts/` | 29 scripts + 587 tests |
 | Slash commands and skills — one plugin, `/adyusuf:<name>` | `commands/`, `skills/`, `plugin/` | 7 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
@@ -497,15 +497,25 @@ The cost is that a bad promotion changes my tooling mid-session, which is why th
 guidance files have their own size and rule-loss gates
 (`scripts/md-size-gate.sh`, `scripts/md-rule-gate.py`).
 
-The hooks are wired here with the installer rather than by hand, because
-`~/.claude/scripts` is itself a symlink into the checkout and a new file there
-would show up as untracked in `prod`:
+All of it — the links, the plugin and the hooks — is one command, on macOS and
+on Windows ([`SETUP.md`](SETUP.md) §6; Windows needs the §1 note first):
 
 ```bash
-python3 scripts/install-live-hooks.py --check   # report what is missing, change nothing
-python3 scripts/install-live-hooks.py          # symlinks under ~/.claude/hooks + settings entries
-python3 scripts/install-live-hooks.py --remove # take it back out
+git clone -c core.symlinks=true https://github.com/adyusuf/claude-code-standards ~/ClaudeCode/claude-code-standards
+python3 ~/ClaudeCode/claude-code-standards/scripts/install.py                 # prod rules + claude-monitor's agent
+python3 ~/ClaudeCode/claude-code-standards/scripts/install.py --test          # or --dev; --no-monitor skips the agent
+python3 ~/ClaudeCode/claude-code-standards/scripts/install.py --check         # report only
+python3 ~/ClaudeCode/claude-code-standards/scripts/install.py --remove        # take it back out
 ```
+
+`--prod` is the default; `--test` and `--dev` link to a worktree of that branch
+beside the clone and connect the agent to that channel's monitor API (the table
+is in [`SETUP.md`](SETUP.md) §6).
+
+Anything of yours already in `~/.claude` is moved to `~/.claude/backups`, never
+deleted. The hooks are wired through `scripts/install-live-hooks.py` rather than
+by hand, because `~/.claude/scripts` is itself a symlink into the checkout and a
+new file there would show up as untracked in `prod`.
 
 ⚠️ This replaces the `settings.example.json` copy from Level 3, it does not
 follow it. Doing both runs two of the hooks twice.

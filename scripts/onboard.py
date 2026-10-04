@@ -17,7 +17,8 @@ Pass --apply to actually write. This mirrors gate-core.sh --list and install-liv
 directory rather than a project already opted into the gate.
 
 Level 0 needs no script (read CLAUDE.md and docs/decision-log.md). Level 4 (the live
-symlink checkout) has its own script, install-live-hooks.py; this one stops at level 3.
+symlink checkout) has its own script, install.py (links, plugin and hooks in one command);
+this one stops at level 3.
 
 Safe by construction: level1 is idempotent (a marker comment guards the appended block),
 and level2/level3 never overwrite an existing destination file unless --force is also given.
@@ -106,7 +107,7 @@ def status(repo, home):
     missing3 = [e for e in LEVEL3_ENTRIES if not os.path.exists(os.path.join(claude, e))]
     level3_state = 'all present' if not missing3 else 'missing ' + ', '.join(missing3)
     print(f'  level3 (whole config): {level3_state}')
-    print('  level4 (live symlink): see install-live-hooks.py --check')
+    print('  level4 (live symlink): see install.py --check')
 
 
 def append_once(path, block, marker, apply_):

@@ -53,6 +53,11 @@ def main(script: str) -> int:
     """Runs the monitor's `script` in place of this process; returns only when it cannot."""
     path = target(script)
     if path.is_file():
+        if os.name == "nt":
+            # Windows has no exec: os.execv starts a NEW process and this one exits 0 at once, so the
+            # output raced the caller and the script's exit code — a hook's "block" — was lost.
+            import subprocess
+            return subprocess.call([sys.executable, str(path), *sys.argv[1:]])
         os.execv(sys.executable, [sys.executable, str(path), *sys.argv[1:]])
     mode = ON_MISSING.get(script, FAIL)
     if mode == HINT:
