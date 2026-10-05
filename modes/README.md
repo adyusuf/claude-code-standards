@@ -120,7 +120,38 @@ code) says so in its report; it still does not run tests, review or gate.
 - The `test`/`prod` promotion → the user says so explicitly **in every mode**.
 - The completeness check before "done" (global #24) → the same in every mode.
 
+## Session start — ASK the mode and the Opus replacement (PERMANENT, all projects; user decision 05/10/2026)
+
+Every interactive session begins with **one `AskUserQuestion`** carrying two questions,
+**before any other work** (reading the mode files is the only thing that comes first):
+
+1. **Mode** — the recommended option is the read order's result (a `--tek` selection →
+   `.claude/mode` → B), or the lowest sufficient mode for the first request when that is
+   higher (the rules of the next section); up to three other letters; "Other" takes any
+   letter.
+2. **What replaces Opus** — `Keep the defined models` (recommended unless a
+   `mode-model` exists, which is then preselected) · `sonnet` · `haiku` · `fable`.
+
+The answer is applied as `/adyusuf:working-mode <letter> [<model>] --tek` — written to the
+session scratchpad (`$S/mode`, `$S/mode-model`), **never** to the project file — and the
+session's work starts on it. The first request is then carried out in the same turn.
+
+**Not asked:**
+- the user's first message already names the mode (`C sonnet`, `/adyusuf:working-mode …`)
+  → that is applied instead;
+- `$S/mode` already exists — the same session after compaction, already answered;
+- a subagent, a `Workflow` agent, a teammate — they never ask the user;
+- a non-interactive run (`claude -p`, a scheduled task, an autonomous run, a cloud session
+  with nobody to answer) → the read order applies silently.
+
+If the question is dismissed unanswered, the read order applies and the work continues.
+
 ## If no mode is given — PROPOSE the cheapest and fastest
+
+> Since 05/10/2026 the session-start question above comes first. This section is what
+> shapes its **recommended** option, and it applies as-is wherever the question is not
+> asked (non-interactive runs). In a project with no mode file, B's three agents may be
+> invoked without asking; the other eleven roles require C/D/E.
 
 If the project carries no `.claude/mode` **and** the user has not named a mode:
 
