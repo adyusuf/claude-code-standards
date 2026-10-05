@@ -5,6 +5,7 @@
 Reading order: **a session-scoped selection** (`/adyusuf:working-mode <letter> --tek`, not
 written to the project file) → the project's `.claude/mode` → **B**. If neither
 exists, **B** applies.
+A second word downgrades only the Opus agents (`C sonnet`) → the **Model override** section at the end of this file.
 
 | Mode | Name | Agents | Review | Approval policy | Cost multiplier |
 |---|---|---|---|---|---|
@@ -180,6 +181,43 @@ budget ceiling, stall brake, stopping on any irreversible action.
 
 ## Selecting a mode
 
-    /adyusuf:working-mode           # show the current mode
-    /adyusuf:working-mode B         # switch this project to B (persistent)
-    /adyusuf:working-mode B --tek   # this session only, do not write the file
+    /adyusuf:working-mode               # show the current mode
+    /adyusuf:working-mode B             # switch this project to B (persistent)
+    /adyusuf:working-mode B --tek       # this session only, do not write the file
+    /adyusuf:working-mode C sonnet      # C, and every Opus agent runs on Sonnet
+    /adyusuf:working-mode D sonnet --tek
+
+## Model override — `<letter> <model>` (PERMANENT, all projects; user decision 05/10/2026)
+
+Each agent keeps the model its definition gives it (`model:` in `agents/<role>.md`, or a
+plugin agent's own frontmatter). A second word after the letter downgrades **only the
+Opus agents**:
+
+| The user types | Opus agents run on | Every other agent |
+|---|---|---|
+| `A` `B` `C` `D` `E` (letter alone) | their defined model (Opus) | its defined model |
+| `<letter> <model>` — e.g. `C sonnet` | **`<model>`** | its defined model — **unchanged** |
+
+- **Valid `<model>`:** `sonnet` · `haiku` · `fable` · `opus` — the values the `Agent`
+  tool's `model` override accepts. `opus` equals the letter alone. Anything else is
+  rejected with this list; the mode is not changed.
+- **Which agents count as Opus:** the model the agent would actually run on — a
+  definition that says `opus` (or a `claude-opus-*` id), **and** one with no `model:` /
+  `inherit` while the session itself runs on Opus. A `sonnet`/`haiku` agent is never
+  *raised* to the override (`C opus` does not make `analyst` Opus). The orchestrator
+  (the session) is not an agent: its model is whatever `/model` selected.
+- **How it is applied:** every `Agent` call to an Opus agent passes `model: "<model>"`;
+  in E, every `agent()` of a `Workflow` for an Opus role carries the same override. If a
+  call path cannot carry it, say so **before** starting that agent — never let it run on
+  Opus silently.
+- **Where it lives:** next to the letter, in the same layer — `.claude/mode-model` beside
+  `.claude/mode` (persistent, committed), `$S/mode-model` beside `$S/mode` (`--tek`).
+  `.claude/mode` stays a single letter, so every existing reader keeps working. **The
+  letter alone removes that layer's `mode-model`** — that is how "back to the defined
+  models" is expressed. The override is read from the layer that supplied the letter.
+- **Reporting:** the end-of-turn agent report and every background-task prefix (§10c of
+  `standards/00`) name the model that actually ran — after the override, not the
+  definition's.
+- The override changes **cost and quality, never the role set or the audit**: `qa` on
+  Sonnet is still `qa`, and its block, hand-backs and the critical-finding check by the
+  orchestrator apply unchanged.

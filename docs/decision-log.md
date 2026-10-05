@@ -1138,3 +1138,19 @@ whether a model was running in it.
 - **Not done:** no block, no gate. A reminder is advisory by design: a one-step question must not be forced
   through a plan. Making it a gate step would be a separate request.
 
+
+## Mode + model: `<letter> <model>` runs only the Opus agents on another model (05/10/2026, user decision)
+
+- **Request:** "agents keep the models they were given, but I want to be able to turn the
+  Opus ones into Sonnet": the letter alone keeps the defined models; `<letter> <llm>` makes
+  only the Opus agents use `<llm>`. A general rule.
+- **Decision:** `modes/README.md` › *Model override*; the skill writes the word to
+  `mode-model` beside `mode` in the same layer (project or `--tek` scratchpad) and the
+  letter alone deletes it. Applied through the `Agent` tool's `model` override, which
+  takes precedence over the definition's frontmatter.
+- **Why a separate file:** `.claude/mode` is parsed as one letter by the live board
+  (`board_api.py` in claude-monitor) and by other readers; a second word there would
+  break them (#4, additive only).
+- **Boundary:** only downgrades — a Sonnet/Haiku agent is never raised. "Opus" means the
+  model the agent would actually run on, so an inheriting agent in an Opus session counts.
+  The role set and the audit chain do not change with the model.
