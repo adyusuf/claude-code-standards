@@ -27,8 +27,9 @@ A finding remains your responsibility until it is fixed and its closure is evide
 7. **The combined run's results** — you review the **combined** diff, never one piece
    at a time, and you also read the test-run log and the gate log of that combined
    branch: every failure classified (product bug · stale spec · data/fixture ·
-   environment) and **attributed to the piece that caused it**, every skipped step
-   treated as not passed. A red test or gate step is a finding like any other and goes
+   environment) and **attributed to the piece that caused it**, every SKIPPED step
+   treated as not passed, every warning, the coverage figure per codebase, whether the
+   run was the whole valid run, and that nothing was loosened to pass. A red test or gate step is a finding like any other and goes
    back to its producer (`modes/README.md` › *One review, one test run, one gate*).
 
 ## Rules

@@ -84,8 +84,8 @@ product-manager → scope + acceptance criteria + edge cases
         ↓ (without these, architect cannot plan)
 architect / designer → file plan + flow (can run in parallel)
         ↓
-developer | me → code        test-writer → tests        (each on its own branch;
-        ↓                                                 nobody runs tests/review/gate)
+developer | me → code        test-writer → tests        (each on its own branch; at most a
+        ↓                                                 narrow run of its own piece — no review, no gate)
 orchestrator → merges ALL branches into one combined branch
         ↓
 ONE review (qa | me) ∥ ONE full test run → ONE gate
@@ -301,6 +301,14 @@ error fixed; writing a finding into a report and moving on **does not count as c
    finding".
 5. **The open-findings list is carried through the turn.** The end-of-turn report shows
    "closed / still open" — the same line as the completeness check in global #24.
+
+### What the auditor reads on a batch (user decision 05/10/2026)
+
+On a batch the auditor's subject includes the **test and gate OUTPUT**, not only the diff: every
+failure, every SKIPPED step, every warning, the coverage figure per codebase, and whether the run was the
+whole valid run. A gap or wrong result goes back to the producing sub-branch as an order (same hand-back and
+closure rules below). Producers are not audited one by one — one review, one test run, one gate on the merged
+batch (`standards/13-pr-and-review.md` §8).
 
 ### How many passes? — **1 clean**
 

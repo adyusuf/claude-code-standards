@@ -89,8 +89,9 @@ followed only if the agent is within that mode's set.
 
 Whoever produces a piece — an agent, a subagent, a `Workflow` agent, a background task, or
 me working on one piece — **does its own work and stops there**: it writes the code, writes
-the tests, commits on its own branch and hands off to the orchestrator. It does **not** run
-the build/lint/tests, does **not** get a code review and does **not** run a gate for its piece.
+the tests, runs **at most a narrow run of its own piece** (its own new/changed tests — never
+the full suite), commits on its own branch and hands off to the orchestrator. It does **not**
+get a code review, does **not** run the full suite and does **not** run a gate for its piece.
 
 1. **The orchestrator combines.** When every piece of the task list is handed off, the
    orchestrator merges all the branches into ONE combined branch (`standards/13` §8 —
@@ -101,17 +102,18 @@ the build/lint/tests, does **not** get a code review and does **not** run a gate
    wait for the tests).
 3. **The auditor judges the results too, not only the diff.** The auditor (`qa` in C/D/E, me
    in A/B) reads the test run's log and the gate's log: every failure classified (#31) and
-   **attributed to the piece that caused it**, every skipped step treated as not passed (#25).
+   **attributed to the piece that caused it**, every SKIPPED step treated as not passed (#25),
+   every warning, the coverage figure per codebase (#29), whether the run was the whole valid
+   run (#31), and that nothing was loosened to pass.
    A problem in the diff, the tests or the gate is **sent back to its producer** (#28 hand-back:
    what · evidence · what to do), fixed on that piece's own branch, and merged again.
 4. **Re-verification after the fixes** follows `standards/13` §8.4: only the failed tests (and
    what the fix could affect) towards `dev`, the full suite towards `test`, then the gate once
    more; the auditor re-reads the new results. #28's ceiling (3 passes) applies.
 
-What the producer reports instead of a run: the files, the tests it wrote, and the command
-the orchestrator will run — `Verification` in its block is the range it read, never a test
-result it did not produce. A piece that cannot be written without a run (e.g. generated
-code) says so in its report; it still does not run tests, review or gate.
+What the producer reports: the files, the tests it wrote, the narrow run's command and raw
+result if it ran one (or "not run"), and the command for the full run. A narrow green run
+is the producer's own confidence, **never** a substitute for the combined run.
 
 ## Rules OUTSIDE the mode, applying in every mode
 
