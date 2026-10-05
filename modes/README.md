@@ -42,8 +42,8 @@ report with the §7 completeness-check block, which
 | `analyst` | B+ | the orchestrator re-runs the command the analyst returned and compares the count | the analyst's own command (`grep -rn …`, `rg -c`) | yes |
 | `architect` | C+ | **the orchestrator** — a written exemption from the block; an implementation that deviates from the plan comes back to the orchestrator | the checks below: plan paths exist, then `git diff --name-only` against the file plan | no |
 | `designer` | C+ | **the orchestrator** audits the flow and state decisions; once the interface code exists, `qa` | the checks below, then `qa`'s `Verification` command on the diff | no |
-| `developer` | C+ | `qa`, then the orchestrator verifies the critical findings | `qa`'s `Verification` command | no |
-| `test-writer` | B+ | `qa` reviews the diff in parallel (§2) | `qa`'s `Verification` command | yes |
+| `developer` | C+ | `qa` on the combined diff + test/gate results, then the orchestrator verifies the critical findings | `qa`'s `Verification` command | no |
+| `test-writer` | B+ | `qa` on the combined diff + test/gate results (§2; in B: the orchestrator) | `qa`'s `Verification` command | yes |
 | `devops` | C+ | `qa` (infrastructure diffs are in scope) | `qa`'s `Verification` command | yes |
 | `doc-writer` | B+ | the orchestrator verifies the permanent decision (rule files are outside `qa`) | reading the written text against the decision | no |
 | `qa` | C+ | the orchestrator verifies the critical findings | the `Verification` line of its own block | yes |
@@ -84,6 +84,34 @@ the decision is the user's.
 own by matching its `description`; in A that is **not followed**, and in B/C/D it is
 followed only if the agent is within that mode's set.
 
+
+## One review, one test run, one gate — on the combined work (PERMANENT, every mode; user decision 05/10/2026)
+
+Whoever produces a piece — an agent, a subagent, a `Workflow` agent, a background task, or
+me working on one piece — **does its own work and stops there**: it writes the code, writes
+the tests, commits on its own branch and hands off to the orchestrator. It does **not** run
+the build/lint/tests, does **not** get a code review and does **not** run a gate for its piece.
+
+1. **The orchestrator combines.** When every piece of the task list is handed off, the
+   orchestrator merges all the branches into ONE combined branch (`standards/13` §8 —
+   `--no-ff`, each task's commits kept).
+2. **Once, on the combined branch:** ONE code review (the review the mode prescribes —
+   `qa` in C/D/E, me in A/B — of the combined diff), ONE full test run (#31: the whole suite,
+   no stop at the first failure) and ONE gate. They may run side by side (the review does not
+   wait for the tests).
+3. **The auditor judges the results too, not only the diff.** The auditor (`qa` in C/D/E, me
+   in A/B) reads the test run's log and the gate's log: every failure classified (#31) and
+   **attributed to the piece that caused it**, every skipped step treated as not passed (#25).
+   A problem in the diff, the tests or the gate is **sent back to its producer** (#28 hand-back:
+   what · evidence · what to do), fixed on that piece's own branch, and merged again.
+4. **Re-verification after the fixes** follows `standards/13` §8.4: only the failed tests (and
+   what the fix could affect) towards `dev`, the full suite towards `test`, then the gate once
+   more; the auditor re-reads the new results. #28's ceiling (3 passes) applies.
+
+What the producer reports instead of a run: the files, the tests it wrote, and the command
+the orchestrator will run — `Verification` in its block is the range it read, never a test
+result it did not produce. A piece that cannot be written without a run (e.g. generated
+code) says so in its report; it still does not run tests, review or gate.
 
 ## Rules OUTSIDE the mode, applying in every mode
 
