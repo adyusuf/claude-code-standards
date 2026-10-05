@@ -125,6 +125,10 @@ When writing a comment: **what** is wrong + **why** it matters + **a suggestion*
   1. **Collect:** every READY sub-branch (feature branch or worktree branch, each task in its own
      commit(s)) is merged with `--no-ff` into one batch branch cut from the fresh target. No
      per-branch test or gate run happens before this — the tests and the gate run ONCE, on the batch.
+     This holds for whoever produced the branch — an agent, subagent, `Workflow` agent or background
+     task does not run tests, a review or a gate for its own piece; the **code review** runs once on
+     the batch too, and the auditor also judges the test and gate results (user decision 05/10/2026,
+     every mode — `modes/README.md` › *One review, one test run, one gate*).
   2. **Run:** the full test suite and the gate run on the batch (#31: the whole run, no stop at the
      first failure; every failure classified and attributed to the sub-branch that caused it).
   3. **Fix where it was born:** each failure is fixed **on its own sub-branch** (its own commit),

@@ -84,12 +84,19 @@ product-manager → scope + acceptance criteria + edge cases
         ↓ (without these, architect cannot plan)
 architect / designer → file plan + flow (can run in parallel)
         ↓
-developer | me → code
+developer | me → code        test-writer → tests        (each on its own branch;
+        ↓                                                 nobody runs tests/review/gate)
+orchestrator → merges ALL branches into one combined branch
         ↓
-test-writer → tests          qa → review (in parallel)
+ONE review (qa | me) ∥ ONE full test run → ONE gate
+        ↓
+auditor reads the diff + the test log + the gate log → sends back to the producer
         ↓
 doc-writer → permanent decisions
 ```
+
+⚠️ **Review, tests and gate run once, on the combined work — never per piece**, in every
+mode: `modes/README.md` › *One review, one test run, one gate*.
 
 **Independent roles are started in parallel in the same message.** Dependent ones
 queue — if one's output is another's input, starting them in parallel means the second
