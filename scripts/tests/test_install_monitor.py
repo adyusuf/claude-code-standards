@@ -147,9 +147,109 @@ class RuntimeIds(unittest.TestCase):
 
     def test_the_agent_home_follows_the_agent(self):
         self.assertEqual(monitor.agent_home({'CM_AGENT_HOME': '/x'}, 'Windows'), '/x')
-        self.assertEqual(monitor.agent_home({'LOCALAPPDATA': 'C:\\L'}, 'Windows'), os.path.join('C:\\L', 'ClaudeMonitor'))
+        self.assertEqual(monitor.agent_home({'USERPROFILE': 'C:\\U'}, 'Windows'), os.path.join('C:\\U', '.claude-monitor'))
+        self.assertEqual(monitor.agent_home({'USERPROFILE': 'C:\\U', 'LOCALAPPDATA': 'C:\\L'}, 'Windows'),
+                         os.path.join('C:\\U', '.claude-monitor'), 'never under AppData: the Claude app redirects it')
+        self.assertTrue(monitor.agent_home({}, 'Windows').endswith('.claude-monitor'))
         self.assertTrue(monitor.agent_home({}, 'Darwin').endswith(os.path.join('Application Support', 'ClaudeMonitor')))
         self.assertTrue(monitor.installed_binary({}, 'Windows').endswith('cm-agent.exe'))
+
+
+class TheAgentHomeMoved(Home):
+    """Windows: the default moved from %LOCALAPPDATA%\\ClaudeMonitor (redirected for the Claude desktop app) to
+    %USERPROFILE%\\.claude-monitor; an install made before the move is still found."""
+    WIN = {'USERPROFILE': os.path.join('/u'), 'LOCALAPPDATA': os.path.join('/l')}
+    NEW = os.path.join('/u', '.claude-monitor')
+    OLD = os.path.join('/l', 'ClaudeMonitor')
+
+    def binary_in(self, folder):
+        return os.path.join(folder, 'bin', 'cm-agent.exe')
+
+    def test_the_old_default_is_only_known_on_windows_without_an_explicit_home(self):
+        self.assertEqual(monitor.legacy_agent_home(self.WIN, 'Windows'), self.OLD)
+        self.assertIsNone(monitor.legacy_agent_home(self.WIN, 'Darwin'))
+        self.assertIsNone(monitor.legacy_agent_home(dict(self.WIN, CM_AGENT_HOME='/x'), 'Windows'))
+
+    def test_the_new_home_wins_and_the_old_one_is_used_only_when_it_alone_holds_the_agent(self):
+        both = lambda path: path in (self.binary_in(self.NEW), self.binary_in(self.OLD))
+        only_old = lambda path: path == self.binary_in(self.OLD)
+        self.assertEqual(monitor.installed_binary(self.WIN, 'Windows', both), self.binary_in(self.NEW))
+        self.assertEqual(monitor.installed_binary(self.WIN, 'Windows', only_old), self.binary_in(self.OLD))
+        self.assertEqual(monitor.installed_binary(self.WIN, 'Windows', lambda path: False), self.binary_in(self.NEW))
+        self.assertEqual(monitor.plugin_dir(self.WIN, 'Windows', only_old), os.path.join(self.OLD, 'claude-plugin'))
+        self.assertEqual(monitor.plugin_dir(self.WIN, 'Windows', both), os.path.join(self.NEW, 'claude-plugin'))
+        explicit = dict(self.WIN, CM_AGENT_HOME='/x')
+        self.assertEqual(monitor.installed_binary(explicit, 'Windows', only_old), self.binary_in('/x'))
+
+    def test_macos_has_no_old_home(self):
+        self.assertEqual(monitor.active_home({}, 'Darwin', lambda path: True), monitor.agent_home({}, 'Darwin'))
+
+    def test_an_old_install_is_kept_working_and_registered_from_where_it_is(self):
+        only_old = lambda path: path == self.binary_in(self.OLD)
+        run = FakeRun(status=0)
+        out = StringIO()
+        with redirect_stdout(out):
+            code = monitor.sync(run=run, env=self.WIN, system='Windows', home=self.home, exists=only_old)
+        self.assertEqual(code, 0)
+        self.assertEqual(run.calls[0][0], self.binary_in(self.OLD))
+        marketplace = self.settings()['extraKnownMarketplaces'][monitor.MARKETPLACE]
+        self.assertEqual(marketplace['source']['path'], os.path.join(self.OLD, 'claude-plugin'))
+
+    def test_nothing_installed_means_the_new_home(self):
+        run = FakeRun()
+        with redirect_stdout(StringIO()):
+            monitor.sync(run=run, env=self.WIN, system='Windows', home=self.home, exists=lambda path: False)
+        self.assertEqual(run.calls[0][0], self.binary_in(self.NEW))
+
+    def test_a_rebuild_over_an_old_install_registers_the_new_home(self):
+        run = FakeRun()
+        built = lambda path: path == self.binary_in(self.OLD) or (path == self.binary_in(self.NEW) and bool(run.ran('install')))
+        out = StringIO()
+        with redirect_stdout(out):
+            code = monitor.install(None, run=run, env=self.WIN, system='Windows', machine='AMD64', exists=built,
+                                   home=self.home, find=lambda pattern: [])
+        self.assertEqual(code, 0)
+        self.assertEqual(run.ran('status')[0][0], self.binary_in(self.NEW), 'after `cm-agent install` the NEW binary answers')
+        marketplace = self.settings()['extraKnownMarketplaces'][monitor.MARKETPLACE]
+        self.assertEqual(marketplace['source']['path'], os.path.join(self.NEW, 'claude-plugin'))
+
+
+class TheRedirectedCopyWarning(Home):
+    """A packaged app (the Claude desktop app) sees a private copy of %LOCALAPPDATA%; installing from inside it is wrong."""
+
+    def setUp(self):
+        super().setUp()
+        self.local = os.path.join(self.home, 'Local')
+        self.copy = os.path.join(self.local, 'Packages', 'Claude_x', 'LocalCache', 'Local', 'ClaudeMonitor')
+        os.makedirs(self.copy)
+        self.env = {'CM_AGENT_HOME': '/agent', 'LOCALAPPDATA': self.local, 'CLAUDECODE': '1'}
+
+    def warned(self, env=None, system='Windows'):
+        out = StringIO()
+        with redirect_stdout(out):
+            monitor.install(None, run=FakeRun(), env=env or self.env, system=system, machine='AMD64',
+                            exists=lambda path: False, home=self.home)
+        return 'normal terminal' in out.getvalue()
+
+    def test_inside_the_claude_app_with_a_redirected_copy_it_says_run_from_a_normal_terminal(self):
+        self.assertTrue(self.warned())
+        self.assertTrue(self.warned(dict(self.env, CLAUDECODE='', CLAUDE_CODE_ENTRYPOINT='claude-desktop')))
+
+    def test_a_normal_terminal_is_not_warned(self):
+        self.assertFalse(self.warned(dict(self.env, CLAUDECODE='')))
+
+    def test_without_a_redirected_copy_or_off_windows_there_is_no_warning(self):
+        shutil.rmtree(self.copy)
+        self.assertFalse(self.warned())
+        os.makedirs(self.copy)
+        self.assertFalse(self.warned(system='Darwin'))
+
+    def test_the_warning_blocks_nothing(self):
+        out = StringIO()
+        with redirect_stdout(out):
+            code = monitor.install(None, run=FakeRun(), env=self.env, system='Windows', machine='AMD64',
+                                   exists=lambda path: False, home=self.home)
+        self.assertEqual(code, 0)
 
 
 class NoServerMeansDormant(Home):

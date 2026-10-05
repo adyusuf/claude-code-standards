@@ -127,7 +127,7 @@ Set them in your shell or on the command line. None has to be set; the same list
 | `GATE_CHECK_TEST_DEPLOY` | `0` | `1` makes the prod gate verify the deployed SHA on test (`TEST_VERSION_URL` / `TEST_DEPLOY_SHA_CMD`); by default it does not look at test and warns |
 | `TEST_VERSION_URL`, `TEST_DEPLOY_SHA_CMD`, `E2E_WEB_CMD`, `E2E_MOBILE_CMD` | unset | Test-environment hooks of the gate (read only with `GATE_CHECK_TEST_DEPLOY=1` / `GATE_RUN_E2E=1`). Here the "test tier" is the pushed `test` branch (`scripts/merge-gate.conf`) |
 | `CLAUDE_MONITOR_HOME` | `~/ClaudeCode/claude-monitor` | Where the `claude-monitor` clone is: the live board's launchers look there, and `install.py`'s monitor step clones into it |
-| `CM_AGENT_HOME` | macOS `~/Library/Application Support/ClaudeMonitor`, Windows `%LOCALAPPDATA%\ClaudeMonitor` | claude-monitor's agent reads it; `install.py` reads it only to find the installed `cm-agent` |
+| `CM_AGENT_HOME` | macOS `~/Library/Application Support/ClaudeMonitor`, Windows `%USERPROFILE%\.claude-monitor` (until the agent's move out of AppData it was `%LOCALAPPDATA%\ClaudeMonitor`; `install.py` still finds a `cm-agent` installed there) | claude-monitor's agent reads it; `install.py` reads it only to find the installed `cm-agent` |
 
 **The real-name map.** `docs/project-nicknames.tsv` is git-ignored and local. One
 line per project you work on, tab-separated: `<folder key>`, `<nickname>`, an
@@ -236,6 +236,13 @@ and the output says **DORMANT**. `--monitor-server <url>` uses another API; afte
 - **The log:** every install, `--remove` and `--monitor-sync` writes its whole output — git, dotnet and cm-agent
   included — to `~/.claude-standards/logs/install-<date>-<time>.log` as well as the console, and says where at the end.
   `--check` is read-only and writes none. The agent's own log is `agent.log` in its home (§4, `CM_AGENT_HOME`).
+- **Windows: run the monitor step from a normal terminal, not from inside the Claude desktop app.** The app is a
+  packaged (MSIX) app and every process it starts sees `%LOCALAPPDATA%` redirected to a private copy
+  (`%LOCALAPPDATA%\Packages\<package>\LocalCache\Local\`), so a login made there is invisible to a normal
+  terminal and the other way round. The agent's home therefore lives under `%USERPROFILE%`, which is not redirected.
+  `install.py` prints a warning when such a redirected `ClaudeMonitor` folder exists and it is running inside Claude
+  Code (`CLAUDECODE` / `CLAUDE_CODE_ENTRYPOINT` set). An agent installed before the move keeps working from its old
+  folder until `install.py` runs again (it looks in the new home first, then the old one).
 
 The manual steps, for reference:
 
