@@ -150,6 +150,6 @@ that buffers (`tail`/`head`): write it to a log file and read the table from
 that. **A step that did not run is reported as "did not run", never as passing.**
 
 ⚠️ **Name background tasks by cost:** `FREE - <name>` if no model runs, else the model
-name (`Sonnet 5.5 - <name>`).
+name (`Sonnet 5.5 - <name>`) — and a non-FREE task names its model wherever it is reported.
 
 → Detailed rules: `standards/00-working-method.md` §10, §10c.

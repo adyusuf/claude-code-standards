@@ -1154,3 +1154,11 @@ whether a model was running in it.
 - **Boundary:** only downgrades — a Sonnet/Haiku agent is never raised. "Opus" means the
   model the agent would actually run on, so an inheriting agent in an Opus session counts.
   The role set and the audit chain do not change with the model.
+
+## A non-FREE background task names its model everywhere (05/10/2026, user decision)
+
+- **Request:** "in every background task, if it is not FREE, also say which LLM it uses".
+- **Decision:** §10c's prefix already named the model in the task's *name*; the model now
+  also appears wherever the task is reported — status table row, start/finish lines,
+  the end-of-turn agent report. Under a mode override the name is the override's model.
+  → `standards/00` §10c.
