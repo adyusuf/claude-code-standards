@@ -2,6 +2,15 @@
 
 > The page, the app window and the SessionStart line call it **Claude Monitor** (renamed from "Live Work Board" / "Canlı İş Panosu" at the user's request, 01/10/2026, in the `claude-monitor` repository); this document keeps the name "live board".
 
+> ⚠️ **Status 04/10/2026 — the Python board described here is RETIRED upstream.** `claude-monitor` removed it
+> (commit `86684df`, its ADR-0002; last version: tag `archive/board-final`) for **cm-agent** + a central API and
+> web app, installed by `scripts/install.py` (`SETUP.md` §6). cm-agent has no local page or port and no
+> equivalent of `board.py add`. Everything below still holds for a clone NOT updated past `86684df`; after the
+> update the launchers degrade as §0.3 says (the hook silent, `board_ensure.py` one line naming the removal).
+> Retiring this document, the `board-plan` skill and the board hooks is a separate, approved-first change.
+> ⚠️ `install.py` builds cm-agent from the same default clone (`~/ClaudeCode/claude-monitor`, `CLAUDE_MONITOR_HOME`):
+> updating it for the agent switches this board off — keep the board's clone and build the agent from another.
+
 A local page that shows, while Claude works, which task is where, which agent is
 running on it, what finished — and lets the user **remove a task** or **switch an
 agent off**. It is an **extra view**: the status table in the reply stays mandatory

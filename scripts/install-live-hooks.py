@@ -23,8 +23,8 @@ and collide with the file the next promotion brings. ~/.claude/hooks is a direct
 its own; its links point into the checkout you name with --repo (default: the one this
 script lives in), so a change to a hook is live the moment it is in that checkout.
 
-Safe by construction: settings.json is backed up to ~/.claude/backups before any
-change, an unparsable settings.json aborts with nothing touched, a real file where a
+Safe by construction: settings.json is backed up to ~/.claude-standards/backups/settings
+before any change (outside ~/.claude, whose cleanup prunes old files there), an unparsable settings.json aborts with nothing touched, a real file where a
 symlink belongs is never overwritten, running it twice changes nothing, and other
 entries in settings.json are preserved.
 """
@@ -67,6 +67,13 @@ def save_settings(path, data, trailing_newline):
     with open(temporary, 'w', encoding='utf-8') as handle:
         handle.write(text)
     os.replace(temporary, path)
+
+
+def backups_dir(home):
+    """Where settings.json backups go: OUTSIDE ~/.claude. Claude Code prunes old files under ~/.claude on its
+    own schedule (cleanupPeriodDays), and a CLAUDE.md backup kept there was gone half an hour later
+    (04/10/2026). The same store install.py keeps its install backups in."""
+    return os.path.join(home, '.claude-standards', 'backups', 'settings')
 
 
 def backup(path, backups):
@@ -169,7 +176,7 @@ def install(repo, home):
             changed = True
             print(f'registered {event}: {command}')
     if changed:
-        saved = backup(settings_path, os.path.join(claude, 'backups'))
+        saved = backup(settings_path, backups_dir(home))
         save_settings(settings_path, data, newline)
         print(f'settings.json updated' + (f' (backup: {saved})' if saved else ''))
     else:
@@ -201,7 +208,7 @@ def remove(repo, home):
             if not kept:
                 del data['hooks'][event]
     if changed:
-        backup(settings_path, os.path.join(claude, 'backups'))
+        backup(settings_path, backups_dir(home))
         save_settings(settings_path, data, newline)
         print('hooks removed from settings.json')
     for link, _source in links:

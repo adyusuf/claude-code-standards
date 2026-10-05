@@ -66,6 +66,16 @@ def runtime_id(system, machine):
     return f'{family}-{arch}' if family and arch else None
 
 
+def native_machine(system, machine, run):
+    """The hardware's architecture, not this Python's: an x86_64 Python under Rosetta on Apple silicon reports
+    x86_64, and cm-agent was built for osx-x64 and ran emulated (seen 04/10/2026). macOS says so itself."""
+    if system == 'Darwin' and machine.lower() == 'x86_64':
+        translated = run(['sysctl', '-n', 'sysctl.proc_translated'], capture=True)
+        if translated.returncode == 0 and (translated.stdout or '').strip() == '1':
+            return 'arm64'
+    return machine
+
+
 def binary_name(system):
     return 'cm-agent.exe' if system == 'Windows' else 'cm-agent'
 
@@ -117,7 +127,7 @@ def set_plugin(home, plugin_dir, enabled):
         return enabled
     data.setdefault('extraKnownMarketplaces', {})[MARKETPLACE] = marketplace
     data.setdefault('enabledPlugins', {})[PLUGIN] = enabled
-    settings_io.backup(path, os.path.join(claude, 'backups'))
+    settings_io.backup(path, settings_io.backups_dir(home))
     os.makedirs(claude, exist_ok=True)
     settings_io.save_settings(path, data, newline)
     return enabled
@@ -142,7 +152,7 @@ def install(server=None, run=default_run, env=os.environ, system=platform.system
     binary = installed_binary(env, system)
     if server and exists(binary):                       # already built: connecting needs no rebuild
         return connect(server, run, env, system, home)
-    rid = runtime_id(system, machine)
+    rid = runtime_id(system, native_machine(system, machine, run))
     if not rid:
         print(f'✗ cm-agent ships for macOS and Windows only; this is {system}/{machine}')
         return 2
@@ -168,6 +178,10 @@ def install(server=None, run=default_run, env=os.environ, system=platform.system
     registered = run([os.path.join(out, binary_name(system)), 'install']).returncode
     if registered not in (0, 1):
         print(f'✗ cm-agent install failed (exit {registered})')
+        return 2
+    # Its `claude plugin install` ENABLES the plugin: until the login below is approved (minutes), every session
+    # ran its hooks and queued events (6 seen 04/10/2026). Off again at once unless already connected.
+    if set_plugin(home, os.path.join(agent_home(env, system), 'claude-plugin'), is_connected(run, binary)) is None:
         return 2
     return connect(server, run, env, system, home) if server else sync(run, env, system, home)
 
@@ -226,7 +240,7 @@ def remove(run=default_run, env=os.environ, system=platform.system(), exists=os.
         for key in ('extraKnownMarketplaces', 'enabledPlugins'):
             if key in data and not data[key]:
                 del data[key]
-        settings_io.backup(path, os.path.join(home, '.claude', 'backups'))
+        settings_io.backup(path, settings_io.backups_dir(home))
         settings_io.save_settings(path, data, newline)
         print('  removed   the monitor plugin from settings.json')
     return 0

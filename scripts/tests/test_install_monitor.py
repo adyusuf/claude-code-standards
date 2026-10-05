@@ -77,7 +77,7 @@ class Home(unittest.TestCase):
         return self.settings().get('enabledPlugins', {}).get(monitor.PLUGIN)
 
     def backups(self):
-        folder = os.path.join(self.home, '.claude', 'backups')
+        folder = os.path.join(self.home, '.claude-standards', 'backups', 'settings')
         return os.listdir(folder) if os.path.isdir(folder) else []
 
     def quiet(self, function, *args, **kwargs):
@@ -118,6 +118,28 @@ class RuntimeIds(unittest.TestCase):
         self.assertEqual(monitor.runtime_id('Windows', 'ARM64'), 'win-arm64')
         self.assertEqual(monitor.runtime_id('Darwin', 'arm64'), 'osx-arm64')
         self.assertEqual(monitor.runtime_id('Darwin', 'x86_64'), 'osx-x64')
+
+    def test_rosetta_python_on_apple_silicon_builds_for_arm64(self):
+        def sysctl(answer, code=0):
+            return lambda command, capture=False: subprocess.CompletedProcess(command, code, answer, '')
+        self.assertEqual(monitor.native_machine('Darwin', 'x86_64', sysctl('1\n')), 'arm64')
+        self.assertEqual(monitor.native_machine('Darwin', 'x86_64', sysctl('0\n')), 'x86_64')    # a real Intel Mac
+        self.assertEqual(monitor.native_machine('Darwin', 'x86_64', sysctl('', 1)), 'x86_64')     # no such key
+        self.assertEqual(monitor.native_machine('Windows', 'AMD64', sysctl('1\n')), 'AMD64')     # macOS only
+
+    def test_the_build_uses_the_hardware_architecture(self):
+        run = FakeRun()
+        real = run.__call__
+        run_with_sysctl = lambda command, capture=False: (
+            subprocess.CompletedProcess(command, 0, '1\n', '') if command[0] == 'sysctl' else real(command, capture))
+        home = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, home, True)
+        os.makedirs(os.path.join(home, '.claude'))
+        with redirect_stdout(StringIO()):
+            monitor.install(None, run_with_sysctl, ENV, 'Darwin', 'x86_64', exists=lambda p: p.endswith('Agent'),
+                            home=home)
+        publish = [call for call in run.calls if 'publish' in call]
+        self.assertEqual(publish[0][publish[0].index('-r') + 1], 'osx-arm64')
 
     def test_anything_else_is_none(self):
         self.assertIsNone(monitor.runtime_id('Linux', 'x86_64'))
@@ -166,6 +188,23 @@ class ServerMeansActive(Home):
         self.assertIs(self.enabled(), True)
         login = run.ran('login')[0]
         self.assertEqual(login, [INSTALLED, 'login', '--server', 'https://monitor.example'])
+
+    def test_the_plugin_is_off_while_the_login_waits_for_approval(self):
+        # `cm-agent install` registers through the claude CLI, which ENABLES the plugin; the login then waits
+        # minutes for a person. In that window no hook may run and nothing may be queued.
+        home = self
+        class EnablingInstall(FakeRun):
+            def __call__(self, command, capture=False):
+                if command[-1:] == ['install']:
+                    home.write({'enabledPlugins': {monitor.PLUGIN: True}})
+                if 'login' in command:
+                    self.during_login = home.enabled()
+                return super().__call__(command, capture)
+        run = EnablingInstall()
+        code, _ = self.install(run, server='https://monitor.example')
+        self.assertEqual(code, 0)
+        self.assertIs(run.during_login, False)
+        self.assertIs(self.enabled(), True)                     # and on once connected
 
     def test_connecting_an_installed_agent_does_not_rebuild_it(self):
         run = FakeRun()
