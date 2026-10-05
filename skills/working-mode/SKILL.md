@@ -5,6 +5,15 @@ description: Shows or changes the operating mode (A/B/C/D/E) for this project, o
 
 # Working mode
 
+## 0. At session start — ASK (every interactive session)
+
+Before any other work, one `AskUserQuestion` with two questions — the mode (recommended:
+the §1 read result, or the lowest sufficient mode for the first request) and what
+replaces Opus (keep the defined models · sonnet · haiku · fable). Apply the answer with
+§4 **as `--once`** (scratchpad only, never `.claude/mode`), then start the work. Not
+asked when the first message names the mode, when `$S/mode` already exists, in any
+agent, or in a non-interactive run. Rules: `~/.claude/modes/README.md` › *Session start*.
+
 ## 1. Read the current mode
 
 Priority order: **session-scoped selection** → project file → B.
