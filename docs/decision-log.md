@@ -308,6 +308,15 @@ merge to `test` — each stage is its own batch and `test` stays the user's deci
 **Why:** per-branch runs multiply gate time, and a fix patched on the batch branch is lost to the
 sub-branch's history. → `standards/13-pr-and-review.md` §8, `standards/00-working-method.md` §11.7
 
+**User decision 05/10/2026 — producers are not gated one by one.** Agents, subagents and background tasks
+finish their own work (code + its unit tests, at most a narrow run of their own piece) and hand it to the
+orchestrator; nothing is reviewed, fully test-run or gated per sub-branch. The orchestrator merges every ready
+branch into one batch, then ONE code review, ONE test run and ONE gate run on the merged result. The auditor
+also judges the test and gate results (failures, SKIPPED steps, warnings, coverage figures, run validity) and
+sends findings back to the producing sub-branch. Why: per-branch review/test/gate multiplied cost and time
+(gates are long) and still said nothing about the merged result. Operational text:
+`standards/13-pr-and-review.md` §8 steps 0, 1a, 2a; `modes/README.md` › *One review, one test run, one gate*.
+
 ## §27 — The operating mode is selectable per project; the selection is the approval
 
 - **A** Skill (no agents; chosen explicitly) ·
@@ -1178,9 +1187,14 @@ whether a model was running in it.
 - **What was already true:** `13` §8 batched the test run and the gate for promotions
   (29–30/09/2026). New: it reaches each producer's own work, the review is consolidated
   too, and the auditor's input is the diff **plus** the test and gate logs.
-- **Trade-off, accepted by the request:** a piece that does not even compile is found only
-  by the combined run, and the send-back costs a round trip. The gain is one review, one
-  run and one gate instead of N, and the review sees the interactions between pieces.
+- **Narrow run allowed (same day, user answer):** two sessions wrote this rule in
+  parallel — one committed (no run at all by a producer), one left uncommitted in the live
+  worktree (a narrow run allowed, plus the auditor reading warnings, coverage and run
+  validity). The user chose to merge both and to allow **a narrow run of the producer's
+  own piece**; the full suite, the review and the gate stay on the combined branch. The
+  rule now lives once in `CLAUDE.md` (#26.3), not under both #26 and #28.
+- **Gain:** one review, one run and one gate instead of N, and the review sees the
+  interactions between pieces.
 
 ## Every session asks the mode and the Opus replacement first (05/10/2026, user decision)
 
