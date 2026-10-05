@@ -1,6 +1,6 @@
 ---
 name: working-mode
-description: Shows or changes the operating mode (A/B/C/D/E) for this project. The mode determines agent usage, review and the approval policy. Use it when the user says "/adyusuf:working-mode", "change the mode", "which mode are we in", "work as a full team", or "work without agents".
+description: Shows or changes the operating mode (A/B/C/D/E) for this project, optionally with a model that replaces Opus for the Opus agents ("C sonnet"). The mode determines agent usage, review and the approval policy. Use it when the user says "/adyusuf:working-mode", "change the mode", "which mode are we in", "work as a full team", or "work without agents".
 ---
 
 # Working mode
@@ -11,8 +11,15 @@ Priority order: **session-scoped selection** → project file → B.
 
 ```bash
 S="<the Scratchpad Directory from the system prompt>"   # session-scoped, survives compaction
-cat "$S/mode" 2>/dev/null || cat "$(git rev-parse --show-toplevel 2>/dev/null || pwd)/.claude/mode" 2>/dev/null || echo B
+root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+if [ -f "$S/mode" ]; then d="$S"; elif [ -f "$root/.claude/mode" ]; then d="$root/.claude"; else d=""; fi
+echo "mode: $( [ -n "$d" ] && cat "$d/mode" || echo B )"
+echo "opus agents run on: $( [ -n "$d" ] && cat "$d/mode-model" 2>/dev/null || echo 'their defined model' )"
 ```
+
+The model override is read **from the layer that supplied the letter** — a session
+letter without `$S/mode-model` means "defined models", even if the project file has
+an override. Rules: `~/.claude/modes/README.md` › *Model override*.
 
 If none of them exists the mode is **B**. B's three agents (`analyst`,
 `test-writer`, `doc-writer`) are approved along with the default. If the user
@@ -39,8 +46,12 @@ Show the current mode, what it means and the other options **briefly**: letter +
 name + agent set + who reviews + cost multiplier. Do not paste the whole matrix;
 5-6 lines are enough (A-E).
 
-## 4. If a letter is given (`/adyusuf:working-mode B`)
+## 4. If a letter is given (`/adyusuf:working-mode B`, `/adyusuf:working-mode C sonnet`)
 
+0. Split the argument: the letter, an optional **model word**, an optional `--once`/`--tek`.
+   The model word must be `sonnet` · `haiku` · `fable` · `opus`; anything else is
+   rejected with that list and **nothing is written**. `opus` is the same as no model
+   word.
 1. Validate the letter (**A/B/C/D/E**). ⚠️ **D and E swapped places**: D is now the
    14-role wide team and E is fan-out (`Workflow`). Correct any "D = fan-out"
    expectation carried over from older sessions. Reject an invalid letter and
@@ -58,9 +69,22 @@ name + agent set + who reviews + cost multiplier. Do not paste the whole matrix;
    If `--once` was given, do **not** write `.claude/mode`; write the scratchpad
    instead: `printf '%s\n' "B" > "$S/mode"` (session-scoped; it overrides the
    project file in the priority order of §1).
+2a. Write or clear the model override **in the same directory** as the letter
+   (`$root/.claude` or `$S`):
+   ```bash
+   dir="$root/.claude"   # or "$S" with --once
+   if [ -n "$model" ] && [ "$model" != opus ]; then printf '%s\n' "$model" > "$dir/mode-model"; else rm -f "$dir/mode-model"; fi
+   ```
+   ⚠️ The letter alone **clears** the override — that is how the user returns to the
+   defined models. Never keep an old `mode-model` next to a newly written letter.
+   `.claude/mode` stays a single letter (the live board and other readers parse it).
 3. Read the new mode's file and **follow its rules from that point on**.
 4. Confirm to the user: old mode → new mode, and what changed (agent set, who
-   reviews, approval policy, expected multiplier). 4-6 lines.
+   reviews, approval policy, expected multiplier) **and the model line**: which
+   agents are Opus by definition and what they run on now. 4-6 lines.
+5. **From then on**, every `Agent` call to an agent whose effective model is Opus
+   passes `model: "<model>"` (and every `Workflow` `agent()` for such a role); other
+   agents get no override. Report the model that actually ran.
 
 ## Permanent rules
 
@@ -74,5 +98,7 @@ name + agent set + who reviews + cost multiplier. Do not paste the whole matrix;
 - The mode **never** loosens any of these: approval for irreversible work, the
   promotions over a red or incomplete gate, the completeness check before
   "done", secrets staying out of the repository.
+- `.claude/mode-model` is committed with `.claude/mode` (same narrow gitignore
+  exception); with no override the file does not exist.
 - A mode change is **not retroactive** — work done in earlier turns is not
   re-evaluated.

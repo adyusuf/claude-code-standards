@@ -306,7 +306,13 @@ the title of the board row that tracks it.
 
 - ⚠️ **The prefix is the model that actually runs**, as the `model` of the call or the
   agent definition says — never a guess. An agent with no override inherits the parent's
-  model: name that one.
+  model: name that one. Under a mode override (`C sonnet`, `modes/README.md` › *Model
+  override*) an Opus agent is named by the override, not by its definition.
+- **Every background task that is not FREE names its model EVERYWHERE it appears**
+  (user decision 05/10/2026), not only in its name: the status table row, the "started /
+  still running / finished" line in the reply, the end-of-turn agent report and the
+  answer to "what is running". One task, one model name, the same in every view — a
+  non-FREE task reported without its model is an incomplete report.
 - **FREE means no model runs INSIDE the task.** The notification that wakes the session
   when the task ends is a turn of the session, not of the task, and is not what the
   prefix describes.
