@@ -45,6 +45,12 @@ def target(script: str) -> Path:
 
 
 def missing_text(script: str) -> str:
+    if monitor_home().is_dir():
+        # A clone that is there but has no board: claude-monitor REMOVED the Python board (86684df, its ADR-0002)
+        # for cm-agent. Telling that clone to `git clone` again would be wrong advice.
+        return (f"{monitor_home()} has no {APP_SUBDIR / script} — claude-monitor removed the Python live board "
+                "(its last version is the tag archive/board-final); the replacement is cm-agent, installed by "
+                "install.py (SETUP.md §6)")
     return (f"claude-monitor is not installed at {monitor_home()} (the live board is off): "
             f"git clone {REPO_URL} {monitor_home()}   # or set {HOME_ENV}")
 

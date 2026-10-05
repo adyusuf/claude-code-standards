@@ -512,8 +512,8 @@ python3 ~/ClaudeCode/claude-code-standards/scripts/install.py --remove        # 
 beside the clone and connect the agent to that channel's monitor API (the table
 is in [`SETUP.md`](SETUP.md) §6).
 
-Anything of yours already in `~/.claude` is moved to `~/.claude/backups`, never
-deleted. The hooks are wired through `scripts/install-live-hooks.py` rather than
+Anything of yours already in `~/.claude` is moved to `~/.claude-standards/backups`
+(outside `~/.claude`, whose cleanup prunes old files), never deleted. The hooks are wired through `scripts/install-live-hooks.py` rather than
 by hand, because `~/.claude/scripts` is itself a symlink into the checkout and a
 new file there would show up as untracked in `prod`.
 
