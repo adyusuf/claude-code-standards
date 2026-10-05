@@ -122,11 +122,23 @@ When writing a comment: **what** is wrong + **why** it matters + **a suggestion*
   batch loses the per-task history (#26).
 - **Batch promotion (#26, user decisions 29/09/2026 and 30/09/2026 — gates are long).** Promotions to
   `dev` and to `test` are made in batches, never one feature / worktree at a time:
+  0. **Producers hand off, they are not gated (user decision 05/10/2026, every mode —
+     `modes/README.md` › *One review, one test run, one gate*).** An agent, subagent, `Workflow`
+     agent or background task does its OWN job to the end — code, then its unit tests (#32), plus
+     only the narrow run it needs to trust its own piece — and hands the branch to the orchestrator.
+     It is never code-reviewed, fully test-run or gated on its own; those happen once, on the batch.
   1. **Collect:** every READY sub-branch (feature branch or worktree branch, each task in its own
      commit(s)) is merged with `--no-ff` into one batch branch cut from the fresh target. No
      per-branch test or gate run happens before this — the tests and the gate run ONCE, on the batch.
+  1a. **ONE code review on the merged batch** — not one per sub-branch. Findings are attributed to
+     the sub-branch that produced them (step 3).
   2. **Run:** the full test suite and the gate run on the batch (#31: the whole run, no stop at the
      first failure; every failure classified and attributed to the sub-branch that caused it).
+  2a. **The auditor judges the RESULTS, not only the code:** it reads the test run and the gate
+     output (every failure, SKIPPED step, warning, and the measured coverage figures — #29, #25),
+     checks that the run was the whole run and valid (#31), and that nothing was loosened to pass.
+     A gap or wrong result is sent back to the producing sub-branch (#28 hand-back, same
+     closure rule); a batch with an open finding does not promote.
   3. **Fix where it was born:** each failure is fixed **on its own sub-branch** (its own commit),
      never as a patch on the batch branch; the fixed sub-branches are merged into the batch again,
      together.

@@ -308,6 +308,15 @@ merge to `test` — each stage is its own batch and `test` stays the user's deci
 **Why:** per-branch runs multiply gate time, and a fix patched on the batch branch is lost to the
 sub-branch's history. → `standards/13-pr-and-review.md` §8, `standards/00-working-method.md` §11.7
 
+**User decision 05/10/2026 — producers are not gated one by one.** Agents, subagents and background tasks
+finish their own work (code + its unit tests, at most a narrow run of their own piece) and hand it to the
+orchestrator; nothing is reviewed, fully test-run or gated per sub-branch. The orchestrator merges every ready
+branch into one batch, then ONE code review, ONE test run and ONE gate run on the merged result. The auditor
+also judges the test and gate results (failures, SKIPPED steps, warnings, coverage figures, run validity) and
+sends findings back to the producing sub-branch. Why: per-branch review/test/gate multiplied cost and time
+(gates are long) and still said nothing about the merged result. Operational text:
+`standards/13-pr-and-review.md` §8 steps 0, 1a, 2a; `modes/README.md` › *One review, one test run, one gate*.
+
 ## §27 — The operating mode is selectable per project; the selection is the approval
 
 - **A** Skill (no agents; chosen explicitly) ·
@@ -1162,3 +1171,42 @@ whether a model was running in it.
   also appears wherever the task is reported — status table row, start/finish lines,
   the end-of-turn agent report. Under a mode override the name is the override's model.
   → `standards/00` §10c.
+
+## One review, one test run, one gate — on the combined work (05/10/2026, user decision)
+
+- **Request:** "in whatever mode, do not put the separate work of agents, subagents or
+  background tasks through code review, tests and the gate separately; do what can be
+  done together together. Each does its work, writes the code and the tests, finishes what
+  it must do alone and hands off to the orchestrator; the orchestrator merges all the
+  branches and runs one code review, one test run and one gate; the auditor also evaluates
+  the test and gate results and sends back what it finds."
+- **Decision:** `modes/README.md` › *One review, one test run, one gate*. `developer` and
+  `test-writer` no longer run build/lint/tests; `qa` gains axis 7 (the combined run's
+  results); `role-selection.md` §2 shows the combined flow; `standards/13` §8 step 1
+  names the producers and the review.
+- **What was already true:** `13` §8 batched the test run and the gate for promotions
+  (29–30/09/2026). New: it reaches each producer's own work, the review is consolidated
+  too, and the auditor's input is the diff **plus** the test and gate logs.
+- **Narrow run allowed (same day, user answer):** two sessions wrote this rule in
+  parallel — one committed (no run at all by a producer), one left uncommitted in the live
+  worktree (a narrow run allowed, plus the auditor reading warnings, coverage and run
+  validity). The user chose to merge both and to allow **a narrow run of the producer's
+  own piece**; the full suite, the review and the gate stay on the combined branch. The
+  rule now lives once in `CLAUDE.md` (#26.3), not under both #26 and #28.
+- **Gain:** one review, one run and one gate instead of N, and the review sees the
+  interactions between pieces.
+
+## Every session asks the mode and the Opus replacement first (05/10/2026, user decision)
+
+- **Request:** "when every session opens, ask which mode and what to use instead of Opus;
+  the session starts accordingly."
+- **Decision:** `modes/README.md` › *Session start*; #27's "How to apply" now asks instead
+  of starting silently in B. The answer is written with `--tek` (scratchpad), so a
+  per-session choice never rewrites the committed `.claude/mode`.
+- **Boundaries:** not asked when the first message names the mode, after compaction
+  (`$S/mode` exists), inside any agent, or in a non-interactive run — none of those has
+  someone to answer, and asking there would stall the run. The old "start in B and
+  propose" text survives as the source of the recommended option and as the rule where
+  nobody can be asked.
+- **Not done:** no `SessionStart` hook enforces it; the rule is in `CLAUDE.md` #27, which
+  every session loads. A hook could inject a reminder if sessions are seen skipping it.

@@ -42,8 +42,8 @@ report with the §7 completeness-check block, which
 | `analyst` | B+ | the orchestrator re-runs the command the analyst returned and compares the count | the analyst's own command (`grep -rn …`, `rg -c`) | yes |
 | `architect` | C+ | **the orchestrator** — a written exemption from the block; an implementation that deviates from the plan comes back to the orchestrator | the checks below: plan paths exist, then `git diff --name-only` against the file plan | no |
 | `designer` | C+ | **the orchestrator** audits the flow and state decisions; once the interface code exists, `qa` | the checks below, then `qa`'s `Verification` command on the diff | no |
-| `developer` | C+ | `qa`, then the orchestrator verifies the critical findings | `qa`'s `Verification` command | no |
-| `test-writer` | B+ | `qa` reviews the diff in parallel (§2) | `qa`'s `Verification` command | yes |
+| `developer` | C+ | `qa` on the combined diff + test/gate results, then the orchestrator verifies the critical findings | `qa`'s `Verification` command | no |
+| `test-writer` | B+ | `qa` on the combined diff + test/gate results (§2; in B: the orchestrator) | `qa`'s `Verification` command | yes |
 | `devops` | C+ | `qa` (infrastructure diffs are in scope) | `qa`'s `Verification` command | yes |
 | `doc-writer` | B+ | the orchestrator verifies the permanent decision (rule files are outside `qa`) | reading the written text against the decision | no |
 | `qa` | C+ | the orchestrator verifies the critical findings | the `Verification` line of its own block | yes |
@@ -85,6 +85,36 @@ own by matching its `description`; in A that is **not followed**, and in B/C/D i
 followed only if the agent is within that mode's set.
 
 
+## One review, one test run, one gate — on the combined work (PERMANENT, every mode; user decision 05/10/2026)
+
+Whoever produces a piece — an agent, a subagent, a `Workflow` agent, a background task, or
+me working on one piece — **does its own work and stops there**: it writes the code, writes
+the tests, runs **at most a narrow run of its own piece** (its own new/changed tests — never
+the full suite), commits on its own branch and hands off to the orchestrator. It does **not**
+get a code review, does **not** run the full suite and does **not** run a gate for its piece.
+
+1. **The orchestrator combines.** When every piece of the task list is handed off, the
+   orchestrator merges all the branches into ONE combined branch (`standards/13` §8 —
+   `--no-ff`, each task's commits kept).
+2. **Once, on the combined branch:** ONE code review (the review the mode prescribes —
+   `qa` in C/D/E, me in A/B — of the combined diff), ONE full test run (#31: the whole suite,
+   no stop at the first failure) and ONE gate. They may run side by side (the review does not
+   wait for the tests).
+3. **The auditor judges the results too, not only the diff.** The auditor (`qa` in C/D/E, me
+   in A/B) reads the test run's log and the gate's log: every failure classified (#31) and
+   **attributed to the piece that caused it**, every SKIPPED step treated as not passed (#25),
+   every warning, the coverage figure per codebase (#29), whether the run was the whole valid
+   run (#31), and that nothing was loosened to pass.
+   A problem in the diff, the tests or the gate is **sent back to its producer** (#28 hand-back:
+   what · evidence · what to do), fixed on that piece's own branch, and merged again.
+4. **Re-verification after the fixes** follows `standards/13` §8.4: only the failed tests (and
+   what the fix could affect) towards `dev`, the full suite towards `test`, then the gate once
+   more; the auditor re-reads the new results. #28's ceiling (3 passes) applies.
+
+What the producer reports: the files, the tests it wrote, the narrow run's command and raw
+result if it ran one (or "not run"), and the command for the full run. A narrow green run
+is the producer's own confidence, **never** a substitute for the combined run.
+
 ## Rules OUTSIDE the mode, applying in every mode
 
 - Irreversible work (deploy, `DROP`, force push, sending anything outward) →
@@ -92,7 +122,38 @@ followed only if the agent is within that mode's set.
 - The `test`/`prod` promotion → the user says so explicitly **in every mode**.
 - The completeness check before "done" (global #24) → the same in every mode.
 
+## Session start — ASK the mode and the Opus replacement (PERMANENT, all projects; user decision 05/10/2026)
+
+Every interactive session begins with **one `AskUserQuestion`** carrying two questions,
+**before any other work** (reading the mode files is the only thing that comes first):
+
+1. **Mode** — the recommended option is the read order's result (a `--tek` selection →
+   `.claude/mode` → B), or the lowest sufficient mode for the first request when that is
+   higher (the rules of the next section); up to three other letters; "Other" takes any
+   letter.
+2. **What replaces Opus** — `Keep the defined models` (recommended unless a
+   `mode-model` exists, which is then preselected) · `sonnet` · `haiku` · `fable`.
+
+The answer is applied as `/adyusuf:working-mode <letter> [<model>] --tek` — written to the
+session scratchpad (`$S/mode`, `$S/mode-model`), **never** to the project file — and the
+session's work starts on it. The first request is then carried out in the same turn.
+
+**Not asked:**
+- the user's first message already names the mode (`C sonnet`, `/adyusuf:working-mode …`)
+  → that is applied instead;
+- `$S/mode` already exists — the same session after compaction, already answered;
+- a subagent, a `Workflow` agent, a teammate — they never ask the user;
+- a non-interactive run (`claude -p`, a scheduled task, an autonomous run, a cloud session
+  with nobody to answer) → the read order applies silently.
+
+If the question is dismissed unanswered, the read order applies and the work continues.
+
 ## If no mode is given — PROPOSE the cheapest and fastest
+
+> Since 05/10/2026 the session-start question above comes first. This section is what
+> shapes its **recommended** option, and it applies as-is wherever the question is not
+> asked (non-interactive runs). In a project with no mode file, B's three agents may be
+> invoked without asking; the other eleven roles require C/D/E.
 
 If the project carries no `.claude/mode` **and** the user has not named a mode:
 
