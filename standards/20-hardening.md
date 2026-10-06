@@ -63,6 +63,28 @@ Cross-Origin-Opener-Policy: same-origin
 - Request Filtering blocks hidden files (`.env`, `.git`, `appsettings*.json`, `*.bak`, `*.pdb`).
 - Auto-pull/deploy jobs log which directory they updated, and there is a guard against the wrong environment.
 
+### 6a. Where things live and what they are called (user decision 06/10/2026)
+
+- **Root: `C:\iis`.** Every IIS-served deployment lives under it — not `C:\inetpub`, not a product folder at
+  the drive root, not a working checkout (`C:\Work\...`).
+- **One main folder per environment: `C:\iis\<domain>_<env>`.** `<domain>` is the host name the environment
+  answers on, `<env>` is `test` or `prod` (dev is not deployed on a server). `monitor.bitreka.com` in
+  production is `C:\iis\monitor.bitreka.com_prod`. Test and production never share a directory (above).
+- **Components below it: `api\`, `web\`, `admin\` …**, one folder per deployable. Beneath a component folder the
+  layout is the project's own (for example `releases\<commit>` with the live one pointed at) and is written in
+  its `SETUP.md`. The main folder's other contents — the environment file, backups, archives, logs — sit
+  **beside** the components, never inside a folder IIS serves; Request Filtering is the second line, not the first.
+- **IIS names: `<main folder name>_<component>`**, for the site (or application) and for its application pool:
+  `monitor.bitreka.com_prod_api`, `monitor.bitreka.com_prod_web`. A site and its pool carry the same name (one
+  pool per site, above), so a `w3wp` in Task Manager, an event-log line or a deploy log leads to exactly one folder.
+- **Whether `web` and `api` are separate sites (own host names) or applications of one site** is decided per
+  project in its ADR; #17 prefers one origin. The naming rule is the same either way.
+- **Scripts read the root and the names from one place** (#2) — their own configuration — never a literal path
+  repeated across setup, deploy, backup and health scripts.
+- **An existing deployment is moved, not renamed in place:** the new site and pool come up beside the old one, the
+  binding is switched, the old one stays until the check passes and is removed afterwards. A move is a deploy and
+  needs the same approval.
+
 ## 7. Docker / containers
 
 - A non-root user (`USER app`); a read-only root filesystem where possible.
