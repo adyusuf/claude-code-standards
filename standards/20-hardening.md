@@ -74,11 +74,14 @@ Cross-Origin-Opener-Policy: same-origin
   layout is the project's own (for example `releases\<commit>` with the live one pointed at) and is written in
   its `SETUP.md`. The main folder's other contents — the environment file, backups, archives, logs — sit
   **beside** the components, never inside a folder IIS serves; Request Filtering is the second line, not the first.
-- **IIS names: `<main folder name>_<component>`**, for the site (or application) and for its application pool:
-  `monitor.bitreka.com_prod_api`, `monitor.bitreka.com_prod_web`. A site and its pool carry the same name (one
-  pool per site, above), so a `w3wp` in Task Manager, an event-log line or a deploy log leads to exactly one folder.
-- **Whether `web` and `api` are separate sites (own host names) or applications of one site** is decided per
-  project in its ADR; #17 prefers one origin. The naming rule is the same either way.
+- **One site and one application pool per environment, named after the main folder:** `monitor.bitreka.com_prod`.
+  The components (`api\`, `web\` …) are **folders, not IIS sub-applications and not pools of their own** (user
+  decision 06/10/2026: "do not split web, api … into sub-applications and pools"). A site and its pool carry the
+  same name (one pool per site, above), so a `w3wp` in Task Manager, an event-log line or a deploy log leads to
+  exactly one folder.
+- **Only when a project really runs its components as separate sites** (own host names, decided in its ADR;
+  #17 prefers one origin) is each named `<main folder name>_<component>`, e.g. `…_prod_api`, `…_prod_web`, each
+  with its own pool.
 - **Scripts read the root and the names from one place** (#2) — their own configuration — never a literal path
   repeated across setup, deploy, backup and health scripts.
 - **An existing deployment is moved, not renamed in place:** the new site and pool come up beside the old one, the
