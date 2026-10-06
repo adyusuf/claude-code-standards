@@ -1224,11 +1224,15 @@ whether a model was running in it.
 - **Decision:** `standards/20-hardening.md` §6a (the rule) and a one-line pointer in `14-devops.md` §1. The
   rule fixes the top two levels (`C:\iis\<domain>_<env>\<component>`) and the names, not what lies below a
   component folder.
-- **Two choices that were mine, flagged for the user:** (1) the environment file, backups and archives sit
-  BESIDE the component folders, never inside one IIS serves — the user said "api, web, etc. under it" and a
-  secret file next to `web\` would be one mistake from being served; (2) the rule leaves open whether `web` and
-  `api` are separate sites or applications of one site, because that is an architecture choice (#17 prefers
-  one origin) and, for claude-monitor, the API serves the web app itself today.
-- **Not done:** no existing deployment was moved. claude-monitor's server scripts
-  (`deploy/windows/*.ps1`, scheduled tasks, `monitor.env`) still use `C:\ClaudeMonitor` and
-  `ClaudeMonitor-<env>`; moving them is a deploy and was not approved yet.
+- **One choice that was mine, flagged for the user:** the environment file, backups and archives sit BESIDE
+  the component folders, never inside one IIS serves — the user said "api, web, etc. under it" and a secret
+  file next to `web\` would be one mistake from being served.
+- **Corrected the same day (user):** the first wording left it open whether `web` and `api` were separate
+  sites or applications, and its names ended in `_<component>`. The user's answer: **do not split them into
+  sub-applications and pools** — one site and one pool per environment, named after the main folder
+  (`monitor.bitreka.com_prod`); the components are folders. The `_<component>` names remain only for a
+  project that really runs separate sites. For claude-monitor this is also what the code does: the API
+  process serves the web app itself (`MONITOR_WEB_ROOT`).
+- **Not done at the time of this entry:** no existing deployment was moved. claude-monitor's server scripts
+  (`deploy/windows/*.ps1`, scheduled tasks, `monitor.env`) used `C:\ClaudeMonitor` and `ClaudeMonitor-<env>`.
+  The move follows as a deploy (below the standard's own "a move is a deploy" rule).

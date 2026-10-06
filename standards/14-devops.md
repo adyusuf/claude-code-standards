@@ -9,7 +9,7 @@
 | **test** | Acceptance + e2e | Realistic, masked | Promotion with approval |
 | **prod** | Live | Real | **Explicit user approval** |
 
-- On a Windows/IIS server the folders, site names and pool names follow `20-hardening.md` §6a (`C:\iis\<domain>_<env>\<component>`, names `<domain>_<env>_<component>`).
+- On a Windows/IIS server the folders, site names and pool names follow `20-hardening.md` §6a (`C:\iis\<domain>_<env>\<component>`; one site and one pool per environment, named `<domain>_<env>`).
 - Every environment has its own config, its own secrets and its own database. Connection strings must never mix (put the environment name in the connection name).
 - If test and prod are hosted on the same server there must be a **separate worktree + separate site + separate service + separate backup job**; mixing them writes test code into production.
 - Environment variables never live in the repository; only `.env.example` (a valueless template) is committed.
