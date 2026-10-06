@@ -1210,3 +1210,25 @@ whether a model was running in it.
   nobody can be asked.
 - **Not done:** no `SessionStart` hook enforces it; the rule is in `CLAUDE.md` #27, which
   every session loads. A hook could inject a reminder if sessions are seen skipping it.
+
+## IIS layout and names on Windows servers (06/10/2026, user decision)
+
+- **Request:** "do the IIS site installations under `c:\iis`; `<domain>_<test|prod>` is the main folder
+  and `api`, `web` … go under it; the IIS application and pool names are `<main folder name>_<api|web|…>`."
+  The user's `pro` is read as `prod`, the name the environments already carry everywhere.
+- **Why:** measured on the one Windows server on 06/10/2026 — 28 IIS sites, 26 of them other
+  projects', their paths under `C:\inetpub\<project>` and `C:\Work\...`, their names in at least three
+  styles (`KolektifAgProdApi`, `BTTakvimWeb`, `ClaudeMonitor-prod`). claude-monitor itself sat in a fourth place,
+  `C:\ClaudeMonitor\<env>`, as `ClaudeMonitor-<env>`. A name seen in Task Manager or the event log did not
+  say which domain or environment it served.
+- **Decision:** `standards/20-hardening.md` §6a (the rule) and a one-line pointer in `14-devops.md` §1. The
+  rule fixes the top two levels (`C:\iis\<domain>_<env>\<component>`) and the names, not what lies below a
+  component folder.
+- **Two choices that were mine, flagged for the user:** (1) the environment file, backups and archives sit
+  BESIDE the component folders, never inside one IIS serves — the user said "api, web, etc. under it" and a
+  secret file next to `web\` would be one mistake from being served; (2) the rule leaves open whether `web` and
+  `api` are separate sites or applications of one site, because that is an architecture choice (#17 prefers
+  one origin) and, for claude-monitor, the API serves the web app itself today.
+- **Not done:** no existing deployment was moved. claude-monitor's server scripts
+  (`deploy/windows/*.ps1`, scheduled tasks, `monitor.env`) still use `C:\ClaudeMonitor` and
+  `ClaudeMonitor-<env>`; moving them is a deploy and was not approved yet.
