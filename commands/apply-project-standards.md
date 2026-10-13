@@ -84,22 +84,16 @@ Definitions are in `${CLAUDE_PLUGIN_ROOT}/modes/README.md`, the rule in `${CLAUD
 (narrow `!.claude/mode` and `!.claude/mode-model` exceptions are needed) — they are a
 project setting, not personal session state.
 
-## 6a. Live board (default for new projects — `${CLAUDE_PLUGIN_ROOT}/standards/22-live-board.md`)
+## 6a. Plan file (`${CLAUDE_PLUGIN_ROOT}/standards/22-live-board.md`)
 
-So that sessions in this project appear on the one board (`http://127.0.0.1:8765`), receive
-the user's board decisions and start the board by themselves:
+`/adyusuf:board-plan` keeps each session's plan in `.claude/board/plan-<session>.md`.
 
-1. Merge the hooks block of `standards/22-live-board.md` §2 into `.claude/settings.json` —
-   **merge, never overwrite**: keep every hook the project already has. Copy the block from
-   the standard, not from memory, so the two do not drift.
-2. `.gitignore`: `.claude/board/` must be ignored (runtime data). If `.claude/*` is ignored,
-   add the narrow exception `!.claude/settings.json` next to `!.claude/mode` — the hooks
-   are a project setting and must be committed.
-3. Verify: `git check-ignore -v .claude/board/x` matches and `git check-ignore .claude/settings.json`
-   does not; `python3 -m json.tool .claude/settings.json` parses.
-
-A running session usually picks the hooks up at once; the auto-start (`SessionStart`) runs
-from the next session on.
+1. `.gitignore`: `.claude/board/` must be ignored (runtime data). Verify:
+   `git check-ignore -v .claude/board/x` matches.
+2. A project wired to the OLD live board still has its hooks in `.claude/settings.json`
+   (commands running `scripts/board/board_*.py`): remove those entries — **merge, never
+   overwrite**, keep every other hook — and check `python3 -m json.tool .claude/settings.json`.
+   Report it; the board they fed no longer exists (`standards/22` §2).
 
 ## 7. Report
 

@@ -108,7 +108,7 @@ name + agent set + who reviews + cost multiplier. Do not paste the whole matrix;
    ```
    ⚠️ The letter alone **clears** the override — that is how the user returns to the
    defined models. Never keep an old `mode-model` next to a newly written letter.
-   `.claude/mode` stays a single letter (the live board and other readers parse it).
+   `.claude/mode` stays a single letter (other readers parse it).
 3. Read the new mode's file and **follow its rules from that point on**.
 4. Confirm to the user: old mode → new mode, and what changed (agent set, who
    reviews, approval policy, expected multiplier) **and the model line**: which
