@@ -7,5 +7,8 @@
   "homepage": "https://github.com/adyusuf/claude-code-standards",
   "repository": "https://github.com/adyusuf/claude-code-standards",
   "license": "MIT",
-  "privacyPolicyUrl": "https://github.com/adyusuf/claude-code-standards/blob/prod/PRIVACY.md"
+  "privacyPolicyUrl": "https://github.com/adyusuf/claude-code-standards/blob/prod/PRIVACY.md",
+  "supportUrl": "https://github.com/adyusuf/claude-code-standards/issues",
+  "documentationUrl": "https://github.com/adyusuf/claude-code-standards/blob/prod/SETUP.md",
+  "termsOfServiceUrl": "https://github.com/adyusuf/claude-code-standards/blob/prod/LICENSE"
 }
