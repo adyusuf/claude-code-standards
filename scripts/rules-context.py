@@ -106,7 +106,7 @@ def mode_parts(text, mode, registered):
     limit = PART_LIMIT
     while True:
         cut = parts(text, limit)
-        if all(len(output(mode, cut, n, max(registered, len(cut)))) < HOOK_LIMIT
+        if all(len(output(mode, cut, n, registered)) < HOOK_LIMIT
                for n in range(1, len(cut) + 1)) or limit <= 1000:
             return cut
         limit -= 250

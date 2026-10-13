@@ -146,16 +146,22 @@ class Render(unittest.TestCase):
 
 class Limits(unittest.TestCase):
     def assert_all_outputs_under_limit(self, text):
+        """Every hook of an event printed for registered < parts needed (the last one carries
+        the WARNING), == parts needed, and > parts needed."""
         with tempfile.TemporaryDirectory() as tmp:
             path = os.path.join(tmp, 'CLAUDE.md')
             with open(path, 'w', encoding='utf-8') as handle:
                 handle.write(text)
             for mode in ('session', 'subagent'):
-                total = len(rc.mode_parts(text, mode, 1))
-                for part in range(1, total + 1):
-                    code, out, _ = run_main([mode, str(part), str(total)], rules_path=path)
-                    self.assertEqual(code, 0)
-                    self.assertLess(len(out), rc.HOOK_LIMIT, f'{mode} part {part}/{total} printed {len(out)} characters')
+                needed = len(rc.mode_parts(text, mode, 50))
+                self.assertGreaterEqual(needed, 2, 'the text must need several parts to cover registered < parts')
+                for registered in (1, needed - 1, needed, 50):
+                    printed = len(rc.mode_parts(text, mode, registered))
+                    for part in range(1, min(printed, registered) + 1):
+                        code, out, _ = run_main([mode, str(part), str(registered)], rules_path=path)
+                        self.assertEqual(code, 0)
+                        self.assertLess(len(out), rc.HOOK_LIMIT,
+                                        f'{mode} part {part}, {registered} registered: printed {len(out)} characters')
 
     def test_rendered_text_including_header_is_under_the_cap_for_the_real_rules(self):
         for number in range(1, len(REAL_PARTS) + 1):
@@ -210,13 +216,35 @@ class ModeParts(unittest.TestCase):
         self.assertEqual(''.join(subagent), text)
         # the unshrunk single part really is too big once enveloped (else this proves nothing)
         self.assertGreaterEqual(len(rc.output('subagent', session, 1, 4)), rc.HOOK_LIMIT)
-        registered = max(4, len(subagent))
         for number in range(1, len(subagent) + 1):
-            self.assertLess(len(rc.output('subagent', subagent, number, registered)), rc.HOOK_LIMIT, number)
+            self.assertLess(len(rc.output('subagent', subagent, number, 4)), rc.HOOK_LIMIT, number)
 
-    def test_the_parts_depend_only_on_text_and_mode_not_on_the_hook(self):
+    def test_every_hook_of_an_event_sees_the_same_parts(self):
+        # Parts depend on text, mode and <registered> (the WARNING is part of the measured
+        # output); all hooks of one event pass the same <registered>, so they agree.
         text = quote_heavy_text()
-        self.assertEqual(rc.mode_parts(text, 'subagent', 1), rc.mode_parts(text, 'subagent', 4))
+        for mode in ('session', 'subagent'):
+            first = rc.mode_parts(text, mode, 4)
+            self.assertEqual(first, rc.mode_parts(text, mode, 4), mode)
+            for part in range(1, 5):
+                code, _, _ = run_main([mode, str(part), '4'])
+                self.assertEqual(code, 0)
+
+    def test_the_overflow_warning_is_counted_when_fewer_hooks_are_registered_than_parts_needed(self):
+        # Regression: measuring with max(registered, len(cut)) never counted the WARNING that
+        # the last registered part carries, so that part printed 10,064 characters.
+        long_path = os.path.join('x' * 700, 'CLAUDE.md')  # the WARNING names the rules path
+        session_text = ''.join(f'## B{n}\n' + ('s' * 39 + '\n') * 235 for n in range(4))
+        cases = [('subagent', quote_heavy_text(), 1), ('session', session_text, 2), ('subagent', session_text, 2)]
+        for mode, text, registered in cases:
+            with mock.patch.object(rc, 'RULES', long_path):
+                cut = rc.mode_parts(text, mode, registered)
+                self.assertGreater(len(cut), registered, f'{mode}: the text must overflow the hooks')
+                self.assertEqual(''.join(cut), text)
+                for part in range(1, registered + 1):
+                    out = rc.output(mode, cut, part, registered)
+                    self.assertLess(len(out), rc.HOOK_LIMIT, f'{mode} part {part}/{registered}: {len(out)} characters')
+                self.assertIn('WARNING', rc.output(mode, cut, registered, registered))
 
     def test_the_shrink_stops_at_the_floor_instead_of_looping(self):
         # A limit below the floor can never be reached: each hook-output header alone is larger.
