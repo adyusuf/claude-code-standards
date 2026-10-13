@@ -1331,3 +1331,20 @@ whether a model was running in it.
   plugin at a temporary agent; it was written back by hand with the user's approval (backup
   `~/.claude-standards/backups/monitor-repair-20261013-124139`). Afterwards `cm-agent status` said "not
   connected"; whether it was connected before could not be established — under this decision that is fine.
+
+## The plugin is Claude Code only (13/10/2026, user decision)
+
+- **Question:** "can it be set up so it is not installed where it cannot load?"
+- **Measured from Anthropic's docs** (claude.com/docs/plugins/platform-support): claude.ai chat skips hooks
+  and agents, so there the plugin would run without the global rules, the guard and the 14 roles. Cowork
+  loads both. No manifest field limits the apps a plugin installs on. A top-level `bin/` makes chat **and**
+  Cowork refuse the whole plugin, and the directory portal derives the supported apps from the same rules.
+- **Decision (user picked the first of three):** Claude Code only, through `bin/`. The other two options were
+  rejected:
+  - leaving it as it is, so chat gets the skills alone;
+  - a second, skills-only plugin, which means two plugins to maintain.
+- **The folder holds a real command, not a marker:** `bin/adyusuf-check` runs
+  `scripts/install.py --check --no-monitor`. It reports the plugin and any leftover of the old link install,
+  and exits 1 while there is something to do. It follows a link on `PATH` back to the plugin root.
+- **Coverage:** `scripts/coverage-shell.sh` traces `bin/*` as well as `scripts/*.sh`. A shell command
+  outside the denominator would loosen #29.
