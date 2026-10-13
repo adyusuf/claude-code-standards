@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# adyusuf-check — what this machine runs: the adyusuf plugin, and any leftover of the old link install.
+#
+# A plugin's top-level bin/ is on the Bash tool's PATH while the plugin is enabled, so Claude (or you, in a
+# session) runs this by its bare name. The folder has a second job: claude.ai chat and Cowork refuse a plugin
+# that has a top-level bin/, and chat skips hooks and agents — there the plugin would run without its rules,
+# guard and roles. With bin/ it installs in Claude Code only (docs/decision-log.md, 13/10/2026).
+#
+# Usage: adyusuf-check        (exit 0 = everything in place, 1 = something to do; the output says what)
+set -uo pipefail
+
+if [ "$#" -eq 1 ] && { [ "$1" = -h ] || [ "$1" = --help ]; }; then
+  sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0
+fi
+# Count the arguments, not the first one's value: `adyusuf-check "" --fix` is two arguments.
+if [ "$#" -ne 0 ]; then echo "adyusuf-check takes no arguments (got $#: $*)" >&2; exit 2; fi
+
+# The plugin root is this file's parent's parent. PATH may hold a link to it, so follow links first.
+self="$0"
+while [ -L "$self" ]; do
+  target="$(readlink "$self")"
+  case "$target" in /*) self="$target" ;; *) self="$(dirname "$self")/$target" ;; esac
+done
+root="$(cd "$(dirname "$self")/.." && pwd)"
+
+command -v python3 >/dev/null 2>&1 || { echo "adyusuf-check needs python3 (SETUP.md §1)" >&2; exit 2; }
+echo "plugin root: $root"
+exec python3 "$root/scripts/install.py" --check --no-monitor

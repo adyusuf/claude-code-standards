@@ -181,7 +181,9 @@ install script. In a Claude Code session (or the same words after `claude plugin
 ```
 
 Start a new session. **Verify:** the session's context carries `[Global working rules, part 1/…` (ask Claude to
-quote it), and `/adyusuf:software-standards` opens. The plugin brings the global rules (its `SessionStart` and
+quote it), `/adyusuf:software-standards` opens, and `adyusuf-check` (the plugin's `bin/`, on the Bash tool's PATH
+while the plugin is enabled) ends with `✓ everything is in place`. The plugin is **Claude Code only**: claude.ai chat
+and Cowork refuse a plugin with a top-level `bin/`, and chat would skip its hooks and agents anyway. The plugin brings the global rules (its `SessionStart` and
 `SubagentStart` hooks print `CLAUDE.md` through `scripts/rules-context.py`), every `/adyusuf:*` skill and command,
 the 14 role agents as `adyusuf:<role>`, the destructive-command guard and the `CLAUDE.md` size hook. Nothing is
 written into `~/.claude` by hand; read the warning in
