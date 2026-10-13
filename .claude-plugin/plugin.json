@@ -1,8 +1,11 @@
 {
   "name": "adyusuf",
   "description": "Global working rules, software standards, operating modes, role agents and gate scripts under one namespace: /adyusuf:<name>. Installed from the adyusuf-marketplace (this repository's prod branch).",
-  "author": { "name": "Adnan Yusuf" },
+  "author": {
+    "name": "Adnan Yusuf"
+  },
   "homepage": "https://github.com/adyusuf/claude-code-standards",
   "repository": "https://github.com/adyusuf/claude-code-standards",
-  "license": "MIT"
+  "license": "MIT",
+  "privacyPolicyUrl": "https://github.com/adyusuf/claude-code-standards/blob/prod/PRIVACY.md"
 }
