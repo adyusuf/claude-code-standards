@@ -47,9 +47,13 @@ rule in a 170 KB file). Two gates hold the line — the canonical copies live in
 
 ```bash
 mkdir -p scripts && cp ~/.claude/scripts/md-*.sh ~/.claude/scripts/md-*.py scripts/
-bash scripts/md-size-gate.sh --update   # the ceiling becomes TODAY's size
+bash scripts/md-size-gate.sh --init     # writes scripts/md-budget.tsv: every CLAUDE.md, ceiling = TODAY's size
 ```
 
+- **Never copy this repository's `md-budget.tsv`:** its ceilings and exclusions are ours,
+  and `--update` only lowers rows that already exist, so the project's own `CLAUDE.md`
+  files would stay "NO BUDGET". `--init` writes the project's budget and refuses to
+  overwrite one that exists.
 - The tools are **copied into the project and committed there** — a project's gate
   cannot depend on a path outside the repository (this happened once: the tool was
   in no repository at all and the line pointing to it referenced a dead path for
