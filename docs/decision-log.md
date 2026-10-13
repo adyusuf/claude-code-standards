@@ -1316,3 +1316,15 @@ whether a model was running in it.
   `~/.claude/scripts`, and the local measurement ledger, which reads `~/.claude/scripts/`. Every project that
   copied the twin scripts gets one copy commit (comments changed). `step-stats.py` (492 lines) exceeds #9;
   it was touched by two lines here and its split is a separate change.
+
+## The monitor agent is optional; its absence is never a problem (13/10/2026, user decision)
+
+- **Request:** "if cm-agent is missing or unreachable you just don't connect — don't treat it as a problem".
+- **Decision:** claude-monitor's agent is optional everywhere. `install.py` reports a monitor that cannot be
+  built, installed or connected as one ⚠️ line and still exits 0; `install.py --check` prints the monitor's state
+  but does not count it; `/adyusuf:board-plan` uses `monitor_note` only when it is there; `standards/22` §4 says
+  a missing, disconnected or unreachable monitor is not a finding, not a failed step and nothing to repair.
+- **Context:** the same day a test mutation ran a real monitor install and pointed the user's real monitor
+  plugin at a temporary agent; it was written back by hand with the user's approval (backup
+  `~/.claude-standards/backups/monitor-repair-20261013-124139`). Afterwards `cm-agent status` said "not
+  connected"; whether it was connected before could not be established — under this decision that is fine.

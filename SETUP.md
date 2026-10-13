@@ -200,7 +200,8 @@ written into `~/.claude` by hand; read the warning in
   ⚠️ Without `--no-monitor`, `--remove` also uninstalls the monitor agent.
 
 **The monitor agent (optional).** `install.py` installs only claude-monitor's agent now — the rule set comes from
-the plugin:
+the plugin. Without it, or when it cannot connect, nothing is reported as a problem: `install.py` warns and exits 0,
+and `--check` prints the monitor's state without counting it:
 
 ```bash
 python3 <checkout>/scripts/install.py                # the monitor agent, prod API

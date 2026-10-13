@@ -211,7 +211,10 @@ def check_all(start, home, monitor):
     print(f'plugin: {"✓" if installed else "✗"} {said}')
     problems += not installed
     if monitor:
-        problems += load('install_monitor', 'install_monitor.py').check(home=home)
+        # The monitor is optional (user decision 13/10/2026): missing, not connected or unreachable is reported,
+        # never counted as a problem.
+        print('monitor (optional — not a problem when missing or not connected):')
+        load('install_monitor', 'install_monitor.py').check(home=home)
     print('✓ everything is in place' if not problems else f'✗ {problems} problem(s)')
     return 1 if problems else 0
 
@@ -237,13 +240,14 @@ def install_all(start, home, channel, monitor, server_override):
     if leftovers:
         print(f'⚠️  {leftovers} piece(s) of the old linked install are still here — run install.py --remove '
               'before installing the plugin, or the rules and the roles load twice')
-    code = 0
     if monitor:
-        print(f'monitor ({server}):')
+        print(f'monitor ({server}, optional):')
         code = agent.install(server, home=home)
-    print({0: '✓ done — open a NEW Claude Code session after installing the plugin'}.get(code,
-                                                                                         f'✗ stopped (exit {code})'))
-    return code
+        if code:
+            # Optional (user decision 13/10/2026): a monitor that cannot be built or reached is not a failure.
+            print(f'⚠️  the monitor agent was not installed or connected (exit {code}) — optional, the rules are unaffected')
+    print('✓ done — open a NEW Claude Code session after installing the plugin')
+    return 0
 
 
 if __name__ == '__main__':

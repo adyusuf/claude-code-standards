@@ -74,7 +74,8 @@ sending outward) — that is asked for in the chat in its own words.
 ## 5. The monitor (optional)
 
 If the `monitor_note` tool is available (the claude-monitor agent), send one line per
-status change: `T-3 → done (abc1234)`. Without it, the file is the record.
+status change: `T-3 → done (abc1234)`. Without it — not installed, not connected, unreachable —
+the file is the record, and that is not a problem to report.
 
 ## 6. The chat table still ships
 

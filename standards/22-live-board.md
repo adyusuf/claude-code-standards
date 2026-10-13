@@ -46,3 +46,7 @@ reply stays the deliverable (`00-working-method.md` §10).
 When the claude-monitor agent is installed (`scripts/install.py`, `SETUP.md`), it records sessions, subagents
 and Claude Code's task tools by itself; `monitor_note` adds one line per status change. Its design and data
 model are in the `claude-monitor` repository (<https://github.com/adyusuf/claude-monitor>).
+
+⚠️ **The monitor is optional (user decision 13/10/2026).** No agent installed, not connected, or its server
+unreachable: nothing connects, and that is **not a problem** — not a finding, not a failed step, nothing to
+report or repair. The plan file is the record either way.
