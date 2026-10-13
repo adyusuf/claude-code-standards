@@ -51,10 +51,10 @@ never asked the right question, and nothing was gating on the answer.
 → [Case 01](docs/case-01-coverage-illusion.md)
 
 **This is my live configuration, running as-is.** It is not a sample, a
-write-up, or a tidied copy of something I keep privately: `~/.claude` symlinks
-straight into this repository, so every session I open — across nine
-repositories, .NET and TypeScript, web and mobile — loads exactly the files you
-are reading. When a rule here is wrong, it is wrong in my own working day first.
+write-up, or a tidied copy of something I keep privately: it is installed as a
+Claude Code plugin from this repository's `prod` branch, so every session I open —
+across nine repositories, .NET and TypeScript, web and mobile — loads exactly the
+files you are reading. When a rule here is wrong, it is wrong in my own working day first.
 That is also why it changes so often: `prod` is the live branch, work happens on
 `dev`, and promoting between them is a decision I have to make about my own
 tooling.
@@ -204,8 +204,8 @@ because something broke first.
 | Engineering standards | `standards/` | 24 documents + 7 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate, measurement and install scripts | `scripts/` | 29 scripts + 604 tests |
-| Slash commands and skills — one plugin, `/adyusuf:<name>` | `commands/`, `skills/`, `plugin/` | 7 |
+| Gate, measurement and install scripts | `scripts/` | 31 scripts + 823 tests |
+| Slash commands, skills and hooks — one plugin, `/adyusuf:<name>` | `.claude-plugin/`, `commands/`, `skills/`, `hooks/` | 7 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
 ```mermaid
@@ -455,70 +455,40 @@ cp claude-code-standards/standards/{05-react,10-test-strategy}.md ~/.claude/stan
 log all cross-reference by number, so renumbering breaks every reference at once
 and breaks it silently.
 
-### Level 3 — take the whole configuration
+### Level 3 — install it as a plugin
 
-```bash
-git clone https://github.com/adyusuf/claude-code-standards
-cd claude-code-standards
-cp -r CLAUDE.md standards agents modes scripts ~/.claude/
-mkdir -p ~/.claude/skills && cp -RL plugin ~/.claude/skills/adyusuf   # skills + commands as /adyusuf:<name>
+The whole rule set — the global rules, the standards, the modes, the 14 role agents, every
+`/adyusuf:*` skill and command and the two safety hooks — is one Claude Code plugin. In a
+Claude Code session:
+
+```
+/plugin marketplace add adyusuf/claude-code-standards#prod
+/plugin install adyusuf@adyusuf-marketplace
 ```
 
-Then the settings, after reading them:
+Claude Code copies it into its plugin cache like any other plugin: no links, no install
+script, nothing written into your `~/.claude` by hand. A new session shows
+`[Global working rules, part 1/…` in its context (the plugin's hooks print `CLAUDE.md`).
+`/plugin update adyusuf` brings a new version; `/plugin` disables or removes it.
+Details, prerequisites (`python3` and `bash` on `PATH`) and the move off an older
+link install: [`SETUP.md`](SETUP.md) §6.
 
-```bash
-cp settings.example.json ~/.claude/settings.json   # read it first — see the warning
-```
-
-That file's `hooks` block wires everything this level needs. **Do not also run
-`scripts/install-live-hooks.py`** — it wires the same two hooks through
-`~/.claude/hooks/` instead of `~/.claude/scripts/`, and because the paths differ
-neither side recognises the other as a duplicate. You would get the destructive
--command guard and the ledger running **twice per tool call**. The installer
-belongs to Level 4, where `scripts/` is a symlink and a new file cannot be put
-there; at Level 3 `scripts/` is a real directory and the example file is enough.
-
-⚠️ **`settings.example.json` is mine, not a template.** It carries my plugin
-selection — 27 entries, several deliberately `false` — and a marketplace pointing
-at a directory in my home folder that will not exist on your machine. Take the
-`hooks` block; decide the rest yourself. Keys like `autoCompactWindow` and
-`theme` are personal preference, not part of the rule set.
+⚠️ **`settings.example.json` is mine, not a template.** It carries my plugin selection
+and a marketplace pointing at a directory in my home folder. Decide the rest yourself;
+the hooks now come with the plugin.
 
 ### Level 4 — run it live, the way I do
 
-`~/.claude/CLAUDE.md`, `standards`, `agents`, `modes`, `scripts` and
-`docs` are **symlinks into a checkout of this repository**, pinned to `prod`.
-Skills and commands come in as ONE plugin, `adyusuf` (`plugin/`), linked as
-`~/.claude/skills/adyusuf` and invoked as `/adyusuf:<name>`
-(`standards/00-working-method.md` §7a).
-Nothing is edited in place: work happens in a `dev` worktree and reaches the live
-configuration only by promotion. The upside is exactly one copy of every rule.
-The cost is that a bad promotion changes my tooling mid-session, which is why the
-guidance files have their own size and rule-loss gates
-(`scripts/md-size-gate.sh`, `scripts/md-rule-gate.py`).
+The installed plugin is a copy of the `prod` branch. Nothing is edited in place: work
+happens in a `dev` worktree (tried with `claude --plugin-dir <worktree>`), passes the
+gate, and reaches my sessions only by promotion to `prod` and `/plugin update`
+(`standards/00-working-method.md` §7a). The upside is exactly one copy of every rule and
+an explicit update step; the guidance files still have their own size and rule-loss
+gates (`scripts/md-size-gate.sh`, `scripts/md-rule-gate.py`), because a bad rule
+reaches every session once it is updated.
 
-All of it — the links, the plugin and the hooks — is one command, on macOS and
-on Windows ([`SETUP.md`](SETUP.md) §6; Windows needs the §1 note first):
-
-```bash
-git clone -c core.symlinks=true https://github.com/adyusuf/claude-code-standards ~/ClaudeCode/claude-code-standards
-python3 ~/ClaudeCode/claude-code-standards/scripts/install.py                 # prod rules + claude-monitor's agent
-python3 ~/ClaudeCode/claude-code-standards/scripts/install.py --test          # or --dev; --no-monitor skips the agent
-python3 ~/ClaudeCode/claude-code-standards/scripts/install.py --check         # report only
-python3 ~/ClaudeCode/claude-code-standards/scripts/install.py --remove        # take it back out
-```
-
-`--prod` is the default; `--test` and `--dev` link to a worktree of that branch
-beside the clone and connect the agent to that channel's monitor API (the table
-is in [`SETUP.md`](SETUP.md) §6).
-
-Anything of yours already in `~/.claude` is moved to `~/.claude-standards/backups`
-(outside `~/.claude`, whose cleanup prunes old files), never deleted. The hooks are wired through `scripts/install-live-hooks.py` rather than
-by hand, because `~/.claude/scripts` is itself a symlink into the checkout and a
-new file there would show up as untracked in `prod`.
-
-⚠️ This replaces the `settings.example.json` copy from Level 3, it does not
-follow it. Doing both runs two of the hooks twice.
+`scripts/install.py` now installs only claude-monitor's agent (optional) and, with
+`--remove --no-monitor`, takes an older link install back out.
 
 I would not start here. Start at Level 1 and come back once a rule has earned its
 place in your own week.
@@ -531,7 +501,7 @@ This is the part that does the work — a rule nothing executes is documentation
 path into your home folder:
 
 ```bash
-cp ~/.claude/scripts/gate-core.sh your-project/scripts/
+cp <this repository>/scripts/gate-core.sh your-project/scripts/
 ```
 
 The reason is CI. A runner checks out your project and nothing else, so a gate
@@ -587,11 +557,7 @@ secret scan and the SAST step shell out to `gitleaks` and `codeql` on your own
 machine — install them yourself, and until you do the gate reports those steps as
 skipped and refuses to call the result green.
 
-To take it all back out:
-
-```bash
-python3 scripts/install-live-hooks.py --remove
-```
+Both ship with the plugin; to take them out, disable or uninstall it (`/plugin`).
 
 ## Anonymization
 

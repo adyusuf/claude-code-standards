@@ -290,9 +290,12 @@ def role_label(role):
     part is a machine identifier — exactly what the sanitiser refuses to publish,
     so it would block the whole write (measured: one `agent-skills`
     run made `--write` impossible). Only the agent part is printed, marked
-    `ext:` so it is never confused with a mode role.
+    `ext:` so it is never confused with a mode role — except our own plugin's
+    agents (`adyusuf:<role>`), which ARE the mode roles and print as `<role>`.
     """
-    if ':' in role:
+    if role.startswith('adyusuf:'):
+        role = role.split(':', 1)[1]
+    elif ':' in role:
         return 'ext:' + role.split(':', 1)[1]
     return ROLE_ALIASES.get(role, role)
 

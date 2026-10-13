@@ -10,8 +10,8 @@ deterministic, parallel, multi-agent orchestration.
 and handoff, skipping, conflict arbitration, stopping, visibility. **Read it before
 selecting a role.**
 
-- ⛔ **A Workflow script runs only this mode's 14 role agents.** There are 21 active
-  plugin agents on disk (`code-reviewer`, `test-engineer`, `code-simplifier`, …);
+- ⛔ **A Workflow script runs only this mode's 14 role agents.** Call them as `adyusuf:<role>`. There are 21
+  other plugins' agents on disk (`code-reviewer`, `test-engineer`, `code-simplifier`, …);
   **none** of them carries the §7 evidence block, the hand-back requirement or the
   clean-pass condition. Put one into a script and the dashboard will show "review
   ran" while the entire audit regime collapses in a single line.

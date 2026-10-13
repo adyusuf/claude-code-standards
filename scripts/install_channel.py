@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Which checkout `install.py` links ~/.claude to: the `prod` branch (default, --prod), `test` (--test) or
-`dev` (--dev).
+"""Which checkout of this repository is on the `prod` branch (default), `test` or `dev`.
 
-The user's own checkout is never switched — it may hold work, and on Windows a branch switch rewrites the
-plugin/ symlinks. Resolution, in order:
-    1. the checkout install.py runs from, when it is already on that branch;
-    2. any existing worktree of this repository on that branch (`git worktree list`);
-    3. a NEW worktree beside it, `<checkout>-<branch>`, from origin/<branch> (install only; --check and
-       --remove never create one).
-An existing worktree is used as it is, never pulled: updating the live rules is a decision (#26).
+install.py used this to pick the checkout it linked ~/.claude to; since the rule set became a plugin
+(13/10/2026) install.py links nothing and no longer calls it. `resolve` is kept for any caller that needs it.
+
+The user's own checkout is never switched — it may hold work. Resolution, in order:
+    1. the given checkout, when it is already on that branch;
+    2. any existing worktree of this repository on that branch (`git worktree list`).
+Nothing is ever created: the branch that made a NEW worktree beside the checkout served only the old install.
+An existing worktree is used as it is, never pulled: updating it is a decision (#26).
 """
 import os
 import subprocess
@@ -39,12 +39,8 @@ def worktree_on(repo, branch):
     return None
 
 
-def sibling(repo, branch):
-    return os.path.normpath(repo).rstrip('\\/') + '-' + branch
-
-
-def resolve(repo, channel, create=True):
-    """(checkout path, what was done) — or (None, why not)."""
+def resolve(repo, channel, create=False):
+    """(checkout path, what was found) — or (None, why not). `create` is accepted and ignored: nothing is created."""
     if channel not in CHANNELS:
         return None, f'unknown channel {channel!r} (one of {", ".join(CHANNELS)})'
     if git(repo, 'rev-parse', '--git-dir').returncode != 0:
@@ -57,15 +53,4 @@ def resolve(repo, channel, create=True):
     found = worktree_on(repo, channel)
     if found:
         return found, f'{found} (the existing {channel} worktree, used as it is)'
-    target = sibling(repo, channel)
-    if not create:
-        return None, f'there is no {channel} checkout yet (an install creates {target})'
-    if os.path.exists(target):
-        return None, f'{target} exists but is not a {channel} worktree of this repository — move it aside'
-    git(repo, 'fetch', '-q', 'origin', channel)                 # offline is fine when the branch is local
-    local = git(repo, 'rev-parse', '--verify', '-q', f'refs/heads/{channel}').returncode == 0
-    added = git(repo, 'worktree', 'add', target, channel) if local else \
-        git(repo, 'worktree', 'add', '--track', '-b', channel, target, f'origin/{channel}')
-    if added.returncode:
-        return None, f'could not create the {channel} worktree: {added.stderr.strip() or added.stdout.strip()}'
-    return target, f'{target} (a new {channel} worktree)'
+    return None, f'there is no {channel} checkout of this repository (no worktree is created)'

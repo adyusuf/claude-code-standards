@@ -11,7 +11,7 @@ mobile client**, so there is no `.env` file to fill in and no port to open. What
 | You want to... | Do this |
 |---|---|
 | Read it, or take a few rules into your own `~/.claude` | Nothing to install. Follow Levels 0-3 in [`README.md`](README.md#how-to-use-this) |
-| Run it live as your `~/.claude` | §6 below |
+| Use it in every session (the `adyusuf` plugin) | §6 below |
 | Change it (rules, scripts, agents) and pass its own gate | §1-§5 |
 | Put the gate into another project | [`README.md`](README.md#putting-the-gate-in-a-project-of-your-own) |
 
@@ -33,14 +33,16 @@ want it enforced.
 | `coverage` (Python package) | 7.10.7 | §2, step 3 | Line coverage of the Python scripts |
 | Node.js | 22 | `brew install node` | Only to run the coverage step on a copy of the scripts that carries JavaScript; this repository has none |
 | GitHub CLI (`gh`) | 2.23.0 | `brew install gh` | Only for `require-private-remote.sh` and opening pull requests |
-| .NET SDK | 10.0.300 | `brew install --cask dotnet-sdk` | For `install.py`'s monitor step (on by default; `--no-monitor` skips it): claude-monitor's agent is built from source |
+| .NET SDK | 10.0.300 | `brew install --cask dotnet-sdk` | Only for the optional monitor agent (`install.py`, §6): claude-monitor's agent is built from source |
+| Claude Code | 2.1.294 | <https://claude.com/claude-code> | The plugin (§6); its hooks call `python3` and `bash` by name |
 
-**Windows** (the live install, §6; last verified 04/10/2026 on Windows Server 2022 with Python 3.12.10 and
+**Windows** (the plugin, §6; last verified 04/10/2026 on Windows Server 2022 with Python 3.12.10 and
 Git 2.54): `bash` is **Git for Windows**' (`C:\Program Files\Git\bin\bash.exe`; it does not have to be on
 `PATH`, Claude Code finds it). The python.org installer provides `python` but **no `python3`**: the guard falls
-back to `python`, but other hooks call `python3` by name, so create it once from an administrator shell —
+back to `python`, but the plugin's other hooks call `python3` by name — **without it every session runs with no
+global rules** — so create it once from an administrator shell —
 `mklink /H "C:\Program Files\Python312\python3.exe" "C:\Program Files\Python312\python.exe"` (adjust the
-version). Symlinks need an administrator shell or Developer Mode, and the clone needs `-c core.symlinks=true`.
+version).
 To run the unit tests on Windows, put Git's `usr\bin` **before** its `bin` on `PATH` — `bin\bash.exe` is a
 launcher that puts `/mingw64/bin` first and hides the tests' stub tools — and set `PYTHONUTF8=1`
 (`scripts/coverage.sh` sets it; without it the cp1252 console codec garbles every ✓/✗):
@@ -126,7 +128,7 @@ Set them in your shell or on the command line. None has to be set; the same list
 | `GATE_PARALLEL_NODE` | `0` | `1` runs the Node track in parallel (only meaningful for a project with a Node codebase) |
 | `GATE_CHECK_TEST_DEPLOY` | `0` | `1` makes the prod gate verify the deployed SHA on test (`TEST_VERSION_URL` / `TEST_DEPLOY_SHA_CMD`); by default it does not look at test and warns |
 | `TEST_VERSION_URL`, `TEST_DEPLOY_SHA_CMD`, `E2E_WEB_CMD`, `E2E_MOBILE_CMD` | unset | Test-environment hooks of the gate (read only with `GATE_CHECK_TEST_DEPLOY=1` / `GATE_RUN_E2E=1`). Here the "test tier" is the pushed `test` branch (`scripts/merge-gate.conf`) |
-| `CLAUDE_MONITOR_HOME` | `~/ClaudeCode/claude-monitor` | Where the `claude-monitor` clone is: the live board's launchers look there, and `install.py`'s monitor step clones into it |
+| `CLAUDE_MONITOR_HOME` | `~/ClaudeCode/claude-monitor` | Where the `claude-monitor` clone is: `install.py`'s monitor step clones into it |
 | `CM_AGENT_HOME` | macOS `~/Library/Application Support/ClaudeMonitor`, Windows `%USERPROFILE%\.claude-monitor` (until the agent's move out of AppData it was `%LOCALAPPDATA%\ClaudeMonitor`; `install.py` still finds a `cm-agent` installed there) | claude-monitor's agent reads it; `install.py` reads it only to find the installed `cm-agent` |
 
 **The real-name map.** `docs/project-nicknames.tsv` is git-ignored and local. One
@@ -168,29 +170,52 @@ containing a fake-looking key and confirm that `git commit` is **refused**.
 
 A step that reports NOT RUN is a missing tool from §1, not a pass.
 
-## 6. Running it live as your `~/.claude`
+## 6. Installing the rule set: the `adyusuf` plugin
 
-Do this only once you want this repository to be your live configuration. It
-changes your tooling in every session, so read the warning in
-[`README.md` Level 4](README.md#level-4--run-it-live-the-way-i-do) first.
+The rule set installs like every other Claude Code plugin — copied into Claude Code's plugin cache, no links, no
+install script. In a Claude Code session (or the same words after `claude plugin` in a shell):
 
-**One command** does steps 2 and 3 below (macOS and Windows; on Windows read the §1 note first). Clone once,
-anywhere — the script finds its own checkout, so nothing needs to go on `PATH`:
-
-```bash
-git clone -c core.symlinks=true https://github.com/adyusuf/claude-code-standards ~/ClaudeCode/claude-code-standards
-python3 ~/ClaudeCode/claude-code-standards/scripts/install.py                # PROD rules + the monitor agent (prod)
-python3 ~/ClaudeCode/claude-code-standards/scripts/install.py --test         # TEST branch + the test monitor
-python3 ~/ClaudeCode/claude-code-standards/scripts/install.py --dev          # DEV branch + a local monitor API
-python3 ~/ClaudeCode/claude-code-standards/scripts/install.py --no-monitor   # the rules without the agent
-python3 ~/ClaudeCode/claude-code-standards/scripts/install.py --check        # report only
+```
+/plugin marketplace add adyusuf/claude-code-standards#prod
+/plugin install adyusuf@adyusuf-marketplace
 ```
 
-| Channel | Branch the rules come from | claude-monitor API (`scripts/install_monitor.py`, the one place) |
-|---|---|---|
-| `--prod` (default) | `prod` | `https://monitor.bitreka.com` |
-| `--test` | `test` | `https://testmonitor.bitreka.com` |
-| `--dev` | `dev` | `http://localhost:9872` (a local API) |
+Start a new session. **Verify:** the session's context carries `[Global working rules, part 1/…` (ask Claude to
+quote it), and `/adyusuf:software-standards` opens. The plugin brings the global rules (its `SessionStart` and
+`SubagentStart` hooks print `CLAUDE.md` through `scripts/rules-context.py`), every `/adyusuf:*` skill and command,
+the 14 role agents as `adyusuf:<role>`, the destructive-command guard and the `CLAUDE.md` size hook. Nothing is
+written into `~/.claude` by hand; read the warning in
+[`README.md` Level 4](README.md#level-4--run-it-live-the-way-i-do) first.
+
+- **Update:** `/plugin marketplace update adyusuf-marketplace`, then `/plugin update adyusuf` and `/reload-plugins`
+  (or turn auto-update on for the marketplace under `/plugin` › Marketplaces). The plugin has no `version`, so every
+  commit on `prod` is a new version. Never edit the cache: the next update replaces it.
+- **Another branch:** `/plugin marketplace add adyusuf/claude-code-standards#test`. To try a working copy without
+  installing it: `claude --plugin-dir <worktree>` (it takes precedence over the installed plugin for that session).
+- **Moving off the old link install** (`~/.claude/{CLAUDE.md,agents,docs,modes,scripts,standards}` and
+  `~/.claude/skills/adyusuf` were links into a checkout): run
+  `python3 <that checkout>/scripts/install.py --remove --no-monitor` first — it removes those links (and a dangling
+  link at one of those names, whose target cannot be checked), the old hook entries incl. the retired board's from
+  `settings.json` (backed up first) and puts your own files back from the newest backup. Until then the
+  rules, agents and guard load twice; the plugin says so at session start (`scripts/legacy-install-check.py`).
+  ⚠️ Without `--no-monitor`, `--remove` also uninstalls the monitor agent.
+
+**The monitor agent (optional).** `install.py` installs only claude-monitor's agent now — the rule set comes from
+the plugin. Without it, or when it cannot connect, nothing is reported as a problem: `install.py` warns and exits 0,
+and `--check` prints the monitor's state without counting it:
+
+```bash
+python3 <checkout>/scripts/install.py                # the monitor agent, prod API
+python3 <checkout>/scripts/install.py --test         # the test API
+python3 <checkout>/scripts/install.py --dev          # a local API
+python3 <checkout>/scripts/install.py --check        # report only (old links/hooks, the plugin, the agent)
+```
+
+| Channel | claude-monitor API (`scripts/install_monitor.py`, the one place) |
+|---|---|
+| `--prod` (default) | `https://monitor.bitreka.com` |
+| `--test` | `https://testmonitor.bitreka.com` |
+| `--dev` | `http://localhost:9872` (a local API) |
 
 **`--dev` needs the local API running on 9872.** claude-monitor's own Development profile listens on **5080**
 (`src/ClaudeMonitor.Api/Properties/launchSettings.json`), and nothing there sets 9872 — so start it with the port
@@ -203,79 +228,18 @@ ASPNETCORE_ENVIRONMENT=Development ASPNETCORE_URLS=http://127.0.0.1:9872 dotnet 
 
 The agent accepts plain `http` on loopback only. Without a running API the login fails and the agent stays DORMANT.
 
-The clone itself is never switched to another branch: `--test`/`--dev` use an existing worktree on that branch
-or create one beside the clone (`<clone>-test`, `<clone>-dev`), and `~/.claude` links into it. A download without
-git (a GitHub ZIP) installs as prod and says the branch cannot be verified; `--test`/`--dev` need a clone. A
-real file or folder already in `~/.claude` is moved to `~/.claude-standards/backups/`, never deleted — outside `~/.claude`, because Claude Code prunes old files there.
+The script builds `cm-agent` (needs the .NET 10 SDK), registers its plugin through `settings.json` and connects it to
+the channel's API: it prints a code and opens `<API>/device` — sign in there and approve it (RFC 8628 device flow;
+the agent never sees a password, its tokens go to the macOS Keychain / Windows Credential Manager). **Its plugin is
+enabled only while connected:** a denied or expired code, or no API, leaves it registered DISABLED and the output
+says **DORMANT**. `--monitor-server <url>` uses another API; after `cm-agent logout`, `install.py --monitor-sync`
+switches it off. Every run except `--check` logs to `~/.claude-standards/logs/install-<date>-<time>.log`; backups go
+to `~/.claude-standards/backups/` (outside `~/.claude`, whose cleanup prunes old files) and are never deleted.
 
-**The monitor agent** is on by default. The script builds `cm-agent` (needs the .NET 10 SDK), registers its
-plugin through `settings.json` (no `claude` CLI needed) and connects it to the channel's API: it prints a code
-and opens `<API>/device` — sign in there and approve it (RFC 8628 device flow; the agent never sees a password,
-its tokens go to the macOS Keychain / Windows Credential Manager). Already connected to that API, no new code is
-asked. **The plugin is enabled only while connected:** a denied or expired code, or no API, leaves it registered
-DISABLED — Claude Code runs none of its 11 hooks and no MCP server, the agent never starts, nothing is queued —
-and the output says **DORMANT**. `--monitor-server <url>` uses another API; after `cm-agent logout`,
-`install.py --monitor-sync` switches it off. `install.py --remove` takes the links and hooks out again.
-
-**What it checks, keeps and tells you** (`scripts/install_safety.py`):
-
-- **Claude Code first.** No `~/.claude` and no `claude` on `PATH` → it stops with nothing created, not even a
-  log. `~/.claude` not writable → it stops too.
-- **The screen shows the choices and every path:** channel, where the rules come from, monitor on/off and its
-  API, `~/.claude`, the backup folder, the log.
-- **The backup:** `~/.claude-standards/backups/install-<date>-<time>/` — `manifest.json` (what was at every place before:
-  file, folder, link or nothing, with size and sha256), `settings.json` as it was, and anything that stood in
-  the way (your own `CLAUDE.md`, a real `agents/` folder…), MOVED there, never deleted. Every backed-up item is
-  re-hashed afterwards: `✓ proven` or `✗ DIFFERS`.
-- **The report:** where `CLAUDE.md` points and whether it reads byte-for-byte as the checkout's (it is a link:
-  nothing is written INTO a file of yours), where your previous one is, the plugin with its version, every
-  skill and command as `/adyusuf:<name>`, the agent roles. A problem there makes the exit code 1.
-- **Uninstall:** `install.py --remove` takes the links and the hook entries out and puts your own files back from
-  the newest backup that holds them — a second install does not lose your original. A place already taken is
-  left alone and named. Backups are never deleted.
-- **The log:** every install, `--remove` and `--monitor-sync` writes its whole output — git, dotnet and cm-agent
-  included — to `~/.claude-standards/logs/install-<date>-<time>.log` as well as the console, and says where at the end.
-  `--check` is read-only and writes none. The agent's own log is `agent.log` in its home (§4, `CM_AGENT_HOME`).
-- **Windows: run the monitor step from a normal terminal, not from inside the Claude desktop app.** The app is a
-  packaged (MSIX) app and every process it starts sees `%LOCALAPPDATA%` redirected to a private copy
-  (`%LOCALAPPDATA%\Packages\<package>\LocalCache\Local\`), so a login made there is invisible to a normal
-  terminal and the other way round. The agent's home therefore lives under `%USERPROFILE%`, which is not redirected.
-  `install.py` prints a warning when such a redirected `ClaudeMonitor` folder exists and it is running inside Claude
-  Code (`CLAUDECODE` / `CLAUDE_CODE_ENTRYPOINT` set). An agent installed before the move keeps working from its old
-  folder until `install.py` runs again (it looks in the new home first, then the old one).
-
-The manual steps, for reference:
-
-1. Keep one checkout on `prod`; that checkout is what the live configuration
-   points at. Work happens in other worktrees and reaches it only by promotion,
-   which is the maintainer's decision (#26).
-2. Link the live files into that checkout. `settings.json` and runtime data stay
-   in `~/.claude` and are **not** linked:
-
-   ```bash
-   repo=~/ClaudeCode/claude-code-standards   # your prod checkout
-   for d in CLAUDE.md agents docs modes scripts standards; do ln -s "$repo/$d" ~/.claude/"$d"; done
-   mkdir -p ~/.claude/skills && ln -s "$repo/plugin" ~/.claude/skills/adyusuf
-   ```
-
-   `ln -s` fails if the name already exists. Move your own copy aside first;
-   never delete it.
-3. Wire the hooks with the installer, not by hand and not by copying
-   `settings.example.json` as well, or two hooks run twice per tool call:
-
-   ```bash
-   python3 scripts/install-live-hooks.py --check   # report only
-   python3 scripts/install-live-hooks.py           # symlinks under ~/.claude/hooks + settings entries
-   ```
-
-   It backs up `settings.json` to `~/.claude-standards/backups/settings` first (outside `~/.claude`, whose cleanup prunes old files), aborts on a file it
-   cannot parse and is safe to run twice.
-4. If you also want the live board, follow `standards/22-live-board.md` §0: its
-   code lives in the separate `claude-monitor` repository, and the launchers
-   here call into that clone.
-
-Take it back out with `python3 scripts/install-live-hooks.py --remove`, and by
-removing the symlinks you made in step 2.
+**Windows: run the monitor step from a normal terminal, not from inside the Claude desktop app.** The app is a
+packaged (MSIX) app and every process it starts sees `%LOCALAPPDATA%` redirected to a private copy, so a login
+made there is invisible to a normal terminal and the other way round. The agent's home therefore lives under
+`%USERPROFILE%`; `install.py` warns when a redirected `ClaudeMonitor` folder exists and it runs inside Claude Code.
 
 ## 7. Common errors
 
@@ -287,14 +251,12 @@ removing the symlinks you made in step 2.
 | Commit refused by the real-name check | A folder key or alias from your map is in the staged change or message | Use the nickname. The exception is `--no-verify`, and yours alone |
 | Real-name check prints a warning and passes | No `docs/project-nicknames.tsv` | Create it (§4), or set `REAL_NAMES_STRICT=1` to make this a failure |
 | `CLAUDE.md` size gate refuses a commit | The file grew past its ceiling in `scripts/md-budget.tsv` | Move the rule into `standards/<topic>.md` first; raise the ceiling only with a written reason |
-| A hook runs twice per tool call | Hooks wired by both `settings.example.json` and the installer | Keep one: `install-live-hooks.py --remove`, or drop the `hooks` block you copied |
+| A hook runs twice per tool call; the rules or agents load twice | The old link install is still there next to the plugin | `python3 <checkout>/scripts/install.py --remove --no-monitor` (§6) |
+| A session has no `[Global working rules` in its context | `python3` not on `PATH` (Windows, §1), or the plugin is disabled | Add `python3`; `/plugin` › Installed › enable `adyusuf` |
 | `install-live-hooks.py` aborts and touches nothing | `~/.claude/settings.json` is not valid JSON | Fix the JSON, rerun |
-| `install.py`: `plugin/commands is a plain file, not a symlink` | Cloned without symlinks (Windows default) | `git config core.symlinks true && git checkout -- plugin`, from an administrator shell or with Developer Mode on |
-| `install.py`: `Windows would not create a symlink` | No symlink privilege | Turn on Developer Mode, or run from an administrator shell |
 | Every Bash call mentioning push/rm/drop is BLOCKED with "no Python 3 interpreter" | Neither `python3` nor a Python 3 `python` on the hook's `PATH` | Install Python 3; on Windows add `python3.exe` (§1) |
 | `install.py` prints "DORMANT" | The agent is not connected (code denied or expired, or the API did not answer), so its plugin is deliberately disabled | Run `install.py` again (or with `--monitor-server <url>`) and approve the code on the web |
-| `install.py` fails at the monitor step: ".NET 10 SDK is required" | No .NET 10 SDK | Install it, or `--no-monitor`. The rules are installed either way |
-| `install.py --test`: "not a git checkout" | Installed from a ZIP download | `git clone` the repository instead |
+| `install.py` warns at the monitor step: ".NET 10 SDK is required" | No .NET 10 SDK | Optional — install it if you want the monitor. The run still exits 0; the rules come from the plugin |
 | `cm-agent install` prints "Claude Code could not be reached" | The `claude` CLI is not on `PATH` (e.g. only the desktop app) | Nothing to do when run through `install.py`: it registers the plugin through `settings.json` |
 | `install.py --check` reports `MISMATCH` | The connection changed (login/logout) without a sync | `install.py --monitor-sync` |
 | Gate runs on stale branches | The local `dev`/`test` are behind `origin` | `git fetch`, and branch off `origin/dev` |

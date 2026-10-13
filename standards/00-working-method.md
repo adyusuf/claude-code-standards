@@ -159,34 +159,30 @@ The same repository may be open in more than one Claude session:
   if you get an error, use an isolated clone.
 - Before long-running work: `git fetch`, and a `--ff-only` pull if you are behind.
 
-### 7a. The live configuration is a symlink into this repository
+### 7a. The live configuration is the installed `adyusuf` plugin
 
-`~/.claude` does not hold its own copy of the instruction text: `CLAUDE.md`,
-`standards/`, `agents/`, `modes/`, `scripts/`, `docs/` and the `adyusuf` plugin
-are **symlinks** into this repository's **main worktree**. The same text therefore
-lives in exactly one place (rule #2 applied to the configuration itself), and
-there is no twin to drift.
+The rule set is ONE Claude Code plugin, `adyusuf`: the repository root carries
+`.claude-plugin/plugin.json` and `marketplace.json`, and every machine installs it with
+`/plugin marketplace add adyusuf/claude-code-standards#prod` +
+`/plugin install adyusuf@adyusuf-marketplace` (`SETUP.md` §6). Claude Code **copies** the
+`prod` branch into its plugin cache; nothing in `~/.claude` links into a checkout (decision
+13/10/2026, `docs/decision-log.md`). The plugin brings the global rules (its hooks print
+`CLAUDE.md` into every session and subagent), the standards, the modes, the role agents as
+`adyusuf:<role>`, every skill and command as `/adyusuf:<name>`, and the safety hooks.
 
-The consequence that matters: **the live configuration follows whatever branch the
-main worktree has checked out.** So:
+So:
 
-- The main worktree stays on **`prod`** — that is the configuration actually in
-  force in every session.
-- Work happens in a **separate `dev` worktree** (`git worktree add ../<repo>-dev dev`),
-  so an unfinished rule never becomes live by accident.
-- A change reaches the live configuration only by promotion `dev → test → prod`,
-  which Claude merges through the gate; the `prod` push is the user's. Never check out `dev` in the main worktree to "try something".
-
-⚠️ **Our skills and commands are ONE plugin: `adyusuf`.** Every skill in `skills/`
-and every command in `commands/` is invoked as `/adyusuf:<name>`, so ours are
-never confused with plugins or third-party skills. The mechanism is Claude Code's
-skills-dir plugin: `plugin/` holds `.claude-plugin/plugin.json` plus links back to
-`../skills` and `../commands`, and one link makes it live —
-`ln -s <main worktree>/plugin ~/.claude/skills/adyusuf`. A new skill or command on
-`prod` is then live from the next session with no extra step. Check it with
-`claude plugin details adyusuf`. There is no `~/.claude/commands` link and no
-per-skill link under `~/.claude/skills` — either would load a second, unprefixed
-copy. A real directory under `~/.claude/skills` is always third-party.
+- **Work happens in a `dev` worktree** (`git worktree add ../<repo>-dev dev`). Try it in a
+  session with `claude --plugin-dir <worktree>`: it takes precedence over the installed copy
+  for that session only.
+- **A change reaches the live configuration only by promotion** `dev → test → prod`, which
+  Claude merges through the gate; the `prod` push is the user's. A machine takes it with
+  `/plugin marketplace update adyusuf-marketplace` + `/plugin update adyusuf` (or the
+  marketplace's auto-update); the plugin has no `version`, so every `prod` commit is a new one.
+- **Never edit the installed copy** under `~/.claude/plugins/cache/`: the next update replaces
+  it and the change is lost. Edit the repository.
+- Ours are never confused with third-party skills, commands or agents: every one of them is
+  namespaced `adyusuf:`. Check the install with `claude plugin details adyusuf`.
 
 ## 8. Work that requires approval (no exceptions)
 
@@ -202,8 +198,8 @@ copy. A real directory under `~/.claude/skills` is always third-party.
 When the user says "from now on, always do it this way":
 
 1. Decide whether the rule belongs **to the project or to the global set**.
-2. If it is the project's, `<project>/CLAUDE.md`; if it is global, `~/.claude/CLAUDE.md`
-   or the relevant `standards/*.md`.
+2. If it is the project's, `<project>/CLAUDE.md`; if it is global, the rule set's `CLAUDE.md`
+   or the relevant `standards/*.md` — in the repository, through `dev`, never in the installed copy.
 3. Write it with a **PERMANENT** label and **the reason**. A rule with no stated reason
    gets reverted by accident later.
 4. Write it in the same turn; never say "I'll add it later".
@@ -249,7 +245,7 @@ chain, migration), report it as a **short markdown table in the reply itself**.
 (user decision). Publishing a page, keeping it current at the same URL and
 then repeating the same content as text cost a round of work per report and split the
 record in two: the reply and the page disagreed as soon as one of them was updated. The
-table in the conversation is the whole deliverable; the local live board (`22-live-board.md`) is an extra view only.
+table in the conversation is the whole deliverable; the session's plan file (`22-live-board.md`) is an extra record only.
 
 ### 10a. What the table contains
 
