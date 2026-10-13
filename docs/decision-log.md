@@ -1331,3 +1331,30 @@ whether a model was running in it.
   plugin at a temporary agent; it was written back by hand with the user's approval (backup
   `~/.claude-standards/backups/monitor-repair-20261013-124139`). Afterwards `cm-agent status` said "not
   connected"; whether it was connected before could not be established — under this decision that is fine.
+
+## `claude plugin validate` warnings are accepted; distribution channels (13/10/2026, user question)
+
+- **Rule:** `claude plugin validate .` passes with exactly two warnings, and both stay. Do not "fix" them:
+  - **No `version` in `plugin.json`.** With a version set, `/plugin update` reports "already at the latest
+    version" until someone raises it by hand on every `prod` push. Without one the commit SHA is the
+    version, so every `prod` push is an update. The plugin docs (plugins/publish, "Decide how you'll version")
+    offer exactly these two options, and say to drop `--strict` when the version is omitted. CI therefore
+    runs `validate` without `--strict`.
+  - **The root `CLAUDE.md` is not loaded as context.** This is intended: the rules reach every session and
+    every subagent through the `SessionStart`/`SubagentStart` hooks (`scripts/rules-context.py`). The file
+    is also this repository's own rules file and the size gate's subject, so it does not move.
+- **A third warning is a finding, not noise.** Any warning beyond these two is read and fixed.
+- **Updates are not automatic.** Auto-update is off by default for a self-hosted marketplace. Each machine
+  gets a `prod` push through one of two routes:
+  - `claude plugin update adyusuf@adyusuf-marketplace`;
+  - auto-update, switched on in `/plugin` → Marketplaces.
+- **Anthropic's channels (measured from the docs, 13/10/2026):**
+  - `claude-plugins-official` takes no submissions; a listing there goes through an Anthropic partner
+    contact.
+  - The open channel is the directory (`claude.ai/directory/manage`), which needs a paid plan and reviews
+    every version.
+  - claude.ai chat skips hooks and agents, so there the plugin would arrive without the rules, the guard
+    and the roles. Cowork loads both.
+  - No manifest field limits the apps a plugin installs on. A top-level `bin/` makes chat and Cowork
+    refuse the whole plugin, and that is the only documented switch.
+  - Whether to list the plugin there, and in what shape, is the user's decision; it is not made yet.
