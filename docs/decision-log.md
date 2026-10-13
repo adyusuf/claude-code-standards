@@ -1314,7 +1314,10 @@ whether a model was running in it.
   `install.py --remove --no-monitor` and the two `/plugin` commands, on every machine; on this one also the
   private claude-config repository's tracked links and its `pre-commit` hook that goes through
   `~/.claude/scripts`, and the local measurement ledger, which reads `~/.claude/scripts/`. Every project that
-  copied the twin scripts gets one copy commit (comments changed). `step-stats.py` (492 lines) exceeds #9;
+  copied the twin scripts gets one copy commit (comments changed). The retired board's hooks: the 7 user-level
+  entries are now `LEGACY` (QA, 13/10/2026), so `--remove` strips them; **five projects** still carry 27 board
+  entries in their committed `.claude/settings.json` — each is cleaned with `apply-project-standards` §6a.2 in
+  its own repository (they fail silently, `|| true`, until then). `step-stats.py` (492 lines) exceeds #9;
   it was touched by two lines here and its split is a separate change.
 
 ## The monitor agent is optional; its absence is never a problem (13/10/2026, user decision)
