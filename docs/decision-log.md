@@ -1338,8 +1338,8 @@ whether a model was running in it.
   - **No `version` in `plugin.json`.** With a version set, `/plugin update` reports "already at the latest
     version" until someone raises it by hand on every `prod` push. Without one the commit SHA is the
     version, so every `prod` push is an update. The plugin docs (plugins/publish, "Decide how you'll version")
-    offer exactly these two options, and say to drop `--strict` when the version is omitted. CI therefore
-    runs `validate` without `--strict`.
+    offer exactly these two options, and say to drop `--strict` when the version is omitted. Run
+    `validate` without `--strict` here; neither CI nor the gate runs it today.
   - **The root `CLAUDE.md` is not loaded as context.** This is intended: the rules reach every session and
     every subagent through the `SessionStart`/`SubagentStart` hooks (`scripts/rules-context.py`). The file
     is also this repository's own rules file and the size gate's subject, so it does not move.
