@@ -81,7 +81,8 @@ def render(all_parts, part, registered):
     total = len(all_parts)
     if part > total:
         return ''
-    text = f'[Global working rules, part {part}/{total} (adyusuf plugin, CLAUDE.md)]\n' + all_parts[part - 1]
+    text = (f'[Global working rules, part {part}/{total} (adyusuf plugin, CLAUDE.md); '
+            f'relative paths start at {ROOT}]\n') + all_parts[part - 1]
     if part == registered and total > registered:
         text += (f'\n[WARNING: the global rules need {total} parts but only {registered} hooks are '
                  f'registered; read the rest in {RULES}]\n')
