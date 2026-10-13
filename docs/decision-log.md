@@ -1358,7 +1358,8 @@ whether a model was running in it.
     and the roles. Cowork loads both.
   - No manifest field limits the apps a plugin installs on. A top-level `bin/` makes chat and Cowork
     refuse the whole plugin, and that is the only documented switch.
-  - Whether to list the plugin there, and in what shape, is the user's decision; it is not made yet.
+  - The user decided the same day: the plugin is Claude Code only (next section). Listing it in the
+    directory is still the user's call.
 
 ## The plugin is Claude Code only (13/10/2026, user decision)
 
