@@ -5,6 +5,18 @@ description: Screen-by-screen test audit in four phases — (1) inventory every 
 
 # Test inventory — audit → write → run ⇄ fix
 
+## Why this exists
+
+Tests grow file by file, and after a while nobody can say what a screen actually does,
+which of those behaviours each layer proves, and which cases nobody handled. A coverage
+percentage does not answer it — a line can run without its result being checked. This
+skill audits **one screen at a time across every layer**, as use cases, hunts the
+defects and unhandled cases, then writes only the tests you approve and runs and fixes
+them in a bounded loop. Every claim carries a `file:line` or a command, so the report
+can be trusted, and the token spend stays bounded by the one screen.
+
+Contributions are welcome: https://github.com/adyusuf/claude-code-standards
+
 One screen at a time, every layer at once (web unit · e2e · backend unit/integration ·
 Android · iOS · Maestro). The unit of work is a **use case**, not a file: a report tells
 the reader what the screen does, which layer proves each behaviour, what is wrong and

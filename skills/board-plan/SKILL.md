@@ -5,6 +5,17 @@ description: Break a task into live-board items, route each to a role the active
 
 # board-plan — plan onto the live board
 
+## Why this exists
+
+When several sessions and agents work at once — across more than one project — the
+chat alone no longer shows who is doing what, what is waiting for you and where each
+commit has landed. The live board shows it in one place. Its hooks record when an agent
+starts and stops, but they cannot know the plan: which tasks exist, which role does
+each one, and whether a returned agent's work was actually accepted. This skill writes
+that part, so the board tells the truth and you can steer the work from it.
+
+Contributions are welcome: https://github.com/adyusuf/claude-code-standards
+
 The board records agent start/finish **by itself** (hooks). This skill covers what
 the hooks cannot know: the task list, the routing and the semantic status.
 Standard: `standards/22-live-board.md`. Below, `B` is

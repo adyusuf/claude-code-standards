@@ -5,6 +5,18 @@ description: Loads the software standards that apply to every project (product d
 
 # Software standards
 
+## Why this exists
+
+Left alone, every session and every agent writes code by its own idea of "best
+practice", so two features in the same project — or the same feature on web and
+mobile — come out different. This rule set keeps one standard per topic, but loading
+all of them into every session would burn tokens on text the task never needs. This
+skill is the **index**: it names the one standard the task is about, and only that file
+is read. Same rules in every project, every session and every agent; context spent only
+where the work is.
+
+Contributions are welcome: https://github.com/adyusuf/claude-code-standards
+
 The standards live under `${CLAUDE_PLUGIN_ROOT}/standards/`, **one file per topic**. Do not
 read them all — read **the one the task is about**.
 

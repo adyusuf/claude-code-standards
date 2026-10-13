@@ -59,3 +59,14 @@ A **GO / NO-GO** decision with its reasoning. Then:
 - ⚪ **Could not be verified** (no access or tooling — the user must check manually)
 
 For every item, write concretely what needs to be done.
+
+## Why this command exists
+
+"It works on test" is not "it is ready for production". The things that fail in
+production — an open endpoint, a missing security header, a backup that was never
+restored, an error nobody is alerted to — rarely show up in a normal review. This
+command walks the release checklist (security, hardening, backup, observability, deploy)
+and **verifies** each item; what cannot be verified is reported as such and never counts
+as passed. The release decision then rests on evidence, not on confidence.
+
+Contributions are welcome: https://github.com/adyusuf/claude-code-standards

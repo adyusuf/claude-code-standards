@@ -105,3 +105,14 @@ from the next session on.
 
 Make no code changes; produce documents only — **the single exception is the tool
 copy in §5**, and that one needs the user's approval. Fixing code is a separate request.
+
+## Why this command exists
+
+A project that only one session knows how to run is a project nobody else can pick up.
+Every project should carry the same baseline: a `CLAUDE.md` with its own rules, a
+`SETUP.md` that sets up a clean machine without guesswork (with the secret/token
+inventory), and an `.env.example`. This command brings a new or existing project to
+that baseline — it fills in what is missing and never deletes what is there — so every
+later session, agent or person starts from the same written facts instead of rediscovering them.
+
+Contributions are welcome: https://github.com/adyusuf/claude-code-standards

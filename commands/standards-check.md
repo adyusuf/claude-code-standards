@@ -42,3 +42,14 @@ why it matters, and the proposed fix.
 
 If there is a blocking finding, warn prominently at the top. If there are no findings at all,
 say that explicitly too; never manufacture findings.
+
+## Why this command exists
+
+The costly mistakes are the quiet ones: a renamed field that breaks the mobile app, a
+hard-coded host, an endpoint that forgot its authorization check. This command reviews
+the pending change against the standards **before** it is merged, and reads only the
+standards the change touches, so the review stays cheap enough to run on every change.
+The project's own `CLAUDE.md` overrides the global standard, so the check follows the
+project's real rules.
+
+Contributions are welcome: https://github.com/adyusuf/claude-code-standards
