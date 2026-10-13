@@ -54,14 +54,18 @@ class Fixture(unittest.TestCase):
         self.checkout = os.path.realpath(os.path.join(self.base, 'claude-code-standards'))
         os.makedirs(os.path.join(self.checkout, 'scripts'))
         open(os.path.join(self.checkout, 'scripts', 'install.py'), 'w').close()
-        for name in ('modes', 'standards'):
+        for name in ('agents', 'docs', 'modes', 'plugin', 'standards'):
             os.makedirs(os.path.join(self.checkout, name))
-        open(os.path.join(self.checkout, 'CLAUDE.md'), 'w').close()
+        # What makes the folder a checkout of this repository (install.py's fingerprint): a link into it is the old install's.
+        for name in ('CLAUDE.md', os.path.join('standards', '00-working-method.md'), os.path.join('modes', 'README.md')):
+            open(os.path.join(self.checkout, name), 'w').close()
 
     def link(self, name, target=None):
+        """~/.claude/<name> -> <checkout>/<name> (skills/adyusuf -> <checkout>/plugin), as the old install made it."""
         path = os.path.join(self.dot, name)
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        os.symlink(target or os.path.join(self.checkout, name), path)
+        default = os.path.join(self.checkout, 'plugin' if name == os.path.join('skills', 'adyusuf') else name)
+        os.symlink(target or default, path)
 
     def settings(self, hooks=None, text=None):
         with open(os.path.join(self.dot, 'settings.json'), 'w', encoding='utf-8') as handle:
@@ -76,10 +80,12 @@ class Fixture(unittest.TestCase):
         return result.stdout, result.stderr
 
     def lone_copy(self, hooks_module_source=None):
-        """The script alone in a folder (its install-live-hooks.py sibling missing, or replaced)."""
+        """The script in a folder with install.py and its safety module (the link predicate lives there), its
+        install-live-hooks.py sibling missing or replaced — install.py itself loads that sibling too."""
         folder = os.path.join(self.base, 'lone')
         os.makedirs(folder)
-        shutil.copy(CHECK, folder)
+        for name in ('legacy-install-check.py', 'install.py', 'install_safety.py'):
+            shutil.copy(os.path.join(SCRIPTS, name), folder)
         if hooks_module_source is not None:
             with open(os.path.join(folder, 'install-live-hooks.py'), 'w') as handle:
                 handle.write(hooks_module_source)
@@ -119,7 +125,7 @@ class Links(Fixture):
 
     def test_several_links_are_counted_and_named_by_their_last_path_part(self):
         for name in ('CLAUDE.md', 'standards', os.path.join('skills', 'adyusuf')):
-            self.link(name, os.path.join(self.checkout, 'modes') if name != 'CLAUDE.md' else None)
+            self.link(name)
         out, _ = self.run_check()
         self.assertIn('3 symlink(s) under ~/.claude (CLAUDE.md, standards, adyusuf)', out)
 
@@ -216,14 +222,26 @@ class Settings(Fixture):
 
 
 class Failures(Fixture):
-    def test_a_missing_install_live_hooks_module_is_a_stderr_line_and_links_are_still_reported(self):
+    def test_a_missing_install_live_hooks_module_is_named_on_stderr_and_the_session_goes_on(self):
+        # install.py loads that sibling too, so both loads fail: two lines, nothing on stdout, still exit 0.
         self.link('modes')
         out, err = self.run_check(script=self.lone_copy())
-        self.assertIn('1 symlink(s) under ~/.claude (modes)', out)
+        self.assertEqual(out, '')
+        self.assertIn('cannot load install.py', err)
         self.assertIn('cannot load install-live-hooks.py', err)
-        self.assertEqual(err.count('\n'), 1)
+        self.assertEqual(err.count('\n'), 2)
 
-    def test_in_process_a_missing_module_leaves_the_link_report_and_one_stderr_line(self):
+    def test_in_process_the_links_are_still_reported_when_only_the_hooks_module_cannot_load(self):
+        self.link('modes')
+        out, err = io.StringIO(), io.StringIO()
+        with mock.patch.dict(os.environ, {'HOME': self.home}), \
+                mock.patch.object(check, 'load_hooks_module', side_effect=ImportError('gone')), \
+                contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
+            self.assertEqual(check.main(), 0)
+        self.assertIn('1 symlink(s) under ~/.claude (modes)', out.getvalue())
+        self.assertEqual(err.getvalue().strip(), 'adyusuf legacy-install-check: cannot load install-live-hooks.py: gone')
+
+    def test_in_process_a_missing_module_leaves_one_stderr_line_per_module_and_exit_0(self):
         self.link('modes')
         empty = os.path.join(self.base, 'no-sibling')
         os.makedirs(empty)
@@ -231,7 +249,8 @@ class Failures(Fixture):
         with mock.patch.dict(os.environ, {'HOME': self.home}), mock.patch.object(check, 'HERE', empty), \
                 contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             self.assertEqual(check.main(), 0)
-        self.assertIn('(modes)', out.getvalue())
+        self.assertEqual(out.getvalue(), '')
+        self.assertIn('cannot load install.py', err.getvalue())
         self.assertIn('cannot load install-live-hooks.py', err.getvalue())
 
     def test_in_process_the_main_guard_turns_any_exception_into_a_stderr_line_and_exit_0(self):

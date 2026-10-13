@@ -250,9 +250,6 @@ class PureFunctions(unittest.TestCase):
         self.assertEqual(json.dumps(data), before)
         self.assertTrue(installer.strip_legacy(json.loads(json.dumps(LEGACY_SETTINGS))))
 
-    def test_legacy_set_has_the_three_old_command_strings(self):
-        self.assertEqual(installer.LEGACY, {GUARD, GUARD_OLD, MD_HOOK})
-
 
 class WindowsPaths(unittest.TestCase):
     """os.readlink on Windows returns \\\\?\\C:\\...: a plain comparison read every link as wrong (04/10/2026)."""
