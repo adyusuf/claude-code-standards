@@ -204,7 +204,7 @@ because something broke first.
 | Engineering standards | `standards/` | 24 documents + 7 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate, measurement and install scripts | `scripts/` | 34 scripts + 851 tests |
+| Gate, measurement and install scripts | `scripts/` | 34 scripts + 854 tests |
 | Slash commands, skills and hooks — one plugin, `/adyusuf:<name>` | `.claude-plugin/`, `commands/`, `skills/`, `hooks/`, `bin/` | 7 + `adyusuf-check` |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
