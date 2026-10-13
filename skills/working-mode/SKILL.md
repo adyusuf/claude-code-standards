@@ -115,7 +115,8 @@ name + agent set + who reviews + cost multiplier. Do not paste the whole matrix;
    agents are Opus by definition and what they run on now. 4-6 lines.
 5. **From then on**, every `Agent` call to an agent whose effective model is Opus
    passes `model: "<model>"` (and every `Workflow` `agent()` for such a role); other
-   agents get no override. Report the model that actually ran.
+   agents get no override. Report the model that actually ran. A role agent is always
+   called by its plugin name, `subagent_type: "adyusuf:<role>"`; a bare `<role>` is not found.
 
 ## Permanent rules
 

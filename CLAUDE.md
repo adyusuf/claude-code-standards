@@ -122,7 +122,7 @@ The full list, including the items tied to numbered rules: `docs/decision-log.md
 - ❌ Pushing directly to `main`/`prod`
 - ❌ Without user approval: production deploy, DB `DROP`, `git push --force`, deleting data, sending a message or publishing to an external service
 - ❌ An untested backup ("we have backups" is not enough — a restore drill is performed)
-- ❌ Invoking any agent outside the active mode's role set — including `migration-reviewer` and the plugin agents that shadow these role names. ⚠️ `test-writer` is **not** banned: it is one of B's three roles. The protection is the role set, never a name list → #27, #28
+- ❌ Invoking any agent outside the active mode's role set — including `migration-reviewer` and other plugins' agents that shadow these role names (ours are `adyusuf:<role>`). ⚠️ `test-writer` is **not** banned: it is one of B's three roles. The protection is the role set, never a name list → #27, #28
 
 ## Working method (for Claude)
 
