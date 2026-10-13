@@ -1236,3 +1236,45 @@ whether a model was running in it.
 - **Not done at the time of this entry:** no existing deployment was moved. claude-monitor's server scripts
   (`deploy/windows/*.ps1`, scheduled tasks, `monitor.env`) used `C:\ClaudeMonitor` and `ClaudeMonitor-<env>`.
   The move follows as a deploy (below the standard's own "a move is a deploy" rule).
+
+## Plugin install: a standard marketplace plugin, no symlinks, no install script (13/10/2026, user decision)
+
+- **Request:** "my skills and my plugin will work in the standard way like the others · no symlinks ·
+  the install will be standard too · no extra script will be needed".
+- **Why:** measured on 13/10/2026. Every other plugin on the machine (27 in `installed_plugins.json`)
+  is installed from a marketplace and **copied** to `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`.
+  `adyusuf` was the exception: `install.py` linked `~/.claude/{CLAUDE.md,agents,docs,modes,scripts,standards}`
+  and `~/.claude/skills/adyusuf` (= `plugin/`, whose `skills/` and `commands/` are links again) into the
+  checkout, and 57 files carried 173 fixed `~/.claude/...` paths. Symlinks need Developer Mode and
+  `core.symlinks` on Windows, an edit in the checkout went live at the next session, and nothing had a version.
+- **Decision (user, three choices):**
+  1. **Source: GitHub `adyusuf/claude-code-standards#prod`.** Install is
+     `/plugin marketplace add adyusuf/claude-code-standards#prod` + `/plugin install adyusuf@adyusuf-marketplace`.
+     The plugin is copied to the cache; a promotion to `prod` reaches a machine only through `/plugin update`.
+     A local-directory marketplace was rejected: Claude Code loads it **in place**, which is the symlink's
+     "an edit is live at once" behaviour under another name (plugins/loading, "In-place and copied plugins").
+  2. **Global rules: the plugin's own hooks.** A plugin cannot ship a `CLAUDE.md` that loads
+     (`claude plugin validate` warns that a root `CLAUDE.md` "is not loaded"). `hooks/hooks.json` runs
+     `scripts/rules-context.py` on `SessionStart` (plain text) and `SubagentStart` (`additionalContext`).
+     Claude Code caps each hook output at 10,000 characters, so `CLAUDE.md` (23,309 bytes) is split at its own
+     `## ` / numbered-rule boundaries into parts of ≤ 9,500 characters, one hook per part; four parts are
+     registered and three are used. `CLAUDE.md` stays the single source.
+  3. **Pilot first** (#1): the manifest, the marketplace, the rules hooks and one skill (`software-standards`).
+- **Layout:** the **repository root is the plugin** (`.claude-plugin/plugin.json` + `marketplace.json`, source `./`).
+  `skills/`, `commands/`, `agents/` are already at the standard places and `standards/`, `modes/`, `scripts/`
+  travel inside the copy, so nothing moves. `plugin.json` sets **no `version`** on purpose: the version is then
+  the commit SHA and every `prod` commit is an update. An earlier attempt on `wip/self-contained-plugin`
+  (moving `skills/` and `commands/` under `plugin/`) left `standards/`, `modes/` and `scripts/` outside the copy;
+  its marketplace name `adyusuf-marketplace` was kept.
+- **Pilot evidence (13/10/2026, Claude Code 2.1.294, `--plugin-dir`, haiku):** all three rule parts reached the
+  main session and a `general-purpose` subagent (each prints its `[Global working rules, part n/3 …]` header;
+  the order varied: 3,1,2 and 1,3,2); `/adyusuf:software-standards` resolved `${CLAUDE_PLUGIN_ROOT}/standards/`
+  to the checkout's `standards/`. `claude plugin validate .` passes with the two intended warnings
+  (root `CLAUDE.md`, no `version`).
+- **Not done yet (the rest of the plan):** the other 172 paths, the hooks `install-live-hooks.py` writes into
+  `settings.json`, agent names becoming `adyusuf:<role>`, retiring the link part of `install.py`, `SETUP.md`,
+  and moving this machine off its links (that last step needs the user's approval).
+  ⚠️ **Until this machine is moved, the pilot must not reach `prod`:** the live install is still the
+  skills-dir plugin at `~/.claude/skills/adyusuf` → `plugin/`, where `${CLAUDE_PLUGIN_ROOT}/standards/` does not exist.
+- **Known cost:** working inside this repository the rules load twice (project `CLAUDE.md` + the hook) — accepted;
+  every other project loads them once.
