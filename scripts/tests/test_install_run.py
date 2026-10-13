@@ -34,10 +34,31 @@ class MonitorStep(Fixture):
         self.assertIn('off (--no-monitor)', out)
         self.assertIn(install.hooks.PLUGIN_INSTALL, out)
 
-    def test_a_failed_monitor_step_is_the_exit_code(self):
-        code, out, _ = self.call(monitor=FakeMonitor(install_code=2))
+    def test_a_failed_monitor_step_is_a_warning_not_a_failure(self):
+        # The monitor is optional (user decision 13/10/2026): cm-agent missing or unreachable is not a problem.
+        for exit_code in (1, 2, 5):
+            with self.subTest(exit_code=exit_code):
+                monitor = FakeMonitor(install_code=exit_code)
+                code, out, _ = self.call(monitor=monitor)
+                self.assertEqual(code, 0)
+                self.assertEqual(len(monitor.calls), 1, 'the step was tried once')
+                self.assertIn(f'⚠️  the monitor agent was not installed or connected (exit {exit_code})', out)
+                self.assertIn('optional', out)
+                self.assertIn('✓ done', out)
+                self.assertNotIn('✗ stopped', out)
+
+    def test_a_working_monitor_step_prints_no_warning(self):
+        code, out, _ = self.call()
+        self.assertEqual(code, 0)
+        self.assertNotIn('the monitor agent was not installed', out)
+        self.assertIn('✓ done', out)
+
+    def test_a_preflight_error_is_still_the_exit_code_whatever_the_monitor_does(self):
+        monitor = FakeMonitor(install_code=2)
+        code, out, err = self.call(monitor=monitor, preflight=(['git is not on PATH'], []))
         self.assertEqual(code, 2)
-        self.assertIn('✗ stopped (exit 2)', out)
+        self.assertIn('✗ git is not on PATH', err)
+        self.assertEqual(monitor.calls, [], 'a refused run never reaches the monitor step')
         self.assertNotIn('✓ done', out)
 
     def test_main_prints_the_flag_notes_before_anything_else(self):

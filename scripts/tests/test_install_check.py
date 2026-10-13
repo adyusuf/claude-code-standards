@@ -92,10 +92,15 @@ class CheckAndTheMonitor(Fixture):
         super().setUp()
         self.plugin_entry()
 
-    def test_a_monitor_problem_fails_the_check(self):
-        code, out, _ = self.call('--check', monitor=FakeMonitor(check_code=1))
-        self.assertEqual(code, 1)
-        self.assertIn('✗ 1 problem(s)', out)
+    def test_a_missing_monitor_is_reported_and_does_not_fail_the_check(self):
+        # The monitor is optional (user decision 13/10/2026): clean legacy + plugin installed + monitor missing = 0.
+        monitor = FakeMonitor(check_code=1)
+        code, out, _ = self.call('--check', monitor=monitor)
+        self.assertEqual(code, 0)
+        self.assertEqual(monitor.calls, [('check', self.home)], 'the monitor was still asked, so its report is printed')
+        self.assertIn('monitor (optional', out)
+        self.assertIn('✓ everything is in place', out)
+        self.assertNotIn('problem(s)', out)
 
     def test_a_healthy_monitor_passes_and_was_asked_about_this_home(self):
         code, _, _ = self.call('--check')
@@ -106,10 +111,13 @@ class CheckAndTheMonitor(Fixture):
         code, _, _ = self.call('--check', '--no-monitor', monitor=FakeMonitor(check_code=1))
         self.assertEqual(code, 0)
 
-    def test_a_monitor_problem_adds_to_the_others(self):
+    def test_a_missing_monitor_is_not_counted_with_the_other_problems(self):
         self.link_legacy('docs')
-        _, out, _ = self.call('--check', monitor=FakeMonitor(check_code=1))
-        self.assertIn('✗ 2 problem(s)', out)
+        for check_code in (0, 1, 2):
+            with self.subTest(check_code=check_code):
+                code, out, _ = self.call('--check', monitor=FakeMonitor(check_code=check_code))
+                self.assertEqual(code, 1)
+                self.assertIn('✗ 1 problem(s)', out)           # the old link only; never 2
 
 
 class PluginInstalledShapes(unittest.TestCase):
