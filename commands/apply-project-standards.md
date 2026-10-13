@@ -2,7 +2,7 @@
 description: Install or update this project's standard documents (CLAUDE.md, SETUP.md, .env.example)
 ---
 
-Bring this project in line with the `~/.claude/standards/` layout. **Do not delete what exists; fill in what is missing.**
+Bring this project in line with the `${CLAUDE_PLUGIN_ROOT}/standards/` layout. **Do not delete what exists; fill in what is missing.**
 
 ## 1. Discovery (read first, write second)
 
@@ -14,11 +14,11 @@ Bring this project in line with the `~/.claude/standards/` layout. **Do not dele
 
 ## 2. `CLAUDE.md`
 
-- If missing: create it from `~/.claude/standards/templates/project-claude-md.md`, filled in with **real** information. A large module (`backend/`, `web/`, `mobile/`, `infra/`) gets its own small `CLAUDE.md` from `module-claude-md.md`, so its detail is loaded only when Claude works there.
+- If missing: create it from `${CLAUDE_PLUGIN_ROOT}/standards/templates/project-claude-md.md`, filled in with **real** information. A large module (`backend/`, `web/`, `mobile/`, `infra/`) gets its own small `CLAUDE.md` from `module-claude-md.md`, so its detail is loaded only when Claude works there.
 - If present: do not delete it. Add only the missing sections and put this note at the top (if it is not there already):
 
   ```
-  > Global software standards: `~/.claude/standards/` (`~/.claude/CLAUDE.md` is loaded in every session).
+  > Global rules and standards: the `adyusuf` Claude Code plugin (https://github.com/adyusuf/claude-code-standards) — its rules load in every session, its standards through `/adyusuf:software-standards`.
   > This file holds only the rules **specific to this project**; a rule here overrides the global standard.
   ```
 
@@ -26,7 +26,7 @@ Bring this project in line with the `~/.claude/standards/` layout. **Do not dele
 
 ## 3. `SETUP.md`
 
-From `~/.claude/standards/templates/setup-md.md` — the critical section is **§3, the secret/token inventory**:
+From `${CLAUDE_PLUGIN_ROOT}/standards/templates/setup-md.md` — the critical section is **§3, the secret/token inventory**:
 for every secret, its name, what it is for, **where to obtain it (the menu path)**, where it is stored, who owns it, its rotation, and whether it is secret or public.
 
 Scan the code for existing env usage (`process.env`, `import.meta.env`, `IConfiguration`, `appsettings*.json`)
@@ -43,10 +43,10 @@ Every variable found in the code, with a comment and a required/optional distinc
 `CLAUDE.md` files enter context in **every session and every subagent turn** in
 that directory; bloat is both a cost and a **visibility** problem (nobody finds a
 rule in a 170 KB file). Two gates hold the line — the canonical copies live in
-`~/.claude/scripts/`, with detail in `~/.claude/scripts/README.md`:
+`${CLAUDE_PLUGIN_ROOT}/scripts/`, with detail in `${CLAUDE_PLUGIN_ROOT}/scripts/README.md`:
 
 ```bash
-mkdir -p scripts && cp ~/.claude/scripts/md-*.sh ~/.claude/scripts/md-*.py scripts/
+mkdir -p scripts && cp "${CLAUDE_PLUGIN_ROOT}"/scripts/md-*.sh "${CLAUDE_PLUGIN_ROOT}"/scripts/md-*.py scripts/
 bash scripts/md-size-gate.sh --init     # writes scripts/md-budget.tsv: every CLAUDE.md, ceiling = TODAY's size
 ```
 
@@ -79,12 +79,12 @@ If the project carries no `.claude/mode` file, mode **B** applies.
 To request a different agent set: `/adyusuf:working-mode <A|C|D|E>`; to run the Opus
 agents on another model, add it: `/adyusuf:working-mode C sonnet` (written to
 `.claude/mode-model`; the letter alone removes it).
-Definitions are in `~/.claude/modes/README.md`, the rule in `~/.claude/CLAUDE.md` #27.
+Definitions are in `${CLAUDE_PLUGIN_ROOT}/modes/README.md`, the rule in `${CLAUDE_PLUGIN_ROOT}/CLAUDE.md` #27.
 ⚠️ `.claude/*` is gitignored in most projects; the mode file **must be committed**
 (narrow `!.claude/mode` and `!.claude/mode-model` exceptions are needed) — they are a
 project setting, not personal session state.
 
-## 6a. Live board (default for new projects — `~/.claude/standards/22-live-board.md`)
+## 6a. Live board (default for new projects — `${CLAUDE_PLUGIN_ROOT}/standards/22-live-board.md`)
 
 So that sessions in this project appear on the one board (`http://127.0.0.1:8765`), receive
 the user's board decisions and start the board by themselves:
