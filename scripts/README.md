@@ -21,7 +21,7 @@ The `/adyusuf:apply-project-standards` command does this. By hand:
 
 ```bash
 mkdir -p scripts && cp ~/.claude/scripts/md-*.sh ~/.claude/scripts/md-*.py scripts/
-bash scripts/md-size-gate.sh --update   # the ceilings become today's size
+bash scripts/md-size-gate.sh --init     # writes your budget: every CLAUDE.md, ceiling = today's size
 ```
 
 Then add a `bash scripts/md-size-gate.sh` step to the project's merge gate.
@@ -119,7 +119,7 @@ Not everything here is meant to be copied, and some copied files must be edited.
 | `merge-gate.sh` | **Write your own** | The project's orchestrator: pull, merge, push, and a call to `gate-core.sh`. This repository ships no template for it. |
 | `merge-gate.conf` | **Create, values are yours** | The commands, `TEST_VERSION_URL`, `ACCEPTED_GAPS` with a written reason. The values shown in `gate-core.sh`'s header are examples, not defaults to keep. |
 | `md-size-gate.sh`, `md-rule-gate.py`, `md-split.py`, `audit-triage.py` | **Copy as is** | `audit-triage.tsv` is yours and starts absent: no file, no waiver. |
-| `md-budget.tsv` | **Copy, then `md-size-gate.sh --update`** | The ceilings are this repository's. Yours become your files' size today. |
+| `md-budget.tsv` | **Do not copy — run `md-size-gate.sh --init`** | It writes your own budget: one row per `CLAUDE.md`, ceiling = its size today. A copy of this one carries our ceilings and exclusions, and `--update` only lowers rows that already exist. |
 | `pre-commit.sh` | **Copy as is, then `--install` in every clone** | A git hook is per clone; it is not committed. |
 | `guard-destructive.sh` | **Copy as is; register it** | In `.claude/settings.json` (shared) with `"$CLAUDE_PROJECT_DIR/scripts/guard-destructive.sh"`, or in your user settings. See `standards/18-setup-and-environment.md` §11. |
 | `real-name-check.sh` + `commit-msg.sh` | **Copy as is, if you keep a local nickname map** | Run `pre-commit.sh --install` after copying so the `commit-msg` hook is linked too. Without the map they only warn. |
