@@ -1,9 +1,31 @@
 ---
 name: working-mode
-description: Shows or changes the operating mode (A/B/C/D/E) for this project, optionally with a model that replaces Opus for the Opus agents ("C sonnet"). The mode determines agent usage, review and the approval policy. Use it when the user says "/adyusuf:working-mode", "change the mode", "which mode are we in", "work as a full team", or "work without agents".
+description: Shows or changes the operating mode (A/B/C/D/E) for this project, optionally with a model that replaces Opus for the Opus agents ("C sonnet"). The mode determines agent usage, review and the approval policy, and so how fast the session spends tokens. Use it when the user says "/adyusuf:working-mode", "change the mode", "which mode are we in", "work as a full team", or "work without agents".
 ---
 
 # Working mode
+
+## Why this exists
+
+Writing code with agentic AI from Claude Desktop means working with **subagents only**:
+Desktop cannot start an agent team, so this skill makes the session itself the
+orchestrator and runs subagents in a controlled, synchronous way. And once you work on
+more than one project at a time, tokens run out — so the mode is the dial for **how fast
+a session spends them**. Pick the smallest mode the work needs:
+
+| Mode | Who works | Agents |
+|---|---|---|
+| A | The session alone, no agents | 0 |
+| B | Selective — `analyst`, `test-writer`, `doc-writer` (default) | 3 roles |
+| C | Full team | 9 roles |
+| D | Wide team | 14 roles |
+| E | Fan-out through `Workflow` | as many as the work splits into |
+
+In every mode with agents, the work is **audited by agents too**: a producing role
+closes with an evidence block, and an auditing role checks it and sends gaps back
+(global #28).
+
+Contributions are welcome: https://github.com/adyusuf/claude-code-standards
 
 ## 0. At session start — ASK (every interactive session)
 
