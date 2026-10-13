@@ -96,7 +96,7 @@ cat > "$work/bin/bash" <<SHIM
 ours=0
 for arg in "\$@"; do
   case "\$arg" in
-    "$root"/scripts/*.sh|"$short"/scripts/*.sh) [ -f "\$arg" ] && ours=1 ;;
+    "$root"/scripts/*.sh|"$short"/scripts/*.sh|"$root"/bin/*|"$short"/bin/*) [ -f "\$arg" ] && ours=1 ;;
   esac
 done
 if [ "\$ours" = 1 ]; then
@@ -105,7 +105,10 @@ if [ "\$ours" = 1 ]; then
   n=\$#
   while [ "\$n" -gt 0 ]; do
     a="\$1"; shift
-    case "\$a" in "$root"/scripts/*) a="$short/scripts/\${a#"$root"/scripts/}" ;; esac
+    case "\$a" in
+      "$root"/scripts/*) a="$short/scripts/\${a#"$root"/scripts/}" ;;
+      "$root"/bin/*) a="$short/bin/\${a#"$root"/bin/}" ;;
+    esac
     set -- "\$@" "\$a"
     n=\$((n - 1))
   done
@@ -114,7 +117,7 @@ if [ "\$ours" = 1 ]; then
   # strips kcov when they share a directory, and the shim then died with
   # "exec: kcov: not found" — turning a passing suite red only under
   # measurement.
-  exec "$kcov_bin" --include-path="$short/scripts,$root/scripts" --exclude-pattern=/tests/ \\
+  exec "$kcov_bin" --include-path="$short/scripts,$root/scripts,$short/bin,$root/bin" --exclude-pattern=/tests/ \\
             "$work/out/\$(date +%s%N)-\$\$" "\$@"
 fi
 exec "$trace_bash" "\$@"
@@ -157,7 +160,8 @@ for path in glob.glob(f"{out_dir}/**/cobertura.xml", recursive=True):
         continue
     for klass in tree.iter("class"):
         name = klass.get("filename") or ""
-        if not name.endswith(".sh") or "/tests/" in name:
+        # Our shell: scripts/*.sh, plus the plugin's bin/ commands (no extension; bin/adyusuf-check).
+        if not (name.endswith(".sh") or "/bin/" in name) or "/tests/" in name:
             continue
         for line in klass.iter("line"):
             number = int(line.get("number"))
