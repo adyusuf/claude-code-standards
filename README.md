@@ -542,22 +542,50 @@ wired up. That check is the whole reason #19 is worded the way it is.
 
 ## What this does to your machine
 
-Installing someone else's hooks means running their code on your tool calls, so
-here is the inventory:
+Installing someone else's plugin means running their code in your sessions, so here is everything it
+runs, reads, writes and sends.
 
-| Hook | Script | What it does |
+**What runs by itself (the plugin's hooks, `hooks/hooks.json`).** All of them run locally, and none of
+them opens a network connection.
+
+| When | Script | What it does |
 |---|---|---|
-| `PreToolUse` (Bash) | `guard-destructive.sh` | refuses the never-do commands — `rm -rf`, force push, `DROP` — before they run |
-| `PostToolUse` (Edit/Write) and `Stop` | `md-hook.sh` | checks a touched `CLAUDE.md` against its size budget and for dropped rules |
+| `SessionStart`, `SubagentStart` | `rules-context.py` | prints this repository's `CLAUDE.md` (in parts of < 10,000 characters) into the session and every subagent; reads only that file |
+| `SessionStart` (startup) | `legacy-install-check.py` | reads `~/.claude` (links, `settings.json`) and warns when an old link install of this rule set is still there; changes nothing |
+| `PreToolUse` (Bash) | `guard-destructive.sh` | reads the command Claude is about to run and refuses the never-do ones (`rm -rf`, force push, `DROP`) |
+| `PostToolUse` (Edit/Write), `Stop` | `md-hook.sh` | checks a touched `CLAUDE.md` against its size budget and for dropped rules; prints a warning |
 
-**No telemetry, and nothing is uploaded.** The only outbound request anywhere in
-the repository is one optional `curl` in `gate-core.sh`, aimed at a test-deploy
-URL that *you* set (`TEST_VERSION_URL`); leave it unset and there is none. The
-secret scan and the SAST step shell out to `gitleaks` and `codeql` on your own
-machine — install them yourself, and until you do the gate reports those steps as
-skipped and refuses to call the result green.
+**What runs only when you call it.**
+- **`adyusuf-check`** (the plugin's `bin/`, on the Bash PATH while the plugin is enabled) runs
+  `install.py --check --no-monitor`. It reads `~/.claude` and writes its log under `~/.claude-standards/logs/`.
+- **`/adyusuf:*` skills and commands** tell Claude what to do. They run nothing on their own.
+- **`scripts/install.py`** (optional, from a checkout) does two things:
+  - installs claude-monitor's agent: it clones `github.com/adyusuf/claude-monitor`, builds it with the .NET
+    SDK, and registers it in `~/.claude/settings.json` (backed up first);
+  - with `--remove`, it takes the old link install out of `~/.claude`.
 
-Both ship with the plugin; to take them out, disable or uninstall it (`/plugin`).
+  The agent stays **disabled** until you connect it to a claude-monitor server. You approve that connection
+  on the web, and the server is one of those named in `scripts/install_monitor.py` or the one you pass with
+  `--monitor-server`. Once connected, the agent sends that server your sessions' activity: sessions,
+  subagents and Claude Code's task tools. The data model is in the claude-monitor repository.
+  `--no-monitor` skips the agent entirely.
+- **The gate** (`scripts/gate-core.sh` and its libraries, which you run in your own project) runs your
+  project's tools on your machine: formatter, tests, coverage, `gitleaks`, `codeql`. Four of its steps
+  reach the network:
+  - when `node_modules` is missing, it installs your project's dependencies from its lockfile before the first
+    Node step (`npm ci` / `pnpm install --frozen-lockfile`), from your registry;
+  - the dependency audits (`npm audit`, `dotnet list package --vulnerable`) fetch advisories from their
+    registries;
+  - an optional `curl` goes to a test-deploy URL that *you* set (`TEST_VERSION_URL`), and only when you set it;
+  - `require-private-remote.sh` (a pre-push hook you install yourself) asks GitHub, through `gh api`, whether
+    a repository is private.
+- **`scripts/step-stats.py`** reads Claude Code's local transcripts (`~/.claude/projects`) to count steps and
+  tokens. It writes a sanitised report into this repository's `docs/` and refuses when a project name or path
+  would leak.
+
+**No telemetry.** The plugin itself sends nothing anywhere. The only data that leaves your machine is what
+you start: the monitor agent once you connect it, and the gate's advisory lookups. Turn the plugin off or
+remove it with `/plugin`.
 
 ## Anonymization
 
