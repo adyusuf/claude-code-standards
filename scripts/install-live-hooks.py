@@ -113,7 +113,8 @@ def legacy_commands(data):
     found = []
     for groups in hook_events(data).values():
         for group in groups if isinstance(groups, list) else []:
-            for hook in group.get('hooks', []) if isinstance(group, dict) else []:
+            hooks = group.get('hooks') if isinstance(group, dict) else None
+            for hook in hooks if isinstance(hooks, list) else []:
                 command = hook.get('command') if isinstance(hook, dict) else None
                 if command in LEGACY:
                     found.append(command)
