@@ -100,4 +100,4 @@ invisible check is an unperformed check.
 - **One** "no serious gap" is enough for a handoff. **Ceiling: 2 hand-backs.**
 
 The full rule, who sends work back to whom, and the paths to closure:
-`~/.claude/modes/role-selection.md` §7.
+`${CLAUDE_PLUGIN_ROOT}/modes/role-selection.md` §7.

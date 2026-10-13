@@ -3,7 +3,7 @@ description: Audit the current changes against the global software standards
 ---
 
 Audit the **pending changes** in this repository (`git diff` + `git diff --staged`;
-if there is nothing, the last commit) against the standards under `~/.claude/standards/`.
+if there is nothing, the last commit) against the standards under `${CLAUDE_PLUGIN_ROOT}/standards/`.
 
 If an argument is given ($ARGUMENTS), review only that scope (a file path, a directory or a topic name).
 

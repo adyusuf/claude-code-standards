@@ -5,7 +5,7 @@ description: Security, hardening, backup and observability audit before a produc
 Audit whether this project is **ready to go live**. Do not guess — **verify**.
 Mark anything you cannot verify as "could not be verified"; never count it as passed.
 
-Read: `~/.claude/standards/` → `15-security.md` (§12 OWASP, §15 checklist), `20-hardening.md`,
+Read: `${CLAUDE_PLUGIN_ROOT}/standards/` → `15-security.md` (§12 OWASP, §15 checklist), `20-hardening.md`,
 `21-backup-and-recovery.md`, `17-observability.md`, `14-devops.md`, `19-cloudflare-and-edge.md`.
 Also the project's own `CLAUDE.md` + `DEPLOY.md` + `SETUP.md`.
 

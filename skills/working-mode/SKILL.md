@@ -34,7 +34,7 @@ the §1 read result, or the lowest sufficient mode for the first request) and wh
 replaces Opus (keep the defined models · sonnet · haiku · fable). Apply the answer with
 §4 **as `--once`** (scratchpad only, never `.claude/mode`), then start the work. Not
 asked when the first message names the mode, when `$S/mode` already exists, in any
-agent, or in a non-interactive run. Rules: `~/.claude/modes/README.md` › *Session start*.
+agent, or in a non-interactive run. Rules: `${CLAUDE_PLUGIN_ROOT}/modes/README.md` › *Session start*.
 
 ## 1. Read the current mode
 
@@ -50,7 +50,7 @@ echo "opus agents run on: $( [ -n "$d" ] && cat "$d/mode-model" 2>/dev/null || e
 
 The model override is read **from the layer that supplied the letter** — a session
 letter without `$S/mode-model` means "defined models", even if the project file has
-an override. Rules: `~/.claude/modes/README.md` › *Model override*.
+an override. Rules: `${CLAUDE_PLUGIN_ROOT}/modes/README.md` › *Model override*.
 
 If none of them exists the mode is **B**. B's three agents (`analyst`,
 `test-writer`, `doc-writer`) are approved along with the default. If the user
@@ -65,8 +65,8 @@ the session — exactly the lifetime required.
 
 ## 2. Load the mode definitions
 
-`~/.claude/modes/README.md` is the matrix (single source). Read the active mode's
-file: `~/.claude/modes/<LETTER>-*.md` (each of the five letters resolves to one
+`${CLAUDE_PLUGIN_ROOT}/modes/README.md` is the matrix (single source). Read the active mode's
+file: `${CLAUDE_PLUGIN_ROOT}/modes/<LETTER>-*.md` (each of the five letters resolves to one
 file). **Read only the active mode's file** — reading all five burns context for
 nothing. ⚠️ **X/Y/Z are archived** (`modes/archive/README.md`) and are never
 offered as a mode.
