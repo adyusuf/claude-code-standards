@@ -1245,7 +1245,7 @@ whether a model was running in it.
   is installed from a marketplace and **copied** to `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`.
   `adyusuf` was the exception: `install.py` linked `~/.claude/{CLAUDE.md,agents,docs,modes,scripts,standards}`
   and `~/.claude/skills/adyusuf` (= `plugin/`, whose `skills/` and `commands/` are links again) into the
-  checkout, and 57 files carried 173 fixed `~/.claude/...` paths. Symlinks need Developer Mode and
+  checkout, and 57 files carried 200 fixed `~/.claude/...` paths (`git grep -o '~/\.claude' origin/dev | wc -l`). Symlinks need Developer Mode and
   `core.symlinks` on Windows, an edit in the checkout went live at the next session, and nothing had a version.
 - **Decision (user, three choices):**
   1. **Source: GitHub `adyusuf/claude-code-standards#prod`.** Install is
@@ -1271,10 +1271,18 @@ whether a model was running in it.
   the order varied: 3,1,2 and 1,3,2); `/adyusuf:software-standards` resolved `${CLAUDE_PLUGIN_ROOT}/standards/`
   to the checkout's `standards/`. `claude plugin validate .` passes with the two intended warnings
   (root `CLAUDE.md`, no `version`).
-- **Not done yet (the rest of the plan):** the other 172 paths, the hooks `install-live-hooks.py` writes into
+- **Not done yet (the rest of the plan):** the remaining `~/.claude/...` paths (3 changed in the pilot), the hooks `install-live-hooks.py` writes into
   `settings.json`, agent names becoming `adyusuf:<role>`, retiring the link part of `install.py`, `SETUP.md`,
   and moving this machine off its links (that last step needs the user's approval).
-  ⚠️ **Until this machine is moved, the pilot must not reach `prod`:** the live install is still the
-  skills-dir plugin at `~/.claude/skills/adyusuf` → `plugin/`, where `${CLAUDE_PLUGIN_ROOT}/standards/` does not exist.
+  ⚠️ **The pilot stays on its own branch** (`feature/plugin-marketplace-pilot`) and reaches `dev` only in ONE
+  batch with the migration (#26). Reason (QA, 13/10/2026): the live install is still the skills-dir plugin at
+  `~/.claude/skills/adyusuf` → `plugin/`, where `${CLAUDE_PLUGIN_ROOT}/standards/` does not exist, and any
+  promotion from `dev` would carry the pilot to `prod` — a note is not a guard, keeping it off `dev` is.
+  Installing the marketplace plugin on a machine that still has the links would also load the 14 roles a second
+  time as `adyusuf:<role>` and the global rules twice in every project; the migration removes the links first.
+- **Windows (open):** `hooks/hooks.json` calls `python3`, which the python.org installer does not provide
+  (`SETUP.md` prerequisites). With the plugin install no `install.py` checks it, so every hook would fail
+  non-blocking and sessions would run **without the global rules**. `SETUP.md` must state the prerequisite
+  before the plugin install is advertised.
 - **Known cost:** working inside this repository the rules load twice (project `CLAUDE.md` + the hook) — accepted;
   every other project loads them once.
