@@ -80,5 +80,50 @@ class ReferenceTest(unittest.TestCase):
         self.assertEqual(stale, {}, 'write /adyusuf:<name>')
 
 
+class RootPluginTest(unittest.TestCase):
+    """The marketplace layout at the repository root (pilot, next to the old plugin/ dir):
+    .claude-plugin/ manifest + marketplace, and hooks/hooks.json that load the rules."""
+    HOOK_SCRIPT = '${CLAUDE_PLUGIN_ROOT}/scripts/rules-context.py'
+
+    @staticmethod
+    def load(*parts):
+        with open(os.path.join(REPO, *parts), encoding='utf-8') as handle:
+            return json.load(handle)
+
+    def test_manifest_names_the_namespace_and_carries_no_version(self):
+        manifest = self.load('.claude-plugin', 'plugin.json')
+        self.assertEqual(manifest['name'], NAMESPACE)
+        # No version on purpose: every commit on the installed branch is a new version.
+        self.assertNotIn('version', manifest)
+
+    def test_marketplace_lists_exactly_the_one_plugin_at_the_repository_root(self):
+        marketplace = self.load('.claude-plugin', 'marketplace.json')
+        self.assertEqual(marketplace['name'], 'adyusuf-marketplace')
+        self.assertEqual([(p['name'], p['source']) for p in marketplace['plugins']], [(NAMESPACE, './')])
+
+    def hook_commands(self):
+        events = self.load('hooks', 'hooks.json')['hooks']
+        return {event: [h['command'] for group in groups for h in group['hooks']]
+                for event, groups in events.items()}
+
+    def test_hooks_register_session_and_subagent_start_only(self):
+        self.assertEqual(sorted(self.hook_commands()), ['SessionStart', 'SubagentStart'])
+
+    def test_every_hook_command_runs_the_rules_script_from_the_plugin_root(self):
+        for event, commands in self.hook_commands().items():
+            self.assertTrue(commands, event)
+            for command in commands:
+                self.assertIn(self.HOOK_SCRIPT, command, f'{event}: {command}')
+        self.assertTrue(os.path.isfile(os.path.join(REPO, 'scripts', 'rules-context.py')))
+
+    def test_parts_per_event_are_one_to_n_contiguous_with_the_matching_mode_and_total(self):
+        modes = {'SessionStart': 'session', 'SubagentStart': 'subagent'}
+        for event, commands in self.hook_commands().items():
+            args = [command.split('rules-context.py"')[1].split() for command in commands]
+            self.assertEqual([a[0] for a in args], [modes[event]] * len(args), event)
+            self.assertEqual([int(a[1]) for a in args], list(range(1, len(args) + 1)), event)
+            self.assertEqual({int(a[2]) for a in args}, {len(args)}, f'{event}: <registered> must equal the hook count')
+
+
 if __name__ == '__main__':
     unittest.main()
