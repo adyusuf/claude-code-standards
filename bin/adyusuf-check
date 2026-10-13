@@ -9,11 +9,11 @@
 # Usage: adyusuf-check        (exit 0 = everything in place, 1 = something to do; the output says what)
 set -uo pipefail
 
-case "${1:-}" in
-  -h|--help) sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
-  "") ;;
-  *) echo "adyusuf-check takes no arguments (got: $*)" >&2; exit 2 ;;
-esac
+if [ "$#" -eq 1 ] && { [ "$1" = -h ] || [ "$1" = --help ]; }; then
+  sed -n '2,9p' "$0" | sed 's/^# \{0,1\}//'; exit 0
+fi
+# Count the arguments, not the first one's value: `adyusuf-check "" --fix` is two arguments.
+if [ "$#" -ne 0 ]; then echo "adyusuf-check takes no arguments (got $#: $*)" >&2; exit 2; fi
 
 # The plugin root is this file's parent's parent. PATH may hold a link to it, so follow links first.
 self="$0"

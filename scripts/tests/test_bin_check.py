@@ -67,6 +67,14 @@ class AdyusufCheck(unittest.TestCase):
         root = done.stdout.splitlines()[0][len('plugin root: '):]
         self.assertTrue(os.path.samefile(root, ROOT), done.stdout + done.stderr)
 
+    def test_an_absolute_link_on_the_path_still_finds_the_plugin_root(self):
+        links = os.path.realpath(tempfile.mkdtemp())
+        self.addCleanup(shutil.rmtree, links, True)
+        os.symlink(os.path.realpath(CHECK), os.path.join(links, 'adyusuf-check'))
+        done = self.run_check(path=os.path.join(links, 'adyusuf-check'))
+        root = done.stdout.splitlines()[0][len('plugin root: '):]
+        self.assertTrue(os.path.samefile(root, ROOT), done.stdout + done.stderr)
+
     def test_help_prints_the_usage_and_exits_0(self):
         done = self.run_check('--help')
         self.assertEqual(done.returncode, 0)
@@ -76,7 +84,17 @@ class AdyusufCheck(unittest.TestCase):
     def test_an_argument_is_refused_with_exit_2(self):
         done = self.run_check('--fix')
         self.assertEqual(done.returncode, 2)
-        self.assertIn('takes no arguments (got: --fix)', done.stderr)
+        self.assertIn('takes no arguments (got 1: --fix)', done.stderr)
+
+    def test_an_empty_first_argument_does_not_slip_past_the_refusal(self):
+        done = self.run_check('', '--fix')
+        self.assertEqual(done.returncode, 2, done.stdout + done.stderr)
+        self.assertIn('takes no arguments (got 2:', done.stderr)
+
+    def test_help_with_anything_after_it_is_refused(self):
+        done = self.run_check('--help', 'extra')
+        self.assertEqual(done.returncode, 2)
+        self.assertNotIn('Usage:', done.stdout)
 
     def test_without_python3_it_says_so_and_exits_2(self):
         tools = tempfile.mkdtemp()
