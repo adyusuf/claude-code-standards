@@ -1377,3 +1377,10 @@ whether a model was running in it.
   and exits 1 while there is something to do. It follows a link on `PATH` back to the plugin root.
 - **Coverage:** `scripts/coverage-shell.sh` traces `bin/*` as well as `scripts/*.sh`. A shell command
   outside the denominator would loosen #29.
+
+## The directory icon (13/10/2026, user decision)
+
+- `.claude-plugin/icon.png` holds the author's own brand mark: a "b" with a green dot, no text. It is
+  rendered at 1024×1024 from the author's site favicon (SVG) with `rsvg-convert`.
+- ⚠️ **The directory takes the icon only once**, when the plugin is first saved or submitted in the developer
+  portal. Replacing the file later does not change the listing, so this file is effectively permanent.
