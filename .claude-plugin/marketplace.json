@@ -1,0 +1,8 @@
+{
+  "name": "adyusuf-marketplace",
+  "description": "The adyusuf rule set as one Claude Code plugin.",
+  "owner": { "name": "Adnan Yusuf" },
+  "plugins": [
+    { "name": "adyusuf", "source": "./", "description": "Global working rules, software standards, operating modes, role agents and gate scripts." }
+  ]
+}
