@@ -44,6 +44,10 @@ LEGACY = frozenset((
     'bash "$HOME/.claude/hooks/guard-destructive.sh"',
     'bash "$HOME/.claude/scripts/guard-destructive.sh"',
     'bash "$HOME/.claude/scripts/md-hook.sh"',
+    # The retired live board's hooks (standards/22): they resolve only through the old ~/.claude/scripts link
+    # and start a process on every tool call, hidden by `|| true`, once that link is gone.
+    'python3 "$HOME/.claude/scripts/board/board_ensure.py" || true',
+    'python3 "$HOME/.claude/scripts/board/board_hook.py" || true',
 ))
 # The links this script made, relative to ~/.claude. Removed only while they are symlinks.
 LEGACY_LINKS = (os.path.join('hooks', 'guard-destructive.sh'),)
