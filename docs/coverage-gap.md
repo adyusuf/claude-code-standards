@@ -31,7 +31,7 @@ before trusting them:
 
 | File | Coverage | Why it matters |
 |---|---|---|
-| `scripts/step-stats.py` | **60%** (125 statements missed) | `compare_cuts`, `report` and `main` — the functions that WRITE the document — are still untested. The sanitiser and the attribution below them are covered, and the sanitiser is the half that must not leak |
+| `scripts/step-stats.py` + its three `step_stats_*.py` parts | **63%** over the four files (125 of 334 statements missed; `step-stats.py` itself 37%, measured 13/10/2026 after the split) | `compare_cuts`, `report` and `main` — the functions that WRITE the document — are still untested. The sanitiser and the attribution below them are covered, and the sanitiser is the half that must not leak |
 | `scripts/guard-destructive.sh` | **65%** | the hook that refuses `rm -rf`, force push and `DROP`. ⚠️ **The uncovered lines ARE tested** — `GuardFailsClosed` in `scripts/tests/test_guard_destructive.py` covers all of them, and mutation confirms it: `exit 0` in either branch turns those tests red. They do not COUNT because the cases are "the inspector is not beside the script" and "the inspector answers wrongly", which need a directory without the real inspector — so the tests run a copy, and a tracer credits the file it ran. The alternative is an env var that redirects the inspector: a way to redirect the guard, placed inside the guard. The unmeasured line is the cheaper problem |
 | `scripts/real-name-check.sh` | **75%** | the commit-message guard |
 | `scripts/coverage-shell.sh` | **77.1%** | the tracer wrapper: it measures, and is itself the least measured thing here |

@@ -1317,8 +1317,9 @@ whether a model was running in it.
   copied the twin scripts gets one copy commit (comments changed). The retired board's hooks: the 7 user-level
   entries are now `LEGACY` (QA, 13/10/2026), so `--remove` strips them; **five projects** still carry 27 board
   entries in their committed `.claude/settings.json` — each is cleaned with `apply-project-standards` §6a.2 in
-  its own repository (they fail silently, `|| true`, until then). `step-stats.py` (492 lines) exceeds #9;
-  it was touched by two lines here and its split is a separate change.
+  its own repository (they fail silently, `|| true`, until then). `step-stats.py` (492 lines) exceeded #9;
+  it was split on its own branch the same day (`fix/step-stats-split`: 247 lines plus three sibling modules,
+  output byte-identical on fixtures and on live data).
 
 ## The monitor agent is optional; its absence is never a problem (13/10/2026, user decision)
 
