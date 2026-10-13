@@ -205,7 +205,7 @@ because something broke first.
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
 | Gate, measurement and install scripts | `scripts/` | 31 scripts + 650 tests |
-| Slash commands and skills — one plugin, `/adyusuf:<name>` | `commands/`, `skills/`, `plugin/` | 7 |
+| Slash commands, skills and hooks — one plugin, `/adyusuf:<name>` | `.claude-plugin/`, `commands/`, `skills/`, `hooks/` | 7 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
 ```mermaid
