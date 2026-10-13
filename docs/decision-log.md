@@ -1286,3 +1286,33 @@ whether a model was running in it.
   before the plugin install is advertised.
 - **Known cost:** working inside this repository the rules load twice (project `CLAUDE.md` + the hook) — accepted;
   every other project loads them once.
+
+## Plugin install, completed: no links left; the board's plan becomes a file (13/10/2026, user decisions)
+
+- **Request:** "continue the rest of the plan" after the pilot, plus two fixes: the CLAUDE.md gate
+  install in `apply-project-standards`, and `board-plan`, whose board had been removed.
+- **Done (branch `feature/plugin-marketplace-pilot`, one commit per task):** skill, command and agent bodies
+  read through `${CLAUDE_PLUGIN_ROOT}` (substitution verified for skills and, with a probe plugin, agents);
+  the Markdown read with the Read tool uses paths relative to the plugin root, anchored by the rules-context
+  header; the project template names the plugin; the guard and `md-hook.sh` are plugin hooks
+  (a probe confirmed a plugin `PreToolUse` hook exiting 2 blocks the call); `install-live-hooks.py` and
+  `install.py --remove` only take the OLD install out, and a `SessionStart` check
+  (`legacy-install-check.py`) warns while it is still there; `install.py` installs only the monitor agent;
+  `plugin/` is gone, and with it the last symlink in the repository.
+- **Agents are `adyusuf:<role>`:** a probe showed a plugin agent is found ONLY by its namespaced name (a bare
+  name errors "not found"), so the modes and the never-do line now say so.
+- **`board-plan` (user choice of three: retire / local plan file / a claude-monitor feature → "local plan
+  file"):** claude-monitor's cm-agent only observes (sessions, subagents, Claude Code's task tools) and gives
+  Claude `monitor_status` and `monitor_note`; mode, roles, routing, task ids, semantic status and commits had
+  no home. They now live in `.claude/board/plan-${CLAUDE_SESSION_ID}.md`, one file per session so parallel
+  sessions never share one; `monitor_note` mirrors a status change when the agent is installed. The board's
+  launchers, their test and this repository's board hooks were removed.
+- **The CLAUDE.md gate install:** `--update` only lowers rows that exist, so the old instruction failed
+  ("No budget file") or, with our budget copied, left the project's own files "NO BUDGET". `md-size-gate.sh
+  --init` writes the project's own budget and never overwrites one (`fix/md-budget-init`).
+- **Still open:** the machine migration (approval first): merge to `prod`, the user's push, then
+  `install.py --remove --no-monitor` and the two `/plugin` commands, on every machine; on this one also the
+  private claude-config repository's tracked links and its `pre-commit` hook that goes through
+  `~/.claude/scripts`, and the local measurement ledger, which reads `~/.claude/scripts/`. Every project that
+  copied the twin scripts gets one copy commit (comments changed). `step-stats.py` (492 lines) exceeds #9;
+  it was touched by two lines here and its split is a separate change.
