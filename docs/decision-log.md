@@ -1317,8 +1317,9 @@ whether a model was running in it.
   copied the twin scripts gets one copy commit (comments changed). The retired board's hooks: the 7 user-level
   entries are now `LEGACY` (QA, 13/10/2026), so `--remove` strips them; **five projects** still carry 27 board
   entries in their committed `.claude/settings.json` — each is cleaned with `apply-project-standards` §6a.2 in
-  its own repository (they fail silently, `|| true`, until then). `step-stats.py` (492 lines) exceeds #9;
-  it was touched by two lines here and its split is a separate change.
+  its own repository (they fail silently, `|| true`, until then). `step-stats.py` (492 lines) exceeded #9;
+  it was split on its own branch the same day (`fix/step-stats-split`: 247 lines plus three sibling modules,
+  output byte-identical on fixtures and on live data).
 
 ## The monitor agent is optional; its absence is never a problem (13/10/2026, user decision)
 
@@ -1331,3 +1332,48 @@ whether a model was running in it.
   plugin at a temporary agent; it was written back by hand with the user's approval (backup
   `~/.claude-standards/backups/monitor-repair-20261013-124139`). Afterwards `cm-agent status` said "not
   connected"; whether it was connected before could not be established — under this decision that is fine.
+
+## `claude plugin validate` warnings are accepted; distribution channels (13/10/2026, user question)
+
+- **Rule:** `claude plugin validate .` passes with exactly two warnings, and both stay. Do not "fix" them:
+  - **No `version` in `plugin.json`.** With a version set, `/plugin update` reports "already at the latest
+    version" until someone raises it by hand on every `prod` push. Without one the commit SHA is the
+    version, so every `prod` push is an update. The plugin docs (plugins/publish, "Decide how you'll version")
+    offer exactly these two options, and say to drop `--strict` when the version is omitted. Run
+    `validate` without `--strict` here; neither CI nor the gate runs it today.
+  - **The root `CLAUDE.md` is not loaded as context.** This is intended: the rules reach every session and
+    every subagent through the `SessionStart`/`SubagentStart` hooks (`scripts/rules-context.py`). The file
+    is also this repository's own rules file and the size gate's subject, so it does not move.
+- **A third warning is a finding, not noise.** Any warning beyond these two is read and fixed.
+- **Updates are not automatic.** Auto-update is off by default for a self-hosted marketplace. Each machine
+  gets a `prod` push through one of two routes:
+  - `claude plugin update adyusuf@adyusuf-marketplace`;
+  - auto-update, switched on in `/plugin` → Marketplaces.
+- **Anthropic's channels (measured from the docs, 13/10/2026):**
+  - `claude-plugins-official` takes no submissions; a listing there goes through an Anthropic partner
+    contact.
+  - The open channel is the directory (`claude.ai/directory/manage`), which needs a paid plan and reviews
+    every version.
+  - claude.ai chat skips hooks and agents, so there the plugin would arrive without the rules, the guard
+    and the roles. Cowork loads both.
+  - No manifest field limits the apps a plugin installs on. A top-level `bin/` makes chat and Cowork
+    refuse the whole plugin, and that is the only documented switch.
+  - The user decided the same day: the plugin is Claude Code only (next section). Listing it in the
+    directory is still the user's call.
+
+## The plugin is Claude Code only (13/10/2026, user decision)
+
+- **Question:** "can it be set up so it is not installed where it cannot load?"
+- **Measured from Anthropic's docs** (claude.com/docs/plugins/platform-support): claude.ai chat skips hooks
+  and agents, so there the plugin would run without the global rules, the guard and the 14 roles. Cowork
+  loads both. No manifest field limits the apps a plugin installs on. A top-level `bin/` makes chat **and**
+  Cowork refuse the whole plugin, and the directory portal derives the supported apps from the same rules.
+- **Decision (user picked the first of three):** Claude Code only, through `bin/`. The other two options were
+  rejected:
+  - leaving it as it is, so chat gets the skills alone;
+  - a second, skills-only plugin, which means two plugins to maintain.
+- **The folder holds a real command, not a marker:** `bin/adyusuf-check` runs
+  `scripts/install.py --check --no-monitor`. It reports the plugin and any leftover of the old link install,
+  and exits 1 while there is something to do. It follows a link on `PATH` back to the plugin root.
+- **Coverage:** `scripts/coverage-shell.sh` traces `bin/*` as well as `scripts/*.sh`. A shell command
+  outside the denominator would loosen #29.
