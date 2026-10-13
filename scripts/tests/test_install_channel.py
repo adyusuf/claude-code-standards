@@ -1,8 +1,9 @@
-"""scripts/install_channel.py — which checkout `install.py --prod` (default) / `--test` links to.
+"""scripts/install_channel.py — which checkout of this repository is on prod (default), test or dev.
 
 Real git repositories throughout: an "origin" with prod and test branches and a clone of it, the way a
-person who cloned from GitHub has it. What matters: the user's own checkout is never switched, an existing
-worktree is reused, a new one is made only by an install, and a download without git still installs prod.
+person who cloned from GitHub has it. What matters: the user's own checkout is never switched, an EXISTING
+worktree is reused as it is, NOTHING is ever created (`create` is accepted and ignored), and a download without
+git still resolves prod.
 """
 import importlib.util
 import os
@@ -10,6 +11,7 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from unittest import mock
 
 SCRIPTS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
 _spec = importlib.util.spec_from_file_location('install_channel', os.path.join(SCRIPTS, 'install_channel.py'))
@@ -45,57 +47,75 @@ class Repos(unittest.TestCase):
 
 
 class Resolve(Repos):
+    def add_worktree(self, branch):
+        """What a person who wants a test checkout does by hand: git worktree add ../standards-<branch>."""
+        path = f'{self.clone}-{branch}'
+        git(self.clone, 'worktree', 'add', '-q', path, branch)
+        return path
+
     def test_prod_from_a_prod_clone_is_the_clone_itself(self):
         path, said = channel.resolve(self.clone, 'prod')
         self.assertEqual(path, self.clone)
         self.assertIn('on prod', said)
 
-    def test_test_makes_a_worktree_beside_it_and_leaves_the_clone_on_prod(self):
+    def test_a_branch_with_no_checkout_is_refused_and_nothing_is_created(self):
         path, said = channel.resolve(self.clone, 'test')
-        self.assertEqual(path, self.clone + '-test')
-        self.assertIn('new test worktree', said)
-        self.assertEqual(self.head(path), 'test')
+        self.assertIsNone(path)
+        self.assertIn('there is no test checkout of this repository (no worktree is created)', said)
+        self.assertFalse(os.path.exists(self.clone + '-test'))
         self.assertEqual(self.head(self.clone), 'prod', 'the user\'s own checkout must never be switched')
 
-    def test_an_existing_worktree_is_reused_not_made_again(self):
-        first, _ = channel.resolve(self.clone, 'test')
-        again, said = channel.resolve(self.clone, 'test')
-        self.assertEqual(again, first)
-        self.assertIn('existing test worktree', said)
+    def test_create_is_accepted_and_ignored(self):
+        path, _ = channel.resolve(self.clone, 'test', create=True)
+        self.assertIsNone(path)
+        self.assertFalse(os.path.exists(self.clone + '-test'), 'the old behaviour made a worktree here')
+
+    def test_an_existing_worktree_is_used_as_it_is(self):
+        made = self.add_worktree('test')
+        path, said = channel.resolve(self.clone, 'test')
+        self.assertEqual(path, made)
+        self.assertIn('the existing test worktree, used as it is', said)
+        self.assertEqual(self.head(self.clone), 'prod')
 
     def test_prod_from_a_test_checkout_finds_the_prod_worktree(self):
-        test_path, _ = channel.resolve(self.clone, 'test')
-        path, _ = channel.resolve(test_path, 'prod')
+        test_path = self.add_worktree('test')
+        path, said = channel.resolve(test_path, 'prod')
         self.assertEqual(os.path.normcase(path), os.path.normcase(self.clone))
-
-    def test_check_and_remove_never_create_a_worktree(self):
-        path, said = channel.resolve(self.clone, 'test', create=False)
-        self.assertIsNone(path)
-        self.assertIn('no test checkout yet', said)
-        self.assertFalse(os.path.exists(self.clone + '-test'))
-
-    def test_a_foreign_folder_where_the_worktree_would_go_is_never_used(self):
-        os.makedirs(self.clone + '-test')
-        path, said = channel.resolve(self.clone, 'test')
-        self.assertIsNone(path)
-        self.assertIn('move it aside', said)
-
-    def test_a_branch_the_clone_has_never_seen_is_refused(self):
-        # A stale origin/test is a fine source offline, so the clone must not know the branch at all.
-        git(self.origin, 'branch', '-D', 'test')
-        git(self.clone, 'update-ref', '-d', 'refs/remotes/origin/test')
-        path, said = channel.resolve(self.clone, 'test')
-        self.assertIsNone(path)
-        self.assertIn('could not create the test worktree', said)
-
-    def test_an_unknown_channel_is_refused(self):
-        self.assertIsNone(channel.resolve(self.clone, 'main')[0])
+        self.assertIn('the existing prod worktree, used as it is', said)
 
     def test_dev_is_a_channel_too(self):
-        git(self.origin, 'branch', 'dev', 'prod')
-        git(self.clone, 'fetch', '-q', 'origin')
+        git(self.clone, 'branch', 'dev', 'prod')
+        made = self.add_worktree('dev')
         path, _ = channel.resolve(self.clone, 'dev')
-        self.assertEqual(self.head(path), 'dev')
+        self.assertEqual((path, self.head(path)), (made, 'dev'))
+
+    def test_a_foreign_folder_where_a_worktree_would_go_is_never_used(self):
+        os.makedirs(self.clone + '-test')
+        path, _ = channel.resolve(self.clone, 'test')
+        self.assertIsNone(path)
+
+    def test_a_detached_head_is_not_on_any_branch(self):
+        git(self.clone, 'checkout', '-q', '--detach')
+        self.assertIsNone(self.head(self.clone))
+        self.assertIsNone(channel.resolve(self.clone, 'prod')[0])
+
+    def test_an_unknown_channel_is_refused_before_git_is_asked(self):
+        path, said = channel.resolve(self.clone, 'main')
+        self.assertIsNone(path)
+        self.assertIn("unknown channel 'main' (one of prod, test, dev)", said)
+
+    def test_worktree_on_finds_only_the_branch_asked_for(self):
+        self.assertEqual(channel.worktree_on(self.clone, 'prod'), self.clone)
+        self.assertIsNone(channel.worktree_on(self.clone, 'test'))
+
+
+class GitIsMissing(unittest.TestCase):
+    def test_a_machine_without_git_reads_as_exit_127_not_a_crash(self):
+        with mock.patch.object(channel.subprocess, 'run', side_effect=FileNotFoundError('git')):
+            result = channel.git('/x', 'status')
+        self.assertEqual((result.returncode, result.stdout, result.stderr), (127, '', 'git'))
+        with mock.patch.object(channel.subprocess, 'run', side_effect=FileNotFoundError('git')):
+            self.assertIsNone(channel.branch_of('/x'))
 
 
 class WithoutGit(unittest.TestCase):
@@ -110,10 +130,12 @@ class WithoutGit(unittest.TestCase):
         self.assertEqual(path, self.folder)
         self.assertIn('NOT a git checkout', said)
 
-    def test_test_needs_a_clone(self):
-        path, said = channel.resolve(self.folder, 'test')
-        self.assertIsNone(path)
-        self.assertIn('clone the repository', said)
+    def test_test_and_dev_need_a_clone(self):
+        for name in ('test', 'dev'):
+            with self.subTest(channel=name):
+                path, said = channel.resolve(self.folder, name)
+                self.assertIsNone(path)
+                self.assertIn(f'--{name} cannot pick a branch: clone the repository', said)
 
 
 if __name__ == '__main__':

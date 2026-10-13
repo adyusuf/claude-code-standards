@@ -1,6 +1,10 @@
+"""install-live-hooks.py since the plugin took the hooks over: a plain run WRITES NOTHING and prints the two
+/plugin commands; --remove strips the LEGACY command strings and the old link (backup first, foreign entries
+kept); --check reports them. Left in place they would run every hook twice."""
 import importlib.util
 import json
 import os
+import pathlib
 import shutil
 import subprocess
 import sys
@@ -17,6 +21,9 @@ _spec.loader.exec_module(installer)
 
 MD_HOOK = 'bash "$HOME/.claude/scripts/md-hook.sh"'
 GUARD = 'bash "$HOME/.claude/hooks/guard-destructive.sh"'
+GUARD_OLD = 'bash "$HOME/.claude/scripts/guard-destructive.sh"'
+PLUGIN_HOOK = 'bash "${CLAUDE_PLUGIN_ROOT}/scripts/md-hook.sh"'
+MEASURE = 'python3 "$HOME/.claude/hooks/measure-stop.py"'      # the private measurement hook: never ours to touch
 
 
 def text_of(path):
@@ -24,177 +31,228 @@ def text_of(path):
         return handle.read()
 
 
-EXISTING = {
+def hook(command):
+    return {'type': 'command', 'command': command}
+
+
+FOREIGN = {'PostToolUse': [{'matcher': 'Edit|Write', 'hooks': [hook(PLUGIN_HOOK)]}],
+           'Stop': [{'hooks': [hook(MEASURE)]}]}
+LEGACY_SETTINGS = {
     'hooks': {
-        'PostToolUse': [{'matcher': 'Edit|Write', 'hooks': [{'type': 'command', 'command': MD_HOOK}]}],
-        'Stop': [{'hooks': [{'type': 'command', 'command': MD_HOOK}]}],
+        'PreToolUse': [{'matcher': 'Bash', 'hooks': [hook(GUARD)]}],
+        'PostToolUse': [{'matcher': 'Edit|Write', 'hooks': [hook(MD_HOOK), hook(PLUGIN_HOOK)]}],
+        'Stop': [{'hooks': [hook(MD_HOOK)]}, {'hooks': [hook(MEASURE)]}],
     },
     'theme': 'dark',
 }
-
-
-class Fixture(unittest.TestCase):
-    def setUp(self):
-        self.home = tempfile.mkdtemp()
-        self.repo = tempfile.mkdtemp()
-        os.makedirs(os.path.join(self.repo, 'scripts'))
-        for name in ('guard-destructive.sh',):
-            with open(os.path.join(self.repo, 'scripts', name), 'w') as handle:
-                handle.write('#!/bin/sh\n')
-        os.makedirs(os.path.join(self.home, '.claude'))
-        self.settings = os.path.join(self.home, '.claude', 'settings.json')
-        self.write_settings(EXISTING)
-
-    def tearDown(self):
-        shutil.rmtree(self.home, ignore_errors=True)
-        shutil.rmtree(self.repo, ignore_errors=True)
-
-    def write_settings(self, data, newline=True):
-        with open(self.settings, 'w', encoding='utf-8') as handle:
-            handle.write(json.dumps(data, indent=2) + ('\n' if newline else ''))
-
-    def read_settings(self):
-        with open(self.settings, encoding='utf-8') as handle:
-            return json.load(handle)
-
-    def run_installer(self, *args, repo=None):
-        return subprocess.run([sys.executable, INSTALLER, '--home', self.home, '--repo', repo or self.repo, *args],
-                              capture_output=True, text=True)
-
-    def hooks_dir(self):
-        return os.path.join(self.home, '.claude', 'hooks')
-
-    def backups(self):
-        folder = os.path.join(self.home, '.claude-standards', 'backups', 'settings')
-        return sorted(os.listdir(folder)) if os.path.isdir(folder) else []
 
 
 def commands(data, event):
     return [h['command'] for e in data['hooks'].get(event, []) for h in e['hooks']]
 
 
+class Fixture(unittest.TestCase):
+    def setUp(self):
+        self.home = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, self.home, True)
+        os.makedirs(os.path.join(self.home, '.claude'))
+        self.settings = os.path.join(self.home, '.claude', 'settings.json')
+        self.write_settings(LEGACY_SETTINGS)
+
+    def write_settings(self, data, newline=True):
+        with open(self.settings, 'w', encoding='utf-8') as handle:
+            handle.write(json.dumps(data, indent=2) + ('\n' if newline else ''))
+
+    def read_settings(self):
+        return json.loads(text_of(self.settings))
+
+    def run_installer(self, *args):
+        return subprocess.run([sys.executable, INSTALLER, '--home', self.home, *args],
+                              capture_output=True, text=True, encoding='utf-8')
+
+    def hooks_dir(self):
+        return os.path.join(self.home, '.claude', 'hooks')
+
+    def legacy_link(self, target=None):
+        os.makedirs(self.hooks_dir(), exist_ok=True)
+        link = os.path.join(self.hooks_dir(), 'guard-destructive.sh')
+        os.symlink(target or os.path.join(self.home, 'checkout', 'scripts', 'guard-destructive.sh'), link)
+        return link
+
+    def backups(self):
+        folder = os.path.join(self.home, '.claude-standards', 'backups', 'settings')
+        return sorted(os.listdir(folder)) if os.path.isdir(folder) else []
+
+
 class Install(Fixture):
-    def test_links_and_registers_both_hooks_and_keeps_everything_else(self):
+    """A plain run installs nothing: the plugin owns the hooks. Every old side effect is asserted ABSENT."""
+
+    def test_it_prints_the_two_plugin_commands_and_the_way_off_the_old_install(self):
         result = self.run_installer()
         self.assertEqual(result.returncode, 0, result.stderr)
-        for name in ('guard-destructive.sh',):
-            link = os.path.join(self.hooks_dir(), name)
-            self.assertTrue(os.path.islink(link))
-            self.assertTrue(installer.same_path(os.readlink(link),
-                                                os.path.join(os.path.realpath(self.repo), 'scripts', name)))
-        data = self.read_settings()
-        self.assertIn(GUARD, commands(data, 'PreToolUse'))
-        self.assertEqual(data['hooks']['PreToolUse'][0]['matcher'], 'Bash')
-        self.assertEqual(commands(data, 'Stop'), [MD_HOOK])  # the ledger hook left with its script
-        self.assertEqual(commands(data, 'PostToolUse'), [MD_HOOK])
-        self.assertEqual(data['theme'], 'dark')
+        for expected in ('/plugin marketplace add adyusuf/claude-code-standards#prod',
+                         '/plugin install adyusuf@adyusuf-marketplace', 'install-live-hooks.py --remove'):
+            self.assertIn(expected, result.stdout)
 
-    def test_settings_are_backed_up_before_the_change(self):
-        self.run_installer()
-        self.assertEqual(len(self.backups()), 1)
-        with open(os.path.join(self.home, '.claude-standards', 'backups', 'settings', self.backups()[0]), encoding='utf-8') as handle:
-            self.assertEqual(json.load(handle), EXISTING)
-        # Outside ~/.claude: Claude Code's cleanup prunes old files there, and a backup that can vanish is not one.
-        self.assertFalse(os.path.exists(os.path.join(self.home, '.claude', 'backups')))
+    def test_settings_json_stays_byte_identical_and_nothing_is_linked_or_backed_up(self):
+        before = text_of(self.settings)
+        self.assertEqual(self.run_installer().returncode, 0)
+        self.assertEqual(text_of(self.settings), before)
+        self.assertFalse(os.path.exists(self.hooks_dir()))
+        self.assertEqual((self.backups(), os.listdir(os.path.join(self.home, '.claude'))), ([], ['settings.json']))
 
-    def test_running_it_twice_changes_nothing(self):
-        self.run_installer()
-        first = text_of(self.settings)
-        result = self.run_installer()
-        self.assertIn('already up to date', result.stdout)
-        self.assertEqual(text_of(self.settings), first)
-        self.assertEqual(len(self.backups()), 1)
-        self.assertEqual(commands(self.read_settings(), 'PreToolUse').count(GUARD), 1)
-
-    def test_trailing_newline_and_indent_are_preserved(self):
-        self.run_installer()
-        text = text_of(self.settings)
-        self.assertTrue(text.endswith('\n'))
-        self.assertIn('\n  "hooks"', text)
-        self.write_settings(EXISTING, newline=False)
-        self.run_installer('--remove')
-        self.run_installer()
-        self.assertFalse(text_of(self.settings).endswith('\n'))
-
-    def test_a_missing_settings_file_is_created_without_a_backup(self):
+    def test_a_missing_settings_file_is_not_created(self):
         os.remove(self.settings)
         self.assertEqual(self.run_installer().returncode, 0)
-        self.assertEqual(commands(self.read_settings(), 'PreToolUse'), [GUARD])
-        self.assertEqual(self.backups(), [])
+        self.assertEqual(os.listdir(os.path.join(self.home, '.claude')), [])
 
-    def test_a_symlink_pointing_elsewhere_is_retargeted(self):
-        self.run_installer()
-        other = tempfile.mkdtemp()
-        try:
-            os.makedirs(os.path.join(other, 'scripts'))
-            for name in ('guard-destructive.sh',):
-                open(os.path.join(other, 'scripts', name), 'w').close()
-            self.assertEqual(self.run_installer(repo=other).returncode, 0)
-            link = os.path.join(self.hooks_dir(), 'guard-destructive.sh')
-            self.assertTrue(installer.same_path(
-                os.readlink(link), os.path.join(os.path.realpath(other), 'scripts', 'guard-destructive.sh')))
-        finally:
-            shutil.rmtree(other, ignore_errors=True)
+    def test_repo_is_accepted_and_ignored_even_when_it_does_not_exist(self):
+        result = self.run_installer('--repo', os.path.join(self.home, 'no-such-checkout'))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.read_settings(), LEGACY_SETTINGS)
 
 
 class Refusals(Fixture):
-    def test_a_real_file_in_the_way_is_never_overwritten(self):
+    def test_unparsable_settings_abort_remove_with_nothing_touched(self):
+        link = self.legacy_link()
+        pathlib.Path(self.settings).write_text('{ not json')
+        result = self.run_installer('--remove')
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('refusing to continue', result.stderr)
+        self.assertEqual(text_of(self.settings), '{ not json')
+        self.assertTrue(os.path.islink(link))
+        self.assertEqual(self.backups(), [])
+
+    def test_a_real_file_where_the_legacy_link_was_is_never_deleted(self):
         os.makedirs(self.hooks_dir())
         blocker = os.path.join(self.hooks_dir(), 'guard-destructive.sh')
-        with open(blocker, 'w') as handle:
-            handle.write('mine')
-        result = self.run_installer()
-        self.assertEqual(result.returncode, 2)
+        pathlib.Path(blocker).write_text('mine')
+        self.assertEqual(self.run_installer('--remove').returncode, 0)
         self.assertEqual(text_of(blocker), 'mine')
-        self.assertEqual(self.read_settings(), EXISTING)
+        self.assertEqual(self.run_installer('--check').returncode, 0)       # a file is not a legacy link
 
-    def test_unparsable_settings_abort_with_nothing_touched(self):
-        with open(self.settings, 'w') as handle:
-            handle.write('{ not json')
-        result = self.run_installer()
-        self.assertEqual(result.returncode, 2)
-        self.assertFalse(os.path.exists(self.hooks_dir()))
-        self.assertEqual(text_of(self.settings), '{ not json')
-
-    def test_a_wrong_repo_aborts_before_any_link_is_made(self):
-        os.remove(os.path.join(self.repo, 'scripts', 'guard-destructive.sh'))
-        result = self.run_installer()
-        self.assertEqual(result.returncode, 2)
-        self.assertFalse(os.path.exists(self.hooks_dir()))
-        self.assertEqual(self.read_settings(), EXISTING)
+    def test_remove_deletes_the_link_never_the_file_it_points_to(self):
+        target = os.path.join(self.home, 'guard-destructive.sh')
+        pathlib.Path(target).write_text('#!/bin/sh\n')
+        link = self.legacy_link(target)
+        self.assertEqual(self.run_installer('--remove').returncode, 0)
+        self.assertFalse(os.path.lexists(link))
+        self.assertEqual(text_of(target), '#!/bin/sh\n')
 
 
 class CheckAndRemove(Fixture):
-    def test_check_fails_before_and_passes_after(self):
-        self.assertEqual(self.run_installer('--check').returncode, 1)
-        self.run_installer()
-        self.assertEqual(self.run_installer('--check').returncode, 0)
-
-    def test_check_notices_a_broken_symlink(self):
-        self.run_installer()
-        os.remove(os.path.join(self.repo, 'scripts', 'guard-destructive.sh'))
+    def test_check_fails_while_legacy_entries_remain_and_passes_after_remove(self):
         result = self.run_installer('--check')
         self.assertEqual(result.returncode, 1)
-        self.assertIn('broken', result.stdout)
-
-    def test_remove_takes_only_our_entries_and_links(self):
-        self.run_installer()
+        self.assertIn('legacy hooks: 3 still present', result.stdout)        # guard + md-hook x2; the foreign ones don't count
+        self.assertIn('--remove', result.stdout)
         self.assertEqual(self.run_installer('--remove').returncode, 0)
+        result = self.run_installer('--check')
+        self.assertEqual(result.returncode, 0)
+        self.assertIn('none — the hooks come from the adyusuf plugin', result.stdout)
+
+    def test_a_legacy_link_alone_fails_the_check_and_a_dangling_one_counts(self):
+        self.write_settings(FOREIGN)                                    # the plugin's own + the measurement hook
+        self.assertEqual(self.run_installer('--check').returncode, 0)
+        self.legacy_link()                                              # points at a checkout that does not exist
+        result = self.run_installer('--check')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('1 still present', result.stdout)
+
+    def test_a_group_whose_hooks_is_not_a_list_is_no_traceback_and_not_legacy(self):
+        self.write_settings({'hooks': {'Stop': [{'hooks': 3}]}})
+        result = self.run_installer('--check')
+        self.assertEqual((result.returncode, result.stderr), (0, ''))
+        self.assertIn('legacy hooks: none', result.stdout)
+
+    def test_an_unreadable_settings_file_fails_the_check_in_one_line(self):
+        pathlib.Path(self.settings).write_text('{ not json')
+        result = self.run_installer('--check')
+        self.assertEqual(result.returncode, 1)
+        self.assertIn('settings.json is unreadable', result.stdout)
+        self.assertEqual(result.stdout.count('\n'), 1)
+
+    def test_remove_takes_only_the_legacy_entries_the_link_and_keeps_everything_else(self):
+        link = self.legacy_link()
+        result = self.run_installer('--remove')
+        self.assertEqual(result.returncode, 0, result.stderr)
         data = self.read_settings()
-        self.assertEqual(data, EXISTING)
-        self.assertEqual(os.listdir(self.hooks_dir()), [])
+        self.assertEqual(data['hooks'], {
+            'PostToolUse': [{'matcher': 'Edit|Write', 'hooks': [hook(PLUGIN_HOOK)]}],     # the group kept its other hook
+            'Stop': [{'hooks': [hook(MEASURE)]}]})                                        # the legacy-only group went
+        self.assertNotIn('PreToolUse', data['hooks'])                                     # an emptied event is pruned
+        self.assertEqual(data['theme'], 'dark')
+        self.assertFalse(os.path.lexists(link))
+        self.assertIn('legacy hooks removed from settings.json', result.stdout)
+        self.assertIn('unlinked', result.stdout)
+
+    def test_remove_backs_the_settings_up_first_outside_dot_claude(self):
+        self.run_installer('--remove')
+        self.assertEqual(len(self.backups()), 1)
+        backup = os.path.join(self.home, '.claude-standards', 'backups', 'settings', self.backups()[0])
+        with open(backup, encoding='utf-8') as handle:
+            self.assertEqual(json.load(handle), LEGACY_SETTINGS)
+        self.assertFalse(os.path.exists(os.path.join(self.home, '.claude', 'backups')))   # Claude Code prunes there
+
+    def test_remove_twice_changes_nothing_the_second_time(self):
+        self.run_installer('--remove')
+        first = text_of(self.settings)
+        result = self.run_installer('--remove')
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(text_of(self.settings), first)
+        self.assertEqual(len(self.backups()), 1)
+        self.assertEqual(result.stdout, '')
 
     def test_remove_on_a_clean_setup_is_a_no_op(self):
+        self.write_settings(FOREIGN)
         before = text_of(self.settings)
         self.assertEqual(self.run_installer('--remove').returncode, 0)
         self.assertEqual(text_of(self.settings), before)
         self.assertEqual(self.backups(), [])
 
+    def test_remove_without_a_settings_file_still_unlinks_and_creates_no_settings(self):
+        os.remove(self.settings)
+        link = self.legacy_link()
+        self.assertEqual(self.run_installer('--remove').returncode, 0)
+        self.assertFalse(os.path.lexists(link))
+        self.assertFalse(os.path.exists(self.settings))
+
+    def test_remove_prunes_the_hooks_key_when_nothing_else_is_left(self):
+        self.write_settings({'hooks': {'Stop': [{'hooks': [hook(MD_HOOK), hook(GUARD_OLD)]}]}, 'theme': 'dark'})
+        self.run_installer('--remove')
+        self.assertEqual(self.read_settings(), {'theme': 'dark'})
+
+    def test_trailing_newline_and_indent_are_preserved(self):
+        self.run_installer('--remove')
+        self.assertTrue(text_of(self.settings).endswith('\n') and '\n  "hooks"' in text_of(self.settings))
+        self.write_settings(LEGACY_SETTINGS, newline=False)
+        self.run_installer('--remove')
+        self.assertFalse(text_of(self.settings).endswith('\n'))
+
+    def test_backing_up_a_file_that_does_not_exist_makes_nothing(self):
+        folder = os.path.join(self.home, 'backups')
+        self.assertIsNone(installer.backup(os.path.join(folder, 'no-settings.json'), folder))
+        self.assertFalse(os.path.exists(folder))
+
+
+class PureFunctions(unittest.TestCase):
+    def test_legacy_commands_lists_in_file_order_and_survives_odd_shapes(self):
+        self.assertEqual(installer.legacy_commands(LEGACY_SETTINGS), [GUARD, MD_HOOK, MD_HOOK])
+        for odd in ([], {}, {'hooks': []}, {'hooks': {'Stop': 'x'}}, {'hooks': {'Stop': [1, {'hooks': [None, 2]}, {'hooks': 3}, {'hooks': 'x'}]}}):
+            self.assertEqual(installer.legacy_commands(odd), [], odd)
+        mixed = {'hooks': {'Stop': [{'hooks': 3}, {'hooks': [hook(GUARD)]}]}}
+        self.assertEqual(installer.legacy_commands(mixed), [GUARD])         # a malformed group hides nothing after it
+
+    def test_strip_legacy_keeps_unknown_shapes_and_reports_whether_it_changed(self):
+        data = {'hooks': {'Stop': 'x', 'Pre': [7, {'matcher': 'a'}, {'hooks': 'y'}]}}
+        before = json.dumps(data)
+        self.assertFalse(installer.strip_legacy(data))
+        self.assertEqual(json.dumps(data), before)
+        self.assertTrue(installer.strip_legacy(json.loads(json.dumps(LEGACY_SETTINGS))))
+
 
 class WindowsPaths(unittest.TestCase):
-    """os.readlink on Windows returns \\\\?\\C:\\...; a plain comparison read every correct
-    link as 'wrong-target' (seen 04/10/2026). These run on every platform."""
-
+    """os.readlink on Windows returns \\\\?\\C:\\...: a plain comparison read every link as wrong (04/10/2026)."""
     def test_the_extended_length_prefix_is_ignored(self):
         self.assertTrue(installer.same_path('\\\\?\\C:\\Work\\repo\\scripts\\g.sh', 'C:\\Work\\repo\\scripts\\g.sh'))
 
@@ -217,41 +275,21 @@ class Python3Note(unittest.TestCase):
     def test_no_python_at_all_warns_that_the_guard_blocks(self):
         self.assertIn('will block', installer.python3_note(lambda name: None))
 
-    def test_check_prints_the_note_but_does_not_fail_on_it(self):
-        home = tempfile.mkdtemp()
-        try:
-            os.makedirs(os.path.join(home, '.claude'))
-            with open(os.path.join(home, '.claude', 'settings.json'), 'w') as handle:
-                handle.write('{}\n')
-            subprocess.run([sys.executable, INSTALLER, '--home', home, '--repo', REAL_REPO], capture_output=True)
-            result = subprocess.run([sys.executable, INSTALLER, '--home', home, '--repo', REAL_REPO, '--check'],
-                                    capture_output=True, text=True, encoding='utf-8')
-            self.assertIn('python3:', result.stdout)
-            self.assertEqual(result.returncode, 0, result.stdout)
-        finally:
-            shutil.rmtree(home, ignore_errors=True)
 
+class PluginGuardWorks(unittest.TestCase):
+    """The real thing: the command hooks/hooks.json registers, with the plugin root pointed at THIS repository."""
 
-class InstalledGuardWorks(unittest.TestCase):
-    """The real thing: install from THIS repository, then run the symlinked guard."""
+    def command(self):
+        return json.loads(text_of(os.path.join(REAL_REPO, 'hooks', 'hooks.json')))['hooks']['PreToolUse'][0]['hooks'][0]['command']
 
-    def test_the_installed_symlink_blocks_a_force_push_and_allows_a_normal_one(self):
-        home = tempfile.mkdtemp()
-        try:
-            os.makedirs(os.path.join(home, '.claude'))
-            with open(os.path.join(home, '.claude', 'settings.json'), 'w') as handle:
-                handle.write('{}\n')
-            result = subprocess.run([sys.executable, INSTALLER, '--home', home, '--repo', REAL_REPO],
-                                    capture_output=True, text=True)
-            self.assertEqual(result.returncode, 0, result.stderr)
-            guard = os.path.join(home, '.claude', 'hooks', 'guard-destructive.sh')
-            blocked = subprocess.run(['bash', guard], input=json.dumps({'tool_input': {'command': 'git push --force'}}),
-                                     capture_output=True, text=True)
-            allowed = subprocess.run(['bash', guard], input=json.dumps({'tool_input': {'command': 'ls'}}),
-                                     capture_output=True, text=True)
-            self.assertEqual((blocked.returncode, allowed.returncode), (2, 0))
-        finally:
-            shutil.rmtree(home, ignore_errors=True)
+    def run_guard(self, shell_command):
+        env = dict(os.environ, CLAUDE_PLUGIN_ROOT=REAL_REPO)
+        return subprocess.run(['bash', '-c', self.command()], env=env, capture_output=True, text=True,
+                              input=json.dumps({'tool_input': {'command': shell_command}}))
+
+    def test_the_registered_command_blocks_a_force_push_and_allows_a_normal_command(self):
+        blocked, allowed = self.run_guard('git push --force'), self.run_guard('ls')
+        self.assertEqual((blocked.returncode, allowed.returncode), (2, 0), blocked.stderr)
 
 
 if __name__ == '__main__':

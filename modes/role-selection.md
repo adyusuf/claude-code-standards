@@ -38,6 +38,8 @@ long-context orchestrator Fable is cheap, while sonnet/haiku remain right for ag
 
 ## §0 — First: an agent, or me?
 
+Every role below is called as `adyusuf:<role>` (`modes/README.md`, top).
+
 Before selecting a role, decide **whether that work needs an agent at all**.
 
 | The shape of the work | Decision | Why |

@@ -16,6 +16,7 @@ The switch is written straight into ~/.claude/settings.json (extraKnownMarketpla
 
 Exit codes: 0 done (ACTIVE, or DORMANT because no server is connected — said loudly) · 2 refused or failed.
 """
+import glob
 import importlib.util
 import os
 import platform
@@ -81,17 +82,63 @@ def binary_name(system):
 
 
 def agent_home(env, system):
-    """Mirrors the agent's AgentConfig.DefaultHome (CM_AGENT_HOME overrides it there too)."""
+    """Mirrors the agent's AgentConfig.DefaultHome (CM_AGENT_HOME overrides it there too). Windows: NOT under
+    %LOCALAPPDATA% — the Claude desktop app is an MSIX app and redirects AppData for every process it starts."""
     if env.get('CM_AGENT_HOME'):
         return env['CM_AGENT_HOME']
     if system == 'Windows':
-        return os.path.join(env.get('LOCALAPPDATA') or os.path.expanduser(os.path.join('~', 'AppData', 'Local')),
-                            'ClaudeMonitor')
+        return os.path.join(env.get('USERPROFILE') or os.path.expanduser('~'), '.claude-monitor')
     return os.path.expanduser(os.path.join('~', 'Library', 'Application Support', 'ClaudeMonitor'))
 
 
-def installed_binary(env, system):
-    return os.path.join(agent_home(env, system), 'bin', binary_name(system))
+def legacy_agent_home(env, system):
+    """The agent's older Windows default (%LOCALAPPDATA%\\ClaudeMonitor), where an old install keeps its binary; None
+    on macOS and whenever CM_AGENT_HOME is set (an explicit home never had another default)."""
+    if system != 'Windows' or env.get('CM_AGENT_HOME'):
+        return None
+    return os.path.join(env.get('LOCALAPPDATA') or os.path.expanduser(os.path.join('~', 'AppData', 'Local')),
+                        'ClaudeMonitor')
+
+
+def active_home(env, system, exists=os.path.exists):
+    """The home that holds the installed agent: the current one; the old one only while the current has no binary
+    (an install made before the move keeps working until `cm-agent install` is run again)."""
+    home, legacy = agent_home(env, system), legacy_agent_home(env, system)
+    name = binary_name(system)
+    if legacy and not exists(os.path.join(home, 'bin', name)) and exists(os.path.join(legacy, 'bin', name)):
+        return legacy
+    return home
+
+
+def installed_binary(env, system, exists=os.path.exists):
+    return os.path.join(active_home(env, system, exists), 'bin', binary_name(system))
+
+
+def plugin_dir(env, system, exists=os.path.exists):
+    return os.path.join(active_home(env, system, exists), 'claude-plugin')
+
+
+def redirected_copies(env, system, find=glob.glob):
+    """Windows: the agent folders a packaged app (the Claude desktop app) sees INSTEAD of %LOCALAPPDATA%\\ClaudeMonitor."""
+    if system != 'Windows':
+        return []
+    local = env.get('LOCALAPPDATA') or os.path.expanduser(os.path.join('~', 'AppData', 'Local'))
+    return find(os.path.join(local, 'Packages', '*', 'LocalCache', 'Local', 'ClaudeMonitor'))
+
+
+def inside_claude_app(env):
+    """Claude Code sets these in every process it starts (its Bash tool, hooks), the desktop app's included."""
+    return bool(env.get('CLAUDECODE') or env.get('CLAUDE_CODE_ENTRYPOINT'))
+
+
+def warn_redirected(env, system, find=glob.glob):
+    """A redirected copy exists and this run is inside the Claude app: what it reads and writes under AppData is that
+    copy, not the real folder, so run it from a normal terminal. A warning only: nothing here is blocked."""
+    copies = redirected_copies(env, system, find)
+    if copies and inside_claude_app(env):
+        print('⚠️  this runs inside the Claude desktop app, which sees a redirected copy of %LOCALAPPDATA% '
+              f'({copies[0]}), not the real one. Run install.py from a normal terminal (PowerShell) so the '
+              'agent and its login are in the folder the real machine uses.')
 
 
 def has_sdk(run):
@@ -133,11 +180,12 @@ def set_plugin(home, plugin_dir, enabled):
     return enabled
 
 
-def sync(run=default_run, env=os.environ, system=platform.system(), home=os.path.expanduser('~')):
+def sync(run=default_run, env=os.environ, system=platform.system(), home=os.path.expanduser('~'),
+         exists=os.path.exists):
     """Derive the switch from the connection: connected -> enabled, otherwise disabled. Says which, loudly."""
-    binary = installed_binary(env, system)
+    binary = installed_binary(env, system, exists)
     connected = is_connected(run, binary)
-    if set_plugin(home, os.path.join(agent_home(env, system), 'claude-plugin'), connected) is None:
+    if set_plugin(home, plugin_dir(env, system, exists), connected) is None:
         return 2
     if connected:
         print('  ACTIVE    connected: the plugin is ENABLED — its hooks and the agent run from the next session')
@@ -148,10 +196,11 @@ def sync(run=default_run, env=os.environ, system=platform.system(), home=os.path
 
 
 def install(server=None, run=default_run, env=os.environ, system=platform.system(), machine=platform.machine(),
-            exists=os.path.exists, home=os.path.expanduser('~')):
-    binary = installed_binary(env, system)
+            exists=os.path.exists, home=os.path.expanduser('~'), find=glob.glob):
+    warn_redirected(env, system, find)
+    binary = installed_binary(env, system, exists)
     if server and exists(binary):                       # already built: connecting needs no rebuild
-        return connect(server, run, env, system, home)
+        return connect(server, run, env, system, home, exists)
     rid = runtime_id(system, native_machine(system, machine, run))
     if not rid:
         print(f'✗ cm-agent ships for macOS and Windows only; this is {system}/{machine}')
@@ -179,11 +228,12 @@ def install(server=None, run=default_run, env=os.environ, system=platform.system
     if registered not in (0, 1):
         print(f'✗ cm-agent install failed (exit {registered})')
         return 2
+    binary = installed_binary(env, system, exists)       # the new binary now: it may live in a different home
     # Its `claude plugin install` ENABLES the plugin: until the login below is approved (minutes), every session
     # ran its hooks and queued events (6 seen 04/10/2026). Off again at once unless already connected.
-    if set_plugin(home, os.path.join(agent_home(env, system), 'claude-plugin'), is_connected(run, binary)) is None:
+    if set_plugin(home, plugin_dir(env, system, exists), is_connected(run, binary)) is None:
         return 2
-    return connect(server, run, env, system, home) if server else sync(run, env, system, home)
+    return connect(server, run, env, system, home, exists) if server else sync(run, env, system, home, exists)
 
 
 def connected_to(run, binary):
@@ -195,22 +245,23 @@ def connected_to(run, binary):
     return None
 
 
-def connect(server, run=default_run, env=os.environ, system=platform.system(), home=os.path.expanduser('~')):
-    binary = installed_binary(env, system)
+def connect(server, run=default_run, env=os.environ, system=platform.system(), home=os.path.expanduser('~'),
+            exists=os.path.exists):
+    binary = installed_binary(env, system, exists)
     if connected_to(run, binary) == server.rstrip('/'):
         print(f'  already connected to {server} — no new code needed')
-        return sync(run, env, system, home)
+        return sync(run, env, system, home, exists)
     if run([binary, 'login', '--server', server]).returncode:
         print('✗ cm-agent login did not complete (denied, expired, or the server did not answer)')
-        sync(run, env, system, home)                     # the switch still follows the connection: no dangling hooks
+        sync(run, env, system, home, exists)             # the switch still follows the connection: no dangling hooks
         return 2
-    return sync(run, env, system, home)
+    return sync(run, env, system, home, exists)
 
 
 def check(run=default_run, env=os.environ, system=platform.system(), exists=os.path.exists,
           home=os.path.expanduser('~')):
     """Problems: the agent not installed, or the switch disagreeing with the connection. DORMANT is not a problem."""
-    binary = installed_binary(env, system)
+    binary = installed_binary(env, system, exists)
     if not exists(binary):
         print(f'  missing     {binary} (cm-agent)')
         return 1
@@ -225,7 +276,7 @@ def check(run=default_run, env=os.environ, system=platform.system(), exists=os.p
 def remove(run=default_run, env=os.environ, system=platform.system(), exists=os.path.exists,
            home=os.path.expanduser('~')):
     """Unregisters the plugin. The agent's data stays in its home (the agent's own uninstall does the same)."""
-    binary = installed_binary(env, system)
+    binary = installed_binary(env, system, exists)
     if exists(binary):
         run([binary, 'uninstall'])
     path = os.path.join(home, '.claude', 'settings.json')

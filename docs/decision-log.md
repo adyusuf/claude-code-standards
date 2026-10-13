@@ -1210,3 +1210,124 @@ whether a model was running in it.
   nobody can be asked.
 - **Not done:** no `SessionStart` hook enforces it; the rule is in `CLAUDE.md` #27, which
   every session loads. A hook could inject a reminder if sessions are seen skipping it.
+
+## IIS layout and names on Windows servers (06/10/2026, user decision)
+
+- **Request:** "do the IIS site installations under `c:\iis`; `<domain>_<test|prod>` is the main folder
+  and `api`, `web` … go under it; the IIS application and pool names are `<main folder name>_<api|web|…>`."
+  The user's `pro` is read as `prod`, the name the environments already carry everywhere.
+- **Why:** measured on the one Windows server on 06/10/2026 — 28 IIS sites, 26 of them other
+  projects', their paths under `C:\inetpub\<project>` and `C:\Work\...`, their names in at least three
+  styles (`KolektifAgProdApi`, `BTTakvimWeb`, `ClaudeMonitor-prod`). claude-monitor itself sat in a fourth place,
+  `C:\ClaudeMonitor\<env>`, as `ClaudeMonitor-<env>`. A name seen in Task Manager or the event log did not
+  say which domain or environment it served.
+- **Decision:** `standards/20-hardening.md` §6a (the rule) and a one-line pointer in `14-devops.md` §1. The
+  rule fixes the top two levels (`C:\iis\<domain>_<env>\<component>`) and the names, not what lies below a
+  component folder.
+- **One choice that was mine, flagged for the user:** the environment file, backups and archives sit BESIDE
+  the component folders, never inside one IIS serves — the user said "api, web, etc. under it" and a secret
+  file next to `web\` would be one mistake from being served.
+- **Corrected the same day (user):** the first wording left it open whether `web` and `api` were separate
+  sites or applications, and its names ended in `_<component>`. The user's answer: **do not split them into
+  sub-applications and pools** — one site and one pool per environment, named after the main folder
+  (`monitor.bitreka.com_prod`); the components are folders. The `_<component>` names remain only for a
+  project that really runs separate sites. For claude-monitor this is also what the code does: the API
+  process serves the web app itself (`MONITOR_WEB_ROOT`).
+- **Not done at the time of this entry:** no existing deployment was moved. claude-monitor's server scripts
+  (`deploy/windows/*.ps1`, scheduled tasks, `monitor.env`) used `C:\ClaudeMonitor` and `ClaudeMonitor-<env>`.
+  The move follows as a deploy (below the standard's own "a move is a deploy" rule).
+
+## Plugin install: a standard marketplace plugin, no symlinks, no install script (13/10/2026, user decision)
+
+- **Request:** "my skills and my plugin will work in the standard way like the others · no symlinks ·
+  the install will be standard too · no extra script will be needed".
+- **Why:** measured on 13/10/2026. Every other plugin on the machine (27 in `installed_plugins.json`)
+  is installed from a marketplace and **copied** to `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`.
+  `adyusuf` was the exception: `install.py` linked `~/.claude/{CLAUDE.md,agents,docs,modes,scripts,standards}`
+  and `~/.claude/skills/adyusuf` (= `plugin/`, whose `skills/` and `commands/` are links again) into the
+  checkout, and 57 files carried 200 fixed `~/.claude/...` paths (`git grep -o '~/\.claude' origin/dev | wc -l`). Symlinks need Developer Mode and
+  `core.symlinks` on Windows, an edit in the checkout went live at the next session, and nothing had a version.
+- **Decision (user, three choices):**
+  1. **Source: GitHub `adyusuf/claude-code-standards#prod`.** Install is
+     `/plugin marketplace add adyusuf/claude-code-standards#prod` + `/plugin install adyusuf@adyusuf-marketplace`.
+     The plugin is copied to the cache; a promotion to `prod` reaches a machine only through `/plugin update`.
+     A local-directory marketplace was rejected: Claude Code loads it **in place**, which is the symlink's
+     "an edit is live at once" behaviour under another name (plugins/loading, "In-place and copied plugins").
+  2. **Global rules: the plugin's own hooks.** A plugin cannot ship a `CLAUDE.md` that loads
+     (`claude plugin validate` warns that a root `CLAUDE.md` "is not loaded"). `hooks/hooks.json` runs
+     `scripts/rules-context.py` on `SessionStart` (plain text) and `SubagentStart` (`additionalContext`).
+     Claude Code caps each hook output at 10,000 characters, so `CLAUDE.md` (23,309 bytes) is split at its own
+     `## ` / numbered-rule boundaries into parts of ≤ 9,500 characters, one hook per part; four parts are
+     registered and three are used. `CLAUDE.md` stays the single source.
+  3. **Pilot first** (#1): the manifest, the marketplace, the rules hooks and one skill (`software-standards`).
+- **Layout:** the **repository root is the plugin** (`.claude-plugin/plugin.json` + `marketplace.json`, source `./`).
+  `skills/`, `commands/`, `agents/` are already at the standard places and `standards/`, `modes/`, `scripts/`
+  travel inside the copy, so nothing moves. `plugin.json` sets **no `version`** on purpose: the version is then
+  the commit SHA and every `prod` commit is an update. An earlier attempt on `wip/self-contained-plugin`
+  (moving `skills/` and `commands/` under `plugin/`) left `standards/`, `modes/` and `scripts/` outside the copy;
+  its marketplace name `adyusuf-marketplace` was kept.
+- **Pilot evidence (13/10/2026, Claude Code 2.1.294, `--plugin-dir`, haiku):** all three rule parts reached the
+  main session and a `general-purpose` subagent (each prints its `[Global working rules, part n/3 …]` header;
+  the order varied: 3,1,2 and 1,3,2); `/adyusuf:software-standards` resolved `${CLAUDE_PLUGIN_ROOT}/standards/`
+  to the checkout's `standards/`. `claude plugin validate .` passes with the two intended warnings
+  (root `CLAUDE.md`, no `version`).
+- **Not done yet (the rest of the plan):** the remaining `~/.claude/...` paths (3 changed in the pilot), the hooks `install-live-hooks.py` writes into
+  `settings.json`, agent names becoming `adyusuf:<role>`, retiring the link part of `install.py`, `SETUP.md`,
+  and moving this machine off its links (that last step needs the user's approval).
+  ⚠️ **The pilot stays on its own branch** (`feature/plugin-marketplace-pilot`) and reaches `dev` only in ONE
+  batch with the migration (#26). Reason (QA, 13/10/2026): the live install is still the skills-dir plugin at
+  `~/.claude/skills/adyusuf` → `plugin/`, where `${CLAUDE_PLUGIN_ROOT}/standards/` does not exist, and any
+  promotion from `dev` would carry the pilot to `prod` — a note is not a guard, keeping it off `dev` is.
+  Installing the marketplace plugin on a machine that still has the links would also load the 14 roles a second
+  time as `adyusuf:<role>` and the global rules twice in every project; the migration removes the links first.
+- **Windows (open):** `hooks/hooks.json` calls `python3`, which the python.org installer does not provide
+  (`SETUP.md` prerequisites). With the plugin install no `install.py` checks it, so every hook would fail
+  non-blocking and sessions would run **without the global rules**. `SETUP.md` must state the prerequisite
+  before the plugin install is advertised.
+- **Known cost:** working inside this repository the rules load twice (project `CLAUDE.md` + the hook) — accepted;
+  every other project loads them once.
+
+## Plugin install, completed: no links left; the board's plan becomes a file (13/10/2026, user decisions)
+
+- **Request:** "continue the rest of the plan" after the pilot, plus two fixes: the CLAUDE.md gate
+  install in `apply-project-standards`, and `board-plan`, whose board had been removed.
+- **Done (branch `feature/plugin-marketplace-pilot`, one commit per task):** skill, command and agent bodies
+  read through `${CLAUDE_PLUGIN_ROOT}` (substitution verified for skills and, with a probe plugin, agents);
+  the Markdown read with the Read tool uses paths relative to the plugin root, anchored by the rules-context
+  header; the project template names the plugin; the guard and `md-hook.sh` are plugin hooks
+  (a probe confirmed a plugin `PreToolUse` hook exiting 2 blocks the call); `install-live-hooks.py` and
+  `install.py --remove` only take the OLD install out, and a `SessionStart` check
+  (`legacy-install-check.py`) warns while it is still there; `install.py` installs only the monitor agent;
+  `plugin/` is gone, and with it the last symlink in the repository.
+- **Agents are `adyusuf:<role>`:** a probe showed a plugin agent is found ONLY by its namespaced name (a bare
+  name errors "not found"), so the modes and the never-do line now say so.
+- **`board-plan` (user choice of three: retire / local plan file / a claude-monitor feature → "local plan
+  file"):** claude-monitor's cm-agent only observes (sessions, subagents, Claude Code's task tools) and gives
+  Claude `monitor_status` and `monitor_note`; mode, roles, routing, task ids, semantic status and commits had
+  no home. They now live in `.claude/board/plan-${CLAUDE_SESSION_ID}.md`, one file per session so parallel
+  sessions never share one; `monitor_note` mirrors a status change when the agent is installed. The board's
+  launchers, their test and this repository's board hooks were removed.
+- **The CLAUDE.md gate install:** `--update` only lowers rows that exist, so the old instruction failed
+  ("No budget file") or, with our budget copied, left the project's own files "NO BUDGET". `md-size-gate.sh
+  --init` writes the project's own budget and never overwrites one (`fix/md-budget-init`).
+- **Still open:** the machine migration (approval first): merge to `prod`, the user's push, then
+  `install.py --remove --no-monitor` and the two `/plugin` commands, on every machine; on this one also the
+  private claude-config repository's tracked links and its `pre-commit` hook that goes through
+  `~/.claude/scripts`, and the local measurement ledger, which reads `~/.claude/scripts/`. Every project that
+  copied the twin scripts gets one copy commit (comments changed). The retired board's hooks: the 7 user-level
+  entries are now `LEGACY` (QA, 13/10/2026), so `--remove` strips them; **five projects** still carry 27 board
+  entries in their committed `.claude/settings.json` — each is cleaned with `apply-project-standards` §6a.2 in
+  its own repository (they fail silently, `|| true`, until then). `step-stats.py` (492 lines) exceeds #9;
+  it was touched by two lines here and its split is a separate change.
+
+## The monitor agent is optional; its absence is never a problem (13/10/2026, user decision)
+
+- **Request:** "if cm-agent is missing or unreachable you just don't connect — don't treat it as a problem".
+- **Decision:** claude-monitor's agent is optional everywhere. `install.py` reports a monitor that cannot be
+  built, installed or connected as one ⚠️ line and still exits 0; `install.py --check` prints the monitor's state
+  but does not count it; `/adyusuf:board-plan` uses `monitor_note` only when it is there; `standards/22` §4 says
+  a missing, disconnected or unreachable monitor is not a finding, not a failed step and nothing to repair.
+- **Context:** the same day a test mutation ran a real monitor install and pointed the user's real monitor
+  plugin at a temporary agent; it was written back by hand with the user's approval (backup
+  `~/.claude-standards/backups/monitor-repair-20261013-124139`). Afterwards `cm-agent status` said "not
+  connected"; whether it was connected before could not be established — under this decision that is fine.

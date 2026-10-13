@@ -7,6 +7,10 @@ written to the project file) → the project's `.claude/mode` → **B**. If neit
 exists, **B** applies.
 A second word downgrades only the Opus agents (`C sonnet`) → the **Model override** section at the end of this file.
 
+⚠️ **A role is the `adyusuf` plugin's agent:** role `qa` is called with `subagent_type: "adyusuf:qa"`
+(the same in a `Workflow` `agent()`). Plugin agents are reachable only by their namespaced name; a bare
+`qa` or another plugin's `<plugin>:qa` is **not** the role.
+
 | Mode | Name | Agents | Review | Approval policy | Cost multiplier |
 |---|---|---|---|---|---|
 | [**A**](A-skill.md) | Skill | **none** | me | chosen explicitly | 1.0x (baseline) |

@@ -58,4 +58,4 @@ invisible check is an unperformed check.
 - You write an ambiguity as an **assumption**; you do not leave questions behind.
 
 The full rule, who sends work back to whom, and the paths to closure:
-`~/.claude/modes/role-selection.md` §7.
+`${CLAUDE_PLUGIN_ROOT}/modes/role-selection.md` §7.

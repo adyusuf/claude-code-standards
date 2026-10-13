@@ -3,7 +3,7 @@
 > This file is the main entry point Claude Code reads automatically in every
 > session. **Keep it short** (target: under 200 lines). Leave the detail to the
 > `docs/` folder and to the `CLAUDE.md` files of the subdirectories.
-> The global software standards live under `~/.claude/standards/` — this file
+> The global rules and standards come from the `adyusuf` Claude Code plugin — this file
 > holds **only what is specific to this project**. A rule here overrides the
 > global standard.
 
@@ -69,7 +69,7 @@ feature branch → dev → (approval) → test → (approval) → prod
 
 ## Project-specific rules
 
-> The global rules are in `~/.claude/CLAUDE.md`. Only **what differs** goes here.
+> The global rules come from the `adyusuf` plugin (loaded in every session). Only **what differs** goes here.
 
 1. **<Rule>.** <Why — a rule whose reason is unwritten gets reverted by accident later.> (<Date>, PERMANENT)
 2. ...

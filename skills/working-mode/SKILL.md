@@ -1,9 +1,31 @@
 ---
 name: working-mode
-description: Shows or changes the operating mode (A/B/C/D/E) for this project, optionally with a model that replaces Opus for the Opus agents ("C sonnet"). The mode determines agent usage, review and the approval policy. Use it when the user says "/adyusuf:working-mode", "change the mode", "which mode are we in", "work as a full team", or "work without agents".
+description: Shows or changes the operating mode (A/B/C/D/E) for this project, optionally with a model that replaces Opus for the Opus agents ("C sonnet"). The mode determines agent usage, review and the approval policy, and so how fast the session spends tokens. Use it when the user says "/adyusuf:working-mode", "change the mode", "which mode are we in", "work as a full team", or "work without agents".
 ---
 
 # Working mode
+
+## Why this exists
+
+Writing code with agentic AI from Claude Desktop means working with **subagents only**:
+Desktop cannot start an agent team, so this skill makes the session itself the
+orchestrator and runs subagents in a controlled, synchronous way. And once you work on
+more than one project at a time, tokens run out — so the mode is the dial for **how fast
+a session spends them**. Pick the smallest mode the work needs:
+
+| Mode | Who works | Agents |
+|---|---|---|
+| A | The session alone, no agents | 0 |
+| B | Selective — `analyst`, `test-writer`, `doc-writer` (default) | 3 roles |
+| C | Full team | 9 roles |
+| D | Wide team | 14 roles |
+| E | Fan-out through `Workflow` | the 14 roles, in parallel |
+
+The work is **audited** in every mode: a producing role closes with an evidence block,
+and the auditor checks it and sends gaps back (global #28). In C/D/E the auditor is the
+`qa` agent (the session verifies its critical findings); in A/B it is the session itself.
+
+Contributions are welcome: https://github.com/adyusuf/claude-code-standards
 
 ## 0. At session start — ASK (every interactive session)
 
@@ -12,7 +34,7 @@ the §1 read result, or the lowest sufficient mode for the first request) and wh
 replaces Opus (keep the defined models · sonnet · haiku · fable). Apply the answer with
 §4 **as `--once`** (scratchpad only, never `.claude/mode`), then start the work. Not
 asked when the first message names the mode, when `$S/mode` already exists, in any
-agent, or in a non-interactive run. Rules: `~/.claude/modes/README.md` › *Session start*.
+agent, or in a non-interactive run. Rules: `${CLAUDE_PLUGIN_ROOT}/modes/README.md` › *Session start*.
 
 ## 1. Read the current mode
 
@@ -28,7 +50,7 @@ echo "opus agents run on: $( [ -n "$d" ] && cat "$d/mode-model" 2>/dev/null || e
 
 The model override is read **from the layer that supplied the letter** — a session
 letter without `$S/mode-model` means "defined models", even if the project file has
-an override. Rules: `~/.claude/modes/README.md` › *Model override*.
+an override. Rules: `${CLAUDE_PLUGIN_ROOT}/modes/README.md` › *Model override*.
 
 If none of them exists the mode is **B**. B's three agents (`analyst`,
 `test-writer`, `doc-writer`) are approved along with the default. If the user
@@ -43,8 +65,8 @@ the session — exactly the lifetime required.
 
 ## 2. Load the mode definitions
 
-`~/.claude/modes/README.md` is the matrix (single source). Read the active mode's
-file: `~/.claude/modes/<LETTER>-*.md` (each of the five letters resolves to one
+`${CLAUDE_PLUGIN_ROOT}/modes/README.md` is the matrix (single source). Read the active mode's
+file: `${CLAUDE_PLUGIN_ROOT}/modes/<LETTER>-*.md` (each of the five letters resolves to one
 file). **Read only the active mode's file** — reading all five burns context for
 nothing. ⚠️ **X/Y/Z are archived** (`modes/archive/README.md`) and are never
 offered as a mode.
@@ -86,14 +108,15 @@ name + agent set + who reviews + cost multiplier. Do not paste the whole matrix;
    ```
    ⚠️ The letter alone **clears** the override — that is how the user returns to the
    defined models. Never keep an old `mode-model` next to a newly written letter.
-   `.claude/mode` stays a single letter (the live board and other readers parse it).
+   `.claude/mode` stays a single letter (other readers parse it).
 3. Read the new mode's file and **follow its rules from that point on**.
 4. Confirm to the user: old mode → new mode, and what changed (agent set, who
    reviews, approval policy, expected multiplier) **and the model line**: which
    agents are Opus by definition and what they run on now. 4-6 lines.
 5. **From then on**, every `Agent` call to an agent whose effective model is Opus
    passes `model: "<model>"` (and every `Workflow` `agent()` for such a role); other
-   agents get no override. Report the model that actually ran.
+   agents get no override. Report the model that actually ran. A role agent is always
+   called by its plugin name, `subagent_type: "adyusuf:<role>"`; a bare `<role>` is not found.
 
 ## Permanent rules
 

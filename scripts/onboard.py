@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Onboarding helper for README's "How to use this" levels 1-3, plus a ready-to-paste
+"""Onboarding helper for README's "How to use this" levels 1-2, plus a ready-to-paste
 description of this repository for a fresh Claude session in another project.
 
 Usage:
@@ -8,23 +8,27 @@ Usage:
     python3 scripts/onboard.py level1 [--apply]           # the five-rule block -> <home>/.claude/CLAUDE.md
     python3 scripts/onboard.py level2 FILE... [--apply]   # chosen standards/*.md -> <home>/.claude/standards/
     python3 scripts/onboard.py level2 --list              # print the standards files level2 can take
-    python3 scripts/onboard.py level3 [--apply]            # CLAUDE.md, standards, agents, modes, commands,
-                                                             # skills, scripts -> <home>/.claude/
+    python3 scripts/onboard.py level3 [--apply]            # OBSOLETE: prints how to install the plugin, writes nothing
 
 Every subcommand defaults to a DRY RUN: it prints what it would do and writes nothing.
 Pass --apply to actually write. This mirrors gate-core.sh --list and install-live-hooks.py
 --check, but inverted, because this script's default target is the caller's OWN home
 directory rather than a project already opted into the gate.
 
-Level 0 needs no script (read CLAUDE.md and docs/decision-log.md). Level 4 (the live
-symlink checkout) has its own script, install.py (links, plugin and hooks in one command);
-this one stops at level 3.
+Level 0 needs no script (read CLAUDE.md and docs/decision-log.md). The whole rule set (the
+old levels 3 and 4, a copy or a symlinked checkout in ~/.claude) is the adyusuf Claude Code
+plugin since 13/10/2026 — install it from inside Claude Code:
+    /plugin marketplace add adyusuf/claude-code-standards#prod
+    /plugin install adyusuf@adyusuf-marketplace
+level3 is still accepted (with --apply/--force) and only says so. An old symlinked install is
+taken out with install.py --remove.
 
 Safe by construction: level1 is idempotent (a marker comment guards the appended block),
-and level2/level3 never overwrite an existing destination file unless --force is also given.
+and level2 never overwrites an existing destination file unless --force is also given.
 """
 import argparse
 import datetime
+import importlib.util
 import os
 import shutil
 import subprocess
@@ -50,7 +54,17 @@ FIVE_RULES = f"""{FIVE_RULES_MARKER}
    entry.
 """
 
-LEVEL3_ENTRIES = ('CLAUDE.md', 'standards', 'agents', 'modes', 'commands', 'skills', 'scripts')
+
+def load(name, filename):
+    spec = importlib.util.spec_from_file_location(name, os.path.join(HERE, filename))
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+hooks = load('install_live_hooks', 'install-live-hooks.py')     # the two /plugin commands: one source
+safety = load('install_safety', 'install_safety.py')
+PLUGIN_ID = hooks.PLUGIN_INSTALL.split()[-1]
 
 
 def origin_url(repo):
@@ -72,7 +86,9 @@ This project should follow the engineering rules in {source}
 ("claude-code-standards"). Read its README.md "How to use this" section and pick
 the smallest level that is useful here - usually level 1 (five rules pasted into
 CLAUDE.md) or level 2 (the standards/*.md documents matching this project's
-stack). If we are adopting it into this repository specifically, run the
+stack). The whole rule set is the adyusuf Claude Code plugin:
+{hooks.MARKETPLACE_ADD} then {hooks.PLUGIN_INSTALL}.
+If we are adopting it into this repository specifically, run the plugin's
 /adyusuf:apply-project-standards command (its definition is at
 commands/apply-project-standards.md in that repository) to install or update
 CLAUDE.md, SETUP.md and .env.example here - it never deletes what already
@@ -104,10 +120,11 @@ def status(repo, home):
         have = {f for f in os.listdir(standards_dir) if f.endswith('.md')}
     want = set(standards_files(repo))
     print(f'  level2 (standards/): {len(have & want)}/{len(want)} of this repo\'s documents present')
-    missing3 = [e for e in LEVEL3_ENTRIES if not os.path.exists(os.path.join(claude, e))]
-    level3_state = 'all present' if not missing3 else 'missing ' + ', '.join(missing3)
-    print(f'  level3 (whole config): {level3_state}')
-    print('  level4 (live symlink): see install.py --check')
+    installed, said = safety.plugin_installed(home, PLUGIN_ID)
+    print(f'  whole rule set (the adyusuf plugin): {said}')
+    if not installed:
+        print(f'    install it inside Claude Code: {hooks.MARKETPLACE_ADD} then {hooks.PLUGIN_INSTALL}')
+    print('  an old symlinked install (level 4): see install.py --check')
 
 
 def append_once(path, block, marker, apply_):
@@ -176,13 +193,12 @@ def level2(repo, home, names, list_only, apply_, force):
 
 
 def level3(repo, home, apply_, force):
-    status_code = 0
-    for name in LEVEL3_ENTRIES:
-        status_code |= copy_one(os.path.join(repo, name), os.path.join(claude_dir(home), name), home, apply_, force)
-    if apply_:
-        print('settings.example.json was NOT copied — read it and take only the "hooks" block (see README '
-              '"Level 3", the file also carries this repository owner\'s personal plugin selection).')
-    return status_code
+    """OBSOLETE: the whole rule set is the plugin now. Writes nothing, whatever the flags."""
+    print('level3 is obsolete: the whole rule set is the adyusuf Claude Code plugin, nothing is copied into '
+          f'{claude_dir(home)}. Install it inside Claude Code:')
+    print(f'  {hooks.MARKETPLACE_ADD}')
+    print(f'  {hooks.PLUGIN_INSTALL}')
+    return 0
 
 
 def main(argv):

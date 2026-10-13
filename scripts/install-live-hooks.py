@@ -1,32 +1,29 @@
 #!/usr/bin/env python3
-"""Activate (or remove) the live hooks: symlinks under ~/.claude/hooks + entries in settings.json.
+"""The live hooks ship with the adyusuf plugin; this script only finds and removes the LEGACY set.
 
 Usage:
-    python3 scripts/install-live-hooks.py             # install, from the repository this file lives in
-    python3 scripts/install-live-hooks.py --check     # report only; exit 1 if anything is missing or broken
-    python3 scripts/install-live-hooks.py --remove    # take the hooks and the symlinks out again
-    python3 scripts/install-live-hooks.py --repo DIR  # point the symlinks at another checkout (e.g. after a promotion)
+    python3 scripts/install-live-hooks.py             # writes nothing: says how to install the plugin
+    python3 scripts/install-live-hooks.py --check     # one line; exit 1 while a legacy entry or link is present
+    python3 scripts/install-live-hooks.py --remove    # take the legacy entries and the link out again
     python3 scripts/install-live-hooks.py --home DIR  # act on another home directory (tests)
 
-What it wires:
-    PreToolUse(Bash)  ->  hooks/guard-destructive.sh          blocks the never-do commands
+What the plugin wires (hooks/hooks.json, with "${CLAUDE_PLUGIN_ROOT}/scripts/..."):
+    PreToolUse(Bash)                  ->  guard-destructive.sh    blocks the never-do commands
+    PostToolUse(Edit|Write) and Stop  ->  md-hook.sh              the CLAUDE.md size ratchet + twin drift
 
-It used to wire a Stop hook for a measurement ledger as well. That tooling is
-deliberately NOT in this repository: it records per-session token and cost metadata,
-which a published rule set has no business carrying, and a ledger next to the rules
-keeps session metadata on disk longer than the platform's own retention. If you run
-something like it, wire it yourself and keep it outside the checkout.
+What the plugin replaces (LEGACY): the entries this script and settings.example.json used to write into
+~/.claude/settings.json, and the ~/.claude/hooks/guard-destructive.sh symlink into the checkout. Left in
+place they run every hook TWICE — once from settings.json, once from the plugin.
 
-Why symlinks in ~/.claude/hooks and not in ~/.claude/scripts: `scripts` is itself a
-symlink into the PROD worktree, so a new file there would appear as untracked in prod
-and collide with the file the next promotion brings. ~/.claude/hooks is a directory of
-its own; its links point into the checkout you name with --repo (default: the one this
-script lives in), so a change to a hook is live the moment it is in that checkout.
+The measurement Stop hook is deliberately NOT in this repository: it records per-session token and cost
+metadata, which a published rule set has no business carrying. Its entry and its link are never touched here.
 
-Safe by construction: settings.json is backed up to ~/.claude-standards/backups/settings
-before any change (outside ~/.claude, whose cleanup prunes old files there), an unparsable settings.json aborts with nothing touched, a real file where a
-symlink belongs is never overwritten, running it twice changes nothing, and other
-entries in settings.json are preserved.
+Safe by construction: settings.json is backed up to ~/.claude-standards/backups/settings before any change
+(outside ~/.claude, whose cleanup prunes old files there), an unparsable settings.json aborts with nothing
+touched, only the exact LEGACY command strings are removed (every other entry is kept), a real file where
+the legacy link was is never deleted, and running it twice changes nothing.
+
+--repo is still accepted (install.py passes it) and no longer used: nothing points into a checkout now.
 """
 import argparse
 import datetime
@@ -38,19 +35,22 @@ import sys
 HERE = os.path.dirname(os.path.realpath(__file__))
 DEFAULT_REPO = os.path.dirname(HERE)
 
-LINKS = ('guard-destructive.sh',)
-HOOKS = (
-    ('PreToolUse', 'Bash', 'bash "$HOME/.claude/hooks/guard-destructive.sh"'),
-)
+MARKETPLACE_ADD = '/plugin marketplace add adyusuf/claude-code-standards#prod'
+PLUGIN_INSTALL = '/plugin install adyusuf@adyusuf-marketplace'
 
-
-def entry(matcher, command):
-    hook = {'hooks': [{'type': 'command', 'command': command}]}
-    return {'matcher': matcher, **hook} if matcher else hook
-
-
-def commands_in(entries):
-    return {h.get('command') for e in entries for h in e.get('hooks', [])}
+# Every command string this script or settings.example.json ever registered (git log -p of both files).
+# One list: legacy-install-check.py imports it.
+LEGACY = frozenset((
+    'bash "$HOME/.claude/hooks/guard-destructive.sh"',
+    'bash "$HOME/.claude/scripts/guard-destructive.sh"',
+    'bash "$HOME/.claude/scripts/md-hook.sh"',
+    # The retired live board's hooks (standards/22): they resolve only through the old ~/.claude/scripts link
+    # and start a process on every tool call, hidden by `|| true`, once that link is gone.
+    'python3 "$HOME/.claude/scripts/board/board_ensure.py" || true',
+    'python3 "$HOME/.claude/scripts/board/board_hook.py" || true',
+))
+# The links this script made, relative to ~/.claude. Removed only while they are symlinks.
+LEGACY_LINKS = (os.path.join('hooks', 'guard-destructive.sh'),)
 
 
 def load_settings(path):
@@ -95,45 +95,6 @@ def same_path(a, b):
     return os.path.normcase(plain(a)) == os.path.normcase(plain(b))
 
 
-def link_state(link, source):
-    """ok | missing | wrong-target | broken | blocked (a real file is in the way)."""
-    if os.path.islink(link):
-        if not same_path(os.readlink(link), source):
-            return 'wrong-target'
-        return 'ok' if os.path.exists(source) else 'broken'
-    return 'blocked' if os.path.exists(link) else 'missing'
-
-
-def plan(repo, home):
-    claude = os.path.join(home, '.claude')
-    hooks_dir = os.path.join(claude, 'hooks')
-    links = [(os.path.join(hooks_dir, name), os.path.join(repo, 'scripts', name)) for name in LINKS]
-    return claude, hooks_dir, links
-
-
-def report(repo, home):
-    claude, _hooks_dir, links = plan(repo, home)
-    problems = []
-    for link, source in links:
-        state = link_state(link, source)
-        print(f'  link {os.path.relpath(link, home)}: {state}')
-        if state != 'ok':
-            problems.append(link)
-    settings_path = os.path.join(claude, 'settings.json')
-    try:
-        data, _ = load_settings(settings_path)
-    except (ValueError, OSError) as error:
-        print(f'  settings.json: unreadable ({error})')
-        return problems + [settings_path]
-    for event, _matcher, command in HOOKS:
-        present = command in commands_in(data.get('hooks', {}).get(event, []))
-        print(f'  hook {event}: {"registered" if present else "MISSING"}')
-        if not present:
-            problems.append(event)
-    print(f'  {python3_note()}')
-    return problems
-
-
 def python3_note(which=shutil.which):
     """A WARNING, not a problem: the guard falls back to `python`, but other hooks people
     wire (the live board's, for one) call `python3` by name and fail silently without it."""
@@ -146,75 +107,100 @@ def python3_note(which=shutil.which):
     return 'python3: NOT on PATH and no python either (warning) — the guard will block every keyword-bearing command'
 
 
-def install(repo, home):
-    claude, hooks_dir, links = plan(repo, home)
-    settings_path = os.path.join(claude, 'settings.json')
-    try:
-        data, newline = load_settings(settings_path)          # parse first: abort before touching anything
-    except (ValueError, OSError) as error:
-        print(f'refusing to continue — settings.json is unreadable: {error}', file=sys.stderr)
-        return 2
-    for link, source in links:
-        if not os.path.exists(source):
-            print(f'refusing to continue — {source} does not exist (wrong --repo?)', file=sys.stderr)
-            return 2
-        if link_state(link, source) == 'blocked':
-            print(f'refusing to continue — {link} is a real file, not a symlink', file=sys.stderr)
-            return 2
-    os.makedirs(hooks_dir, exist_ok=True)
-    for link, source in links:
-        if link_state(link, source) in ('wrong-target', 'broken'):
-            os.remove(link)
-        if not os.path.lexists(link):
-            os.symlink(source, link)
-            print(f'linked {link} -> {source}')
+def hook_events(data):
+    hooks = data.get('hooks') if isinstance(data, dict) else None
+    return hooks if isinstance(hooks, dict) else {}
+
+
+def legacy_commands(data):
+    """The LEGACY command strings still registered in a parsed settings.json, in file order."""
+    found = []
+    for groups in hook_events(data).values():
+        for group in groups if isinstance(groups, list) else []:
+            hooks = group.get('hooks') if isinstance(group, dict) else None
+            for hook in hooks if isinstance(hooks, list) else []:
+                command = hook.get('command') if isinstance(hook, dict) else None
+                if command in LEGACY:
+                    found.append(command)
+    return found
+
+
+def legacy_links(home):
+    paths = (os.path.join(home, '.claude', name) for name in LEGACY_LINKS)
+    return [path for path in paths if os.path.islink(path)]
+
+
+def strip_legacy(data):
+    """Drop every LEGACY hook from `data` in place; prune the groups and events left empty. True if changed."""
+    events = hook_events(data)
     changed = False
-    hooks = data.setdefault('hooks', {})
-    for event, matcher, command in HOOKS:
-        if command not in commands_in(hooks.get(event, [])):
-            hooks.setdefault(event, []).append(entry(matcher, command))
-            changed = True
-            print(f'registered {event}: {command}')
-    if changed:
-        saved = backup(settings_path, backups_dir(home))
-        save_settings(settings_path, data, newline)
-        print(f'settings.json updated' + (f' (backup: {saved})' if saved else ''))
+    for event in list(events):
+        groups = events[event]
+        if not isinstance(groups, list):
+            continue
+        kept = []
+        for group in groups:
+            hooks = group.get('hooks') if isinstance(group, dict) else None
+            if not isinstance(hooks, list):
+                kept.append(group)
+                continue
+            remaining = [h for h in hooks if not (isinstance(h, dict) and h.get('command') in LEGACY)]
+            if len(remaining) != len(hooks):
+                changed = True
+                if not remaining:
+                    continue                      # the group held only legacy hooks: drop the group
+                group = {**group, 'hooks': remaining}
+            kept.append(group)
+        if kept:
+            events[event] = kept
+        else:
+            del events[event]
+    if changed and not events and isinstance(data.get('hooks'), dict):
+        del data['hooks']
+    return changed
+
+
+def report(repo, home):
+    """One line; returns the problems (legacy entries and links still present). `repo` is unused."""
+    settings_path = os.path.join(home, '.claude', 'settings.json')
+    try:
+        data, _ = load_settings(settings_path)
+    except (ValueError, OSError) as error:
+        print(f'legacy hooks: settings.json is unreadable ({error})')
+        return [settings_path]
+    problems = legacy_commands(data) + legacy_links(home)
+    if problems:
+        print(f'legacy hooks: {len(problems)} still present (settings.json entries and ~/.claude/hooks links) '
+              f'— they run next to the plugin\'s own; remove them: python3 {os.path.join(HERE, "install-live-hooks.py")} --remove')
     else:
-        print('settings.json already up to date')
+        print('legacy hooks: none — the hooks come from the adyusuf plugin')
+    return problems
+
+
+def install(repo, home):
+    """Writes nothing: the hooks are the plugin's now. `repo` and `home` are unused (install.py passes them)."""
+    print('The live hooks ship with the adyusuf plugin; nothing is written to settings.json any more.')
+    print('Install the plugin inside Claude Code:')
+    print(f'  {MARKETPLACE_ADD}')
+    print(f'  {PLUGIN_INSTALL}')
+    print('An older install left hooks in settings.json? Remove them: install-live-hooks.py --remove')
     return 0
 
 
 def remove(repo, home):
-    claude, _hooks_dir, links = plan(repo, home)
-    settings_path = os.path.join(claude, 'settings.json')
+    settings_path = os.path.join(home, '.claude', 'settings.json')
     try:
         data, newline = load_settings(settings_path)
     except (ValueError, OSError) as error:
         print(f'refusing to continue — settings.json is unreadable: {error}', file=sys.stderr)
         return 2
-    changed = False
-    for event, _matcher, command in HOOKS:
-        kept = []
-        for item in data.get('hooks', {}).get(event, []):
-            remaining = [h for h in item.get('hooks', []) if h.get('command') != command]
-            if len(remaining) != len(item.get('hooks', [])):
-                changed = True
-                if not remaining:
-                    continue                      # the entry held only our hook: drop the entry
-                item = {**item, 'hooks': remaining}
-            kept.append(item)
-        if event in data.get('hooks', {}):
-            data['hooks'][event] = kept
-            if not kept:
-                del data['hooks'][event]
-    if changed:
-        backup(settings_path, backups_dir(home))
+    if strip_legacy(data):
+        saved = backup(settings_path, backups_dir(home))
         save_settings(settings_path, data, newline)
-        print('hooks removed from settings.json')
-    for link, _source in links:
-        if os.path.islink(link):
-            os.remove(link)
-            print(f'unlinked {link}')
+        print('legacy hooks removed from settings.json' + (f' (backup: {saved})' if saved else ''))
+    for link in legacy_links(home):
+        os.remove(link)
+        print(f'unlinked {link}')
     return 0
 
 
@@ -222,15 +208,12 @@ def main(argv):
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('--check', action='store_true')
     parser.add_argument('--remove', action='store_true')
-    parser.add_argument('--repo', default=DEFAULT_REPO)
+    parser.add_argument('--repo', default=DEFAULT_REPO, help=argparse.SUPPRESS)    # accepted, unused
     parser.add_argument('--home', default=os.path.expanduser('~'))
     args = parser.parse_args(argv)
     repo, home = os.path.realpath(args.repo), os.path.abspath(args.home)
     if args.check:
-        print(f'live hooks (repo: {repo})')
-        problems = report(repo, home)
-        print('✓ all live hooks are in place' if not problems else f'✗ {len(problems)} problem(s)')
-        return 1 if problems else 0
+        return 1 if report(repo, home) else 0
     return remove(repo, home) if args.remove else install(repo, home)
 
 

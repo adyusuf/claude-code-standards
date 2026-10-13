@@ -44,6 +44,5 @@ docs/measurement-daily-by-model.md
 docs/project-nicknames.tsv
 .codeql/
 
-# The live board's runtime data (standards/22-live-board.md §2 step 2): the event log
-# and the user's controls for a session in this repository. Never committed.
+# Runtime data: each session's plan file (standards/22-live-board.md). Never committed.
 .claude/board/

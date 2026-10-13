@@ -1,68 +1,83 @@
 ---
 name: board-plan
-description: Break a task into live-board items, route each to a role the active mode allows, and keep the board in step. Use in projects that enable the live board, whenever work splits into 2+ pieces or starts an agent.
+description: Break a task into items in this session's plan file, route each to a role the active mode allows, and keep the plan in step with the work (status, commits, decisions). Use whenever work splits into 2+ pieces or starts an agent.
 ---
 
-# board-plan — plan onto the live board
+# board-plan — the session's plan file
 
-The board records agent start/finish **by itself** (hooks). This skill covers what
-the hooks cannot know: the task list, the routing and the semantic status.
-Standard: `standards/22-live-board.md`. Below, `B` is
-`python3 ~/.claude/scripts/board/board.py`.
+## Why this exists
 
-## 1. Read the mode, then declare it
-Read the mode in the order `modes/README.md` gives (session selection →
-`.claude/mode` → B). Copy the role set from that mode's file — never from memory.
+When several sessions and agents work at once — across more than one project — the
+chat alone no longer shows who is doing what, what is waiting for you and where each
+commit has landed. Agent start and stop are recorded elsewhere (the claude-monitor
+agent, when installed), but nothing records the plan: which tasks exist, which role does
+each one, and whether a returned agent's work was actually accepted. This skill keeps
+that plan in one small file per session, so it survives a long session and a context
+compaction, and you can open it at any time.
 
-    B plan --mode <letter> --roles <comma-separated role set>
+Contributions are welcome: https://github.com/adyusuf/claude-code-standards
 
-Mode A has no agents: declare `--roles ""` and the board tracks tasks only.
+Standard: `${CLAUDE_PLUGIN_ROOT}/standards/22-live-board.md`.
 
-## 2. Break the work down
-One item per unit that merges to `dev` on its own (#26). Never type an id: `add auto`
-takes the next free one under a lock and prints it (several sessions share a board; typed
-ids collided — T-25 was used by three of them). Use the printed id everywhere after.
+## 1. The file
 
-    B add auto "<short title>" --branch <branch> --role <role that will do it>
+`.claude/board/plan-${CLAUDE_SESSION_ID}.md` at the repository root — one file per
+session, so parallel sessions never write the same file. `.claude/board/` is git-ignored
+(runtime data); add the line to `.gitignore` if it is missing, and say so.
 
-An id that already exists is refused. The board is found from the working directory's
-repository; run `B` from the repository whose board you mean (a repository with no board
-hooks is refused unless you pass `--init`).
+Create it before the first piece starts, with Write:
 
-Route by `modes/role-selection.md`. A role outside the active mode is not started;
-propose the mode change in one line (#27).
+    # Plan — <short goal> (<dd/mm/yyyy>)
+    Mode: <letter> · Roles: <role set copied from the mode file, or "none">
+
+    | Id | Task | Role | Branch | Status | Commit | Note |
+    |---|---|---|---|---|---|---|
+
+Read the mode in the order `${CLAUDE_PLUGIN_ROOT}/modes/README.md` gives (session
+selection → `.claude/mode` → B) and copy the role set from that mode's file — never from
+memory. Mode A has no agents: `Roles: none`, the file tracks tasks only.
+
+## 2. Tasks
+
+One row per unit that merges to `dev` on its own (#26). Ids are `T-1`, `T-2`, … in this
+file; the next id is one more than the highest in it. Route by
+`${CLAUDE_PLUGIN_ROOT}/modes/role-selection.md`; a role outside the active mode is not
+started — propose the mode change in one line (#27). Work you do yourself has the role
+`me`.
 
 ## 3. Tag every agent call
-Put the task id in the Agent `description`: `"[T-3] SMS pause sentence"`.
-Untagged agents still appear under "Agent activity" but link to no task.
 
-## 4. Keep the semantic status current
-The hooks set `running` and `agent_done`. Only you set the rest:
+Put the task id in the Agent `description`: `"[T-3] SMS pause sentence"`, and call the
+role by its plugin name (`subagent_type: "adyusuf:<role>"`). The monitor records agents
+by that description, so the tag links them to the row.
 
-| When | Command |
+## 4. Keep the status current — in the same turn as the work
+
+| When | Status |
 |---|---|
-| You audited the agent's output and the task is closed | `B set T-n --status done` |
-| Blocked (review, the user, another task) | `B set T-n --status waiting --note "<what>"` |
-| Failed and not retried now | `B set T-n --status failed --note "<why>"` |
+| Not started | `todo` |
+| You or an agent started it | `running` |
+| The agent returned, not yet audited | `agent_done` |
+| You audited the output and the task is closed | `done` |
+| Blocked (review, the user, another task) | `waiting` + what, in Note |
+| Failed and not retried now | `failed` + why, in Note |
+| A question only the user can answer | `needs_decision` + the question, in Note |
 
-`agent_done` means "the agent returned", not "the task is done" (#28).
+`agent_done` means "the agent returned", not "the task is done" (#28). Record each
+task's commit as soon as it exists (several: `<sha>, <sha>`).
 
-**Record each task's commit** as soon as it exists: `B set T-n --commit <sha>` (several:
-`<sha>,<sha>`). The page's Merge column then shows where it has landed — dev / test / prod —
-read from git, so nobody has to write merge notes by hand.
+**Asking the user:** set `needs_decision`, ask the same question in the chat
+(`AskUserQuestion`), and move the row on when the answer comes. An answer never stands
+in for an approval that needs the user's explicit yes (promotion, deploy, deletion,
+sending outward) — that is asked for in the chat in its own words.
 
-**Asking the user:** `B set T-n --status needs_decision --note "<question>" --options "a|b"`
-(no `--options` → Continue / Reject), ask the same question in the chat, then end the
-turn. The Stop hook waits for the click (`BOARD_DECISION_WAIT`, default 180 s); the
-answer arrives as a board change — apply it and move the task out of `needs_decision`.
-A board answer is never an approval for promotion, deploy, deletion or sending outward:
-those still need the user's yes in the chat (`standards/22-live-board.md` §3).
+## 5. The monitor (optional)
 
-## 5. Obey the board's controls
-A board change reaches you as a system reminder after your next tool call. Skip
-removed tasks and stop their running agents (`TaskStop`); never retry a denied
-agent call under another role.
+If the `monitor_note` tool is available (the claude-monitor agent), send one line per
+status change: `T-3 → done (abc1234)`. Without it — not installed, not connected, unreachable —
+the file is the record, and that is not a problem to report.
 
 ## 6. The chat table still ships
-The board is an extra view; the status table in the reply stays mandatory. Take
-its figures from `B list`.
+
+The plan file is an extra record; the status table in the reply stays mandatory. Take
+its figures from the file, not from memory.
