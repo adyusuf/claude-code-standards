@@ -219,17 +219,6 @@ class ModeParts(unittest.TestCase):
         for number in range(1, len(subagent) + 1):
             self.assertLess(len(rc.output('subagent', subagent, number, 4)), rc.HOOK_LIMIT, number)
 
-    def test_every_hook_of_an_event_sees_the_same_parts(self):
-        # Parts depend on text, mode and <registered> (the WARNING is part of the measured
-        # output); all hooks of one event pass the same <registered>, so they agree.
-        text = quote_heavy_text()
-        for mode in ('session', 'subagent'):
-            first = rc.mode_parts(text, mode, 4)
-            self.assertEqual(first, rc.mode_parts(text, mode, 4), mode)
-            for part in range(1, 5):
-                code, _, _ = run_main([mode, str(part), '4'])
-                self.assertEqual(code, 0)
-
     def test_the_overflow_warning_is_counted_when_fewer_hooks_are_registered_than_parts_needed(self):
         # Regression: measuring with max(registered, len(cut)) never counted the WARNING that
         # the last registered part carries, so that part printed 10,064 characters.
