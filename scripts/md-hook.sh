@@ -19,9 +19,17 @@
 #
 # ⚠️ This is NOT a release gate, it is a behavioural warning; the exit code is
 # always 0. In a project where it is a real merge gate, a COPY of the script lives
-# in the repository and CI runs that (see ~/.claude/scripts/README.md). Keep the
-# distinction.
+# in the repository and CI runs that (see the adyusuf plugin's scripts/README.md).
+# Keep the distinction.
+#
+# It ships with the adyusuf plugin (hooks/hooks.json runs it as
+# "${CLAUDE_PLUGIN_ROOT}/scripts/md-hook.sh") and finds its siblings RELATIVE TO
+# ITSELF: the plugin's scripts/ is the canonical set. `cd` + `pwd` keeps the path
+# it was invoked with, so an old install that still calls it through the
+# ~/.claude/scripts directory symlink finds the same siblings through that link.
 set -uo pipefail
+
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 input="$(cat 2>/dev/null || true)"
 
@@ -44,7 +52,7 @@ fi
 root="$(git -C "$start" rev-parse --show-toplevel 2>/dev/null)" || exit 0
 [ -n "$root" ] || exit 0
 
-output="$(MD_ROOT="$root" bash "$HOME/.claude/scripts/md-size-gate.sh" --hook 2>&1)" || true
+output="$(MD_ROOT="$root" bash "$here/md-size-gate.sh" --hook 2>&1)" || true
 
 # If no budget is installed, stay QUIET on the Stop event (suggesting an install
 # on every turn is noise); say it once if a CLAUDE.md was explicitly edited.
@@ -60,8 +68,8 @@ if printf '%s' "$output" | grep -qi 'CEILING EXCEEDED\|NO BUDGET\|FILE MISSING';
 fi
 
 # ── Twin drift ───────────────────────────────────────────────────────────────
-# Every script a project COPIES is a deliberate TWIN: the canonical copy lives under
-# ~/.claude/scripts/, and every project takes a COPY into its own scripts/ and
+# Every script a project COPIES is a deliberate TWIN: the canonical copy lives in
+# the adyusuf plugin's scripts/ (this file's own directory), and every project takes a COPY into its own scripts/ and
 # commits it (a project's gate cannot depend on a path outside the repository).
 # Where there are twins there must also be a DRIFT TEST — this repository does
 # exactly that for its other twins. Drift did happen once: the canonical copy was
@@ -69,23 +77,23 @@ fi
 # them by hand.
 # The list lives in ONE file (twins.txt), shared with twin-drift.sh: two lists that disagree would mean
 # a script is checked in one place and not the other.
-TWINS_FILE="${TWINS_FILE:-$HOME/.claude/scripts/twins.txt}"
+TWINS_FILE="${TWINS_FILE:-$here/twins.txt}"
 TWINS="$(grep -vE '^[[:space:]]*(#|$)' "$TWINS_FILE" 2>/dev/null | tr '\n' ' ')"
 [ -n "$TWINS" ] || echo "⚠️ The twin list is missing or empty ($TWINS_FILE): copied scripts are NOT being checked for drift."
 drifted=""
 # The configuration repository IS the canonical set: comparing one of its worktrees
-# with the live copy would report every not-yet-promoted change as drift.
+# with the installed plugin's copy would report every not-yet-promoted change as drift.
 if ! { [ -f "$root/standards/README.md" ] && [ -d "$root/modes" ]; }; then
   for tool in $TWINS; do
     [ -f "$root/scripts/$tool" ] || continue          # this project did not copy it
-    [ -f "$HOME/.claude/scripts/$tool" ] || continue   # no canonical copy to compare with
-    cmp -s "$root/scripts/$tool" "$HOME/.claude/scripts/$tool" || drifted="$drifted $tool"
+    [ -f "$here/$tool" ] || continue                  # no canonical copy to compare with
+    cmp -s "$root/scripts/$tool" "$here/$tool" || drifted="$drifted $tool"
   done
 fi
 if [ -n "$drifted" ]; then
   echo "⚠️ The copied scripts have DRIFTED from the canonical copy:$drifted"
-  echo "   Canonical: ~/.claude/scripts/  ·  This project: $root/scripts/"
+  echo "   Canonical: the adyusuf plugin's scripts/ ($here/)  ·  This project: $root/scripts/"
   echo "   Which one is current? Compare first, then bring BOTH into line:"
-  echo "   diff ~/.claude/scripts/<tool> scripts/<tool>"
+  echo "   diff \"$here/<tool>\" scripts/<tool>"
 fi
 exit 0

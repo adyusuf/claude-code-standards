@@ -16,9 +16,9 @@
 set -uo pipefail
 
 # ⚠️ ROOT and BUDGET can be supplied from outside. Reason: the CANONICAL copy of
-# this script lives under ~/.claude/scripts/, and when it is called from there a
-# ROOT derived from the script's own location is wrong (it resolves to ~/.claude,
-# not the project). For the copy COPIED INTO a project the defaults are correct;
+# this script lives in the adyusuf plugin's `scripts/` (canonical), and when it is
+# called from there a ROOT derived from the script's own location is wrong (it
+# resolves to the plugin, not the project). For the copy COPIED INTO a project the defaults are correct;
 # the hook passes MD_ROOT.
 ROOT="${MD_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 UPDATE=0

@@ -46,7 +46,8 @@ fi
 
 failed=0
 
-# The LIVE configuration repository (~/.claude) is exempt from steps 3 and 4. Its scripts/ is a
+# The LIVE configuration repository (~/.claude, in the legacy symlinked install; the canonical
+# scripts are the adyusuf plugin's `scripts/` now) is exempt from steps 3 and 4. Its scripts/ is a
 # symlink into the configuration repository, so it "has" doc-check.py and real-name-check.sh — but
 # its memory notes refer to OTHER projects' files (a broken link to this repo, a correct one to that
 # project), and real project names are what make those notes usable. Steps 1 and 2 still apply.
