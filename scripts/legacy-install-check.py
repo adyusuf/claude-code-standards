@@ -10,14 +10,14 @@ outside its own copy), so it says so — once, in one paragraph — and points a
 
 Silent when clean. Always exit 0: a check that blocks a session would be worse than the double load. A file
 it cannot read is one line on stderr, never an exception. HOME is read from the environment (tests set it).
-The LEGACY command list is imported from install-live-hooks.py, so there is one list.
+The LEGACY command list is imported from install-live-hooks.py and the link predicate from install.py, so the
+warning names exactly what `install.py --remove` takes out (a dotfiles link at one of these names is not ours).
 """
 import importlib.util
 import os
 import sys
 
 HERE = os.path.dirname(os.path.realpath(__file__))
-LINKED = ('CLAUDE.md', 'agents', 'docs', 'modes', 'scripts', 'standards', os.path.join('skills', 'adyusuf'))
 REMOVE_COMMAND = 'python3 {checkout}/scripts/install.py --remove --no-monitor'
 
 
@@ -25,16 +25,21 @@ def home_dir():
     return os.environ.get('HOME') or os.path.expanduser('~')
 
 
-def load_hooks_module():
-    spec = importlib.util.spec_from_file_location('install_live_hooks', os.path.join(HERE, 'install-live-hooks.py'))
+def load_module(name, filename):
+    spec = importlib.util.spec_from_file_location(name, os.path.join(HERE, filename))
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
 
 
-def legacy_links(home):
-    paths = (os.path.join(home, '.claude', name) for name in LINKED)
-    return [path for path in paths if os.path.islink(path)]
+def load_hooks_module():
+    return load_module('install_live_hooks', 'install-live-hooks.py')
+
+
+def legacy_links(home, install=None):
+    """The old install's links — install.py's own predicate, so a warning always clears after --remove."""
+    install = install or load_module('adyusuf_install', 'install.py')
+    return [link for link, _ in install.legacy_links(home)]
 
 
 def checkout_of(links):
@@ -70,7 +75,11 @@ def message(links, commands, checkout):
 
 def main():
     home = home_dir()
-    links = legacy_links(home)
+    try:
+        links = legacy_links(home)
+    except (ImportError, OSError, SyntaxError) as error:
+        print(f'adyusuf legacy-install-check: cannot load install.py: {error}', file=sys.stderr)
+        links = []
     try:
         hooks = load_hooks_module()
     except (ImportError, OSError, SyntaxError) as error:
