@@ -22,17 +22,23 @@ Usage:
 --remove, the migration off the old install (it linked ~/.claude/{CLAUDE.md,agents,docs,modes,scripts,standards}
 and ~/.claude/skills/adyusuf -> <checkout>/plugin, and wired hooks into settings.json):
     1. Removes each of those links that points into ANY checkout of this repository (a folder holding
-       standards/00-working-method.md and modes/README.md), and each one whose target is gone — a dangling
-       link holds nothing. A real file or folder is never touched, and neither is a link into anything else.
-    2. Takes the legacy hooks out through install-live-hooks.py (settings.json is backed up first).
+       standards/00-working-method.md and modes/README.md), and each one with the expected target name whose
+       target is gone — a dangling link holds no data and its target cannot be checked, so a dangling link of
+       YOURS at one of these names (an unmounted drive) goes too; the printed line keeps its target. A real file
+       or folder is never touched, and neither is a link to an existing target outside this repository.
+    2. Takes the legacy hooks out through install-live-hooks.py (settings.json is backed up first) — the old
+       guard and md-hook entries and the retired live board's. An unreadable settings.json stops --remove there
+       (exit 2, "partially removed"): the monitor and the restore are not touched until it is fixed and rerun.
     3. Unless --no-monitor: uninstalls the monitor agent, as before.
     4. Puts back what the old install moved aside, from ~/.claude-standards/backups/ (never over an occupied place).
 --check reads ~/.claude/plugins/installed_plugins.json for the adyusuf@adyusuf-marketplace entry; a missing file
 or entry is "not installed" and fails the check. The monitor step: install_monitor.py builds cm-agent and connects
-it to the channel's server; its plugin is ENABLED only while connected, otherwise DORMANT.
+it to the channel's server; its plugin is ENABLED only while connected, otherwise DORMANT. The monitor is OPTIONAL
+(decision 13/10/2026): missing, not connected or unreachable is printed, never a failure or a counted problem.
 Log: install, --remove and --monitor-sync write their whole output to ~/.claude-standards/logs/install-<stamp>.log
 as well as the console (--check is read-only and writes none).
-Exit codes: 0 done · 1 --check found a problem · 2 refused or failed (nothing changed by the refused step).
+Exit codes: 0 done (a monitor that could not be installed is a warning) · 1 --check found a problem ·
+2 refused or failed (preflight, or --remove on an unreadable settings.json).
 """
 import argparse
 import importlib.util
@@ -189,6 +195,10 @@ def remove_all(start, home, monitor):
     remove_links(home)
     print('hooks:')
     code = hooks.remove(start, home)
+    if code:
+        print('✗ partially removed — the links are out, settings.json could not be read: fix it and rerun '
+              '--remove (the monitor and the restore were not touched)')
+        return code
     if monitor:
         load('install_monitor', 'install_monitor.py').remove(home=home)
     else:

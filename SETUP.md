@@ -194,8 +194,9 @@ written into `~/.claude` by hand; read the warning in
   installing it: `claude --plugin-dir <worktree>` (it takes precedence over the installed plugin for that session).
 - **Moving off the old link install** (`~/.claude/{CLAUDE.md,agents,docs,modes,scripts,standards}` and
   `~/.claude/skills/adyusuf` were links into a checkout): run
-  `python3 <that checkout>/scripts/install.py --remove --no-monitor` first — it removes those links and the old hook
-  entries from `settings.json` (backed up first) and puts your own files back from the newest backup. Until then the
+  `python3 <that checkout>/scripts/install.py --remove --no-monitor` first — it removes those links (and a dangling
+  link at one of those names, whose target cannot be checked), the old hook entries incl. the retired board's from
+  `settings.json` (backed up first) and puts your own files back from the newest backup. Until then the
   rules, agents and guard load twice; the plugin says so at session start (`scripts/legacy-install-check.py`).
   ⚠️ Without `--no-monitor`, `--remove` also uninstalls the monitor agent.
 
@@ -255,7 +256,7 @@ made there is invisible to a normal terminal and the other way round. The agent'
 | `install-live-hooks.py` aborts and touches nothing | `~/.claude/settings.json` is not valid JSON | Fix the JSON, rerun |
 | Every Bash call mentioning push/rm/drop is BLOCKED with "no Python 3 interpreter" | Neither `python3` nor a Python 3 `python` on the hook's `PATH` | Install Python 3; on Windows add `python3.exe` (§1) |
 | `install.py` prints "DORMANT" | The agent is not connected (code denied or expired, or the API did not answer), so its plugin is deliberately disabled | Run `install.py` again (or with `--monitor-server <url>`) and approve the code on the web |
-| `install.py` fails at the monitor step: ".NET 10 SDK is required" | No .NET 10 SDK | Install it. The rules come from the plugin either way |
+| `install.py` warns at the monitor step: ".NET 10 SDK is required" | No .NET 10 SDK | Optional — install it if you want the monitor. The run still exits 0; the rules come from the plugin |
 | `cm-agent install` prints "Claude Code could not be reached" | The `claude` CLI is not on `PATH` (e.g. only the desktop app) | Nothing to do when run through `install.py`: it registers the plugin through `settings.json` |
 | `install.py --check` reports `MISMATCH` | The connection changed (login/logout) without a sync | `install.py --monitor-sync` |
 | Gate runs on stale branches | The local `dev`/`test` are behind `origin` | `git fetch`, and branch off `origin/dev` |
