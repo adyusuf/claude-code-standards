@@ -8,56 +8,14 @@ import importlib.util
 import io
 import json
 import os
-import shutil
-import subprocess
 import sys
 import tempfile
 import unittest
-from contextlib import redirect_stderr, redirect_stdout
 from unittest import mock
 
-REPO = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', '..'))
-SCRIPT = os.path.join(REPO, 'scripts', 'rules-context.py')
-HOOKS = os.path.join(REPO, 'hooks', 'hooks.json')
-_spec = importlib.util.spec_from_file_location('rules_context', SCRIPT)
-rc = importlib.util.module_from_spec(_spec)
-_spec.loader.exec_module(rc)
-
-with open(rc.RULES, encoding='utf-8') as _handle:
-    REAL_TEXT = _handle.read()
-REAL_PARTS = rc.parts(REAL_TEXT)
-SESSION_PARTS = rc.mode_parts(REAL_TEXT, 'session', 4)
-SUBAGENT_PARTS = rc.mode_parts(REAL_TEXT, 'subagent', 4)
-
-
-def synthetic_text():
-    """One block over the limit (many short lines) and one single line over the limit."""
-    big_block = '## Big\n' + ('x' * 79 + '\n') * 200
-    long_line = '26. Long\n' + 'y' * (rc.PART_LIMIT * 2 + 123) + '\n'
-    return 'intro\n## Small\nsmall body\n' + big_block + long_line + '## Tail\n21-23. last\n'
-
-
-def quote_heavy_text():
-    """About 9,400 characters in 30 sections: one session part, but every `"` and newline
-    doubles in the JSON envelope, so the subagent envelope of that single part is over the cap."""
-    section = '## S{n:02d}\n' + 'q"q"q"q"q"q"q"q"q"q"q"q"\n' * 12
-    text = ''.join(section.format(n=n) for n in range(30))
-    assert 9000 < len(text) <= rc.PART_LIMIT, len(text)
-    return text
-
-
-def run_main(argv, rules_path=None):
-    """main() in-process: (exit code, stdout, stderr). RULES is pointed at rules_path if given."""
-    out, err = io.StringIO(), io.StringIO()
-    with mock.patch.object(rc, 'RULES', rules_path or rc.RULES), redirect_stdout(out), redirect_stderr(err):
-        code = rc.main(['rules-context.py'] + argv)
-    return code, out.getvalue(), err.getvalue()
-
-
-def run_cli(*args, script=SCRIPT):
-    result = subprocess.run([sys.executable, script, *args], capture_output=True,
-                            text=True, encoding='utf-8', env={**os.environ, 'PYTHONUTF8': '1'})
-    return result.returncode, result.stdout, result.stderr
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from rules_context_helpers import (REAL_PARTS, REAL_TEXT, REPO, quote_heavy_text, rc, run_main,  # noqa: E402
+                                   synthetic_text)
 
 
 def is_boundary(line):
@@ -243,101 +201,48 @@ class ModeParts(unittest.TestCase):
         self.assertTrue(all(len(piece) <= 1000 for piece in pieces))
 
 
-class Main(unittest.TestCase):
-    def test_session_prints_the_rendered_part_as_plain_text(self):
-        code, out, _ = run_main(['session', '2', '4'])
-        self.assertEqual(code, 0)
-        self.assertEqual(out, rc.render(SESSION_PARTS, 2, 4))
+class HeaderRoot(unittest.TestCase):
+    """The part header names the plugin root: the rules say `standards/...`, `modes/...`, and a model
+    in any project can only open those if it is told what they are relative to (8707197)."""
+    LONG_ROOT = os.path.join(os.sep + 'r' * 1000, 'cache', 'adyusuf')
 
-    def test_subagent_prints_json_with_the_event_name_and_the_part_text(self):
-        code, out, _ = run_main(['subagent', '2', '4'])
-        self.assertEqual(code, 0)
-        payload = json.loads(out)
-        self.assertEqual(list(payload), ['hookSpecificOutput'])
-        self.assertEqual(payload['hookSpecificOutput']['hookEventName'], 'SubagentStart')
-        self.assertEqual(payload['hookSpecificOutput']['additionalContext'], rc.render(SUBAGENT_PARTS, 2, 4))
+    def test_the_root_is_the_directory_above_scripts_and_the_rules_are_its_claude_md(self):
+        self.assertEqual(rc.ROOT, REPO)
+        self.assertEqual(rc.RULES, os.path.join(REPO, 'CLAUDE.md'))
 
-    def test_unreadable_rules_exit_1_and_print_nothing_to_stdout(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            code, out, err = run_main(['session', '1', '4'], rules_path=os.path.join(tmp, 'missing.md'))
-        self.assertEqual(code, 1)
-        self.assertEqual(out, '')
-        self.assertIn('cannot read the global rules', err)
+    def test_the_first_line_ends_with_the_root_in_both_modes(self):
+        with mock.patch.object(rc, 'ROOT', '/cache/adyusuf'):
+            session = rc.output('session', ['a\n'], 1, 4)
+            subagent = json.loads(rc.output('subagent', ['a\n'], 1, 4))['hookSpecificOutput']['additionalContext']
+        for text in (session, subagent):
+            self.assertEqual(text.splitlines()[0],
+                             '[Global working rules, part 1/1 (adyusuf plugin, CLAUDE.md); '
+                             'relative paths start at /cache/adyusuf]')
+            self.assertEqual(text.splitlines()[1], 'a')
 
-    def test_a_part_past_the_end_exits_0_and_prints_nothing(self):
+    def test_the_overflow_warning_names_the_rules_file_not_only_the_root(self):
+        with mock.patch.object(rc, 'ROOT', '/cache/adyusuf'), mock.patch.object(rc, 'RULES', '/cache/adyusuf/CLAUDE.md'):
+            self.assertIn('read the rest in /cache/adyusuf/CLAUDE.md]', rc.render(['a\n', 'b\n'], 1, 1))
+
+    def test_every_printed_real_part_stays_under_the_cap_in_both_modes_for_the_registered_four(self):
         for mode in ('session', 'subagent'):
-            code, out, _ = run_main([mode, '4', '4'], rules_path=self.two_part_rules())
-            self.assertEqual((code, out), (0, ''), mode)
+            cut = rc.mode_parts(REAL_TEXT, mode, 4)
+            self.assertLessEqual(len(cut), 4, mode)
+            for part in range(1, 5):
+                printed = rc.output(mode, cut, part, 4)
+                self.assertLess(len(printed), rc.HOOK_LIMIT, f'{mode} part {part}')
+                self.assertEqual(bool(printed), part <= len(cut), f'{mode} part {part}')
 
-    def two_part_rules(self):
-        directory = tempfile.mkdtemp()
-        self.addCleanup(shutil.rmtree, directory, True)
-        path = os.path.join(directory, 'CLAUDE.md')
-        with open(path, 'w', encoding='utf-8') as handle:
-            handle.write('## A\n' + 'a' * 9000 + '\n## B\nb\n')
-        return path
-
-
-class Cli(unittest.TestCase):
-    def test_session_1_prints_the_part_header(self):
-        code, out, err = run_cli('session', '1', '4')
-        self.assertEqual(code, 0, err)
-        self.assertTrue(out.startswith(f'[Global working rules, part 1/{len(REAL_PARTS)} '), out[:80])
-        self.assertIn(REAL_PARTS[0][:200], out)
-
-    def test_subagent_2_prints_valid_json_with_the_part_two_text(self):
-        code, out, err = run_cli('subagent', '2', '4')
-        self.assertEqual(code, 0, err)
-        context = json.loads(out)['hookSpecificOutput']
-        self.assertEqual(context['hookEventName'], 'SubagentStart')
-        self.assertEqual(context['additionalContext'], rc.render(SUBAGENT_PARTS, 2, 4))
-
-    def test_a_part_past_the_end_prints_nothing_and_exits_0(self):
-        code, out, err = run_cli('session', str(len(REAL_PARTS) + 1), str(len(REAL_PARTS) + 1))
-        self.assertEqual((code, out), (0, ''), err)
-
-    def test_bad_usage_exits_2_with_a_usage_line(self):
-        cases = [('foo', '1', '4'), ('session', 'x', '4'), ('session', '1', 'x'),
-                 ('session', '1'), ('session', '1', '4', 'extra'), ()]
-        for args in cases:
-            code, out, err = run_cli(*args)
-            self.assertEqual(code, 2, args)
-            self.assertEqual(out, '', args)
-            self.assertIn('usage: rules-context.py', err, args)
-
-    def test_a_part_outside_one_to_registered_exits_2(self):
-        for args in (('session', '0', '4'), ('session', '5', '4'), ('subagent', '0', '4'), ('subagent', '5', '4')):
-            code, out, err = run_cli(*args)
-            self.assertEqual(code, 2, args)
-            self.assertEqual(out, '', args)
-            self.assertIn('outside 1..4', err, args)
-
-    def test_a_copy_without_a_claude_md_next_to_it_exits_1(self):
-        with tempfile.TemporaryDirectory() as tmp:
-            scripts = os.path.join(tmp, 'scripts')
-            os.makedirs(scripts)
-            copy = os.path.join(scripts, 'rules-context.py')
-            shutil.copy(SCRIPT, copy)
-            code, out, err = run_cli('session', '1', '4', script=copy)
-        self.assertEqual((code, out), (1, ''))
-        self.assertIn('cannot read the global rules', err)
-
-
-class Registration(unittest.TestCase):
-    """The tripwire: when CLAUDE.md grows past what the registered hooks can print, a
-    maintainer must register another hook (hooks/hooks.json) — this fails first."""
-
-    def test_the_rules_need_no_more_parts_per_mode_than_hooks_register_per_event(self):
-        with open(HOOKS, encoding='utf-8') as handle:
-            events = json.load(handle)['hooks']
-        self.assertEqual(sorted(events), ['SessionStart', 'SubagentStart'])
-        modes = {'SessionStart': 'session', 'SubagentStart': 'subagent'}
-        for event, groups in events.items():
-            registered = sum(len(group['hooks']) for group in groups)
-            needed = len(rc.mode_parts(REAL_TEXT, modes[event], registered))
-            self.assertLessEqual(needed, registered,
-                                 f'CLAUDE.md needs {needed} {modes[event]} parts but {event} registers {registered}: '
-                                 'add a hook (and bump <registered> in every command) in hooks/hooks.json')
+    def test_a_deep_cache_path_shrinks_the_parts_instead_of_overflowing_the_cap(self):
+        # The header grows with the root, so the cut is measured WITH it: a 1,000-character root on the
+        # 9,481-character part is past 10,000. Lossless, every output under the cap, and really smaller.
+        with mock.patch.object(rc, 'ROOT', self.LONG_ROOT):
+            for mode in ('session', 'subagent'):
+                cut = rc.mode_parts(REAL_TEXT, mode, 8)
+                self.assertEqual(''.join(cut), REAL_TEXT, mode)
+                self.assertLess(max(map(len, cut)), max(map(len, REAL_PARTS)), mode)
+                for part in range(1, len(cut) + 1):
+                    self.assertLess(len(rc.output(mode, cut, part, 8)), rc.HOOK_LIMIT, f'{mode} part {part}')
 
 
 if __name__ == '__main__':
