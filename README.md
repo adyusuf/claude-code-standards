@@ -558,7 +558,10 @@ them opens a network connection.
 **What runs only when you call it.**
 - **`adyusuf-check`** (the plugin's `bin/`, on the Bash PATH while the plugin is enabled) runs
   `install.py --check --no-monitor`. It reads `~/.claude` and writes its log under `~/.claude-standards/logs/`.
-- **`/adyusuf:*` skills and commands** tell Claude what to do. They run nothing on their own.
+- **`/adyusuf:*` skills and commands** tell Claude what to do. They run nothing on their own. One sends
+  data: when claude-monitor's agent is installed and connected, `/adyusuf:board-plan` sends one line per task
+  status change (for example `T-3 → done (abc1234)`) to that server through the agent's `monitor_note` tool.
+  Without the agent it writes only the local plan file.
 - **`scripts/install.py`** (optional, from a checkout) does two things:
   - installs claude-monitor's agent: it clones `github.com/adyusuf/claude-monitor`, builds it with the .NET
     SDK, and registers it in `~/.claude/settings.json` (backed up first);
