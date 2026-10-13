@@ -39,9 +39,11 @@ esac
 # tracer counts a heredoc as ONE statement, so this file reported 3 of 19 lines
 # covered while every rule in it was being exercised (#29 wants an honest
 # denominator). Moved, patterns byte-identical.
-# ⚠️ THE SYMLINK MUST BE RESOLVED FIRST. This hook is installed as a SYMLINK at
-# ~/.claude/hooks/guard-destructive.sh pointing into the repository's scripts/,
-# and $BASH_SOURCE is the path bash was INVOKED with — the link, not the target.
+# ⚠️ THE SYMLINK MUST BE RESOLVED FIRST. The adyusuf plugin runs the copy in its
+# own `scripts/` (canonical) directly, but the legacy install put this hook at
+# ~/.claude/hooks/guard-destructive.sh as a SYMLINK into the repository's scripts/,
+# and a machine not yet moved off it still calls it that way. $BASH_SOURCE is the
+# path bash was INVOKED with — the link, not the target.
 # `dirname` on it gives ~/.claude/hooks/, where guard-inspect.py does not exist,
 # so the fail-closed branch below fired and a plainly allowed command came back
 # BLOCKED. Caught by invoking this file through a symlink on purpose; the direct

@@ -5,7 +5,8 @@ It had NO tests: the only file that touched it replaced it with a stub
 coverage while being the thing that decides whether a guidance file may grow.
 
 Two behaviours here are regression pins for incidents recorded in the script's
-own comments, and both are the kind that pass silently:
+own comments, and both are the kind that pass silently (`--init`, which writes a fresh
+budget for a project that has none, is in test_md_size_gate_init*.py):
   · CR bytes are subtracted, so a CRLF checkout measures the same as an LF one.
     Before that, every budgeted file reported "ceiling exceeded" on Windows with
     no change made at all.
@@ -16,43 +17,11 @@ own comments, and both are the kind that pass silently:
 """
 import os
 import shutil
-import subprocess
+import sys
 import tempfile
-import unittest
 
-SCRIPTS = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'))
-GATE = os.path.join(SCRIPTS, 'md-size-gate.sh')
-
-
-def kb_of(text):
-    """What the gate will report for this content: CR excluded, rounded up."""
-    raw = text.encode()
-    return (len(raw) - raw.count(b'\r') + 1023) // 1024
-
-
-class Gate(unittest.TestCase):
-    def setUp(self):
-        self.root = tempfile.mkdtemp()
-
-    def tearDown(self):
-        shutil.rmtree(self.root, ignore_errors=True)
-
-    def write(self, relative, text):
-        path = os.path.join(self.root, relative)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, 'w', encoding='utf-8', newline='') as handle:
-            handle.write(text)
-        return path
-
-    def budget(self, *lines):
-        return self.write('scripts/md-budget.tsv', ''.join(l + '\n' for l in lines))
-
-    def run_gate(self, *args, budget=None):
-        env = dict(os.environ, MD_ROOT=self.root)
-        if budget:
-            env['MD_BUDGET'] = budget
-        result = subprocess.run(['bash', GATE, *args], capture_output=True, text=True, env=env)
-        return result.stdout + result.stderr, result.returncode
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from md_size_gate_helpers import Gate, kb_of  # noqa: E402
 
 
 class BudgetFileDiscovery(Gate):
@@ -243,7 +212,3 @@ class AGlobInTheRepositoryPATH(Gate):
         out, code = self.run_gate()
         self.assertNotIn('NO BUDGET', out, f'the exclusion stopped matching:\n{out}')
         self.assertEqual(0, code, out)
-
-
-if __name__ == '__main__':
-    unittest.main()

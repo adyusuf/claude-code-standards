@@ -5,7 +5,7 @@ description: Security, hardening, backup and observability audit before a produc
 Audit whether this project is **ready to go live**. Do not guess — **verify**.
 Mark anything you cannot verify as "could not be verified"; never count it as passed.
 
-Read: `~/.claude/standards/` → `15-security.md` (§12 OWASP, §15 checklist), `20-hardening.md`,
+Read: `${CLAUDE_PLUGIN_ROOT}/standards/` → `15-security.md` (§12 OWASP, §15 checklist), `20-hardening.md`,
 `21-backup-and-recovery.md`, `17-observability.md`, `14-devops.md`, `19-cloudflare-and-edge.md`.
 Also the project's own `CLAUDE.md` + `DEPLOY.md` + `SETUP.md`.
 
@@ -59,3 +59,14 @@ A **GO / NO-GO** decision with its reasoning. Then:
 - ⚪ **Could not be verified** (no access or tooling — the user must check manually)
 
 For every item, write concretely what needs to be done.
+
+## Why this command exists
+
+"It works on test" is not "it is ready for production". The things that fail in
+production — an open endpoint, a missing security header, a backup that was never
+restored, an error nobody is alerted to — rarely show up in a normal review. This
+command walks the release checklist (security, hardening, backup, observability, deploy)
+and **verifies** each item; what cannot be verified is reported as such and never counts
+as passed. The release decision then rests on evidence, not on confidence.
+
+Contributions are welcome: https://github.com/adyusuf/claude-code-standards

@@ -10,5 +10,11 @@
     "5. if the record is green it ships to prod . if it is red st": "Replaced by the new step 4: nothing red in the full run ⇒ merge; red, stale or absent ⇒ no merge.",
     "3. when a task is finished merge that task to dev on its own": "Changed by the user on 29/09/2026: each task keeps its own commit, but finished tasks may be merged to dev together through ONE gate run (gates are long); never squashed (#26, standards/13-pr-and-review.md §8, decision-log §26 amendment).",
     "- one review one test run one gate on the combined branch in": "Moved, not dropped (05/10/2026, user decision to merge two parallel versions): the same rule now lives once in #26.3 ('one review, one test run, one gate on the merged result … never reviewed or gated alone; the auditor also judges the test and gate results'), with a narrow run of the producer's own piece allowed. Keeping both lines would state one rule twice."
+  },
+  "CLAUDE.md": {
+    "~/.claude": "Plugin install (13/10/2026, user decision): ~/.claude no longer holds links into the rule set; the same files are reached relative to the adyusuf plugin root (stated in the rules-context hook header and standards/README.md). Same target, new path — no rule removed.",
+    "~/.claude/modes/README.md": "Plugin install (13/10/2026, user decision): ~/.claude no longer holds links into the rule set; the same files are reached relative to the adyusuf plugin root (stated in the rules-context hook header and standards/README.md). Same target, new path — no rule removed.",
+    "~/.claude/modes/autonomous-run.md": "Plugin install (13/10/2026, user decision): ~/.claude no longer holds links into the rule set; the same files are reached relative to the adyusuf plugin root (stated in the rules-context hook header and standards/README.md). Same target, new path — no rule removed.",
+    "~/.claude/standards/": "Plugin install (13/10/2026, user decision): ~/.claude no longer holds links into the rule set; the same files are reached relative to the adyusuf plugin root (stated in the rules-context hook header and standards/README.md). Same target, new path — no rule removed."
   }
 }

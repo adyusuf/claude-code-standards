@@ -62,4 +62,4 @@ invisible check is an unperformed check.
 - For a gate that did not run you write **"not verified"**, never "green".
 
 The full rule, who sends work back to whom, and the paths to closure:
-`~/.claude/modes/role-selection.md` §7.
+`${CLAUDE_PLUGIN_ROOT}/modes/role-selection.md` §7.

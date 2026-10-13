@@ -53,4 +53,4 @@ invisible check is an unperformed check.
   orchestrator; you do not bend the test to fit it.
 
 The full rule, who sends work back to whom, and the paths to closure:
-`~/.claude/modes/role-selection.md` §7.
+`${CLAUDE_PLUGIN_ROOT}/modes/role-selection.md` §7.

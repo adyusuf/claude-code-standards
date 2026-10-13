@@ -25,6 +25,24 @@ class RoleLabel(unittest.TestCase):
         for role in ('some-plugin:qa', 'a:b:c'):
             self.assertNotIn(role.split(':', 1)[0], step_stats.role_label(role))
 
+    def test_our_own_plugin_agent_prints_as_the_mode_role(self):
+        # The roles are called adyusuf:<role> since 6260e21; the report table still names the role.
+        for role in ('qa', 'test-writer', 'product-manager'):
+            self.assertEqual(step_stats.role_label('adyusuf:' + role), role)
+
+    def test_our_plugin_prefix_is_not_the_ext_marker(self):
+        self.assertFalse(step_stats.role_label('adyusuf:qa').startswith('ext:'))
+
+    def test_another_plugin_with_the_same_role_name_stays_external(self):
+        # `<plugin>:qa` is NOT the mode role (modes/README.md): it must not collapse into `qa`.
+        self.assertEqual(step_stats.role_label('some-plugin:qa'), 'ext:qa')
+
+    def test_a_plugin_whose_name_only_starts_with_ours_stays_external(self):
+        self.assertEqual(step_stats.role_label('adyusuf-extras:qa'), 'ext:qa')
+
+    def test_our_plugin_prefix_still_goes_through_the_old_name_translation(self):
+        self.assertEqual(step_stats.role_label('adyusuf:analiz'), 'analyst')
+
     def test_a_mode_role_is_unchanged(self):
         self.assertEqual(step_stats.role_label('qa'), 'qa')
 

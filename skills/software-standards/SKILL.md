@@ -5,7 +5,19 @@ description: Loads the software standards that apply to every project (product d
 
 # Software standards
 
-The standards live under `~/.claude/standards/`, **one file per topic**. Do not
+## Why this exists
+
+Left alone, every session and every agent writes code by its own idea of "best
+practice", so two features in the same project — or the same feature on web and
+mobile — come out different. This rule set keeps one standard per topic, but loading
+all of them into every session would burn tokens on text the task never needs. This
+skill is the **index**: it names the one standard the task is about, and only that file
+is read. Same rules in every project, every session and every agent; context spent only
+where the work is.
+
+Contributions are welcome: https://github.com/adyusuf/claude-code-standards
+
+The standards live under `${CLAUDE_PLUGIN_ROOT}/standards/`, **one file per topic**. Do not
 read them all — read **the one the task is about**.
 
 ## Index
@@ -34,7 +46,7 @@ read them all — read **the one the task is about**.
 | Server + application hardening, security headers, IIS/Docker | `20-hardening.md` |
 | Backup, restore drill, RPO/RTO, disaster recovery | `21-backup-and-recovery.md` |
 
-Templates: `~/.claude/standards/templates/`
+Templates: `${CLAUDE_PLUGIN_ROOT}/standards/templates/`
 (`project-claude-md.md`, `setup-md.md`, `pr-template.md`, `adr-template.md`, `user-story-template.md`)
 
 ## Common combinations
@@ -48,6 +60,6 @@ Templates: `~/.claude/standards/templates/`
 
 ## Precedence
 
-The user's instruction right now > the project's `CLAUDE.md` > `~/.claude/CLAUDE.md`
+The user's instruction right now > the project's `CLAUDE.md` > the global rules (`${CLAUDE_PLUGIN_ROOT}/CLAUDE.md`)
 > these standards. If you are knowingly breaking a standard, **write the reason
 into the code or the PR** — there are no silent exceptions.
