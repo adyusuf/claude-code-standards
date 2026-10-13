@@ -1,6 +1,8 @@
 # Engineering Standards — index
 
-This folder is the detail layer behind `~/.claude/CLAUDE.md`. It is **not loaded
+This folder is the detail layer behind the global rules (`CLAUDE.md` at the root of the
+`adyusuf` plugin, loaded into every session by its hooks). Paths in these documents are
+relative to that root. It is **not loaded
 automatically** — only the file matching the task at hand is read, which is why the
 token cost stays low.
 
@@ -37,7 +39,7 @@ token cost stays low.
 
 1. The user's explicit instruction in the moment
 2. The project's own `CLAUDE.md` (a subdirectory beats the root)
-3. `~/.claude/CLAUDE.md`
+3. The global rules (`CLAUDE.md` at the plugin root)
 4. The standards in this folder
 
 ⛔ **One exception, and it is absolute: rule #29.** The 80% line-coverage threshold
