@@ -19,11 +19,11 @@ a session spends them**. Pick the smallest mode the work needs:
 | B | Selective — `analyst`, `test-writer`, `doc-writer` (default) | 3 roles |
 | C | Full team | 9 roles |
 | D | Wide team | 14 roles |
-| E | Fan-out through `Workflow` | as many as the work splits into |
+| E | Fan-out through `Workflow` | the 14 roles, in parallel |
 
-In every mode with agents, the work is **audited by agents too**: a producing role
-closes with an evidence block, and an auditing role checks it and sends gaps back
-(global #28).
+The work is **audited** in every mode: a producing role closes with an evidence block,
+and the auditor checks it and sends gaps back (global #28). In C/D/E the auditor is the
+`qa` agent (the session verifies its critical findings); in A/B it is the session itself.
 
 Contributions are welcome: https://github.com/adyusuf/claude-code-standards
 
