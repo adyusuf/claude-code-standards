@@ -501,7 +501,7 @@ This is the part that does the work — a rule nothing executes is documentation
 path into your home folder:
 
 ```bash
-cp ~/.claude/scripts/gate-core.sh your-project/scripts/
+cp <this repository>/scripts/gate-core.sh your-project/scripts/
 ```
 
 The reason is CI. A runner checks out your project and nothing else, so a gate
