@@ -21,7 +21,7 @@ All reading happens on your own machine. Nothing read is sent anywhere by the pl
 
 - `step-stats.py` writes only aggregate counts (steps, tokens) to `docs/measurement-log.md`. A sanitiser
   removes project names and paths, and the script refuses to write when one survives.
-- `install.py` and `adyusuf-check` write logs and backups under `~/.claude-standards/` on your machine.
+- `install.py` writes logs and backups under `~/.claude-standards/` on your machine.
 - Nothing is retained anywhere else.
 
 ## What it sends
