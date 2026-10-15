@@ -204,8 +204,8 @@ because something broke first.
 | Engineering standards | `standards/` | 24 documents + 7 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate, measurement and install scripts | `scripts/` | 34 scripts + 854 tests |
-| Slash commands, skills and hooks — one plugin, `/adyusuf:<name>` | `.claude-plugin/`, `commands/`, `skills/`, `hooks/`, `bin/` | 7 + `adyusuf-check` |
+| Gate, measurement and install scripts | `scripts/` | 34 scripts + 842 tests |
+| Slash commands, skills and hooks — one plugin, `/adyusuf:<name>` | `.claude-plugin/`, `commands/`, `skills/`, `hooks/` | 7 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
 ```mermaid
@@ -556,8 +556,6 @@ them opens a network connection.
 | `PostToolUse` (Edit/Write), `Stop` | `md-hook.sh` | checks a touched `CLAUDE.md` against its size budget and for dropped rules; prints a warning |
 
 **What runs only when you call it.**
-- **`adyusuf-check`** (the plugin's `bin/`, on the Bash PATH while the plugin is enabled) runs
-  `install.py --check --no-monitor`. It reads `~/.claude` and writes its log under `~/.claude-standards/logs/`.
 - **`/adyusuf:*` skills and commands** tell Claude what to do. They run nothing on their own. One sends
   data: when claude-monitor's agent is installed and connected, `/adyusuf:board-plan` sends one line per task
   status change (for example `T-3 → done (abc1234)`) to that server through the agent's `monitor_note` tool.
