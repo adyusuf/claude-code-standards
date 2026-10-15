@@ -19,7 +19,7 @@ the top and correct the numbers in the same commit as the tests that moved them.
 | Codebase | Coverage | State |
 |---|---|---|
 | Python scripts | **82%** (833 of 1,014 statements) | above the 80% threshold |
-| Shell scripts | **85.3%** (699 of 819 lines, 324 traced runs; measured 13/10/2026, `scripts/*.sh` + `bin/*`) | above the 80% threshold |
+| Shell scripts | **85.4%** (689 of 807 lines, 316 traced runs; measured 15/10/2026, `scripts/*.sh`) | above the 80% threshold |
 
 Neither figure is an average of the other. #29 forbids averaging codebases, and the
 gate reads them separately — either one below 80% closes it.
@@ -35,7 +35,6 @@ before trusting them:
 | `scripts/guard-destructive.sh` | **63.6%** | the hook that refuses `rm -rf`, force push and `DROP`. ⚠️ **The uncovered lines ARE tested** — `GuardFailsClosed` in `scripts/tests/test_guard_destructive.py` covers all of them, and mutation confirms it: `exit 0` in either branch turns those tests red. They do not COUNT because the cases are "the inspector is not beside the script" and "the inspector answers wrongly", which need a directory without the real inspector — so the tests run a copy, and a tracer credits the file it ran. The alternative is an env var that redirects the inspector: a way to redirect the guard, placed inside the guard. The unmeasured line is the cheaper problem |
 | `scripts/real-name-check.sh` | **75%** | the commit-message guard |
 | `scripts/coverage-shell.sh` | **88.4%** | the tracer wrapper: it measures, and is itself measured |
-| `bin/adyusuf-check` | **83.3%** (10 of 12) | the plugin's command on the Bash PATH. ⚠️ The two uncovered lines — the loop that follows a PATH link back to the plugin root — ARE tested: `test_bin_check.py` runs it through a relative and an absolute link, and mutating either branch turns those tests red. They do not COUNT because the tracer's shim traces only paths under `bin/` and `scripts/`, and the link lives elsewhere — the same "tested but not counted" case as the guard above |
 
 `scripts/merge-gate.sh` used to head this table at 0%. It is at 100% now, and getting
 there took two attempts: the first set of tests passed every assertion while coverage
