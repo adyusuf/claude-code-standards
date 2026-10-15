@@ -1384,3 +1384,16 @@ whether a model was running in it.
   rendered at 1024×1024 from the author's site favicon (SVG) with `rsvg-convert`.
 - ⚠️ **The directory takes the icon only once**, when the plugin is first saved or submitted in the developer
   portal. Replacing the file later does not change the listing, so this file is effectively permanent.
+
+## `bin/` removed: the plugin is no longer Claude Code only (15/10/2026, user decision)
+
+- **Reverses** "The plugin is Claude Code only" (13/10/2026).
+- **Why:** Anthropic's directory flags any top-level `bin/` as "Ships executable files" (`BUNDLES_BINARIES`), and
+  a reviewer must look at it. `bin/adyusuf-check` only wrapped `install.py --check`; the `SessionStart` hook already
+  warns about an old install. The user decided it was not worth a dependency that existed only for the restriction.
+- **What it means:** the plugin installs in Claude Code, Cowork and claude.ai chat.
+  - Claude Code and Cowork load hooks and agents.
+  - Chat runs only the skills and commands: no global rules, no guard, no roles.
+  - `SETUP.md` §6 says so.
+- **Removed:** `bin/adyusuf-check` and its test file (`test_bin_check.py`). The `bin/*` tracing in
+  `scripts/coverage-shell.sh` is gone; the file is back to its earlier version.
