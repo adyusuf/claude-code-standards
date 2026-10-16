@@ -570,6 +570,33 @@ rule (e.g. selective e2e on `dev → test`), report it and propose updating the 
 to match; until the script is updated, tell the user in advance that "the gate will
 run e2e".
 
+## §34 — Ask before every merge what runs; a waived gate is recorded (17/10/2026, user decision, general rule)
+
+- **Decision (the maintainer, 17/10/2026):** the full gate has ONE owner per project, and a gate that is not run is
+  written down instead of skipped quietly. Before every `dev`/`test`/`prod` merge Claude asks "will CI and e2e run for
+  this merge?" (two separate answers) and merges nothing before they arrive.
+  - **Yes:** wait for CI to be green at that stage — on `dev` before the merge to `test`, on `test` before the merge
+    to `prod` (CI runs on the pushed branch; the commit being promoted is the one asked about).
+  - **No:** the merge commit message carries `Gate-Waived: ci, e2e (neden: <the user's words>)`, naming only the gates
+    that were skipped. `neden` ("reason") is the literal the maintainer gave; a reader of the line must also accept
+    `reason:`. Nothing is skipped without the question and without the line.
+  - **Before `prod`:** Claude lists the `Gate-Waived:` lines between the two refs and says plainly "these commits ran
+    without these gates"; the prod merge is not prepared until the user answers. The prod push was already the user's (#26.4).
+- **The owner of the gate is written per project.** An open repository has free CI minutes: CI owns the full
+  `gate-core.sh` run (#19: CI and the local script call the same core, never two rule sets) and a local run is a fast
+  pre-check only. A closed repository without free minutes keeps the local gate as the owner. Either way "a step that
+  did not run did not pass" (#25) holds, and coverage ≥ 80% (#29) is part of what the owner runs and is never waived.
+- **Why:** a full local gate takes tens of minutes and, in the project that asked, repeats what CI does on the same
+  push; the waiver had no record, so "the gate was skipped" lived only in a commit subject (`gate skipped by the
+  maintainer's decision`) that nobody lists before prod. Asking first and recording the answer keeps the speed of a
+  skipped gate and loses nothing the prod decision needs.
+- **Reference implementation** (a project's own helpers, not a twin): the Claude Monitor repository's
+  `quick-check.sh` (the gate's own format, build, shellcheck and secret-scan commands on what changed),
+  `ci-status.sh <branch> [commit] [--workflow ci|e2e]` (only a completed, successful run exits 0) and
+  `waived-gates.sh <source> <target>` (lists the waived gates between two refs, exit 1 when any), all in that project's `scripts/`. A project that
+  adopts the rule writes its owner and its helpers' names in its own `CLAUDE.md` and does not copy the rule.
+- → `standards/13-pr-and-review.md` §8a.
+
 ## Model per job — run on Sonnet, diagnose on Opus (29/09/2026, user decision)
 
 **The rule:** `standards/23-delivery-flow-tuning.md` §13b. Running a suite or gate is
@@ -972,6 +999,18 @@ the run does not start and the rule applies in full again.
 Clauses dropped when the rule was shortened: edge cases and error paths are
 considered **if the relevant standard covers this task**; and for multi-layer work
 the question is whether all of them changed **or one was forgotten**.
+
+### §34 round (17/10/2026) — lines shortened in `CLAUDE.md` to make room for rule 34
+
+The size ceiling is a ratchet, so adding #34 meant moving words out of the active file. Each original line is kept
+here verbatim (`scripts/md-rule-gate.py` checks that none was lost).
+
+> 25. **The gate is SHARED and runs at every promotion; running e2e is OPTIONAL (#33).** Two layers: `scripts/gate-core.sh <dev|test|prod>` owns the SHARED STEP SET (canonical copy in the configuration repository, a committed copy in every project), and the project's own `scripts/merge-gate.sh` stays the orchestrator (pull, merge, push, project extras) and CALLS the core. A project's gate cannot depend on a path outside the repository, because CI runners do not have the configuration checked out. `gate-core.sh <target> --list` prints what would run without running it.
+>  - **`feature/* → dev` and `dev → test`:** EVERYTHING EXCEPT RUNNING E2E — formatter/linter, typecheck, build, unit tests, **coverage: the 80% threshold per codebase (#29)**, secret scan, dependency CVE, SAST, backward-compatibility scan, the CLAUDE.md size and rule gates, and a **CHECK for missing e2e specs** — a **warning**, never blocking (#33).
+>  - **`test → prod`:** the gate does **not** check the `test` branch or the test environment, and e2e is **not run** — it warns for both (#33).
+>  - **`test → prod` does NOT check the `test` branch or the test environment either** (user decision 04/10/2026, general rule): a branch may go to `prod` without having been on `test`. The gate WARNS it was not checked; `GATE_CHECK_TEST_DEPLOY=1` verifies the deployed SHA and a mismatch then blocks. The missing-spec check stays a warning. No hotfix exception is needed.
+>  - ⚠️ **The configuration repository's own layout:** branches `dev` / `test` / `prod`. The live config is the **installed `adyusuf` plugin, copied from `prod` by `/plugin update`**; work happens in a separate `dev` worktree (try it with `claude --plugin-dir`) and reaches the live config only by promotion, which Claude performs (`standards/00-working-method.md` §7a). Commit only your own diff. → rationale: `docs/decision-log.md` §26
+>  - Say "done" only after passing the check; do not narrate the check, fold its result into the report.
 
 ## Measurement record — the token-reduction round
 

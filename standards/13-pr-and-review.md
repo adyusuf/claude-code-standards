@@ -165,6 +165,43 @@ When writing a comment: **what** is wrong + **why** it matters + **a suggestion*
 - Before merging, `git fetch` and update if you are behind — a gate running against stale code gives false confidence.
 - A `--force` push happens only on your own feature branch and only with explicit approval.
 
+## 8a. Before every merge: ask what runs, record what is waived (global rule #34)
+
+The full gate has one **owner** per project, named in the project's own `CLAUDE.md`: **CI** where its minutes are
+free (an open repository), the **local gate** (`scripts/merge-gate.sh`) where they are not. The owner runs the
+whole shared gate (§4, coverage ≥ 80% included); the other side is a pre-check at most. CI and the local script
+call the same `gate-core.sh` with the same thresholds, never two rule sets (#19).
+
+**The question comes first.** Before any `dev`, `test` or `prod` merge — a batch merge (§8) is one merge, so one
+question — ask the user, in this shape, before touching anything:
+
+> This merge is `<source>` → `<target>` (`<short sha>`). Will **CI** run for it? Will **e2e** run for it?
+
+Two answers, and no merge before both arrive. An answer given for an earlier merge does not carry over.
+
+| Answer | What happens |
+|---|---|
+| CI **yes** | Wait for CI to be **green on the commit being promoted** — on `dev` before the merge to `test`, on `test` before the merge to `prod` (the project's CI-status helper, or `gh run list --branch <b> --commit <sha>`: only a *completed* run with conclusion *success* counts; running, queued, red, cancelled and no run at all are not a pass). |
+| e2e **yes** | Run it as the project defines it (#33: optional, by hand or `GATE_RUN_E2E=1`) and report the result. |
+| CI or e2e **no** | The merge commit message ends with one line naming **only what was skipped**, in the user's words: `Gate-Waived: ci, e2e (neden: <reason>)`. |
+
+The line sits in the merge commit's body (a `--no-ff` merge, §8), one `Gate-Waived:` line per commit; `neden:` is
+the literal the user gave, and a scanner accepts `reason:` too. **Nothing is waived without the question and
+without the line**, and a waived gate is reported as "did not run", never as passing (#15, #25).
+
+**Before a `prod` merge**, scan the range being promoted and say it plainly — for example `git log --format=%B
+origin/prod..origin/test | grep '^Gate-Waived:'` (a project may ship a helper; the Claude Monitor repository's
+`waived-gates.sh <source> <target>` lists commit, gate and reason, exit 1 when any):
+
+> These commits ran without these gates: `<sha>` — `<gates>` (`<reason>`). …
+
+The prod merge is not prepared until the user answers. With no record, say "no waived gate in `origin/prod..origin/test`".
+The `prod` **push** stays the user's (#26.4).
+
+**What this never loosens:** coverage ≥ 80% per codebase (#29) is part of what the owner runs and is not a
+waivable gate; secrets stay out of the repository (#3); a red result is not waved through by an answer to this
+question (§8, point 5). The question is about gates that were *not run*, not about gates that failed.
+
 ## 9. Claude's role in review
 
 - **If the target branch is `dev`, no review happens** (global rule #25): the diff is not read, no agent is invoked, no scan runs — if build + fast tests + lint are green, it is merged. If something catches the eye along the way, it is noted in one line without blocking the merge.

@@ -103,14 +103,14 @@ still say the lint passed; an agent told a rule in conversation will forget it
 by the next session. Rules 1-4 are about **the report being true**, and rule 5
 is the measurement most often false in a way nobody notices.
 
-Full set: [`CLAUDE.md`](CLAUDE.md) (33 rules) · why each exists:
+Full set: [`CLAUDE.md`](CLAUDE.md) (34 rules) · why each exists:
 [`docs/decision-log.md`](docs/decision-log.md).
 
 ## How each of those is actually done
 
 The list above is the promise. This is the mechanism, in the same order.
 
-**1. The practices become rules, not intentions.** 33 invariant rules load into
+**1. The practices become rules, not intentions.** 34 invariant rules load into
 every session; 24 standards documents carry the detail. The agent does not get
 to decide whether backward compatibility matters this time.
 
@@ -185,7 +185,7 @@ to the human as a question.
 
 ```mermaid
 flowchart LR
-    R["Rules<br/>33 invariants + 24 standards"] --> G["Gates<br/>one shared step set<br/>per promotion"]
+    R["Rules<br/>34 invariants + 24 standards"] --> G["Gates<br/>one shared step set<br/>per promotion"]
     G --> A["Audit<br/>evidence block<br/>at every handoff"]
     A --> M["Measurement<br/>ledger + decision log"]
     M -->|"a rule that cost more<br/>than it returned is retired"| R
@@ -200,7 +200,7 @@ because something broke first.
 
 | What | Where | Count |
 |---|---|---|
-| Working rules (index loaded every session) | `CLAUDE.md` | 33 rules |
+| Working rules (index loaded every session) | `CLAUDE.md` | 34 rules |
 | Engineering standards | `standards/` | 24 documents + 7 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
