@@ -1436,3 +1436,28 @@ whether a model was running in it.
   - `SETUP.md` §6 says so.
 - **Removed:** `bin/adyusuf-check` and its test file (`test_bin_check.py`). The `bin/*` tracing in
   `scripts/coverage-shell.sh` is gone; the file is back to its earlier version.
+
+## Proposal: the shared gate runs every test suite twice — one run should feed both steps (17/10/2026, measured in the Claude Monitor project)
+
+**Status: a proposal for the canonical `scripts/gate-core.sh` and its libraries (they are twins, `scripts/twins.txt`);
+nothing in this repository's copy was changed for it.** The project below worked around it without touching its copy.
+
+- **Finding (measured, one project, `gate-core.sh dev`, same commit):** the "unit tests" step runs `dotnet test <sln>`
+  and the web tests; the "coverage" step then runs the project's coverage command, which runs the API, the agent and
+  the web suites AGAIN with coverage on. Each suite ran twice: 1128 + 1899 + 417 tests, the 1128 API tests taking about
+  3 minutes each time. The whole gate took 657 s.
+- **Result of running them once:** 450 s (−207 s, −31%) on the same code; every "Passed!" line appears once; line
+  coverage identical (API 97.09%, agent 86.60% against 86.59% before, web 96.40%); threshold, exclusion lists and exit
+  codes unchanged. The project's method: the test projects collect coverage when `COVERAGE_DIR` is set (an MSBuild
+  property file for the .NET projects, the vitest config for the web), its `merge-gate.conf` sets `COVERAGE_DIR` and
+  `COVERAGE_REUSE=1` for a gate run, and its `coverage.sh` judges the files instead of running the tests; standalone it
+  still runs them itself. A missing or unreadable result is "NOT MEASURED" (exit 3), which blocks (#29).
+- **Why the project could not use the documented override:** the header of `gate-core.sh` lists
+  `LINT_CMD / TYPECHECK_CMD / BUILD_CMD / UNIT_CMD` as overrides, but no code reads them (`grep` finds the words only in
+  that comment). Either implement them or delete the line; today the comment promises what the gate does not do.
+- **Proposed in the canonical core:** (1) the unit step runs once and exports a fresh `COVERAGE_DIR` to the project's
+  coverage command, which reuses it when it understands the variable and runs its own tests when it does not (nothing
+  breaks for a project that has not adopted it); (2) implement the `*_CMD` overrides the header lists; (3) `export
+  COVERAGE_MIN` after the conf is sourced: it is a plain shell variable today, so a project's `coverage.sh` never sees
+  the conf's value (a `COVERAGE_MIN=99` mutation left that project's gate green). (4) A test of any tool the gate runs
+  must not depend on variables the gate exports (`COVERAGE_*`): two new tests failed only inside the gate for that reason.
