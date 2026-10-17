@@ -615,6 +615,17 @@ exactly as before: a push to `main`, any forced push (also to `prod`) and `--no-
 anything the hook blocks, and there is still no environment bypass. The prod push therefore has two human checkpoints:
 the push list (#34) and the harness confirmation.
 
+**Amended 17/10/2026, round 4 (user decision: "asking every time is too much work - define defaults").** The questions
+above (target choice; CI, e2e and push asked separately; the push list) are **replaced by settings**. The user's list:
+mode C, Opus agents on sonnet, monitor connected, monitor message format short, write unit tests and e2e specs, merge and
+push dev/test/prod, and before a push run unit tests for `test` and `prod` only, e2e never. They live in
+`defaults/adyusuf.json`; `/adyusuf:config` (skill) and a side-pane panel change them, per user or per project; the
+SessionStart hook prints the effective values. What stayed: the `Gate-Waived:` record (the gates are now `unit` and `e2e`;
+"CI" is not a setting - when CI is a project's gate owner, "run unit tests" means CI green), the report of waived lines before
+a `prod` merge (reported, no longer a question), the gate owner per project, and coverage never waived. Pushing `prod` is
+the configuration's call and the guard hook no longer judges it. Not wired: `monitor.message_format` is stored here but the
+agent's own setting lives in the claude-monitor project.
+
 ## Model per job — run on Sonnet, diagnose on Opus (29/09/2026, user decision)
 
 **The rule:** `standards/23-delivery-flow-tuning.md` §13b. Running a suite or gate is
@@ -1049,6 +1060,97 @@ Also in round 3, verbatim:
 
 > 33. **E2E is OPTIONAL — no gate runs it and it never blocks a promotion** (user decision 03/10/2026, general rule: not enough resources to run it).
 > - ❌ Pushing directly to `main`/`prod`
+
+### §34 round 4 (17/10/2026) - defaults instead of questions
+
+Original wording of the lines changed in `CLAUDE.md`, verbatim:
+
+>  4. **Claude performs the `dev`/`test`/`prod` merges and pushes, each only after #34's questions** — never `--force`, not over a red gate (#25, #33).
+> 34. **When the code is done, ask where it goes and what runs; a waived gate is RECORDED.** Ask which of `dev`/`test`/`prod` it may be merged into. For EACH picked merge ask SEPARATE questions: "Will **CI** run?", "Will **e2e** run?", then list what the push would send and ask which of it may be pushed (one answer each; nothing merges or pushes before its answers; Claude pushes, `prod` too). **CI yes** → wait for CI green at that stage. **No** → the merge commit carries `Gate-Waived: <skipped gates> (neden: <the user's words>)`. Before a `prod` merge list those lines in the range, say which commits ran without which gates, and prepare nothing until answered. Each project names its gate's **owner** (CI if its minutes are free, else local); a gate that did not run did not pass, and #29 is never waived. → `standards/13-pr-and-review.md` §8a; `docs/decision-log.md` §34
+>  - **How to apply:** at the start of EVERY session, before any work, **ASK** the mode (A–E) and what replaces Opus (keep · sonnet · haiku · fable) in one `AskUserQuestion`; the answer is written with `--tek` and the session runs on it. Preselected = the read order in `modes/README.md`. Agents and non-interactive runs never ask. If a mode name is given, run `/adyusuf:working-mode`. → `modes/README.md` › Session start; `docs/decision-log.md` §27
+>  - **A** Skill (no agents) · **B** Selective (`analyst`/`test-writer`/`doc-writer`) — **DEFAULT** · **C** Full team (9 roles) · **D** Wide team (14 roles) · **E** Fan-out (`Workflow`). The Agent Teams modes (X/Y/Z) are **archived** and not offered — `modes/archive/`.
+
+### §27 round 5 (17/10/2026) - the session-start question was removed
+
+The section of `modes/README.md` it replaces, verbatim:
+
+> ## Session start — ASK the mode and the Opus replacement (PERMANENT, all projects; user decision 05/10/2026)
+>
+> Every interactive session begins with **one `AskUserQuestion`** carrying two questions,
+> **before any other work** (reading the mode files is the only thing that comes first):
+>
+> 1. **Mode** — the recommended option is the read order's result (a `--tek` selection →
+>    `.claude/mode` → B), or the lowest sufficient mode for the first request when that is
+>    higher (the rules of the next section); up to three other letters; "Other" takes any
+>    letter.
+> 2. **What replaces Opus** — `Keep the defined models` (recommended unless a
+>    `mode-model` exists, which is then preselected) · `sonnet` · `haiku` · `fable`.
+>
+> The answer is applied as `/adyusuf:working-mode <letter> [<model>] --tek` — written to the
+> session scratchpad (`$S/mode`, `$S/mode-model`), **never** to the project file — and the
+> session's work starts on it. The first request is then carried out in the same turn.
+>
+> **Not asked:**
+> - the user's first message already names the mode (`C sonnet`, `/adyusuf:working-mode …`)
+>   → that is applied instead;
+> - `$S/mode` already exists — the same session after compaction, already answered;
+> - a subagent, a `Workflow` agent, a teammate — they never ask the user;
+> - a non-interactive run (`claude -p`, a scheduled task, an autonomous run, a cloud session
+>   with nobody to answer) → the read order applies silently.
+>
+> If the question is dismissed unanswered, the read order applies and the work continues.
+>
+
+### §34 round 4 - standards/13 §8a as it was before the configuration
+
+Verbatim:
+
+> ## 8a. Before every merge: ask what runs, record what is waived (global rule #34)
+>
+> The full gate has one **owner** per project, named in the project's own `CLAUDE.md`: **CI** where its minutes are
+> free (an open repository), the **local gate** (`scripts/merge-gate.sh`) where they are not. The owner runs the
+> whole shared gate (§4, coverage ≥ 80% included); the other side is a pre-check at most. CI and the local script
+> call the same `gate-core.sh` with the same thresholds, never two rule sets (#19).
+>
+> **The questions come when the code is done, in this order** (user decisions of 17/10/2026). Use `AskUserQuestion`; a
+> batch merge (§8) is one merge, so it gets one set of questions, and an answer given for an earlier merge never carries over.
+>
+> 1. **Where may it go?** One multi-select: which of `dev`, `test`, `prod` the finished code may be merged into. Only the
+>    picked targets are touched; unpicked ones are left alone, and a pick does not imply the next stage (§8).
+> 2. **For each picked merge, separately — one question, one answer each, never "CI and e2e?" in one sentence:**
+>    - This merge is `<source>` → `<target>` (`<short sha>`). Will **CI** run for it?
+>    - Will **e2e** run for it?
+>    - **What may be pushed?** Not a blanket yes/no: list what the push to `origin/<target>` would send — the commits
+>      (`git log --oneline origin/<target>..<target>`), tags, and any other ref it would update — and let the user pick from
+>      the list (a multi-select, with "none" as an answer). Merging and pushing are two decisions, and **Claude makes the
+>      push itself, `prod` included** (user decision of 17/10/2026, which replaces "the `prod` push stays the user's").
+>
+> Nothing is merged before its CI and e2e answers, and nothing is pushed before its push answer. What is not picked stays
+> local and the report says so; a pick never reaches past what was listed.
+>
+> | Answer | What happens |
+> |---|---|
+> | CI **yes** | Wait for CI to be **green on the commit being promoted** — on `dev` before the merge to `test`, on `test` before the merge to `prod` (the project's CI-status helper, or `gh run list --branch <b> --commit <sha>`: only a *completed* run with conclusion *success* counts; running, queued, red, cancelled and no run at all are not a pass). |
+> | e2e **yes** | Run it as the project defines it (#33: optional, by hand or `GATE_RUN_E2E=1`) and report the result. |
+> | CI or e2e **no** | The merge commit message ends with one line naming **only what was skipped**, in the user's words: `Gate-Waived: ci, e2e (neden: <reason>)`. |
+>
+> The line sits in the merge commit's body (a `--no-ff` merge, §8), one `Gate-Waived:` line per commit; `neden:` is
+> the literal the user gave, and a scanner accepts `reason:` too. **Nothing is waived without the question and
+> without the line**, and a waived gate is reported as "did not run", never as passing (#15, #25).
+>
+> **Before a `prod` merge**, scan the range being promoted and say it plainly — for example `git log --format=%B
+> origin/prod..origin/test | grep '^Gate-Waived:'` (a project may ship a helper; the Claude Monitor repository's
+> `waived-gates.sh <source> <target>` lists commit, gate and reason, exit 1 when any):
+>
+> > These commits ran without these gates: `<sha>` — `<gates>` (`<reason>`). …
+>
+> The prod merge is not prepared until the user answers. With no record, say "no waived gate in `origin/prod..origin/test`".
+> The `prod` push is made by Claude after the push list is answered (§8a, #26.4).
+>
+> **What this never loosens:** coverage ≥ 80% per codebase (#29) is part of what the owner runs and is not a
+> waivable gate; secrets stay out of the repository (#3); a red result is not waved through by an answer to this
+> question (§8, point 5). The question is about gates that were *not run*, not about gates that failed.
+>
 
 ## Measurement record — the token-reduction round
 

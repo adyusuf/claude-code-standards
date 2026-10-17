@@ -16,8 +16,8 @@ a session spends them**. Pick the smallest mode the work needs:
 | Mode | Who works | Agents |
 |---|---|---|
 | A | The session alone, no agents | 0 |
-| B | Selective — `analyst`, `test-writer`, `doc-writer` (default) | 3 roles |
-| C | Full team | 9 roles |
+| B | Selective — `analyst`, `test-writer`, `doc-writer` | 3 roles |
+| C | Full team (default) | 9 roles |
 | D | Wide team | 14 roles |
 | E | Fan-out through `Workflow` | the 14 roles, in parallel |
 
@@ -27,35 +27,32 @@ and the auditor checks it and sends gaps back (global #28). In C/D/E the auditor
 
 Contributions are welcome: https://github.com/adyusuf/claude-code-standards
 
-## 0. At session start — ASK (every interactive session)
+## 0. At session start - no question
 
-Before any other work, one `AskUserQuestion` with two questions — the mode (recommended:
-the §1 read result, or the lowest sufficient mode for the first request) and what
-replaces Opus (keep the defined models · sonnet · haiku · fable). Apply the answer with
-§4 **as `--once`** (scratchpad only, never `.claude/mode`), then start the work. Not
-asked when the first message names the mode, when `$S/mode` already exists, in any
-agent, or in a non-interactive run. Rules: `${CLAUDE_PLUGIN_ROOT}/modes/README.md` › *Session start*.
+A session does not ask the mode (user decision 17/10/2026): the read order of §1 decides, and the SessionStart hook has
+already printed the effective values. Apply nothing at start. The defaults themselves are changed with `/adyusuf:config`.
+Rules: `${CLAUDE_PLUGIN_ROOT}/modes/README.md` › *Session start*.
 
 ## 1. Read the current mode
 
-Priority order: **session-scoped selection** → project file → B.
+Priority order: **session-scoped selection** → project file → the configuration (`mode`, default C).
 
 ```bash
 S="<the Scratchpad Directory from the system prompt>"   # session-scoped, survives compaction
 root="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+cfg="${CLAUDE_PLUGIN_ROOT}/scripts/adyusuf_config.py"
 if [ -f "$S/mode" ]; then d="$S"; elif [ -f "$root/.claude/mode" ]; then d="$root/.claude"; else d=""; fi
-echo "mode: $( [ -n "$d" ] && cat "$d/mode" || echo B )"
-echo "opus agents run on: $( [ -n "$d" ] && cat "$d/mode-model" 2>/dev/null || echo 'their defined model' )"
+echo "mode: $( [ -n "$d" ] && cat "$d/mode" || python3 "$cfg" get mode )"
+echo "opus agents run on: $( if [ -n "$d" ]; then cat "$d/mode-model" 2>/dev/null || echo 'their defined model'; else python3 "$cfg" get mode_model; fi )"
 ```
 
 The model override is read **from the layer that supplied the letter** — a session
-letter without `$S/mode-model` means "defined models", even if the project file has
-an override. Rules: `${CLAUDE_PLUGIN_ROOT}/modes/README.md` › *Model override*.
+or project letter without its own `mode-model` means "defined models", even if the
+configuration has an override. Rules: `${CLAUDE_PLUGIN_ROOT}/modes/README.md` › *Model override*.
 
-If none of them exists the mode is **B**. B's three agents (`analyst`,
-`test-writer`, `doc-writer`) are approved along with the default. If the user
-named no mode, **start in B and propose the lowest sufficient mode in one line**
-if the work deserves it — never switch on your own (README › "When no mode is given").
+If none of them exists the configuration's mode applies (default **C**, `adyusuf:config`); its agents are approved
+by the default itself. Propose a lower or higher mode in one line only if the work clearly deserves it - never switch on
+your own (README › "When no mode is given").
 
 ⚠️ A mode chosen with `--once` is written **to the scratchpad** (`$S/mode`), not
 to `.claude/mode`. Reason: if "apply this for this session only" relies on

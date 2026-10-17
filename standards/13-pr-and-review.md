@@ -165,51 +165,39 @@ When writing a comment: **what** is wrong + **why** it matters + **a suggestion*
 - Before merging, `git fetch` and update if you are behind — a gate running against stale code gives false confidence.
 - A `--force` push happens only on your own feature branch and only with explicit approval.
 
-## 8a. Before every merge: ask what runs, record what is waived (global rule #34)
+## 8a. Merges, pushes and the gates before them follow the configuration (global rule #34)
 
-The full gate has one **owner** per project, named in the project's own `CLAUDE.md`: **CI** where its minutes are
-free (an open repository), the **local gate** (`scripts/merge-gate.sh`) where they are not. The owner runs the
-whole shared gate (§4, coverage ≥ 80% included); the other side is a pre-check at most. CI and the local script
-call the same `gate-core.sh` with the same thresholds, never two rule sets (#19).
+Since 17/10/2026 Claude **does not ask** whether to merge, run a gate or push: the answers are settings
+(`/adyusuf:config`, `scripts/adyusuf_config.py`; defaults in `defaults/adyusuf.json`, the user's own in
+`~/.claude/adyusuf.json`, a project's in `.claude/adyusuf.json`). Asking every time was too much work for the user, so the
+defaults say what normally happens and whoever wants something else changes the setting once.
 
-**The questions come when the code is done, in this order** (user decisions of 17/10/2026). Use `AskUserQuestion`; a
-batch merge (§8) is one merge, so it gets one set of questions, and an answer given for an earlier merge never carries over.
+**When the code is done**, for each target `<t>` in `dev`, `test`, `prod` (in that order; a batch merge, §8, is one merge):
 
-1. **Where may it go?** One multi-select: which of `dev`, `test`, `prod` the finished code may be merged into. Only the
-   picked targets are touched; unpicked ones are left alone, and a pick does not imply the next stage (§8).
-2. **For each picked merge, separately — one question, one answer each, never "CI and e2e?" in one sentence:**
-   - This merge is `<source>` → `<target>` (`<short sha>`). Will **CI** run for it?
-   - Will **e2e** run for it?
-   - **What may be pushed?** Not a blanket yes/no: list what the push to `origin/<target>` would send — the commits
-     (`git log --oneline origin/<target>..<target>`), tags, and any other ref it would update — and let the user pick from
-     the list (a multi-select, with "none" as an answer). Merging and pushing are two decisions, and **Claude makes the
-     push itself, `prod` included** (user decision of 17/10/2026, which replaces "the `prod` push stays the user's").
-
-Nothing is merged before its CI and e2e answers, and nothing is pushed before its push answer. What is not picked stays
-local and the report says so; a pick never reaches past what was listed.
-
-| Answer | What happens |
+| Setting | Effect |
 |---|---|
-| CI **yes** | Wait for CI to be **green on the commit being promoted** — on `dev` before the merge to `test`, on `test` before the merge to `prod` (the project's CI-status helper, or `gh run list --branch <b> --commit <sha>`: only a *completed* run with conclusion *success* counts; running, queued, red, cancelled and no run at all are not a pass). |
-| e2e **yes** | Run it as the project defines it (#33: optional, by hand or `GATE_RUN_E2E=1`) and report the result. |
-| CI or e2e **no** | The merge commit message ends with one line naming **only what was skipped**, in the user's words: `Gate-Waived: ci, e2e (neden: <reason>)`. |
+| `merge.<t>` = yes | Merge the finished code into `<t>` (`--no-ff`, from the fresh remote tip, §8). `no` leaves it out, and the later targets with it. |
+| `run_before_push.<t>.unit` = yes | Run the unit tests on the merged result before `<t>` is pushed. The project's **gate owner** runs them: CI where its minutes are free (wait for it to be green on the commit), else the local gate. |
+| `run_before_push.<t>.e2e` = yes | Run e2e the same way (optional by rule #33; by hand or `GATE_RUN_E2E=1`). |
+| `push.<t>` = yes | Push `<t>` after its merge and its gates. `no` leaves the merge local and the report says so. |
 
-The line sits in the merge commit's body (a `--no-ff` merge, §8), one `Gate-Waived:` line per commit; `neden:` is
-the literal the user gave, and a scanner accepts `reason:` too. **Nothing is waived without the question and
-without the line**, and a waived gate is reported as "did not run", never as passing (#15, #25).
+**A red gate blocks** the push of that target and every later one; it is fixed, not waved through (§8, point 5). **A gate set
+to no is not run and is recorded**: the merge commit message ends with one line naming only what was skipped,
 
-**Before a `prod` merge**, scan the range being promoted and say it plainly — for example `git log --format=%B
-origin/prod..origin/test | grep '^Gate-Waived:'` (a project may ship a helper; the Claude Monitor repository's
-`waived-gates.sh <source> <target>` lists commit, gate and reason, exit 1 when any):
+```
+Gate-Waived: unit, e2e (neden: configuration)
+```
 
-> These commits ran without these gates: `<sha>` — `<gates>` (`<reason>`). …
+(`neden:` is the literal the user gave; a scanner accepts `reason:` too.) **Before the `prod` merge**, scan the range being
+promoted for those lines and put the result in the report - for example `git log --format=%B origin/prod..origin/test |
+grep '^Gate-Waived:'` (a project may ship a helper; the Claude Monitor repository's `waived-gates.sh <source> <target>`
+lists commit, gate and reason). It is reported, not asked: the user has already said what runs. "A step that did not run
+did not pass" (#25) stays true in the report.
 
-The prod merge is not prepared until the user answers. With no record, say "no waived gate in `origin/prod..origin/test`".
-The `prod` push is made by Claude after the push list is answered (§8a, #26.4).
-
-**What this never loosens:** coverage ≥ 80% per codebase (#29) is part of what the owner runs and is not a
-waivable gate; secrets stay out of the repository (#3); a red result is not waved through by an answer to this
-question (§8, point 5). The question is about gates that were *not run*, not about gates that failed.
+**What no setting changes:** coverage ≥ 80% per codebase (#29) is part of what the gate owner runs and is not a setting;
+force pushes, `DROP`, deploys and anything on `main` need the user's approval in every mode (#20, #27) and are guarded by
+`guard-destructive.sh`; secrets stay out of the repository (#3). A push to `prod` is an ordinary push when `push.prod` is
+yes (the hook no longer judges it); a pending migration or other irreversible step in the change still needs approval.
 
 ## 9. Claude's role in review
 

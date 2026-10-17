@@ -204,8 +204,8 @@ because something broke first.
 | Engineering standards | `standards/` | 24 documents + 7 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate, measurement and install scripts | `scripts/` | 34 scripts + 842 tests |
-| Slash commands, skills and hooks — one plugin, `/adyusuf:<name>` | `.claude-plugin/`, `commands/`, `skills/`, `hooks/` | 7 |
+| Gate, measurement and install scripts | `scripts/` | 35 scripts + 842 tests |
+| Slash commands, skills and hooks — one plugin, `/adyusuf:<name>` | `.claude-plugin/`, `commands/`, `skills/`, `hooks/` | 8 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
 ```mermaid
@@ -215,7 +215,7 @@ pie showData title Repository composition (files)
  "modes/ (5 modes + selection guide)" : 13
  "scripts/ (gates, hooks, measurement, tests)" : 36
  "docs/ (decision log + case studies + method)" : 9
- "commands/ + skills/" : 7
+ "commands/ + skills/" : 8
  "root (CLAUDE.md, settings, license)" : 5
 ```
 
