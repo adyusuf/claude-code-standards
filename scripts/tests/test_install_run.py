@@ -34,6 +34,24 @@ class MonitorStep(Fixture):
         self.assertIn('off (--no-monitor)', out)
         self.assertIn(install.hooks.PLUGIN_INSTALL, out)
 
+    def test_the_configuration_can_turn_the_monitor_off_for_an_install_only(self):
+        # monitor.connect = no in the user's configuration (adyusuf:config) skips the step like --no-monitor.
+        os.makedirs(os.path.join(self.home, '.claude'), exist_ok=True)
+        with open(os.path.join(self.home, '.claude', 'adyusuf.json'), 'w', encoding='utf-8') as handle:
+            json.dump({'monitor': {'connect': False}}, handle)
+        code, out, _ = self.call()
+        self.assertEqual((code, self.monitor.calls), (0, []))
+        self.assertIn('monitor.connect = no', out)
+        self.assertIn('off (--no-monitor)', out)
+
+    def test_an_unreadable_configuration_leaves_the_monitor_on(self):
+        os.makedirs(os.path.join(self.home, '.claude'), exist_ok=True)
+        with open(os.path.join(self.home, '.claude', 'adyusuf.json'), 'w', encoding='utf-8') as handle:
+            handle.write('{ broken')
+        code, out, _ = self.call()
+        self.assertEqual(code, 0)
+        self.assertEqual(self.monitor.calls, [('install', FakeMonitor.SERVERS['prod'], self.home)])
+
     def test_a_failed_monitor_step_is_a_warning_not_a_failure(self):
         # The monitor is optional (user decision 13/10/2026): cm-agent missing or unreachable is not a problem.
         for exit_code in (1, 2, 5):

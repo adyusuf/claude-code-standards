@@ -1,7 +1,7 @@
-# Mode B — Selective agents **(DEFAULT)**
+# Mode B — Selective agents
 
-⚠️ **Every project without a mode file is in B.** The default
-itself is the approval for these three agents — I do not ask separately. To work
+⚠️ **B is no longer the default** (since 17/10/2026 the configuration's `mode` is, default C). Choosing B
+is the approval for these three agents — I do not ask separately. To work
 without agents: `/adyusuf:working-mode A`.
 
 Three agents are enabled: **`analyst`**, **`test-writer`**, **`doc-writer`**. Code

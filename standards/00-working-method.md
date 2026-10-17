@@ -176,7 +176,7 @@ So:
   session with `claude --plugin-dir <worktree>`: it takes precedence over the installed copy
   for that session only.
 - **A change reaches the live configuration only by promotion** `dev → test → prod`, which
-  Claude merges through the gate; the `prod` push is the user's. A machine takes it with
+  Claude merges through the gate and, once the user has picked what to push (#34), pushes. A machine takes it with
   `/plugin marketplace update adyusuf-marketplace` + `/plugin update adyusuf` (or the
   marketplace's auto-update); the plugin has no `version`, so every `prod` commit is a new one.
 - **Never edit the installed copy** under `~/.claude/plugins/cache/`: the next update replaces

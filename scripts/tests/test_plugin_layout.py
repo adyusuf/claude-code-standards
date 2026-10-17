@@ -132,8 +132,9 @@ class RootPluginTest(unittest.TestCase):
     def test_hook_events_are_exactly_the_five(self):
         self.assertEqual(sorted(normalised_hooks()), ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStart'])
 
-    def test_rules_parts_one_to_four_on_session_start_then_the_legacy_check_on_startup_only(self):
+    def test_rules_parts_one_to_four_and_the_configuration_on_session_start_then_the_legacy_check_on_startup_only(self):
         rules = [f'{RULES_CTX} session {n} 4' for n in range(1, 5)]
+        rules.append(f'python3 "{ROOT}/scripts/adyusuf_config.py" context')    # the effective defaults (rule #34)
         legacy = [f'python3 "{ROOT}/scripts/legacy-install-check.py"']
         self.assertEqual(commands_of('SessionStart'), [(None, rules), ('startup', legacy)])
 
@@ -156,8 +157,9 @@ class RootPluginTest(unittest.TestCase):
         files = set(tracked())
         scripts = {path for groups in normalised_hooks().values() for _, hooks in groups
                    for _, command in hooks for path in plugin_paths(command)}
-        self.assertEqual(sorted(scripts), ['scripts/guard-destructive.sh', 'scripts/legacy-install-check.py',
-                                           'scripts/md-hook.sh', 'scripts/rules-context.py'])
+        self.assertEqual(sorted(scripts), ['scripts/adyusuf_config.py', 'scripts/guard-destructive.sh',
+                                           'scripts/legacy-install-check.py', 'scripts/md-hook.sh',
+                                           'scripts/rules-context.py'])
         for script in scripts:
             self.assertIn(script, files)
             self.assertTrue(os.path.isfile(os.path.join(REPO, script)), script)

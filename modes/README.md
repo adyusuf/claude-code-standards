@@ -14,8 +14,8 @@ A second word downgrades only the Opus agents (`C sonnet`) → the **Model overr
 | Mode | Name | Agents | Review | Approval policy | Cost multiplier |
 |---|---|---|---|---|---|
 | [**A**](A-skill.md) | Skill | **none** | me | chosen explicitly | 1.0x (baseline) |
-| [**B**](B-selective.md) | Selective **(DEFAULT)** | `analyst`, `test-writer`, `doc-writer` | me | the default = approval | 1.15–1.35x ⚠ estimated |
-| [**C**](C-full-team.md) | Full team | 9 role agents (B ⊂ C) | the `qa` agent + me | choosing the mode = approval | 2.5–4x ⚠ estimated |
+| [**B**](B-selective.md) | Selective | `analyst`, `test-writer`, `doc-writer` | me | the default = approval | 1.15–1.35x ⚠ estimated |
+| [**C**](C-full-team.md) | Full team **(DEFAULT)** | 9 role agents (B ⊂ C) | the `qa` agent + me | choosing the mode = approval | 2.5–4x ⚠ estimated |
 | [**D**](D-wide-team.md) | Wide team | 14 role agents (C ⊂ D) | `qa` + `security`/`coverage-auditor` directly to me + me | choosing the mode = approval | 4.5–7x ⚠ estimated |
 | [**E**](E-fanout.md) | Fan-out | D + parallel `Workflow` (the 14 roles only) | the `qa` agent + me | choosing the mode = approval | 7–14x ⚠ estimated |
 
@@ -126,38 +126,25 @@ is the producer's own confidence, **never** a substitute for the combined run.
 - The `test`/`prod` promotion → the user says so explicitly **in every mode**.
 - The completeness check before "done" (global #24) → the same in every mode.
 
-## Session start — ASK the mode and the Opus replacement (PERMANENT, all projects; user decision 05/10/2026)
+## Session start — no question: the configuration answers (user decision 17/10/2026)
 
-Every interactive session begins with **one `AskUserQuestion`** carrying two questions,
-**before any other work** (reading the mode files is the only thing that comes first):
+A session does **not** ask the mode or the Opus replacement. The read order decides, silently:
 
-1. **Mode** — the recommended option is the read order's result (a `--tek` selection →
-   `.claude/mode` → B), or the lowest sufficient mode for the first request when that is
-   higher (the rules of the next section); up to three other letters; "Other" takes any
-   letter.
-2. **What replaces Opus** — `Keep the defined models` (recommended unless a
-   `mode-model` exists, which is then preselected) · `sonnet` · `haiku` · `fable`.
+1. the session's own choice (`$S/mode`, `$S/mode-model`, written by `/adyusuf:working-mode <letter> [<model>] --tek`);
+2. the project's `.claude/mode` and `.claude/mode-model`;
+3. the configuration (`/adyusuf:config`): `mode` (default **C**) and `mode_model` (default `sonnet`).
 
-The answer is applied as `/adyusuf:working-mode <letter> [<model>] --tek` — written to the
-session scratchpad (`$S/mode`, `$S/mode-model`), **never** to the project file — and the
-session's work starts on it. The first request is then carried out in the same turn.
-
-**Not asked:**
-- the user's first message already names the mode (`C sonnet`, `/adyusuf:working-mode …`)
-  → that is applied instead;
-- `$S/mode` already exists — the same session after compaction, already answered;
-- a subagent, a `Workflow` agent, a teammate — they never ask the user;
-- a non-interactive run (`claude -p`, a scheduled task, an autonomous run, a cloud session
-  with nobody to answer) → the read order applies silently.
-
-If the question is dismissed unanswered, the read order applies and the work continues.
+The SessionStart hook prints the effective values and the agents they enable, so the session starts knowing them.
+Whoever wants another mode says so in the first message (`C sonnet`, `/adyusuf:working-mode …`) or changes the default
+with `/adyusuf:config`. Subagents, `Workflow` agents and non-interactive runs use the same order.
+(Until 17/10/2026 every interactive session opened with an `AskUserQuestion`; the old section is in
+`docs/decision-log.md`, "§27 round 5".)
 
 ## If no mode is given — PROPOSE the cheapest and fastest
 
 > Since 05/10/2026 the session-start question above comes first. This section is what
 > shapes its **recommended** option, and it applies as-is wherever the question is not
-> asked (non-interactive runs). In a project with no mode file, B's three agents may be
-> invoked without asking; the other eleven roles require C/D/E.
+> asked (non-interactive runs). In a project with no mode file the configuration's mode applies (default C); a role outside the active mode's set is not invoked.
 
 If the project carries no `.claude/mode` **and** the user has not named a mode:
 

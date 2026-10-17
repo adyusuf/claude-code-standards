@@ -83,7 +83,7 @@ src/
 
 ## 10. Forced-update strategy
 
-- The API must be able to report the minimum supported client version (a header or a `/config` endpoint).
+- The API must be able to report the minimum supported client version (a header or a configuration endpoint).
 - On an unsupported version the app shows an "update required" screen — it never fails silently.
 - This mechanism is **not a licence to make breaking changes**: additive evolution still applies.
 
