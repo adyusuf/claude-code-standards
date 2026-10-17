@@ -16,7 +16,9 @@ difference between a blocked force-push and a lost branch, and a regex rewritten
 from memory is how a guard quietly stops matching.
 
 Reads the hook payload (JSON, or raw text) on stdin.
-Exit 0 = allowed. Exit 2 = blocked, with the reason on stderr.
+Exit 0 = allowed. Exit 2 = blocked, with the reason on stderr. Exit 3 = ASK: a push to the prod branch is not
+blocked but handed to the user at execution time (17/10/2026, the user's decision that Claude makes that push after
+asking what to push); the hook JSON with permissionDecision "ask" is on stderr, and the wrapper prints it on stdout.
 
 WARNING - FAIL CLOSED. A payload that will not parse is judged as RAW TEXT rather
 than waved through, and the wrapper turns any unexpected exit code into a block.
@@ -46,8 +48,13 @@ def without_heredocs(text):
 # rules below it, because `psql <<EOF ...` really does execute.
 GIT_RULES = (
     (r"git\s+push([^;&|\n]*\s)?(-f|--force[a-z-]*)(\s|$)", "forced push"),
-    (r"git\s+push[^;&|\n]*(\s|:)(main|prod)(\s|$)", "push straight to main/prod"),
+    (r"git\s+push[^;&|\n]*(\s|:)main(\s|$)", "push straight to main"),
     (r"git\s+(commit|push|merge)[^;&|\n]*--no-verify", "--no-verify skips the pre-commit gitleaks hook"),
+)
+# Not blocked, but never silent: the harness asks the user before it runs (permissionDecision "ask"). A forced
+# push or --no-verify on the same command is matched by the blocking rules above first.
+ASK_RULES = (
+    (r"git\s+push[^;&|\n]*(\s|:)prod(\s|$)", "push to prod (the user confirms the exact command)"),
 )
 ANY_RULES = (
     (r"(drop|truncate)\s+(table|database|schema)", "DROP/TRUNCATE (take a backup and get approval first)"),
@@ -72,9 +79,24 @@ def verdict(command):
     return None
 
 
+def approval(command):
+    """The reason the user must confirm this command, or None."""
+    for pattern, reason in ASK_RULES:
+        if re.search(pattern, without_heredocs(command), re.I):
+            return reason
+    return None
+
+
 def main():
-    reason = verdict(command_of(sys.stdin.read()))
+    command = command_of(sys.stdin.read())
+    reason = verdict(command)
     if reason is None:
+        ask = approval(command)
+        if ask is not None:
+            sys.stderr.write(json.dumps({"hookSpecificOutput": {
+                "hookEventName": "PreToolUse", "permissionDecision": "ask",
+                "permissionDecisionReason": "guard-destructive.sh: %s" % ask}}) + "\n")
+            return 3
         return 0
     sys.stderr.write(
         "BLOCKED by guard-destructive.sh: %s\n"

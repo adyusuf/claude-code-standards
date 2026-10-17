@@ -608,10 +608,12 @@ target choice and the push question to be added.
 **Amended again 17/10/2026 (user decision, mid-test of the flow above).** (3) "The `prod` push stays the user's" is
 **removed** (#26.4): Claude asks and then pushes, `prod` included. (4) The push question is not a blanket "may it be
 pushed?": Claude lists what the push would send (commits, tags, other refs) and the user picks from that list.
-⚠️ **The hook still blocks it:** `scripts/guard-destructive.sh` / `guard-inspect.py` exit 2 on `git push ... prod` and
-`... main` (never-do list), and the model cannot approve a block. Until the user decides how the hook should treat an
-approved prod push (for example `permissionDecision: ask` instead of a block), Claude will find the command refused and
-say so; the rule and the hook disagree and nothing was changed in the hook without that decision.
+**The hook changed with it (user decision, same day: "turn it into ask").** `scripts/guard-inspect.py` no longer blocks a
+push to the `prod` branch; it returns exit 3 and `guard-destructive.sh` prints the hook JSON with
+`permissionDecision: "ask"`, so the harness asks the user to confirm the exact command at execution time. Still blocked,
+exactly as before: a push to `main`, any forced push (also to `prod`) and `--no-verify`. The model still cannot approve
+anything the hook blocks, and there is still no environment bypass. The prod push therefore has two human checkpoints:
+the push list (#34) and the harness confirmation.
 
 ## Model per job — run on Sonnet, diagnose on Opus (29/09/2026, user decision)
 
@@ -1042,6 +1044,11 @@ Original wording of the lines changed in `CLAUDE.md`, verbatim:
 
 >  4. **Claude performs the `dev`/`test`/`prod` merges and the `dev`/`test` pushes; the `prod` push stays the user's** — never `--force`, not over a red gate (#25, #33).
 > 34. **When the code is done, ask where it goes and what runs; a waived gate is RECORDED.** Ask the user which of `dev`/`test`/`prod` it may be merged into (they pick). For EACH picked merge ask SEPARATE questions: "Will **CI** run?", "Will **e2e** run?", "May it be **pushed**?" (one answer each; nothing is merged or pushed before its answers). **CI yes** → wait for CI green at that stage. **No** → the merge commit carries `Gate-Waived: <skipped gates> (neden: <the user's words>)`. Before a `prod` merge list those lines between the two refs, say which commits ran without which gates, and prepare nothing until the user answers. Each project names its gate's **owner** (CI where its minutes are free, else the local gate); a gate that did not run did not pass, and #29 is never waived. → `standards/13-pr-and-review.md` §8a; `docs/decision-log.md` §34
+
+Also in round 3, verbatim:
+
+> 33. **E2E is OPTIONAL — no gate runs it and it never blocks a promotion** (user decision 03/10/2026, general rule: not enough resources to run it).
+> - ❌ Pushing directly to `main`/`prod`
 
 ## Measurement record — the token-reduction round
 

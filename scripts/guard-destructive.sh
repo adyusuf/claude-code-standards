@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # PreToolUse(Bash) hook: blocks the irreversible commands from the never-do list.
 #
-#   git push --force / -f / --force-with-lease     git push ... main|prod (any refspec)
+#   git push --force / -f / --force-with-lease     git push ... main (any refspec)
+#   a push to the prod branch is NOT blocked: the harness asks the user to confirm it (permissionDecision ask)
 #   git commit/push/merge --no-verify               DROP|TRUNCATE  TABLE|DATABASE|SCHEMA
 #   rm -rf on / ~ $HOME . *
 #
@@ -82,10 +83,12 @@ if [ -z "$py" ]; then
 fi
 message="$(printf '%s' "$payload" | "$py" "$inspector" 2>&1 >/dev/null)"
 status=$?
-# 0 = allowed, 2 = blocked (the inspector wrote the reason). Anything else means
-# the inspector itself failed: fail closed rather than let the command through.
+# 0 = allowed, 2 = blocked (the inspector wrote the reason), 3 = ASK (the inspector wrote the hook JSON that hands
+# the command to the user: it is printed on stdout and the command is not blocked). Anything else means the
+# inspector itself failed: fail closed rather than let the command through.
 case "$status" in
   0) exit 0 ;;
   2) printf '%s\n' "$message" >&2; exit 2 ;;
+  3) printf '%s\n' "$message"; exit 0 ;;
   *) echo "BLOCKED by guard-destructive.sh: could not inspect the command ($py guard-inspect.py failed with status $status). Ask the user to run it." >&2; exit 2 ;;
 esac

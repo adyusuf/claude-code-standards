@@ -55,10 +55,39 @@ class Blocked(unittest.TestCase):
         for flag in (FORCE, '-' + 'f', FORCE + '-with-lease'):
             self.assertBlocked(f'{PUSH} {flag} origin dev', 'forced push')
 
-    def test_a_push_straight_to_the_protected_branches_is_blocked(self):
-        for branch in ('main', 'prod'):
-            self.assertBlocked(f'{PUSH} origin {branch}', 'straight to')
-            self.assertBlocked(f'{PUSH} origin HEAD:{branch}', 'straight to')
+    def test_a_push_straight_to_main_is_blocked(self):
+        self.assertBlocked(f'{PUSH} origin main', 'straight to main')
+        self.assertBlocked(f'{PUSH} origin HEAD:main', 'straight to main')
+
+    def test_a_push_to_prod_is_not_blocked_but_the_user_must_confirm_it(self):
+        for command in (f'{PUSH} origin prod', f'{PUSH} origin HEAD:prod', f'{PUSH} -u origin prod'):
+            self.assertAllowed(command)
+            self.assertIn('prod', guard.approval(command) or '', command)
+
+    def test_a_forced_or_unverified_push_to_prod_is_still_blocked(self):
+        self.assertBlocked(f'{PUSH} {FORCE} origin prod', 'forced push')
+        self.assertBlocked(f'{PUSH} {NO_VERIFY} origin prod', 'gitleaks')
+
+    def test_nothing_else_asks(self):
+        for command in (f'{PUSH} origin dev', f'{PUSH} origin test', f'{PUSH} origin feature/prod-notes', 'ls'):
+            self.assertIsNone(guard.approval(command), command)
+
+    def test_a_heredoc_that_only_mentions_the_push_does_not_ask(self):
+        self.assertIsNone(guard.approval(f'cat <<EOF\n{PUSH} origin prod\nEOF'))
+
+    def test_main_hands_the_prod_push_to_the_user_with_exit_3(self):
+        err = io.StringIO()
+        saved = sys.stdin
+        sys.stdin = io.StringIO(json.dumps({'tool_input': {'command': f'{PUSH} origin prod'}}))
+        try:
+            with redirect_stderr(err):
+                status = guard.main()
+        finally:
+            sys.stdin = saved
+        self.assertEqual(3, status)
+        decision = json.loads(err.getvalue())['hookSpecificOutput']
+        self.assertEqual('ask', decision['permissionDecision'])
+        self.assertEqual('PreToolUse', decision['hookEventName'])
 
     def test_pushing_to_dev_or_test_is_allowed(self):
         for branch in ('dev', 'test'):

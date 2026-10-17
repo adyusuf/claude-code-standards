@@ -100,12 +100,12 @@
  - When the code is done, unit tests are written (#8), then the tests run **once**; anything red is fixed and only the relevant tests re-run.
  - **E2E is optional and never run by a gate (#33).**
  - #26 still holds: each task gets its own commit and reaches `dev` through a gate — alone or in a batch — once its unit run is green. → rationale: `docs/decision-log.md` §32
-33. **E2E is OPTIONAL — no gate runs it and it never blocks a promotion** (user decision 03/10/2026, general rule: not enough resources to run it).
+33. **E2E is OPTIONAL — no gate runs it and it never blocks a promotion** (user decision 03/10/2026: not enough resources to run it).
  - Every promotion to `test` and to `prod` **WARNS "e2e was NOT run"** and carries on, never read as a pass. Run it by hand or with `GATE_RUN_E2E=1` (a red result then blocks like any step).
  - **`test → prod` checks neither the `test` branch nor the test environment** (04/10/2026, general rule): it WARNS; `GATE_CHECK_TEST_DEPLOY=1` verifies the deployed SHA and a mismatch then blocks. The missing-spec check stays a warning.
  → `docs/decision-log.md` §33
 
-34. **When the code is done, ask where it goes and what runs; a waived gate is RECORDED.** Ask which of `dev`/`test`/`prod` it may be merged into. For EACH picked merge ask SEPARATE questions: "Will **CI** run?", "Will **e2e** run?", then list what the push would send and ask which of it may be pushed (one answer each; nothing merges or pushes before its answers; Claude pushes, `prod` too). **CI yes** → wait for CI green at that stage. **No** → the merge commit carries `Gate-Waived: <skipped gates> (neden: <the user's words>)`. Before a `prod` merge list those lines between the two refs, say which commits ran without which gates, and prepare nothing until answered. Each project names its gate's **owner** (CI if its minutes are free, else local); a gate that did not run did not pass, and #29 is never waived. → `standards/13-pr-and-review.md` §8a; `docs/decision-log.md` §34
+34. **When the code is done, ask where it goes and what runs; a waived gate is RECORDED.** Ask which of `dev`/`test`/`prod` it may be merged into. For EACH picked merge ask SEPARATE questions: "Will **CI** run?", "Will **e2e** run?", then list what the push would send and ask which of it may be pushed (one answer each; nothing merges or pushes before its answers; Claude pushes, `prod` too). **CI yes** → wait for CI green at that stage. **No** → the merge commit carries `Gate-Waived: <skipped gates> (neden: <the user's words>)`. Before a `prod` merge list those lines in the range, say which commits ran without which gates, and prepare nothing until answered. Each project names its gate's **owner** (CI if its minutes are free, else local); a gate that did not run did not pass, and #29 is never waived. → `standards/13-pr-and-review.md` §8a; `docs/decision-log.md` §34
 
 ## Never-do list
 
@@ -120,7 +120,7 @@ The full list, including the items tied to numbered rules: `docs/decision-log.md
 - ❌ A swallowed exception (`catch {}`), an error with no log
 - ❌ Writing PII / tokens / passwords to the log
 - ❌ Loosening tests "so they pass", papering over a flaky test with `retry`
-- ❌ Pushing directly to `main`/`prod`
+- ❌ Pushing to `main`, or to `prod` outside a promotion
 - ❌ Without user approval: production deploy, DB `DROP`, `git push --force`, deleting data, sending a message or publishing to an external service
 - ❌ An untested backup ("we have backups" is not enough — a restore drill is performed)
 - ❌ Invoking any agent outside the active mode's role set — including `migration-reviewer` and other plugins' agents that shadow these role names (ours are `adyusuf:<role>`). ⚠️ `test-writer` is **not** banned: it is one of B's three roles. The protection is the role set, never a name list → #27, #28
