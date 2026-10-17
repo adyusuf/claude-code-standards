@@ -31,6 +31,12 @@ EXPECTED = {
 }
 
 
+# Every agent starts as 'follow the mode, run on the default model' (17/10/2026: the agent box is editable).
+for _role in cfg.D_ROLES:
+    EXPECTED['agents.%s.enabled' % _role] = 'auto'
+    EXPECTED['agents.%s.model' % _role] = 'default'
+
+
 class Shipped(unittest.TestCase):
     def test_the_defaults_are_the_maintainers_list(self):
         values, problem = cfg.read_layer(cfg.DEFAULTS_FILE)
@@ -172,6 +178,45 @@ class Agents(Tool):
             counts[mode] = len(json.loads(self.run_tool('agents', '--json')[0]))
         self.assertEqual({'A': 0, 'B': 3, 'C': 9, 'D': 14, 'E': 14}, counts)
 
+    def test_one_agent_can_be_switched_off_and_another_on_beyond_the_mode(self):
+        self.run_tool('set', 'agents.qa.enabled', 'off')
+        self.run_tool('set', 'agents.security.enabled', 'on')               # security is outside mode C's set
+        rows = {r['role']: r for r in json.loads(self.run_tool('agents', '--json')[0])}
+        self.assertNotIn('qa', rows)
+        self.assertEqual('sonnet', rows['security']['runs_on'])             # defined opus -> the mode's override
+        self.assertEqual(9, len(rows))                                       # nine - qa + security
+
+    def test_a_models_set_for_one_agent_beats_the_modes_override(self):
+        self.run_tool('set', 'agents.developer.model', 'haiku')
+        self.run_tool('set', 'agents.qa.model', 'opus')                      # explicitly back on opus although the mode says sonnet
+        rows = {r['role']: r for r in json.loads(self.run_tool('agents', '--json')[0])}
+        self.assertEqual('haiku', rows['developer']['runs_on'])
+        self.assertEqual('opus', rows['qa']['runs_on'])
+        self.assertEqual('sonnet', rows['architect']['runs_on'])             # untouched agents still follow the mode
+
+    def test_mode_a_runs_no_agent_whatever_the_agent_settings_say(self):
+        self.run_tool('set', 'mode', 'A')
+        self.run_tool('set', 'agents.qa.enabled', 'on')
+        self.assertEqual([], json.loads(self.run_tool('agents', '--json')[0]))
+
+    def test_all_lists_the_inactive_agents_with_the_reason_they_are_off(self):
+        self.run_tool('set', 'agents.qa.enabled', 'off')
+        rows = {r['role']: r for r in json.loads(self.run_tool('agents', '--json', '--all')[0])}
+        self.assertEqual(14, len(rows))
+        self.assertEqual((False, True, 'off'), (rows['qa']['active'], rows['qa']['in_mode'], rows['qa']['enabled']))
+        self.assertEqual((False, False), (rows['security']['active'], rows['security']['in_mode']))
+
+    def test_reset_agents_removes_every_agent_setting_and_nothing_else(self):
+        self.run_tool('set', 'agents.qa.enabled', 'off')
+        self.run_tool('set', 'agents.developer.model', 'haiku')
+        self.run_tool('set', 'push.prod', 'no')
+        out, err, code = self.run_tool('reset-agents')
+        self.assertEqual(0, code, err)
+        data = self.values()
+        self.assertEqual('auto', data['values']['agents.qa.enabled'])
+        self.assertEqual('default', data['values']['agents.developer.model'])
+        self.assertFalse(data['values']['push.prod'])
+
     def test_the_context_names_the_agents_and_the_models(self):
         out = self.run_tool('context')[0]
         self.assertIn('agents: product-manager (sonnet)', out)
@@ -182,6 +227,7 @@ class Agents(Tool):
         data = json.loads(self.run_tool('panel-data')[0])
         self.assertEqual(sorted(EXPECTED), sorted(data['values']))
         self.assertEqual(14, len(data['roles']))
+        self.assertEqual(14, len(data['agents']))                           # every role, active or not, with its settings
         self.assertEqual({'name': 'qa', 'defined': 'opus', 'modes': ['C', 'D', 'E']}, [r for r in data['roles'] if r['name'] == 'qa'][0])
 
 
@@ -220,6 +266,68 @@ class Panel(Tool):
         page = self.page()
         for key in EXPECTED:
             self.assertIn('"%s"' % key, page, key)
+
+
+class Notify(Tool):
+    """The hook that tells a running session a setting changed: the next task sees it, the current one is not split."""
+
+    def setUp(self):
+        super().setUp()
+        self.seen = os.path.join(self.home, 'seen')
+
+    def hook(self, session='sess-1', event='UserPromptSubmit'):
+        env = dict(os.environ, ADYUSUF_CONFIG_USER=self.user, ADYUSUF_SEEN_DIR=self.seen)
+        result = subprocess.run(['python3', os.path.join(SCRIPTS, 'adyusuf_config.py'), 'notify', event], cwd=self.repo,
+                                capture_output=True, text=True, env=env, input=json.dumps({'session_id': session}))
+        self.assertEqual(0, result.returncode, result.stderr)
+        return json.loads(result.stdout)['hookSpecificOutput'] if result.stdout.strip() else None
+
+    def test_the_first_call_of_a_session_says_nothing_it_only_remembers(self):
+        self.assertIsNone(self.hook())
+
+    def test_an_unchanged_configuration_stays_silent(self):
+        self.hook()
+        self.assertIsNone(self.hook())
+        self.assertIsNone(self.hook(event='PostToolUse'))
+
+    def test_a_change_is_announced_once_with_what_changed_and_when_it_applies(self):
+        self.hook()
+        self.run_tool('set', 'push.prod', 'no')
+        self.run_tool('set', 'agents.qa.model', 'haiku')
+        note = self.hook(event='PostToolUse')
+        self.assertEqual('PostToolUse', note['hookEventName'])
+        text = note['additionalContext']
+        self.assertIn('push.prod: yes -> no', text)
+        self.assertIn('agents.qa.model: default -> haiku', text)
+        self.assertIn('NEXT task', text)                       # applies from the next task...
+        self.assertIn('do not restart or split', text)         # ...and never splits the one running
+        self.assertIn('qa (haiku)', text)                      # the new effective picture is attached
+        self.assertIsNone(self.hook(event='PostToolUse'))      # once
+
+    def test_each_session_is_told_separately(self):
+        self.hook('a')
+        self.hook('b')
+        self.run_tool('set', 'mode', 'D')
+        self.assertIsNotNone(self.hook('a'))
+        self.assertIsNotNone(self.hook('b'))
+        self.assertIsNone(self.hook('a'))
+
+    def test_a_project_layer_change_is_noticed_too(self):
+        self.hook()
+        self.run_tool('set', 'mode', 'B', '--project')
+        self.assertIn('mode: C -> B', self.hook()['additionalContext'])
+
+    def test_a_broken_payload_or_file_never_fails_the_hook(self):
+        env = dict(os.environ, ADYUSUF_CONFIG_USER=self.user, ADYUSUF_SEEN_DIR=self.seen)
+        for payload in ('', 'not json', '{"session_id": "../../etc"}'):
+            result = subprocess.run(['python3', os.path.join(SCRIPTS, 'adyusuf_config.py'), 'notify', 'UserPromptSubmit'],
+                                    cwd=self.repo, capture_output=True, text=True, env=env, input=payload)
+            self.assertEqual((0, ''), (result.returncode, result.stdout), payload)
+        with open(self.user, 'w', encoding='utf-8') as handle:
+            handle.write('{ broken')
+        self.assertEqual(0, subprocess.run(['python3', os.path.join(SCRIPTS, 'adyusuf_config.py'), 'notify', 'PostToolUse'],
+                                           cwd=self.repo, capture_output=True, text=True, env=env,
+                                           input=json.dumps({'session_id': 's'})).returncode)
 
 
 class RoleSetsMatchTheRepository(unittest.TestCase):
