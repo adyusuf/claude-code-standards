@@ -149,6 +149,16 @@ def flag_notices(args):
     return notes
 
 
+def monitor_configured(home):
+    """The configuration's `monitor.connect` (scripts/adyusuf_config.py). Yes when it cannot be read: the default is on."""
+    try:
+        config = load('adyusuf_config', 'adyusuf_config.py')
+        values, _ = config.load(os.path.join(home, '.claude', 'adyusuf.json'))
+        return values['monitor.connect'][0] is not False
+    except Exception:   # a broken configuration must not stop an install; the default (on) applies
+        return True
+
+
 def main(argv):
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('--check', action='store_true')
@@ -167,6 +177,9 @@ def main(argv):
     args = parser.parse_args(argv)
     start, home, channel = os.path.realpath(args.repo), os.path.abspath(args.home), args.channel or 'prod'
     monitor = not args.no_monitor
+    if monitor and not (args.check or args.remove or args.monitor_sync) and not monitor_configured(home):
+        monitor = False
+        print('note: the configuration says monitor.connect = no (adyusuf:config), so the monitor agent is skipped like --no-monitor')
     if hasattr(sys.stdout, 'reconfigure'):
         # A cp1252 console must not crash on ✓/—, and each line must land BEFORE the git/dotnet output that
         # follows it: a block-buffered pipe printed the steps after the build log (seen 04/10/2026).
