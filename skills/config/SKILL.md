@@ -57,6 +57,14 @@ pane, and keep what the user changes in the artifact's own database. To apply th
 read the panel's values with `ArtifactData` (collection `settings`, document `current`, field `values`; no document means nothing was
 changed in the panel), then `apply` them as one JSON object - validated all-or-nothing - and print `show`. When a setting changes from the command line, update the panel's stored values too, so the two never disagree.
 
+## When a change takes effect
+
+At once, but never in the middle of a step. The files change immediately (the boxes in the side pane write them on the
+spot; the settings page needs "apply the panel"). A `UserPromptSubmit` hook and a `PostToolUse` hook (agent calls and shell
+commands, the task boundaries) run `adyusuf_config.py notify`: the first time a session sees different effective settings it
+receives a note naming what changed, and the note says to apply them **from the next task** and not to restart or split the
+step in progress. A note is sent once per change and per session; a session that never saw the settings stays silent.
+
 ## What reads the settings
 
 - The `SessionStart` hook prints `context`: the effective values and the agents, so every session starts knowing them.

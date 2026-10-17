@@ -12,6 +12,7 @@
     adyusuf_config.py panel-data                 everything the panel needs: schema, values, defaults, sources, roles
     adyusuf_config.py panel                      the panel page (HTML) with that data embedded, ready to publish as an Artifact
     adyusuf_config.py context                    the block the SessionStart hook prints
+    adyusuf_config.py notify <event>             hook: tells the running session when a setting changed (stdin: the payload)
 
 Layers, lowest first: defaults/adyusuf.json (shipped with the plugin) < ~/.claude/adyusuf.json (the user's own
 defaults) < <project>/.claude/adyusuf.json (committed, like .claude/mode). The user changes them with the
@@ -291,6 +292,45 @@ def panel_html(effective, problems):
     return template.replace('__PANEL_DATA__', data)
 
 
+def seen_dir():
+    return os.environ.get('ADYUSUF_SEEN_DIR') or os.path.join(os.path.expanduser('~'), '.claude', 'adyusuf-seen')
+
+
+def notify(event, payload_text):
+    """A hook (UserPromptSubmit, PostToolUse): when the effective settings differ from what this session last saw,
+    answer with additionalContext naming the changes. The first call of a session only records them (SessionStart already
+    printed them). The note says the change applies from the NEXT task, so a running one is never split. Never raises."""
+    try:
+        session = str(json.loads(payload_text).get('session_id') or '')
+    except (ValueError, AttributeError):
+        session = ''
+    if not session or not all(ch.isalnum() or ch in '-_' for ch in session):
+        return None
+    effective, problems = load()
+    values = {key: value[0] for key, value in effective.items()}
+    path = os.path.join(seen_dir(), session)
+    try:
+        with open(path, encoding='utf-8') as handle:
+            before = json.load(handle)
+    except (OSError, ValueError):
+        before = None
+    if before == values:
+        return None
+    try:
+        os.makedirs(seen_dir(), exist_ok=True)
+        with open(path, 'w', encoding='utf-8') as handle:
+            json.dump(values, handle)
+    except OSError:
+        return None
+    if before is None:
+        return None
+    changes = ['%s: %s -> %s' % (key, shown(before.get(key)), shown(values[key])) for key in sorted(values)
+               if before.get(key) != values[key]]
+    text = ('adyusuf settings changed (/adyusuf:config). Apply them from the NEXT task on; finish the step in progress as it '
+            'was started, do not restart or split it. Changes: ' + '; '.join(changes) + '.\n' + context(effective, problems))
+    return {'hookSpecificOutput': {'hookEventName': event, 'additionalContext': text}}
+
+
 def main(argv):
     args = list(argv)
     scope_project = '--project' in args
@@ -329,6 +369,14 @@ def main(argv):
             return 0
         if command == 'context':
             print(context(*load()))
+            return 0
+        if command == 'notify' and len(args) == 2:
+            try:
+                answer = notify(args[1], sys.stdin.read())
+            except Exception:   # a hook must never fail the session it serves
+                answer = None
+            if answer:
+                print(json.dumps(answer))
             return 0
         if command == 'schema':
             print(json.dumps(SCHEMA, indent=2))

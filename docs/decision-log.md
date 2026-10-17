@@ -633,6 +633,12 @@ fable) are settings for each of the 14 roles. `auto` keeps the mode's role set, 
 no agent whatever these say (rule #27). `scripts/adyusuf_config.py agents --json [--all]` is the effective list and the
 model each `Agent` call passes; the settings page and the side-pane mod edit the same keys.
 
+**Amended 17/10/2026, round 6 (user request: "changes should be active at once, but without splitting the work in progress").**
+A change is read from the files at the next hook, not at the next session: `adyusuf_config.py notify` (on `UserPromptSubmit` and
+after `Agent`/`Bash` tool calls) compares the effective settings with what that session last saw and, on a difference,
+adds a context note with the changes, "apply from the NEXT task, do not restart or split the step in progress". Nothing
+is interrupted and nothing is queued by Claude; the note is the whole mechanism. The first call of a session only records.
+
 ## Model per job — run on Sonnet, diagnose on Opus (29/09/2026, user decision)
 
 **The rule:** `standards/23-delivery-flow-tuning.md` §13b. Running a suite or gate is

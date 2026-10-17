@@ -268,6 +268,68 @@ class Panel(Tool):
             self.assertIn('"%s"' % key, page, key)
 
 
+class Notify(Tool):
+    """The hook that tells a running session a setting changed: the next task sees it, the current one is not split."""
+
+    def setUp(self):
+        super().setUp()
+        self.seen = os.path.join(self.home, 'seen')
+
+    def hook(self, session='sess-1', event='UserPromptSubmit'):
+        env = dict(os.environ, ADYUSUF_CONFIG_USER=self.user, ADYUSUF_SEEN_DIR=self.seen)
+        result = subprocess.run(['python3', os.path.join(SCRIPTS, 'adyusuf_config.py'), 'notify', event], cwd=self.repo,
+                                capture_output=True, text=True, env=env, input=json.dumps({'session_id': session}))
+        self.assertEqual(0, result.returncode, result.stderr)
+        return json.loads(result.stdout)['hookSpecificOutput'] if result.stdout.strip() else None
+
+    def test_the_first_call_of_a_session_says_nothing_it_only_remembers(self):
+        self.assertIsNone(self.hook())
+
+    def test_an_unchanged_configuration_stays_silent(self):
+        self.hook()
+        self.assertIsNone(self.hook())
+        self.assertIsNone(self.hook(event='PostToolUse'))
+
+    def test_a_change_is_announced_once_with_what_changed_and_when_it_applies(self):
+        self.hook()
+        self.run_tool('set', 'push.prod', 'no')
+        self.run_tool('set', 'agents.qa.model', 'haiku')
+        note = self.hook(event='PostToolUse')
+        self.assertEqual('PostToolUse', note['hookEventName'])
+        text = note['additionalContext']
+        self.assertIn('push.prod: yes -> no', text)
+        self.assertIn('agents.qa.model: default -> haiku', text)
+        self.assertIn('NEXT task', text)                       # applies from the next task...
+        self.assertIn('do not restart or split', text)         # ...and never splits the one running
+        self.assertIn('qa (haiku)', text)                      # the new effective picture is attached
+        self.assertIsNone(self.hook(event='PostToolUse'))      # once
+
+    def test_each_session_is_told_separately(self):
+        self.hook('a')
+        self.hook('b')
+        self.run_tool('set', 'mode', 'D')
+        self.assertIsNotNone(self.hook('a'))
+        self.assertIsNotNone(self.hook('b'))
+        self.assertIsNone(self.hook('a'))
+
+    def test_a_project_layer_change_is_noticed_too(self):
+        self.hook()
+        self.run_tool('set', 'mode', 'B', '--project')
+        self.assertIn('mode: C -> B', self.hook()['additionalContext'])
+
+    def test_a_broken_payload_or_file_never_fails_the_hook(self):
+        env = dict(os.environ, ADYUSUF_CONFIG_USER=self.user, ADYUSUF_SEEN_DIR=self.seen)
+        for payload in ('', 'not json', '{"session_id": "../../etc"}'):
+            result = subprocess.run(['python3', os.path.join(SCRIPTS, 'adyusuf_config.py'), 'notify', 'UserPromptSubmit'],
+                                    cwd=self.repo, capture_output=True, text=True, env=env, input=payload)
+            self.assertEqual((0, ''), (result.returncode, result.stdout), payload)
+        with open(self.user, 'w', encoding='utf-8') as handle:
+            handle.write('{ broken')
+        self.assertEqual(0, subprocess.run(['python3', os.path.join(SCRIPTS, 'adyusuf_config.py'), 'notify', 'PostToolUse'],
+                                           cwd=self.repo, capture_output=True, text=True, env=env,
+                                           input=json.dumps({'session_id': 's'})).returncode)
+
+
 class RoleSetsMatchTheRepository(unittest.TestCase):
     """The role sets are written in the script; the agent files and the mode documents are the source."""
 
