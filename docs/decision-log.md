@@ -581,7 +581,7 @@ run e2e".
     that were skipped. `neden` ("reason") is the literal the maintainer gave; a reader of the line must also accept
     `reason:`. Nothing is skipped without the question and without the line.
   - **Before `prod`:** Claude lists the `Gate-Waived:` lines between the two refs and says plainly "these commits ran
-    without these gates"; the prod merge is not prepared until the user answers. The prod push was already the user's (#26.4).
+    without these gates"; the prod merge is not prepared until the user answers. (Who pushes prod: see the amendment below.)
 - **The owner of the gate is written per project.** An open repository has free CI minutes: CI owns the full
   `gate-core.sh` run (#19: CI and the local script call the same core, never two rule sets) and a local run is a fast
   pre-check only. A closed repository without free minutes keeps the local gate as the owner. Either way "a step that
@@ -601,9 +601,17 @@ run e2e".
 "will e2e run?" are two questions with one answer each, never "CI and e2e?" in one sentence. (2) The questions start
 **when the code is done**, and the first one is **where it may go**: the user picks which of `dev`/`test`/`prod` it
 may be merged into (a multi-select), and for each picked merge Claude asks CI, e2e and **push** as separate questions.
-Pushing is therefore never assumed from "merge"; the `prod` push stays the user's (#26.4) and is still asked. The first
+Pushing is therefore never assumed from "merge" and is always asked. The first
 real use of this flow asked CI and e2e in one `AskUserQuestion` with two questions, and the user then asked for the
 target choice and the push question to be added.
+
+**Amended again 17/10/2026 (user decision, mid-test of the flow above).** (3) "The `prod` push stays the user's" is
+**removed** (#26.4): Claude asks and then pushes, `prod` included. (4) The push question is not a blanket "may it be
+pushed?": Claude lists what the push would send (commits, tags, other refs) and the user picks from that list.
+⚠️ **The hook still blocks it:** `scripts/guard-destructive.sh` / `guard-inspect.py` exit 2 on `git push ... prod` and
+`... main` (never-do list), and the model cannot approve a block. Until the user decides how the hook should treat an
+approved prod push (for example `permissionDecision: ask` instead of a block), Claude will find the command refused and
+say so; the rule and the hook disagree and nothing was changed in the hook without that decision.
 
 ## Model per job — run on Sonnet, diagnose on Opus (29/09/2026, user decision)
 
@@ -1027,6 +1035,13 @@ Original wording, verbatim:
 > 34. **Ask before every merge what runs; a waived gate is RECORDED, never silent.** Before any `dev`/`test`/`prod` merge ask two SEPARATE questions, "Will **CI** run?" and "Will **e2e** run?" (no merge before both answers). **Yes** → wait for CI to be green at that stage. **No** → the merge commit carries `Gate-Waived: <skipped gates> (neden: <the user's words>)`. Before a `prod` merge list those lines between the two refs, say which commits ran without which gates, and prepare nothing until the user answers. Each project names its gate's **owner** (CI where its minutes are free, else the local gate); a gate that did not run did not pass, whoever owns it, and #29 is never waived. → `standards/13-pr-and-review.md` §8a; `docs/decision-log.md` §34
 >  - **How to apply:** at the start of EVERY session, before any work, **ASK** the mode (A–E) and what replaces Opus (keep · sonnet · haiku · fable) in one `AskUserQuestion`; the answer is written with `--tek` and the session runs on it. Preselected = the read order: **a session-scoped selection** → the project's `.claude/mode` → **B**. Agents and non-interactive runs never ask; they use that order. If a mode name is given, run `/adyusuf:working-mode`. → `modes/README.md` › Session start; `docs/decision-log.md` §27
 >  - Every promotion to `test` and to `prod` **WARNS "e2e was NOT run"** and carries on; the warning is part of the report and never reads as a pass. Run it by hand or with `GATE_RUN_E2E=1` (a red result then blocks like any step).
+
+### §34 round 3 (17/10/2026) - the `prod` push is no longer the user's; the push question became a list
+
+Original wording of the lines changed in `CLAUDE.md`, verbatim:
+
+>  4. **Claude performs the `dev`/`test`/`prod` merges and the `dev`/`test` pushes; the `prod` push stays the user's** — never `--force`, not over a red gate (#25, #33).
+> 34. **When the code is done, ask where it goes and what runs; a waived gate is RECORDED.** Ask the user which of `dev`/`test`/`prod` it may be merged into (they pick). For EACH picked merge ask SEPARATE questions: "Will **CI** run?", "Will **e2e** run?", "May it be **pushed**?" (one answer each; nothing is merged or pushed before its answers). **CI yes** → wait for CI green at that stage. **No** → the merge commit carries `Gate-Waived: <skipped gates> (neden: <the user's words>)`. Before a `prod` merge list those lines between the two refs, say which commits ran without which gates, and prepare nothing until the user answers. Each project names its gate's **owner** (CI where its minutes are free, else the local gate); a gate that did not run did not pass, and #29 is never waived. → `standards/13-pr-and-review.md` §8a; `docs/decision-log.md` §34
 
 ## Measurement record — the token-reduction round
 

@@ -180,11 +180,13 @@ batch merge (§8) is one merge, so it gets one set of questions, and an answer g
 2. **For each picked merge, separately — one question, one answer each, never "CI and e2e?" in one sentence:**
    - This merge is `<source>` → `<target>` (`<short sha>`). Will **CI** run for it?
    - Will **e2e** run for it?
-   - May the result be **pushed** to `origin/<target>`? (Merging and pushing are two decisions; the `prod` push is the
-     user's own, #26.4, and is asked like the others.)
+   - **What may be pushed?** Not a blanket yes/no: list what the push to `origin/<target>` would send — the commits
+     (`git log --oneline origin/<target>..<target>`), tags, and any other ref it would update — and let the user pick from
+     the list (a multi-select, with "none" as an answer). Merging and pushing are two decisions, and **Claude makes the
+     push itself, `prod` included** (user decision of 17/10/2026, which replaces "the `prod` push stays the user's").
 
-Nothing is merged before its CI and e2e answers, and nothing is pushed before its push answer. A "no" to the push leaves
-the merge local and says so in the report.
+Nothing is merged before its CI and e2e answers, and nothing is pushed before its push answer. What is not picked stays
+local and the report says so; a pick never reaches past what was listed.
 
 | Answer | What happens |
 |---|---|
@@ -203,7 +205,7 @@ origin/prod..origin/test | grep '^Gate-Waived:'` (a project may ship a helper; t
 > These commits ran without these gates: `<sha>` — `<gates>` (`<reason>`). …
 
 The prod merge is not prepared until the user answers. With no record, say "no waived gate in `origin/prod..origin/test`".
-The `prod` **push** stays the user's (#26.4).
+The `prod` push is made by Claude after the push list is answered (§8a, #26.4).
 
 **What this never loosens:** coverage ≥ 80% per codebase (#29) is part of what the owner runs and is not a
 waivable gate; secrets stay out of the repository (#3); a red result is not waved through by an answer to this
