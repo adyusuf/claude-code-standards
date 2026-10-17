@@ -172,15 +172,19 @@ free (an open repository), the **local gate** (`scripts/merge-gate.sh`) where th
 whole shared gate (§4, coverage ≥ 80% included); the other side is a pre-check at most. CI and the local script
 call the same `gate-core.sh` with the same thresholds, never two rule sets (#19).
 
-**The question comes first, and it is two questions.** Before any `dev`, `test` or `prod` merge — a batch merge (§8)
-is one merge, so one pair of questions — ask the user, before touching anything, **separately** (the user decision of
-17/10/2026: one question for CI, one for e2e, each answered on its own, never "CI and e2e?" in a single sentence;
-use one `AskUserQuestion` with two questions):
+**The questions come when the code is done, in this order** (user decisions of 17/10/2026). Use `AskUserQuestion`; a
+batch merge (§8) is one merge, so it gets one set of questions, and an answer given for an earlier merge never carries over.
 
-> 1. This merge is `<source>` → `<target>` (`<short sha>`). Will **CI** run for it?
-> 2. Will **e2e** run for it?
+1. **Where may it go?** One multi-select: which of `dev`, `test`, `prod` the finished code may be merged into. Only the
+   picked targets are touched; unpicked ones are left alone, and a pick does not imply the next stage (§8).
+2. **For each picked merge, separately — one question, one answer each, never "CI and e2e?" in one sentence:**
+   - This merge is `<source>` → `<target>` (`<short sha>`). Will **CI** run for it?
+   - Will **e2e** run for it?
+   - May the result be **pushed** to `origin/<target>`? (Merging and pushing are two decisions; the `prod` push is the
+     user's own, #26.4, and is asked like the others.)
 
-Two answers, and no merge before both arrive. An answer given for an earlier merge does not carry over.
+Nothing is merged before its CI and e2e answers, and nothing is pushed before its push answer. A "no" to the push leaves
+the merge local and says so in the report.
 
 | Answer | What happens |
 |---|---|

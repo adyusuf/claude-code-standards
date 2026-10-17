@@ -597,6 +597,14 @@ run e2e".
   adopts the rule writes its owner and its helpers' names in its own `CLAUDE.md` and does not copy the rule.
 - → `standards/13-pr-and-review.md` §8a.
 
+**Amended 17/10/2026 (user decisions, same day).** (1) The two questions are asked **separately** - "will CI run?" and
+"will e2e run?" are two questions with one answer each, never "CI and e2e?" in one sentence. (2) The questions start
+**when the code is done**, and the first one is **where it may go**: the user picks which of `dev`/`test`/`prod` it
+may be merged into (a multi-select), and for each picked merge Claude asks CI, e2e and **push** as separate questions.
+Pushing is therefore never assumed from "merge"; the `prod` push stays the user's (#26.4) and is still asked. The first
+real use of this flow asked CI and e2e in one `AskUserQuestion` with two questions, and the user then asked for the
+target choice and the push question to be added.
+
 ## Model per job — run on Sonnet, diagnose on Opus (29/09/2026, user decision)
 
 **The rule:** `standards/23-delivery-flow-tuning.md` §13b. Running a suite or gate is
@@ -1011,6 +1019,14 @@ here verbatim (`scripts/md-rule-gate.py` checks that none was lost).
 >  - **`test → prod` does NOT check the `test` branch or the test environment either** (user decision 04/10/2026, general rule): a branch may go to `prod` without having been on `test`. The gate WARNS it was not checked; `GATE_CHECK_TEST_DEPLOY=1` verifies the deployed SHA and a mismatch then blocks. The missing-spec check stays a warning. No hotfix exception is needed.
 >  - ⚠️ **The configuration repository's own layout:** branches `dev` / `test` / `prod`. The live config is the **installed `adyusuf` plugin, copied from `prod` by `/plugin update`**; work happens in a separate `dev` worktree (try it with `claude --plugin-dir`) and reaches the live config only by promotion, which Claude performs (`standards/00-working-method.md` §7a). Commit only your own diff. → rationale: `docs/decision-log.md` §26
 >  - Say "done" only after passing the check; do not narrate the check, fold its result into the report.
+
+### §34 round 2 (17/10/2026) - lines shortened again in `CLAUDE.md` to make room for the target and push questions
+
+Original wording, verbatim:
+
+> 34. **Ask before every merge what runs; a waived gate is RECORDED, never silent.** Before any `dev`/`test`/`prod` merge ask two SEPARATE questions, "Will **CI** run?" and "Will **e2e** run?" (no merge before both answers). **Yes** → wait for CI to be green at that stage. **No** → the merge commit carries `Gate-Waived: <skipped gates> (neden: <the user's words>)`. Before a `prod` merge list those lines between the two refs, say which commits ran without which gates, and prepare nothing until the user answers. Each project names its gate's **owner** (CI where its minutes are free, else the local gate); a gate that did not run did not pass, whoever owns it, and #29 is never waived. → `standards/13-pr-and-review.md` §8a; `docs/decision-log.md` §34
+>  - **How to apply:** at the start of EVERY session, before any work, **ASK** the mode (A–E) and what replaces Opus (keep · sonnet · haiku · fable) in one `AskUserQuestion`; the answer is written with `--tek` and the session runs on it. Preselected = the read order: **a session-scoped selection** → the project's `.claude/mode` → **B**. Agents and non-interactive runs never ask; they use that order. If a mode name is given, run `/adyusuf:working-mode`. → `modes/README.md` › Session start; `docs/decision-log.md` §27
+>  - Every promotion to `test` and to `prod` **WARNS "e2e was NOT run"** and carries on; the warning is part of the report and never reads as a pass. Run it by hand or with `GATE_RUN_E2E=1` (a red result then blocks like any step).
 
 ## Measurement record — the token-reduction round
 
