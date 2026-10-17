@@ -27,6 +27,7 @@ The tool is `${CLAUDE_PLUGIN_ROOT}/scripts/adyusuf_config.py` (`python3`):
 | "back to the default" | `unset <key>` (add `--project` for the project layer) |
 | several at once | `apply <file or ->` with a JSON object `{"push.prod": false, ...}` |
 | "what can I change" | `schema` |
+| "update the plugin" / "get the new version" | Run, in this order, with Bash: `claude plugin marketplace update adyusuf-marketplace`, then `claude plugin update adyusuf@adyusuf-marketplace`, then `claude plugin list` and report the version. Tell the user to run `/reload-plugins` (a plugin loads into a session only after that). The slash form `/plugin marketplace update ...` only opens the plugin page, which is why this goes through the shell. If the plugin is not installed at all: `claude plugin install adyusuf@adyusuf-marketplace`. |
 
 A value that is not valid is refused and **nothing is written** (exit 2); an unreadable file is never overwritten
 (exit 1) - say which file and let the user fix or delete it. After a change, print the changed line and say which layer it
