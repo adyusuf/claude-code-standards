@@ -31,7 +31,7 @@ def code(command):
 BLOCKED = [
     "psql <<EOF\nDROP TABLE t;\nEOF", "cat > f <<EOF\nx\nEOF\ngit push --force",
     'git push --force origin feature/x', 'git push -f', 'git push origin dev --force-with-lease',
-    'git push origin main', 'git push origin HEAD:prod', 'git push -u origin prod',
+    'git push origin main', 'git push origin HEAD:main', 'git push -f origin prod', 'git push --force origin HEAD:prod',
     'git commit --no-verify -m x', 'git push --no-verify',
     'psql -c "DROP TABLE users"', 'sqlite3 db "drop database x"', 'psql -c "TRUNCATE TABLE t"',
     'rm -rf /', 'rm -rf ~', 'rm -rf $HOME', 'rm -fr .', 'rm -rf *', 'cd x && git push -f',
@@ -55,6 +55,16 @@ class GuardDestructive(unittest.TestCase):
         for command in ALLOWED:
             with self.subTest(command=command):
                 self.assertEqual(code(command), 0)
+
+    def test_a_push_to_prod_is_allowed(self):
+        payload = json.dumps({'tool_input': {'command': 'git push origin prod'}})
+        result = subprocess.run(['bash', GUARD], input=payload, capture_output=True, text=True)
+        self.assertEqual((0, ''), (result.returncode, result.stdout))
+
+    def test_an_allowed_command_prints_nothing(self):
+        payload = json.dumps({'tool_input': {'command': 'git push origin dev'}})
+        result = subprocess.run(['bash', GUARD], input=payload, capture_output=True, text=True)
+        self.assertEqual((0, ''), (result.returncode, result.stdout))
 
     def test_unparseable_payload_still_judges_the_raw_text(self):
         result = subprocess.run(['bash', GUARD], input='not json git push --force', capture_output=True, text=True)

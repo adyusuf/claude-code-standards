@@ -24,7 +24,7 @@ settings.local.json
 .DS_Store
 
 # Symlink to the live configuration (local; never committed)
-config
+/config
 
 # Python bytecode is generated, never committed
 __pycache__/

@@ -165,6 +165,40 @@ When writing a comment: **what** is wrong + **why** it matters + **a suggestion*
 - Before merging, `git fetch` and update if you are behind — a gate running against stale code gives false confidence.
 - A `--force` push happens only on your own feature branch and only with explicit approval.
 
+## 8a. Merges, pushes and the gates before them follow the configuration (global rule #34)
+
+Since 17/10/2026 Claude **does not ask** whether to merge, run a gate or push: the answers are settings
+(`/adyusuf:config`, `scripts/adyusuf_config.py`; defaults in `defaults/adyusuf.json`, the user's own in
+`~/.claude/adyusuf.json`, a project's in `.claude/adyusuf.json`). Asking every time was too much work for the user, so the
+defaults say what normally happens and whoever wants something else changes the setting once.
+
+**When the code is done**, for each target `<t>` in `dev`, `test`, `prod` (in that order; a batch merge, §8, is one merge):
+
+| Setting | Effect |
+|---|---|
+| `merge.<t>` = yes | Merge the finished code into `<t>` (`--no-ff`, from the fresh remote tip, §8). `no` leaves it out, and the later targets with it. |
+| `run_before_push.<t>.unit` = yes | Run the unit tests on the merged result before `<t>` is pushed. The project's **gate owner** runs them: CI where its minutes are free (wait for it to be green on the commit), else the local gate. |
+| `run_before_push.<t>.e2e` = yes | Run e2e the same way (optional by rule #33; by hand or `GATE_RUN_E2E=1`). |
+| `push.<t>` = yes | Push `<t>` after its merge and its gates. `no` leaves the merge local and the report says so. |
+
+**A red gate blocks** the push of that target and every later one; it is fixed, not waved through (§8, point 5). **A gate set
+to no is not run and is recorded**: the merge commit message ends with one line naming only what was skipped,
+
+```
+Gate-Waived: unit, e2e (neden: configuration)
+```
+
+(`neden:` is the literal the user gave; a scanner accepts `reason:` too.) **Before the `prod` merge**, scan the range being
+promoted for those lines and put the result in the report - for example `git log --format=%B origin/prod..origin/test |
+grep '^Gate-Waived:'` (a project may ship a helper; the Claude Monitor repository's `waived-gates.sh <source> <target>`
+lists commit, gate and reason). It is reported, not asked: the user has already said what runs. "A step that did not run
+did not pass" (#25) stays true in the report.
+
+**What no setting changes:** coverage ≥ 80% per codebase (#29) is part of what the gate owner runs and is not a setting;
+force pushes, `DROP`, deploys and anything on `main` need the user's approval in every mode (#20, #27) and are guarded by
+`guard-destructive.sh`; secrets stay out of the repository (#3). A push to `prod` is an ordinary push when `push.prod` is
+yes (the hook no longer judges it); a pending migration or other irreversible step in the change still needs approval.
+
 ## 9. Claude's role in review
 
 - **If the target branch is `dev`, no review happens** (global rule #25): the diff is not read, no agent is invoked, no scan runs — if build + fast tests + lint are green, it is merged. If something catches the eye along the way, it is noted in one line without blocking the merge.

@@ -55,10 +55,17 @@ class Blocked(unittest.TestCase):
         for flag in (FORCE, '-' + 'f', FORCE + '-with-lease'):
             self.assertBlocked(f'{PUSH} {flag} origin dev', 'forced push')
 
-    def test_a_push_straight_to_the_protected_branches_is_blocked(self):
-        for branch in ('main', 'prod'):
-            self.assertBlocked(f'{PUSH} origin {branch}', 'straight to')
-            self.assertBlocked(f'{PUSH} origin HEAD:{branch}', 'straight to')
+    def test_a_push_straight_to_main_is_blocked(self):
+        self.assertBlocked(f'{PUSH} origin main', 'straight to main')
+        self.assertBlocked(f'{PUSH} origin HEAD:main', 'straight to main')
+
+    def test_a_push_to_prod_is_not_judged_by_the_guard(self):
+        for command in (f'{PUSH} origin prod', f'{PUSH} origin HEAD:prod', f'{PUSH} -u origin prod'):
+            self.assertAllowed(command)
+
+    def test_a_forced_or_unverified_push_to_prod_is_still_blocked(self):
+        self.assertBlocked(f'{PUSH} {FORCE} origin prod', 'forced push')
+        self.assertBlocked(f'{PUSH} {NO_VERIFY} origin prod', 'gitleaks')
 
     def test_pushing_to_dev_or_test_is_allowed(self):
         for branch in ('dev', 'test'):

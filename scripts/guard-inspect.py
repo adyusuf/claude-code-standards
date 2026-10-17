@@ -18,6 +18,9 @@ from memory is how a guard quietly stops matching.
 Reads the hook payload (JSON, or raw text) on stdin.
 Exit 0 = allowed. Exit 2 = blocked, with the reason on stderr.
 
+A push to the prod branch is NOT judged here (17/10/2026, the user's decision: Claude makes that push when the
+configuration says so - scripts/adyusuf_config.py, `push.prod`). A push to main, any forced push and --no-verify are.
+
 WARNING - FAIL CLOSED. A payload that will not parse is judged as RAW TEXT rather
 than waved through, and the wrapper turns any unexpected exit code into a block.
 A guard that opens when it is confused is not a guard. There is deliberately no
@@ -46,7 +49,7 @@ def without_heredocs(text):
 # rules below it, because `psql <<EOF ...` really does execute.
 GIT_RULES = (
     (r"git\s+push([^;&|\n]*\s)?(-f|--force[a-z-]*)(\s|$)", "forced push"),
-    (r"git\s+push[^;&|\n]*(\s|:)(main|prod)(\s|$)", "push straight to main/prod"),
+    (r"git\s+push[^;&|\n]*(\s|:)main(\s|$)", "push straight to main"),
     (r"git\s+(commit|push|merge)[^;&|\n]*--no-verify", "--no-verify skips the pre-commit gitleaks hook"),
 )
 ANY_RULES = (
