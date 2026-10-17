@@ -129,8 +129,9 @@ class RootPluginTest(unittest.TestCase):
         self.assertEqual(marketplace['name'], 'adyusuf-marketplace')
         self.assertEqual([(p['name'], p['source']) for p in marketplace['plugins']], [(NAMESPACE, './')])
 
-    def test_hook_events_are_exactly_the_five(self):
-        self.assertEqual(sorted(normalised_hooks()), ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStart'])
+    def test_hook_events_are_exactly_the_six(self):
+        self.assertEqual(sorted(normalised_hooks()),
+                         ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStart', 'UserPromptSubmit'])
 
     def test_rules_parts_one_to_four_and_the_configuration_on_session_start_then_the_legacy_check_on_startup_only(self):
         rules = [f'{RULES_CTX} session {n} 4' for n in range(1, 5)]
@@ -146,7 +147,10 @@ class RootPluginTest(unittest.TestCase):
 
     def test_the_size_hook_runs_after_an_edit_or_write_and_at_stop(self):
         size_hook = [f'bash "{ROOT}/scripts/md-hook.sh"']
-        self.assertEqual(commands_of('PostToolUse'), [('Edit|Write', size_hook)])
+        notify = lambda event: [f'python3 "{ROOT}/scripts/adyusuf_config.py" notify {event}']  # noqa: E731
+        # After a task boundary (an agent call, a shell command) and before each prompt, a changed setting is announced.
+        self.assertEqual(commands_of('PostToolUse'), [('Edit|Write', size_hook), ('Agent|Bash', notify('PostToolUse'))])
+        self.assertEqual(commands_of('UserPromptSubmit'), [(None, notify('UserPromptSubmit'))])
         self.assertEqual(commands_of('Stop'), [(None, size_hook)])
 
     def test_every_hook_is_a_command_hook(self):
