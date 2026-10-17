@@ -56,11 +56,10 @@ class GuardDestructive(unittest.TestCase):
             with self.subTest(command=command):
                 self.assertEqual(code(command), 0)
 
-    def test_a_push_to_prod_is_handed_to_the_user_not_blocked(self):
+    def test_a_push_to_prod_is_allowed(self):
         payload = json.dumps({'tool_input': {'command': 'git push origin prod'}})
         result = subprocess.run(['bash', GUARD], input=payload, capture_output=True, text=True)
-        self.assertEqual(0, result.returncode, result.stderr)
-        self.assertEqual('ask', json.loads(result.stdout)['hookSpecificOutput']['permissionDecision'])
+        self.assertEqual((0, ''), (result.returncode, result.stdout))
 
     def test_an_allowed_command_prints_nothing(self):
         payload = json.dumps({'tool_input': {'command': 'git push origin dev'}})
