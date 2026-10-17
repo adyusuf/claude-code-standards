@@ -51,8 +51,8 @@ select:focus-visible, input:focus-visible, button:focus-visible { outline: 2px s
 .matrix .cell { display: flex; justify-content: center; padding: 8px 0; border-top: 1px solid var(--line); position: relative; }
 .matrix .cell.changed::after { content: ""; position: absolute; top: 5px; right: 18%; width: 6px; height: 6px; border-radius: 50%; background: var(--changed); }
 .matrix .span { grid-column: 1 / -1; }
-.agents { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 12px; }
-.agents li { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-top: 1px solid var(--line); min-width: 0; }
+.agents { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: 1fr; gap: 0; }
+.agents li { display: grid; grid-template-columns: 18px minmax(0, 1fr) minmax(7em, 11em); align-items: center; gap: 8px; padding: 5px 0; border-top: 1px solid var(--line); min-width: 0; }
 .agents .role { font-family: var(--font-key); font-size: 12px; overflow-wrap: anywhere; }
 .model { font-size: 12px; white-space: nowrap; color: var(--ink); }
 .model s { color: var(--off); margin-right: 4px; }
@@ -75,7 +75,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--font-key); font-siz
   </header>
   <div id="groups"></div>
   <section aria-labelledby="h-agents">
-    <h2 id="h-agents">Active agents and the model each runs on</h2>
+    <h2 id="h-agents">Agents: active, and the model each runs on</h2>
     <div id="agents-summary" class="note" style="margin:0 0 8px"></div>
     <ul id="agents" class="agents"></ul>
     <p class="note" id="agents-note"></p>
@@ -86,6 +86,7 @@ textarea { width: 100%; min-height: 90px; font-family: var(--font-key); font-siz
     <div class="actions">
       <button id="copy" class="primary" type="button">Copy changes as JSON</button>
       <button id="reset" type="button">Back to the shipped defaults</button>
+      <button id="reset-agents" type="button">Agents back to the mode</button>
       <span id="changed" class="status" aria-live="polite"></span>
     </div>
     <textarea id="json" readonly aria-label="Changes as JSON" hidden></textarea>
@@ -107,7 +108,9 @@ textarea { width: 100%; min-height: 90px; font-family: var(--font-key); font-siz
   function setStatus(state, text) { statusEl.dataset.state = state; statusEl.textContent = text; }
   function yes(v) { return v === true; }
   function keyFor(prefix, t) { return prefix.indexOf("#") >= 0 ? prefix.replace("#", t) : prefix + t; }
+  var AGENT_MODELS = ["default", "opus", "sonnet", "haiku", "fable"];
   var matrixKeys = {};
+  DATA.schema.forEach(function (sp) { if (sp.key.indexOf("agents.") === 0) matrixKeys[sp.key] = true; });
   TARGETS.forEach(function (t) { Object.keys(MATRIX).forEach(function (p) { matrixKeys[keyFor(p, t)] = true; }); });
 
   function control(spec, id) {
@@ -176,20 +179,53 @@ textarea { width: 100%; min-height: 90px; font-family: var(--font-key); font-siz
     return defined === "opus" && o && o !== "keep" && o !== "opus" ? o : defined;
   }
 
+  // The same rule as scripts/adyusuf_config.py: a role is active when enabled is "on", or "auto" and the mode holds it;
+  // mode A runs none. A model chosen for one agent beats the mode's override.
+  function agentRows() {
+    var mode = values.mode;
+    return DATA.roles.map(function (r) {
+      var inMode = r.modes.indexOf(mode) >= 0;
+      var enabled = values["agents." + r.name + ".enabled"] || "auto";
+      var chosen = values["agents." + r.name + ".model"] || "default";
+      var active = mode === "A" ? false : (enabled === "auto" ? inMode : enabled === "on");
+      return { name: r.name, defined: r.defined, inMode: inMode, active: active, chosen: chosen, runs: chosen !== "default" ? chosen : effectiveModel(r.defined) };
+    });
+  }
+
   function renderAgents() {
     var list = document.getElementById("agents"); list.textContent = "";
-    var mode = values.mode;
-    var active = DATA.roles.filter(function (r) { return r.modes.indexOf(mode) >= 0; });
-    document.getElementById("agents-summary").textContent = active.length
-      ? "Mode " + mode + " enables " + active.length + " agents. Opus-defined agents run on " + (values.mode_model === "keep" ? "their defined model (Opus)" : values.mode_model) + "."
-      : "Mode " + mode + " runs no agents: the session works alone.";
-    active.forEach(function (r) {
-      var li = document.createElement("li"); var role = document.createElement("span"); role.className = "role"; role.textContent = r.name;
-      var model = document.createElement("span"); model.className = "model"; var ran = effectiveModel(r.defined);
-      if (ran !== r.defined) { var s = document.createElement("s"); s.textContent = r.defined; model.appendChild(s); }
-      model.appendChild(document.createTextNode(ran)); li.appendChild(role); li.appendChild(model); list.appendChild(li);
+    var mode = values.mode, rows = agentRows();
+    var activeCount = rows.filter(function (r) { return r.active; }).length;
+    document.getElementById("agents-summary").textContent = mode === "A"
+      ? "Mode A runs no agents: the session works alone."
+      : "Mode " + mode + ": " + activeCount + " of " + rows.length + " agents active. Opus agents run on " + (values.mode_model === "keep" ? "their defined model (Opus)" : values.mode_model) + " unless you pick a model for one.";
+    rows.forEach(function (r) {
+      var li = document.createElement("li");
+      var id = "a-" + r.name;
+      var box = document.createElement("input"); box.type = "checkbox"; box.id = id; box.checked = r.active; box.disabled = mode === "A";
+      box.setAttribute("aria-label", r.name + " active");
+      box.addEventListener("change", function () {
+        var want = box.checked;
+        values["agents." + r.name + ".enabled"] = want === r.inMode ? "auto" : (want ? "on" : "off");
+        changed();
+      });
+      var label = document.createElement("label"); label.htmlFor = id; label.className = "role"; label.textContent = r.name;
+      if (!r.inMode && r.active) { var tag = document.createElement("span"); tag.className = "key"; tag.textContent = " +added"; label.appendChild(tag); }
+      if (r.inMode && !r.active && mode !== "A") { var off = document.createElement("span"); off.className = "key"; off.textContent = " off"; label.appendChild(off); }
+      var pick = document.createElement("select"); pick.id = "m-" + r.name; pick.setAttribute("aria-label", r.name + " model"); pick.disabled = !r.active;
+      AGENT_MODELS.forEach(function (o) {
+        var opt = document.createElement("option"); opt.value = o;
+        opt.textContent = o === "default" ? "default (" + effectiveModel(r.defined) + ")" : o; pick.appendChild(opt);
+      });
+      pick.value = r.chosen;
+      pick.addEventListener("change", function () { values["agents." + r.name + ".model"] = pick.value; changed(); });
+      var dot = "";
+      if (values["agents." + r.name + ".enabled"] !== baseline["agents." + r.name + ".enabled"] || values["agents." + r.name + ".model"] !== baseline["agents." + r.name + ".model"]) {
+        var mark = document.createElement("i"); mark.className = "dot"; mark.title = "differs from your configuration"; label.appendChild(mark);
+      }
+      li.appendChild(box); li.appendChild(label); li.appendChild(pick); list.appendChild(li);
     });
-    document.getElementById("agents-note").textContent = mode === "E" ? "Mode E runs these roles in parallel through Workflow agents." : "";
+    document.getElementById("agents-note").textContent = mode === "E" ? "Mode E runs these roles in parallel through Workflow agents." : "A box you tick beyond the mode's set adds that agent; one you clear removes it.";
   }
 
   function diff() {
@@ -232,6 +268,10 @@ textarea { width: 100%; min-height: 90px; font-family: var(--font-key); font-siz
     try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
   });
   document.getElementById("reset").addEventListener("click", function () { values = Object.assign({}, DATA.defaults); changed(); });
+  document.getElementById("reset-agents").addEventListener("click", function () {
+    Object.keys(DATA.defaults).forEach(function (k) { if (k.indexOf("agents.") === 0) values[k] = DATA.defaults[k]; });
+    changed();
+  });
 
   render();
   if (!window.claude || !window.claude.use) { setStatus("local", "Changes are kept only while this page is open"); return; }

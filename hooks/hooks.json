@@ -77,6 +77,15 @@
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/md-hook.sh\""
           }
         ]
+      },
+      {
+        "matcher": "Agent|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/adyusuf_config.py\" notify PostToolUse"
+          }
+        ]
       }
     ],
     "Stop": [
@@ -85,6 +94,16 @@
           {
             "type": "command",
             "command": "bash \"${CLAUDE_PLUGIN_ROOT}/scripts/md-hook.sh\""
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/adyusuf_config.py\" notify UserPromptSubmit"
           }
         ]
       }
