@@ -7,7 +7,8 @@
     adyusuf_config.py unset <key> [--project]    fall back to the next layer
     adyusuf_config.py apply <file|-> [--project] set many at once from a JSON object {"push.prod": false, ...}
     adyusuf_config.py schema                     the keys with type, options and label (the panel is built from it)
-    adyusuf_config.py agents [--json]            the agents the mode enables and the model each one runs on
+    adyusuf_config.py agents [--json] [--all]    the active agents and the model each one runs on (--all: inactive too)
+    adyusuf_config.py reset-agents [--project]   remove every agents.<role>.* setting (back to the mode's own set)
     adyusuf_config.py panel-data                 everything the panel needs: schema, values, defaults, sources, roles
     adyusuf_config.py panel                      the panel page (HTML) with that data embedded, ready to publish as an Artifact
     adyusuf_config.py context                    the block the SessionStart hook prints
@@ -42,6 +43,20 @@ def _enum(key, label, options):
     return {'key': key, 'type': 'enum', 'label': label, 'options': list(options)}
 
 
+# The role sets of the modes (modes/README.md; the test pins them to the agent files and the mode documents).
+# Each mode's set contains the one before it (B in C in D); E is D with parallel Workflow agents.
+B_ROLES = ('analyst', 'test-writer', 'doc-writer')
+C_ROLES = ('product-manager', 'analyst', 'architect', 'designer', 'developer', 'test-writer', 'qa', 'devops', 'doc-writer')
+D_ROLES = C_ROLES + ('data', 'observability', 'security', 'coverage-auditor', 'e2e-writer')
+MODE_ROLES = {'A': (), 'B': B_ROLES, 'C': C_ROLES, 'D': D_ROLES, 'E': D_ROLES}
+AGENTS_DIR = os.path.join(ROOT, 'agents')
+PANEL_TEMPLATE = os.path.join(ROOT, 'skills', 'config', 'panel.template.html')
+
+
+AGENT_STATES = ('auto', 'on', 'off')
+AGENT_MODELS = ('default', 'opus', 'sonnet', 'haiku', 'fable')
+
+
 # The one definition of what can be set: order is the panel's order. `group` titles the panel sections.
 SCHEMA = (
     [dict(_enum('mode', 'Working mode', MODES), group='Session'),
@@ -54,18 +69,10 @@ SCHEMA = (
     + [dict(_bool('push.' + t, 'Push ' + t), group='Push') for t in TARGETS]
     + [dict(_bool('run_before_push.%s.%s' % (t, gate), 'Run %s before pushing %s' % (
         'unit tests' if gate == 'unit' else 'e2e', t)), group='Gates before a push')
-       for t in TARGETS for gate in ('unit', 'e2e')])
+       for t in TARGETS for gate in ('unit', 'e2e')]
+    + [dict(_enum('agents.%s.%s' % (role, field), '%s: %s' % (role, field), options), group='Agents')
+       for role in D_ROLES for field, options in (('enabled', AGENT_STATES), ('model', AGENT_MODELS))])
 SPECS = {spec['key']: spec for spec in SCHEMA}
-
-
-# The role sets of the modes (modes/README.md; the test pins them to the agent files and the mode documents).
-# Each mode's set contains the one before it (B in C in D); E is D with parallel Workflow agents.
-B_ROLES = ('analyst', 'test-writer', 'doc-writer')
-C_ROLES = ('product-manager', 'analyst', 'architect', 'designer', 'developer', 'test-writer', 'qa', 'devops', 'doc-writer')
-D_ROLES = C_ROLES + ('data', 'observability', 'security', 'coverage-auditor', 'e2e-writer')
-MODE_ROLES = {'A': (), 'B': B_ROLES, 'C': C_ROLES, 'D': D_ROLES, 'E': D_ROLES}
-AGENTS_DIR = os.path.join(ROOT, 'agents')
-PANEL_TEMPLATE = os.path.join(ROOT, 'skills', 'config', 'panel.template.html')
 
 
 def defined_model(role):
@@ -81,13 +88,28 @@ def defined_model(role):
 
 
 def effective_model(defined, override):
-    """Only the Opus agents move to the override; `keep` (and no override) leaves every agent as defined."""
+    """Only the Opus agents move to the mode's override; `keep` (and no override) leaves every agent as defined."""
     return override if defined == 'opus' and override not in ('keep', 'opus', None) else defined
 
 
-def agents(mode, override):
-    """[(role, defined model, model that runs)] for the mode's role set."""
-    return [(role, defined_model(role), effective_model(defined_model(role), override)) for role in MODE_ROLES.get(mode, ())]
+def agents(values, include_inactive=False):
+    """One dict per role: defined model, the model it runs on, whether it is active, and the settings behind that.
+
+    A role is active when `agents.<role>.enabled` is `on`, or `auto` and the mode's set holds it; mode A runs none
+    whatever the settings say. `agents.<role>.model` other than `default` beats the mode's Opus override."""
+    mode, override = values['mode'], values['mode_model']
+    rows = []
+    for role in D_ROLES:
+        in_mode = role in MODE_ROLES.get(mode, ())
+        enabled = values.get('agents.%s.enabled' % role, 'auto')
+        active = False if mode == 'A' else (in_mode if enabled == 'auto' else enabled == 'on')
+        defined = defined_model(role)
+        chosen = values.get('agents.%s.model' % role, 'default')
+        runs_on = chosen if chosen != 'default' else effective_model(defined, override)
+        if active or include_inactive:
+            rows.append({'role': role, 'defined': defined, 'runs_on': runs_on, 'active': active, 'in_mode': in_mode,
+                         'enabled': enabled, 'model': chosen})
+    return rows
 
 
 class ConfigError(Exception):
@@ -230,20 +252,21 @@ def context(effective, problems):
              '  mode %s, model for the Opus agents: %s' % (value('mode'), value('mode_model')),
              '  monitor: connect %s, message format %s' % (shown(value('monitor.connect')), value('monitor.message_format')),
              '  write unit tests: %s, write e2e: %s' % (shown(value('write.unit_tests')), shown(value('write.e2e')))]
-    active = agents(value('mode'), value('mode_model'))
-    lines.append('  agents: %s' % (', '.join('%s (%s)' % (role, ran) for role, _, ran in active) or 'none (mode A)'))
+    active = agents({k: v[0] for k, v in effective.items()})
+    lines.append('  agents: %s' % (', '.join('%s (%s)' % (row['role'], row['runs_on']) for row in active) or 'none'))
     lines.extend('  ' + step for step in steps)
     lines.append('  change it with the adyusuf:config skill (or its panel); the mode may also be set per session or per project.')
     lines.extend('  ! ' + problem for problem in problems)
     return '\n'.join(lines)
 
 
-def render_agents(mode, override):
-    rows = agents(mode, override)
+def render_agents(values):
+    rows = agents(values)
     if not rows:
-        return 'mode %s runs no agents.' % mode
-    lines = ['mode %s - %d agent(s); Opus agents run on: %s' % (mode, len(rows), override)]
-    lines.extend('  %-18s defined %-7s runs on %s' % row for row in rows)
+        return 'mode %s runs no agents.' % values['mode']
+    lines = ['mode %s - %d agent(s); Opus agents run on: %s (a per-agent model beats it)' % (values['mode'], len(rows), values['mode_model'])]
+    lines.extend('  %-18s defined %-7s runs on %s%s' % (r['role'], r['defined'], r['runs_on'],
+                 '' if r['enabled'] == 'auto' else '   [%s]' % r['enabled']) for r in rows)
     return '\n'.join(lines)
 
 
@@ -256,6 +279,7 @@ def panel_data(effective, problems):
             'sources': {k: v[1] for k, v in effective.items()},
             'roles': [{'name': role, 'defined': defined_model(role), 'modes': [m for m in MODES if role in MODE_ROLES[m]]}
                       for role in roles],
+            'agents': agents({k: v[0] for k, v in effective.items()}, include_inactive=True),
             'problems': problems}
 
 
@@ -286,11 +310,16 @@ def main(argv):
             return 0
         if command == 'agents':
             effective, _ = load()
-            mode, override = effective['mode'][0], effective['mode_model'][0]
+            values = {k: v[0] for k, v in effective.items()}
             if '--json' in args:
-                print(json.dumps([{'role': r, 'defined': d, 'runs_on': m} for r, d, m in agents(mode, override)], indent=2))
+                print(json.dumps(agents(values, include_inactive='--all' in args), indent=2))
             else:
-                print(render_agents(mode, override))
+                print(render_agents(values))
+            return 0
+        if command == 'reset-agents':
+            effective, _ = load()
+            write_layer(path, {}, [key for key in SPECS if key.startswith('agents.')])
+            print('every agents.* setting removed from %s' % path)
             return 0
         if command == 'panel':
             sys.stdout.write(panel_html(*load()))

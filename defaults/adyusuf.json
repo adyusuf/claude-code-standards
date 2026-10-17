@@ -1,13 +1,94 @@
 {
   "mode": "C",
   "mode_model": "sonnet",
-  "monitor": { "connect": true, "message_format": "short" },
-  "write": { "unit_tests": true, "e2e": true },
-  "merge": { "dev": true, "test": true, "prod": true },
-  "push": { "dev": true, "test": true, "prod": true },
+  "monitor": {
+    "connect": true,
+    "message_format": "short"
+  },
+  "write": {
+    "unit_tests": true,
+    "e2e": true
+  },
+  "merge": {
+    "dev": true,
+    "test": true,
+    "prod": true
+  },
+  "push": {
+    "dev": true,
+    "test": true,
+    "prod": true
+  },
   "run_before_push": {
-    "dev": { "unit": false, "e2e": false },
-    "test": { "unit": true, "e2e": false },
-    "prod": { "unit": true, "e2e": false }
+    "dev": {
+      "unit": false,
+      "e2e": false
+    },
+    "test": {
+      "unit": true,
+      "e2e": false
+    },
+    "prod": {
+      "unit": true,
+      "e2e": false
+    }
+  },
+  "agents": {
+    "product-manager": {
+      "enabled": "auto",
+      "model": "default"
+    },
+    "analyst": {
+      "enabled": "auto",
+      "model": "default"
+    },
+    "architect": {
+      "enabled": "auto",
+      "model": "default"
+    },
+    "designer": {
+      "enabled": "auto",
+      "model": "default"
+    },
+    "developer": {
+      "enabled": "auto",
+      "model": "default"
+    },
+    "test-writer": {
+      "enabled": "auto",
+      "model": "default"
+    },
+    "qa": {
+      "enabled": "auto",
+      "model": "default"
+    },
+    "devops": {
+      "enabled": "auto",
+      "model": "default"
+    },
+    "doc-writer": {
+      "enabled": "auto",
+      "model": "default"
+    },
+    "data": {
+      "enabled": "auto",
+      "model": "default"
+    },
+    "observability": {
+      "enabled": "auto",
+      "model": "default"
+    },
+    "security": {
+      "enabled": "auto",
+      "model": "default"
+    },
+    "coverage-auditor": {
+      "enabled": "auto",
+      "model": "default"
+    },
+    "e2e-writer": {
+      "enabled": "auto",
+      "model": "default"
+    }
   }
 }

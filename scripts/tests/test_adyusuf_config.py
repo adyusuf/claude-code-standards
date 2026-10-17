@@ -31,6 +31,12 @@ EXPECTED = {
 }
 
 
+# Every agent starts as 'follow the mode, run on the default model' (17/10/2026: the agent box is editable).
+for _role in cfg.D_ROLES:
+    EXPECTED['agents.%s.enabled' % _role] = 'auto'
+    EXPECTED['agents.%s.model' % _role] = 'default'
+
+
 class Shipped(unittest.TestCase):
     def test_the_defaults_are_the_maintainers_list(self):
         values, problem = cfg.read_layer(cfg.DEFAULTS_FILE)
@@ -172,6 +178,45 @@ class Agents(Tool):
             counts[mode] = len(json.loads(self.run_tool('agents', '--json')[0]))
         self.assertEqual({'A': 0, 'B': 3, 'C': 9, 'D': 14, 'E': 14}, counts)
 
+    def test_one_agent_can_be_switched_off_and_another_on_beyond_the_mode(self):
+        self.run_tool('set', 'agents.qa.enabled', 'off')
+        self.run_tool('set', 'agents.security.enabled', 'on')               # security is outside mode C's set
+        rows = {r['role']: r for r in json.loads(self.run_tool('agents', '--json')[0])}
+        self.assertNotIn('qa', rows)
+        self.assertEqual('sonnet', rows['security']['runs_on'])             # defined opus -> the mode's override
+        self.assertEqual(9, len(rows))                                       # nine - qa + security
+
+    def test_a_models_set_for_one_agent_beats_the_modes_override(self):
+        self.run_tool('set', 'agents.developer.model', 'haiku')
+        self.run_tool('set', 'agents.qa.model', 'opus')                      # explicitly back on opus although the mode says sonnet
+        rows = {r['role']: r for r in json.loads(self.run_tool('agents', '--json')[0])}
+        self.assertEqual('haiku', rows['developer']['runs_on'])
+        self.assertEqual('opus', rows['qa']['runs_on'])
+        self.assertEqual('sonnet', rows['architect']['runs_on'])             # untouched agents still follow the mode
+
+    def test_mode_a_runs_no_agent_whatever_the_agent_settings_say(self):
+        self.run_tool('set', 'mode', 'A')
+        self.run_tool('set', 'agents.qa.enabled', 'on')
+        self.assertEqual([], json.loads(self.run_tool('agents', '--json')[0]))
+
+    def test_all_lists_the_inactive_agents_with_the_reason_they_are_off(self):
+        self.run_tool('set', 'agents.qa.enabled', 'off')
+        rows = {r['role']: r for r in json.loads(self.run_tool('agents', '--json', '--all')[0])}
+        self.assertEqual(14, len(rows))
+        self.assertEqual((False, True, 'off'), (rows['qa']['active'], rows['qa']['in_mode'], rows['qa']['enabled']))
+        self.assertEqual((False, False), (rows['security']['active'], rows['security']['in_mode']))
+
+    def test_reset_agents_removes_every_agent_setting_and_nothing_else(self):
+        self.run_tool('set', 'agents.qa.enabled', 'off')
+        self.run_tool('set', 'agents.developer.model', 'haiku')
+        self.run_tool('set', 'push.prod', 'no')
+        out, err, code = self.run_tool('reset-agents')
+        self.assertEqual(0, code, err)
+        data = self.values()
+        self.assertEqual('auto', data['values']['agents.qa.enabled'])
+        self.assertEqual('default', data['values']['agents.developer.model'])
+        self.assertFalse(data['values']['push.prod'])
+
     def test_the_context_names_the_agents_and_the_models(self):
         out = self.run_tool('context')[0]
         self.assertIn('agents: product-manager (sonnet)', out)
@@ -182,6 +227,7 @@ class Agents(Tool):
         data = json.loads(self.run_tool('panel-data')[0])
         self.assertEqual(sorted(EXPECTED), sorted(data['values']))
         self.assertEqual(14, len(data['roles']))
+        self.assertEqual(14, len(data['agents']))                           # every role, active or not, with its settings
         self.assertEqual({'name': 'qa', 'defined': 'opus', 'modes': ['C', 'D', 'E']}, [r for r in data['roles'] if r['name'] == 'qa'][0])
 
 

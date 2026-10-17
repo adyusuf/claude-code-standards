@@ -17,10 +17,12 @@ The tool is `${CLAUDE_PLUGIN_ROOT}/scripts/adyusuf_config.py` (`python3`):
 | The user says | Run |
 |---|---|
 | "show the settings" / no argument | `show` (add `--json` for a machine view), then `agents` |
-| "which agents are active" | `agents`: the role set of the mode and the model each runs on |
+| "which agents are active" | `agents` (`--all` includes the inactive ones): the roles that run and the model each runs on |
 | "don't push prod" / "push prod: no" | `set push.prod no` |
 | "run unit tests before dev" | `set run_before_push.dev.unit yes` |
 | "mode D, haiku" | `set mode D` and `set mode_model haiku` |
+| "turn qa off" / "developer on haiku" | `set agents.qa.enabled off` / `set agents.developer.model haiku` |
+| "all agents back to the mode" | `reset-agents` (add `--project` for the project layer) |
 | "for this project only" | add `--project` |
 | "back to the default" | `unset <key>` (add `--project` for the project layer) |
 | several at once | `apply <file or ->` with a JSON object `{"push.prod": false, ...}` |
@@ -36,6 +38,8 @@ went to. Never edit the JSON files by hand when the tool can do it.
 |---|---|---|
 | `mode` | A-E | The operating mode (`modes/README.md`). A per-session choice (`$S/mode`) or a project `.claude/mode` beats it. |
 | `mode_model` | keep, sonnet, haiku, fable | What the Opus-defined agents run on (`keep` = as defined). Same override order as `mode`. |
+| `agents.<role>.enabled` | auto, on, off | One of the 14 roles: `auto` follows the mode's set, `on` adds it, `off` removes it (mode A runs none). |
+| `agents.<role>.model` | default, opus, sonnet, haiku, fable | The model that one agent runs on; `default` follows its definition and the mode's Opus override. |
 | `monitor.connect` | yes/no | Whether the installer connects the monitor agent (`scripts/install.py`; `no` = `--no-monitor`). |
 | `monitor.message_format` | short, full | The format of messages that come from the monitor. Stored here; the agent's own setting is in the claude-monitor project. |
 | `write.unit_tests` | yes/no | Write unit tests when the code is done (#32). |
