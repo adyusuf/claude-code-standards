@@ -243,7 +243,10 @@ budget ceiling, stall brake, stopping on any irreversible action.
 
 Each agent keeps the model its definition gives it (`model:` in `agents/<role>.md`, or a
 plugin agent's own frontmatter). A second word after the letter downgrades **only the
-Opus agents**:
+Opus agents**. Since 17/10/2026 each agent can also be set on its own (`/adyusuf:config`, the Agents box):
+`agents.<role>.model` (`default` follows this table) beats the override, and `agents.<role>.enabled`
+(`auto` = the mode's set, `on`, `off`) adds a role to the mode or takes one out of it; mode A runs none whatever
+these say. The effective list is `scripts/adyusuf_config.py agents`:
 
 | The user types | Opus agents run on | Every other agent |
 |---|---|---|

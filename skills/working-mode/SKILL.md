@@ -110,9 +110,10 @@ name + agent set + who reviews + cost multiplier. Do not paste the whole matrix;
 4. Confirm to the user: old mode → new mode, and what changed (agent set, who
    reviews, approval policy, expected multiplier) **and the model line**: which
    agents are Opus by definition and what they run on now. 4-6 lines.
-5. **From then on**, every `Agent` call to an agent whose effective model is Opus
-   passes `model: "<model>"` (and every `Workflow` `agent()` for such a role); other
-   agents get no override. Report the model that actually ran. A role agent is always
+5. **From then on**, every `Agent` call (and every `Workflow` `agent()`) passes `model: "<runs_on>"` for
+   its role as `python3 ${CLAUDE_PLUGIN_ROOT}/scripts/adyusuf_config.py agents --json` lists it: the mode's Opus
+   override, or the model the user set for that one agent (`/adyusuf:config`); an agent whose `runs_on` is its
+   defined model gets no override, and a role that is not listed is not called. Report the model that actually ran. A role agent is always
    called by its plugin name, `subagent_type: "adyusuf:<role>"`; a bare `<role>` is not found.
 
 ## Permanent rules
