@@ -1,0 +1,248 @@
+<title>adyusuf Settings</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one narrow column of boxes (it lives in a side pane): session, agents, monitor, writing, then the
+   merge / push / gate matrix. State is encoded in form: a changed row carries a dot, a pushed target an accent. */
+:root {
+  --bg: #f1f3ef; --surface: #fafaf7; --ink: #1b2320; --muted: #5a6762; --line: #d3d9d4;
+  --accent: #1d6b58; --accent-ink: #ffffff; --changed: #a35a00; --off: #8a9690; --field: #ffffff;
+  --font-ui: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-key: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #101513; --surface: #181f1c; --ink: #e5ebe8; --muted: #98a6a0; --line: #2a3530;
+    --accent: #5fc4a6; --accent-ink: #0c1411; --changed: #e0a24a; --off: #6c7a74; --field: #121816; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #101513; --surface: #181f1c; --ink: #e5ebe8; --muted: #98a6a0; --line: #2a3530;
+  --accent: #5fc4a6; --accent-ink: #0c1411; --changed: #e0a24a; --off: #6c7a74; --field: #121816; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--ink); font-family: var(--font-ui); font-size: 14px; line-height: 1.45;
+  padding-block: 16px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+main { max-width: 640px; margin: 0 auto; display: flex; flex-direction: column; gap: 12px; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 12px; }
+h1 { font-size: 18px; font-weight: 600; margin: 0; letter-spacing: -0.01em; }
+.status { font-size: 12px; color: var(--muted); }
+.status[data-state="saved"] { color: var(--accent); }
+.status[data-state="local"] { color: var(--changed); }
+section { background: var(--surface); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; min-width: 0; }
+h2 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); margin: 0 0 8px; }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 0; min-width: 0; }
+.row + .row { border-top: 1px solid var(--line); }
+.row label { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.key { font-family: var(--font-key); font-size: 11px; color: var(--muted); }
+.dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--changed); margin-left: 6px; vertical-align: middle; }
+select {
+  font: inherit; color: var(--ink); background: var(--field); border: 1px solid var(--line); border-radius: 4px; padding: 5px 8px; min-width: 7.5em; max-width: 100%;
+}
+input[type="checkbox"] { width: 18px; height: 18px; accent-color: var(--accent); margin: 0; }
+select:focus-visible, input:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.matrix { display: grid; grid-template-columns: minmax(3.5em, 1fr) repeat(4, minmax(0, 1fr)); gap: 0 6px; align-items: center; }
+.matrix .head { font-size: 11px; color: var(--muted); padding: 2px 0 6px; text-align: center; }
+.matrix .head.first { text-align: left; }
+.matrix .group { grid-column: 2 / -1; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
+.matrix .target { font-family: var(--font-key); font-weight: 500; padding: 8px 0; border-top: 1px solid var(--line); }
+.matrix .cell { display: flex; justify-content: center; padding: 8px 0; border-top: 1px solid var(--line); position: relative; }
+.matrix .cell.changed::after { content: ""; position: absolute; top: 5px; right: 18%; width: 6px; height: 6px; border-radius: 50%; background: var(--changed); }
+.matrix .span { grid-column: 1 / -1; }
+.agents { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px 12px; }
+.agents li { display: flex; justify-content: space-between; gap: 8px; padding: 4px 0; border-top: 1px solid var(--line); min-width: 0; }
+.agents .role { font-family: var(--font-key); font-size: 12px; overflow-wrap: anywhere; }
+.model { font-size: 12px; white-space: nowrap; color: var(--ink); }
+.model s { color: var(--off); margin-right: 4px; }
+.note { color: var(--muted); font-size: 12px; margin: 8px 0 0; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+button {
+  font: inherit; border: 1px solid var(--line); background: var(--surface); color: var(--ink); border-radius: 4px; padding: 6px 12px; cursor: pointer;
+}
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button:disabled { opacity: 0.5; cursor: default; }
+textarea { width: 100%; min-height: 90px; font-family: var(--font-key); font-size: 12px; background: var(--field); color: var(--ink); border: 1px solid var(--line); border-radius: 4px; padding: 8px; }
+@media (max-width: 420px) { .matrix { grid-template-columns: minmax(3em, 1fr) repeat(4, minmax(0, 1fr)); } .matrix .head { font-size: 10px; } }
+@media (prefers-reduced-motion: no-preference) { section { transition: border-color 0.15s; } }
+</style>
+
+<main>
+  <header>
+    <h1>adyusuf settings</h1>
+    <span id="status" class="status" data-state="idle" role="status">Reading the panel…</span>
+  </header>
+  <div id="groups"></div>
+  <section aria-labelledby="h-agents">
+    <h2 id="h-agents">Active agents and the model each runs on</h2>
+    <div id="agents-summary" class="note" style="margin:0 0 8px"></div>
+    <ul id="agents" class="agents"></ul>
+    <p class="note" id="agents-note"></p>
+  </section>
+  <section aria-labelledby="h-apply">
+    <h2 id="h-apply">Apply</h2>
+    <p class="note" style="margin-top:0">This panel keeps your choices. To write them into your configuration, tell Claude <b>apply the panel</b> (the <code>adyusuf:config</code> skill reads it), or copy the changes below.</p>
+    <div class="actions">
+      <button id="copy" class="primary" type="button">Copy changes as JSON</button>
+      <button id="reset" type="button">Back to the shipped defaults</button>
+      <span id="changed" class="status" aria-live="polite"></span>
+    </div>
+    <textarea id="json" readonly aria-label="Changes as JSON" hidden></textarea>
+  </section>
+</main>
+
+<script>
+(function () {
+  "use strict";
+  var DATA = __PANEL_DATA__;
+  var TARGETS = ["dev", "test", "prod"];
+  var MATRIX = { "merge.": "Merge", "push.": "Push", "run_before_push.#.unit": "Unit", "run_before_push.#.e2e": "e2e" };
+  var values = Object.assign({}, DATA.values);          // what the panel shows now
+  var baseline = Object.assign({}, DATA.values);        // what the configuration says (for the changed dots)
+  var specs = {}; DATA.schema.forEach(function (s) { specs[s.key] = s; });
+  var statusEl = document.getElementById("status");
+  var docRef = null, saveTimer = null, saving = false, dirty = false;
+
+  function setStatus(state, text) { statusEl.dataset.state = state; statusEl.textContent = text; }
+  function yes(v) { return v === true; }
+  function keyFor(prefix, t) { return prefix.indexOf("#") >= 0 ? prefix.replace("#", t) : prefix + t; }
+  var matrixKeys = {};
+  TARGETS.forEach(function (t) { Object.keys(MATRIX).forEach(function (p) { matrixKeys[keyFor(p, t)] = true; }); });
+
+  function control(spec, id) {
+    var el;
+    if (spec.type === "bool") {
+      el = document.createElement("input"); el.type = "checkbox"; el.checked = yes(values[spec.key]);
+      el.addEventListener("change", function () { values[spec.key] = el.checked; changed(); });
+    } else {
+      el = document.createElement("select");
+      spec.options.forEach(function (o) { var opt = document.createElement("option"); opt.value = o; opt.textContent = o; el.appendChild(opt); });
+      el.value = values[spec.key];
+      el.addEventListener("change", function () { values[spec.key] = el.value; changed(); });
+    }
+    el.id = id;
+    return el;
+  }
+
+  function renderGroups() {
+    var host = document.getElementById("groups");
+    host.textContent = "";
+    var groups = [], byName = {};
+    DATA.schema.forEach(function (s) {
+      if (matrixKeys[s.key]) return;
+      if (!byName[s.group]) { byName[s.group] = { name: s.group, specs: [] }; groups.push(byName[s.group]); }
+      byName[s.group].specs.push(s);
+    });
+    var wrap = document.createElement("div"); wrap.style.cssText = "display:flex;flex-direction:column;gap:12px";
+    groups.forEach(function (g) {
+      var sec = document.createElement("section"); var h = document.createElement("h2"); h.textContent = g.name; sec.appendChild(h);
+      g.specs.forEach(function (s, i) {
+        var row = document.createElement("div"); row.className = "row";
+        var id = "f-" + s.key.replace(/\./g, "-");
+        var label = document.createElement("label"); label.htmlFor = id;
+        var text = document.createElement("span"); text.textContent = s.label;
+        if (values[s.key] !== baseline[s.key]) { var dot = document.createElement("i"); dot.className = "dot"; dot.title = "differs from your configuration"; text.appendChild(dot); }
+        var key = document.createElement("span"); key.className = "key"; key.textContent = s.key;
+        label.appendChild(text); label.appendChild(key);
+        row.appendChild(label); row.appendChild(control(s, id)); sec.appendChild(row);
+      });
+      wrap.appendChild(sec);
+    });
+    host.appendChild(wrap);
+    var sec = document.createElement("section"); var h = document.createElement("h2"); h.textContent = "Merge, push and the tests before a push"; sec.appendChild(h);
+    var grid = document.createElement("div"); grid.className = "matrix";
+    var heads = ["", "Merge", "Push", "Unit tests", "e2e"];
+    heads.forEach(function (t, i) { var d = document.createElement("div"); d.className = "head" + (i === 0 ? " first" : ""); d.textContent = t; grid.appendChild(d); });
+    TARGETS.forEach(function (t) {
+      var name = document.createElement("div"); name.className = "target"; name.textContent = t; grid.appendChild(name);
+      Object.keys(MATRIX).forEach(function (p) {
+        var key = keyFor(p, t), spec = specs[key];
+        var cell = document.createElement("div"); cell.className = "cell" + (values[key] !== baseline[key] ? " changed" : "");
+        if (spec) {
+          var id = "f-" + key.replace(/\./g, "-"); var c = control(spec, id);
+          c.setAttribute("aria-label", spec.label); cell.appendChild(c);
+        }
+        grid.appendChild(cell);
+      });
+    });
+    var note = document.createElement("p"); note.className = "note";
+    note.textContent = "Unit tests and e2e run before that branch is pushed. A test set to off is not run and is recorded on the merge commit (Gate-Waived). Coverage of 80% is never a setting.";
+    sec.appendChild(grid); sec.appendChild(note); host.appendChild(sec);
+  }
+
+  function effectiveModel(defined) {
+    var o = values.mode_model;
+    return defined === "opus" && o && o !== "keep" && o !== "opus" ? o : defined;
+  }
+
+  function renderAgents() {
+    var list = document.getElementById("agents"); list.textContent = "";
+    var mode = values.mode;
+    var active = DATA.roles.filter(function (r) { return r.modes.indexOf(mode) >= 0; });
+    document.getElementById("agents-summary").textContent = active.length
+      ? "Mode " + mode + " enables " + active.length + " agents. Opus-defined agents run on " + (values.mode_model === "keep" ? "their defined model (Opus)" : values.mode_model) + "."
+      : "Mode " + mode + " runs no agents: the session works alone.";
+    active.forEach(function (r) {
+      var li = document.createElement("li"); var role = document.createElement("span"); role.className = "role"; role.textContent = r.name;
+      var model = document.createElement("span"); model.className = "model"; var ran = effectiveModel(r.defined);
+      if (ran !== r.defined) { var s = document.createElement("s"); s.textContent = r.defined; model.appendChild(s); }
+      model.appendChild(document.createTextNode(ran)); li.appendChild(role); li.appendChild(model); list.appendChild(li);
+    });
+    document.getElementById("agents-note").textContent = mode === "E" ? "Mode E runs these roles in parallel through Workflow agents." : "";
+  }
+
+  function diff() {
+    var out = {};
+    Object.keys(values).forEach(function (k) { if (values[k] !== baseline[k]) out[k] = values[k]; });
+    return out;
+  }
+
+  function renderApply() {
+    var d = diff(), n = Object.keys(d).length;
+    document.getElementById("changed").textContent = n ? n + (n === 1 ? " setting differs" : " settings differ") + " from your configuration" : "Matches your configuration";
+    document.getElementById("copy").disabled = n === 0;
+  }
+
+  function render() { renderGroups(); renderAgents(); renderApply(); }
+
+  function changed() { dirty = true; render(); scheduleSave(); }
+
+  function scheduleSave() {
+    if (!docRef) { setStatus("local", "Changes are kept only while this page is open"); return; }
+    clearTimeout(saveTimer); setStatus("idle", "Saving…");
+    saveTimer = setTimeout(save, 400);
+  }
+
+  function save() {
+    if (saving) { saveTimer = setTimeout(save, 300); return; }
+    saving = true;
+    docRef.set({ values: values, savedAt: new Date().toISOString() }).then(function () {
+      saving = false; dirty = false; setStatus("saved", "Saved in the panel");
+    }, function (e) {
+      saving = false; setStatus("local", "Not saved: " + (e && e.code ? e.code : "storage unavailable"));
+    });
+  }
+
+  document.getElementById("copy").addEventListener("click", function () {
+    var text = JSON.stringify(diff(), null, 2), box = document.getElementById("json");
+    box.hidden = false; box.value = text;
+    var done = function () { setStatus("saved", "Copied the changes"); };
+    var fallback = function () { box.focus(); box.select(); setStatus("idle", "Select and copy the text below"); };
+    try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e) { fallback(); }
+  });
+  document.getElementById("reset").addEventListener("click", function () { values = Object.assign({}, DATA.defaults); changed(); });
+
+  render();
+  if (!window.claude || !window.claude.use) { setStatus("local", "Changes are kept only while this page is open"); return; }
+  window.claude.use("db").then(function (db) {
+    if (!db) { setStatus("local", "Changes are kept only while this page is open"); return; }
+    docRef = db.doc("settings/current");
+    docRef.onSnapshot(function (snap) {
+      var stored = snap.exists && snap.data() && snap.data().values;
+      if (stored && !dirty) { values = Object.assign({}, DATA.values, stored); render(); }
+      setStatus("saved", stored ? "Saved in the panel" : "Nothing saved yet - showing your configuration");
+    }, function () { setStatus("local", "Storage unavailable: changes are kept only while this page is open"); docRef = null; });
+  }, function () { setStatus("local", "Changes are kept only while this page is open"); });
+})();
+</script>
