@@ -172,10 +172,13 @@ free (an open repository), the **local gate** (`scripts/merge-gate.sh`) where th
 whole shared gate (§4, coverage ≥ 80% included); the other side is a pre-check at most. CI and the local script
 call the same `gate-core.sh` with the same thresholds, never two rule sets (#19).
 
-**The question comes first.** Before any `dev`, `test` or `prod` merge — a batch merge (§8) is one merge, so one
-question — ask the user, in this shape, before touching anything:
+**The question comes first, and it is two questions.** Before any `dev`, `test` or `prod` merge — a batch merge (§8)
+is one merge, so one pair of questions — ask the user, before touching anything, **separately** (the user decision of
+17/10/2026: one question for CI, one for e2e, each answered on its own, never "CI and e2e?" in a single sentence;
+use one `AskUserQuestion` with two questions):
 
-> This merge is `<source>` → `<target>` (`<short sha>`). Will **CI** run for it? Will **e2e** run for it?
+> 1. This merge is `<source>` → `<target>` (`<short sha>`). Will **CI** run for it?
+> 2. Will **e2e** run for it?
 
 Two answers, and no merge before both arrive. An answer given for an earlier merge does not carry over.
 
