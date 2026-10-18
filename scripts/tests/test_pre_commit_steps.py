@@ -65,9 +65,13 @@ class Hook(unittest.TestCase):
             # PATH. Replacing PATH wholesale would also drop the coverage shim
             # (scripts/coverage-shell.sh), so the run would stop being measured —
             # the trap that made another test file report 0% while passing.
+            # On Windows the tool is `gitleaks.exe`: PATHEXT names the suffixes to
+            # look for too (unset elsewhere, so only the bare name is checked).
+            exts = [''] + [e for e in os.environ.get('PATHEXT', '').split(os.pathsep) if e]
             entries = []
             for entry in env['PATH'].split(os.pathsep):
-                if any(os.path.exists(os.path.join(entry, tool)) for tool in without):
+                if any(os.path.exists(os.path.join(entry, tool + ext))
+                       for tool in without for ext in exts):
                     continue
                 entries.append(entry)
             env['PATH'] = os.pathsep.join(entries)
