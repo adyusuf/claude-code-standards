@@ -72,7 +72,9 @@ class Fixture(unittest.TestCase):
             handle.write(text if text is not None else json.dumps({'theme': 'dark', 'hooks': hooks or {}}))
 
     def run_check(self, script=CHECK, **env):
-        env = {**os.environ, 'HOME': self.home, 'PYTHONUTF8': '1', **env}
+        # PYTHONDONTWRITEBYTECODE: the interpreter caching a loaded sibling as lone/__pycache__ is not the check
+        # writing; without this the test passed or failed on the caller's environment (a macOS Terminal, 18/10/2026).
+        env = {**os.environ, 'HOME': self.home, 'PYTHONUTF8': '1', 'PYTHONDONTWRITEBYTECODE': '1', **env}
         before = snapshot(self.base)
         result = subprocess.run([sys.executable, script], capture_output=True, text=True, encoding='utf-8', env=env)
         self.assertEqual(snapshot(self.base), before, 'the check must never write, link or delete anything')
