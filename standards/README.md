@@ -8,7 +8,7 @@ token cost stays low.
 
 | File | Topic |
 |---|---|
-| `00-working-method.md` | The protocol for working with Claude: planning, approval, verification, context management, **human actions kept in one file (§14)** |
+| `00-working-method.md` | The protocol for working with Claude: planning, approval, **phased work kept on the on-screen task list (§1a)**, verification, context management, **human actions kept in one file (§14)** |
 | `01-product-design.md` | Problem definition, user stories, acceptance criteria, scope, MVP, ADRs |
 | `02-ui-ux.md` | Design system, state design, responsive layout, accessibility, i18n |
 | `03-coding-general.md` | Naming, file size, error handling, logging, dead code, comments |
