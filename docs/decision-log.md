@@ -1629,3 +1629,16 @@ nothing in this repository's copy was changed for it.** The project below worked
   into API and app tasks, while the interrupted deploy report stayed queued at the end.
 - **Not in `CLAUDE.md`:** the file is at its size ceiling (`scripts/md-budget.tsv`); a new permanent rule goes into
   `standards/` first. The `board-plan` skill points to §1a.
+
+## The task list carries the delivery stages and follows the configuration (18/10/2026, user decision)
+
+- **Decision:** `standards/00-working-method.md` §1a gains two bullets. The delivery stages (plan + analysis, code,
+  unit tests, review, merge / gate / push, deploy, release) are list items, but only the stages that will really
+  happen and whose turn can be seen — no deploy for an offline app, no e2e while no gate runs it (#33), the review
+  the active mode has. The merge, gate and push items are derived from `/adyusuf:config` (#34): a target appears
+  only if `merge.<t>` is yes, its gate only if `run_before_push.<t>.<gate>` is yes, its push only if `push.<t>` is
+  yes; a setting changed mid-session is re-read at the next task and the list resent.
+- **Demonstrated** on "I want a chess mobile app" (no code written): online multiplayer made a deploy stage appear;
+  Stockfish's GPL made a source-publication item appear; with `run_before_push.test.unit` and `.prod.unit` yes and
+  the dev gates no, the list showed "merge dev, push dev (no gate: config)", "merge test, unit gate, push test",
+  "merge prod, unit gate, push prod".
