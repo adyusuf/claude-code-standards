@@ -12,6 +12,26 @@
 4. **If something is unclear:** finish the independent parts; ask one clear question
    about the rest. If a wrong assumption would throw the work away, **ask first**.
 
+### 1a. Phased work lives on the on-screen task list — nothing gets lost (PERMANENT, all projects)
+
+Work that splits into phases or sequential steps is kept on the **task list the client
+shows on screen** (the desktop app's `update_plan`, the CLI's task tools) from the first
+message until it is done. A one-question/one-answer exchange gets no list.
+
+- **Phases are visible:** each item carries its phase (`P0 · …`, `P1 · …`); the whole
+  plan goes up in the first message, before any work.
+- **Open choices are decision tasks:** what cannot be decided from the request, the code
+  or a default (platform, framework, backend…) is asked **and** listed as
+  `P0 · Decide …`. Once answered it collapses into one completed `Decided: …` line, and
+  the answer **expands into concrete tasks** — a decision that adds work adds items.
+- **New work never pushes old work off the list:** related to the topic → inserted at
+  the phase it belongs to; unrelated → appended as `Queued · …` and done afterwards, in
+  order. An interrupted task is not dropped: it stays on the list as `Queued · …`.
+- **The list is resent whole whenever it changes**, so it never shows an abandoned plan;
+  an item leaves it only by being done or by the user saying "drop it".
+- The session's plan file (`22-live-board.md`, the `board-plan` skill) is an extra
+  record; the on-screen list is what the user follows.
+
 ## 2. Plan → approval → execute
 
 - A small single-file change: just do it.
