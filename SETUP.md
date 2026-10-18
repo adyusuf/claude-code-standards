@@ -56,6 +56,13 @@ Two tests need a real ShellCheck and fail without it (it is a prerequisite, §1)
 skipped without it; five that simulate a kcov run are skipped on Windows. ⚠️ **The test and prod gates cannot be green on Windows:** kcov does not exist
 there, so shell coverage is NOT MEASURED and #29 blocks the promotion, as it must. Promote from macOS.
 
+**CodeQL on Windows** (no package manager entry): download `codeql-win64.zip` of the version in §1 from the
+`github/codeql-cli-binaries` releases (`gh release download v2.27.1 --repo github/codeql-cli-binaries --pattern
+'codeql-win64.zip*'`), compare `sha256sum codeql-win64.zip` with the `.checksum.txt` beside it, unzip it to
+`%USERPROFILE%\tools\codeql-<version>` and put a two-line wrapper named `codeql` on Git Bash's `PATH`
+(`%USERPROFILE%\bin`): `#!/usr/bin/env bash` and `exec "<that folder>/codeql/codeql.exe" "$@"`. The query packs
+are downloaded by the first scan (`--download`). Last verified 18/10/2026 on Windows Server 2022.
+
 A missing tool is never silent: the gate reports the step as **NOT RUN**, the
 result is INCOMPLETE and the exit code is not 0 (#19, #25). You can start with
 just git and Python and add the rest as the gate asks for it.
