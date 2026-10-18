@@ -80,4 +80,6 @@ the file is the record, and that is not a problem to report.
 ## 6. The chat table still ships
 
 The plan file is an extra record; the status table in the reply stays mandatory. Take
-its figures from the file, not from memory.
+its figures from the file, not from memory. The on-screen task list stays too, with the
+same items: phases, decision tasks, related work inserted, unrelated work queued — never
+dropped (`${CLAUDE_PLUGIN_ROOT}/standards/00-working-method.md` §1a).
