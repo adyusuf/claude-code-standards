@@ -1642,3 +1642,25 @@ nothing in this repository's copy was changed for it.** The project below worked
   Stockfish's GPL made a source-publication item appear; with `run_before_push.test.unit` and `.prod.unit` yes and
   the dev gates no, the list showed "merge dev, push dev (no gate: config)", "merge test, unit gate, push test",
   "merge prod, unit gate, push prod".
+
+## No relation to claude-monitor or its daemon; nothing connects, nothing is sent (20/10/2026, user decision)
+
+- **Request:** "remove the standards' tie to the daemon, no relation to claude-monitor should remain" and "no
+  connecting to the daemon, no sending messages".
+- **Decision:** the rule set has no code, setting, document or example that installs, connects to, configures or
+  messages claude-monitor's agent (`cm-agent`) or its server.
+  - **Removed:** the monitor installer module (`install_monitor.py`) and its test; the monitor step, the `--prod`/`--test`/`--dev`,
+    `--no-monitor`, `--with-monitor`, `--monitor-server` and `--monitor-sync` flags of `install.py` (it now prints the
+    two `/plugin` commands and reports or removes the old link install); the `monitor.connect` and
+    `monitor.message_format` settings and their line in the session-start block; the `monitor_note` section of
+    `/adyusuf:board-plan` (the plan file is the only record); `CLAUDE_MONITOR_HOME` and `CM_AGENT_HOME` from
+    `.env.example` and `SETUP.md`; the .NET SDK prerequisite (it existed only to build the agent); the monitor
+    paragraphs of `README.md`, `PRIVACY.md`, `SETUP.md`, `scripts/README.md` and `standards/22`; the `monitor.bitreka.com`
+    example in `standards/20`.
+  - **Kept for compatibility:** a user's `~/.claude/adyusuf.json` written before this change still holds the two
+    retired keys. `adyusuf_config.py` lists them in `RETIRED_KEYS` and skips them on read, so one stale key does not
+    invalidate the whole layer; the next write drops them.
+  - **Not touched:** an agent already installed on a machine, and the plugin entry `install.py` once registered for it
+    in `settings.json`. `install.py --remove` no longer uninstalls it; that is the agent's own `cm-agent uninstall`.
+  - **History stays:** the entries above that mention claude-monitor describe what was true when they were written.
+    They are the record of why, not a relationship; this entry supersedes the ones that made the monitor optional.

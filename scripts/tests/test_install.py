@@ -1,7 +1,6 @@
-"""scripts/install.py — the plugin-era install: it prints the two /plugin commands and runs only the monitor step.
+"""scripts/install.py — the plugin-era install: it prints the two /plugin commands and reports what is left.
 
-Since 13/10/2026 the rule set is a Claude Code plugin. A plain run (and --prod/--test/--dev) must link nothing and
-touch no settings.json; --remove (test_install_remove.py) and --check (test_install_check.py) deal with what the
+Since 13/10/2026 the rule set is a Claude Code plugin. A plain run must link nothing and touch no settings.json; --remove (test_install_remove.py) and --check (test_install_check.py) deal with what the
 OLD linked install left behind. The shared Fixture below builds a temp HOME and a fake checkout of this repository.
 """
 import contextlib
@@ -28,36 +27,12 @@ LINKS = ('CLAUDE.md', 'agents', 'docs', 'modes', 'scripts', 'standards')
 PLUGIN_LINK = os.path.join('skills', 'adyusuf')
 
 
-class FakeMonitor:
-    """Stands in for install_monitor.py: records the calls instead of building or uninstalling an agent."""
-    SERVERS = {'prod': 'https://prod.example', 'test': 'https://test.example', 'dev': 'http://localhost:1'}
-
-    def __init__(self, install_code=0, check_code=0):
-        self.calls, self.install_code, self.check_code = [], install_code, check_code
-
-    def install(self, server, home):
-        self.calls.append(('install', server, home))
-        return self.install_code
-
-    def remove(self, home):
-        self.calls.append(('remove', home))
-        return 0
-
-    def check(self, home):
-        self.calls.append(('check', home))
-        return self.check_code
-
-    def sync(self, home):
-        self.calls.append(('sync', home))
-        return 0
-
-
 class Fixture(unittest.TestCase):
     def setUp(self):
         self.home = os.path.realpath(tempfile.mkdtemp())
         self.repo = os.path.realpath(tempfile.mkdtemp())
-        self.agent_home = tempfile.mkdtemp()                       # an empty CM_AGENT_HOME: no cm-agent installed
-        for path in (self.home, self.repo, self.agent_home):
+        self.empty_path = tempfile.mkdtemp()                       # an empty folder: a PATH with no `claude` on it
+        for path in (self.home, self.repo, self.empty_path):
             self.addCleanup(shutil.rmtree, path, True)
         for name in ('standards/00-working-method.md', 'modes/README.md', 'CLAUDE.md', 'agents/qa.md', 'docs/d.md',
                      'scripts/guard-destructive.sh', 'plugin/.keep'):
@@ -65,7 +40,6 @@ class Fixture(unittest.TestCase):
         os.makedirs(os.path.join(self.home, '.claude'))
         self.settings = self.claude('settings.json')
         self.write_json(self.settings, {'theme': 'dark'})
-        self.monitor = FakeMonitor()
 
     def put(self, path, text):
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -116,22 +90,15 @@ class Fixture(unittest.TestCase):
                     None if os.path.isdir(path) else self.read(path))
         return found
 
-    def run_install(self, *args, monitor=False):
-        """A real subprocess. --no-monitor is added unless monitor=True (only used for --remove/--check/--sync:
-        an install with the monitor on would clone and build an agent)."""
-        extra = [] if monitor else ['--no-monitor']
-        return subprocess.run([sys.executable, INSTALL, '--home', self.home, *extra, *args], capture_output=True,
-                              text=True, encoding='utf-8', errors='replace',
-                              env=dict(os.environ, CM_AGENT_HOME=self.agent_home))
+    def run_install(self, *args):
+        """A real subprocess against the temp HOME."""
+        return subprocess.run([sys.executable, INSTALL, '--home', self.home, *args], capture_output=True,
+                              text=True, encoding='utf-8', errors='replace')
 
-    def call(self, *args, monitor=None, preflight=([], [])):
-        """install.main in this process with a FakeMonitor and a canned preflight: (code, stdout, stderr)."""
+    def call(self, *args, preflight=([], [])):
+        """install.main in this process with a canned preflight: (code, stdout, stderr)."""
         out, err = io.StringIO(), io.StringIO()
-        fake = monitor or self.monitor
-        real_load = install.load
-        with mock.patch.object(install, 'load',
-                               side_effect=lambda name, file: fake if name == 'install_monitor' else real_load(name, file)), \
-                mock.patch.object(install, 'preflight', return_value=preflight), \
+        with mock.patch.object(install, 'preflight', return_value=preflight), \
                 contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             code = install.main(['--home', self.home, *args])
         return code, out.getvalue(), err.getvalue()
@@ -149,18 +116,18 @@ class PlainRun(Fixture):
         # The removed behaviour must stay removed: no symlink, no hook, no backup, no moved file.
         self.put(self.claude('CLAUDE.md'), 'my own rules\n')
         before = self.tree(self.claude())
-        for channel in ((), ('--prod',), ('--test',), ('--dev',)):
-            with self.subTest(channel=channel):
-                self.assertEqual(self.run_install(*channel).returncode, 0)
-                self.assertEqual(self.tree(self.claude()), before)
+        self.assertEqual(self.run_install().returncode, 0)
+        self.assertEqual(self.tree(self.claude()), before)
         self.assertEqual(self.read(self.claude('CLAUDE.md')), 'my own rules\n')
         self.assertFalse(os.path.exists(self.store('backups')), 'a plain run backs nothing up: it moves nothing')
 
-    def test_the_channel_is_named_and_only_picks_the_monitor_server(self):
-        for flag, want in (('--prod', 'prod'), ('--test', 'test'), ('--dev', 'dev')):
+    def test_the_retired_server_flags_are_refused(self):
+        # The install talks to no server any more: a flag that named one is an error, not a silent no-op.
+        for flag in ('--prod', '--test', '--dev', '--no-monitor', '--monitor-server', '--monitor-sync'):
             with self.subTest(flag=flag):
-                self.assertIn(f'channel     {want}', self.run_install(flag).stdout)
-        self.assertIn('channel     prod', self.run_install().stdout)
+                result = self.run_install(flag)
+                self.assertEqual(result.returncode, 2)
+                self.assertIn('unrecognized arguments', result.stderr)
 
     def test_it_reports_whether_the_plugin_is_installed(self):
         self.assertIn('plugin      ✗ not installed', self.run_install().stdout)
@@ -183,8 +150,8 @@ class PlainRun(Fixture):
 
     def test_a_refused_claude_folder_stops_before_anything_is_created(self):
         shutil.rmtree(self.claude())
-        env = dict(os.environ, PATH=self.agent_home)       # an empty folder: no `claude` on PATH
-        result = subprocess.run([sys.executable, INSTALL, '--home', self.home, '--no-monitor'],
+        env = dict(os.environ, PATH=self.empty_path)
+        result = subprocess.run([sys.executable, INSTALL, '--home', self.home],
                                 capture_output=True, text=True, encoding='utf-8', env=env)
         self.assertEqual(result.returncode, 2)
         self.assertIn('Claude Code is not installed', result.stderr)
@@ -206,12 +173,11 @@ class InstallLog(Fixture):
             self.assertIn(expected, text)
         self.assertIn(name, result.stdout, 'the console must say where the log is')
 
-    def test_a_preflight_refusal_is_logged_and_runs_no_monitor_step(self):
+    def test_a_preflight_refusal_is_logged(self):
         code, out, err = self.call(preflight=(['git is not on PATH'], []))
         self.assertEqual(code, 2)
         self.assertIn('✗ git is not on PATH', err)
         self.assertNotIn(install.hooks.MARKETPLACE_ADD, out)
-        self.assertEqual(self.monitor.calls, [])
         [name] = self.logs()
         self.assertIn('git is not on PATH', self.read(self.store('logs', name)))
 

@@ -33,7 +33,9 @@ DEFAULTS_FILE = os.path.join(ROOT, 'defaults', 'adyusuf.json')
 TARGETS = ('dev', 'test', 'prod')
 MODES = ('A', 'B', 'C', 'D', 'E')
 MODELS = ('keep', 'sonnet', 'haiku', 'fable')
-FORMATS = ('short', 'full')
+# Settings that no longer exist. A user's file written before they were retired still holds them: they are skipped
+# on read, so one stale key never makes the whole layer invalid (and the next write drops them).
+RETIRED_KEYS = ('monitor.connect', 'monitor.message_format')
 
 
 def _bool(key, label):
@@ -62,8 +64,6 @@ AGENT_MODELS = ('default', 'opus', 'sonnet', 'haiku', 'fable')
 SCHEMA = (
     [dict(_enum('mode', 'Working mode', MODES), group='Session'),
      dict(_enum('mode_model', 'Model that replaces Opus in the agents', MODELS), group='Session'),
-     dict(_bool('monitor.connect', 'Connect to the monitor daemon'), group='Monitor'),
-     dict(_enum('monitor.message_format', 'Format of messages that come from the monitor', FORMATS), group='Monitor'),
      dict(_bool('write.unit_tests', 'Write unit tests'), group='Writing'),
      dict(_bool('write.e2e', 'Write e2e specs'), group='Writing')]
     + [dict(_bool('merge.' + t, 'Merge into ' + t), group='Merge') for t in TARGETS]
@@ -188,6 +188,8 @@ def read_layer(path):
         flat = flatten(tree)
         values = {}
         for key, value in flat.items():
+            if key in RETIRED_KEYS:
+                continue
             values[key] = check(key, value)
         return values, None
     except (OSError, ValueError, ConfigError) as error:
@@ -251,7 +253,6 @@ def context(effective, problems):
             target, shown(value('merge.' + target)), shown(value('push.' + target)), ', '.join(gates) or 'nothing'))
     lines = ['adyusuf configuration (effective; global rule #34 - follow it, do not ask what it answers):',
              '  mode %s, model for the Opus agents: %s' % (value('mode'), value('mode_model')),
-             '  monitor: connect %s, message format %s' % (shown(value('monitor.connect')), value('monitor.message_format')),
              '  write unit tests: %s, write e2e: %s' % (shown(value('write.unit_tests')), shown(value('write.e2e')))]
     active = agents({k: v[0] for k, v in effective.items()})
     lines.append('  agents: %s' % (', '.join('%s (%s)' % (row['role'], row['runs_on']) for row in active) or 'none'))

@@ -18,7 +18,7 @@ import os
 import sys
 
 HERE = os.path.dirname(os.path.realpath(__file__))
-REMOVE_COMMAND = 'python3 {checkout}/scripts/install.py --remove --no-monitor'
+REMOVE_COMMAND = 'python3 {checkout}/scripts/install.py --remove'
 
 
 def home_dir():

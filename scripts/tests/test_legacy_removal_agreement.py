@@ -2,10 +2,9 @@
 install.py --check and install.py --remove — must AGREE: the warning names exactly what --remove takes out, so it
 always clears after a --remove (QA repro "h1": a dotfiles ~/.claude/CLAUDE.md link was warned about forever).
 Also: the retired live board's two hook strings are legacy, and --remove stops, "partially removed", on an
-unreadable settings.json before the monitor and the restore.
+unreadable settings.json before the restore.
 
-Every case runs against a temp HOME and an empty CM_AGENT_HOME, with --no-monitor or the FakeMonitor stub: nothing
-here can reach the real monitor or the real ~/.claude.
+Every case runs against a temp HOME: nothing here can reach the real ~/.claude.
 """
 import importlib.util
 import json
@@ -170,8 +169,8 @@ class RetiredBoardHooks(Agreement):
 
 
 class RemoveStopsOnUnreadableSettings(Agreement):
-    """hooks.remove returns 2 on an unreadable settings.json: the links are already out, but the monitor uninstall
-    and the restore of your own files must not run until the file is fixed and --remove is rerun."""
+    """hooks.remove returns 2 on an unreadable settings.json: the links are already out, but the restore of your
+    own files must not run until the file is fixed and --remove is rerun."""
 
     def setUp(self):
         super().setUp()
@@ -190,14 +189,13 @@ class RemoveStopsOnUnreadableSettings(Agreement):
         self.assertIn('settings.json is unreadable', result.stderr)
         self.assertFalse(os.path.lexists(self.claude('docs')), 'the links step already ran')
         self.assertFalse(os.path.lexists(self.claude('CLAUDE.md')), 'your backed-up CLAUDE.md must NOT come back yet')
-        for later_step in ('  restored  ', '  restore   ', 'removed; every backup', 'monitor:'):
+        for later_step in ('  restored  ', '  restore   ', 'removed; every backup'):
             self.assertNotIn(later_step, result.stdout)
         self.assertEqual(self.read(self.settings), '{ not json')
 
-    def test_the_monitor_uninstall_is_not_called(self):
-        code, out, _ = self.call('--remove')                        # the monitor is ON here, a FakeMonitor stands in
+    def test_the_in_process_run_says_partially_removed_too(self):
+        code, out, _ = self.call('--remove')
         self.assertEqual(code, 2)
-        self.assertEqual(self.monitor.calls, [])
         self.assertIn('partially removed', out)
 
     def test_after_the_file_is_fixed_a_rerun_finishes_the_job(self):
@@ -207,7 +205,7 @@ class RemoveStopsOnUnreadableSettings(Agreement):
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
         self.assertEqual(self.read(self.claude('CLAUDE.md')), 'my own rules\n')
         code, _, _ = self.call('--remove')
-        self.assertEqual((code, self.monitor.calls), (0, [('remove', self.home)]))
+        self.assertEqual(code, 0)
 
 
 if __name__ == '__main__':

@@ -64,8 +64,7 @@ else
 fi
 
 # JavaScript: MEASURED with Node's built-in coverage, so there is no package to
-# install. This repository has none since the live board moved to claude-monitor, where the same
-# step measures its page script; a project that copies this file gets it either way. Node only
+# install. This repository has none; a project that copies this file gets the step either way. Node only
 # reports files a test LOADED, so a file no test touches
 # would silently leave the denominator: every file must appear in the report, or
 # the codebase is NOT MEASURED (#29).

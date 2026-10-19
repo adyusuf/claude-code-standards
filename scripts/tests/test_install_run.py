@@ -1,9 +1,7 @@
-"""scripts/install.py — the monitor step, the flag notices and the pure helpers (split from test_install.py, #9).
+"""scripts/install.py — the install step, the flag notices and the pure helpers (split from test_install.py, #9).
 
-The monitor is the ONLY thing a plain run installs now; every test here replaces it with FakeMonitor so no agent
-is built or uninstalled.
+A plain run prints the two /plugin commands and reports what is left of the old install; it contacts no server.
 """
-import json
 import os
 import sys
 import unittest
@@ -11,117 +9,43 @@ from argparse import Namespace
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from test_install import FakeMonitor, Fixture, install  # noqa: E402
+from test_install import Fixture, install  # noqa: E402
 
 
-class MonitorStep(Fixture):
-    def test_the_monitor_is_the_only_step_and_follows_the_channel(self):
-        for args, server in (((), 'prod'), (('--prod',), 'prod'), (('--test',), 'test'), (('--dev',), 'dev')):
-            with self.subTest(args=args):
-                self.monitor.calls.clear()
-                code, out, _ = self.call(*args)
-                self.assertEqual(code, 0)
-                self.assertEqual(self.monitor.calls, [('install', FakeMonitor.SERVERS[server], self.home)])
-                self.assertIn(f'monitor     on -> {FakeMonitor.SERVERS[server]}', out)
-
-    def test_monitor_server_overrides_the_channels(self):
-        self.call('--test', '--monitor-server', 'https://mine.example')
-        self.assertEqual(self.monitor.calls, [('install', 'https://mine.example', self.home)])
-
-    def test_no_monitor_skips_the_step_but_still_prints_the_commands(self):
-        code, out, _ = self.call('--no-monitor')
-        self.assertEqual((code, self.monitor.calls), (0, []))
-        self.assertIn('off (--no-monitor)', out)
-        self.assertIn(install.hooks.PLUGIN_INSTALL, out)
-
-    def test_the_configuration_can_turn_the_monitor_off_for_an_install_only(self):
-        # monitor.connect = no in the user's configuration (adyusuf:config) skips the step like --no-monitor.
-        os.makedirs(os.path.join(self.home, '.claude'), exist_ok=True)
-        with open(os.path.join(self.home, '.claude', 'adyusuf.json'), 'w', encoding='utf-8') as handle:
-            json.dump({'monitor': {'connect': False}}, handle)
-        code, out, _ = self.call()
-        self.assertEqual((code, self.monitor.calls), (0, []))
-        self.assertIn('monitor.connect = no', out)
-        self.assertIn('off (--no-monitor)', out)
-
-    def test_an_unreadable_configuration_leaves_the_monitor_on(self):
-        os.makedirs(os.path.join(self.home, '.claude'), exist_ok=True)
-        with open(os.path.join(self.home, '.claude', 'adyusuf.json'), 'w', encoding='utf-8') as handle:
-            handle.write('{ broken')
+class InstallStep(Fixture):
+    def test_a_plain_run_ends_with_the_new_session_reminder(self):
         code, out, _ = self.call()
         self.assertEqual(code, 0)
-        self.assertEqual(self.monitor.calls, [('install', FakeMonitor.SERVERS['prod'], self.home)])
-
-    def test_a_failed_monitor_step_is_a_warning_not_a_failure(self):
-        # The monitor is optional (user decision 13/10/2026): cm-agent missing or unreachable is not a problem.
-        for exit_code in (1, 2, 5):
-            with self.subTest(exit_code=exit_code):
-                monitor = FakeMonitor(install_code=exit_code)
-                code, out, _ = self.call(monitor=monitor)
-                self.assertEqual(code, 0)
-                self.assertEqual(len(monitor.calls), 1, 'the step was tried once')
-                self.assertIn(f'⚠️  the monitor agent was not installed or connected (exit {exit_code})', out)
-                self.assertIn('optional', out)
-                self.assertIn('✓ done', out)
-                self.assertNotIn('✗ stopped', out)
-
-    def test_a_working_monitor_step_prints_no_warning(self):
-        code, out, _ = self.call()
-        self.assertEqual(code, 0)
-        self.assertNotIn('the monitor agent was not installed', out)
         self.assertIn('✓ done', out)
 
-    def test_a_preflight_error_is_still_the_exit_code_whatever_the_monitor_does(self):
-        monitor = FakeMonitor(install_code=2)
-        code, out, err = self.call(monitor=monitor, preflight=(['git is not on PATH'], []))
+    def test_a_preflight_error_is_the_exit_code(self):
+        code, out, err = self.call(preflight=(['git is not on PATH'], []))
         self.assertEqual(code, 2)
         self.assertIn('✗ git is not on PATH', err)
-        self.assertEqual(monitor.calls, [], 'a refused run never reaches the monitor step')
         self.assertNotIn('✓ done', out)
 
     def test_main_prints_the_flag_notes_before_anything_else(self):
-        _, out, _ = self.call('--with-monitor', '--no-monitor')
-        self.assertTrue(out.startswith('note: --with-monitor changes nothing'), out)
+        _, out, _ = self.call('--repo', '/somewhere/else')
+        self.assertTrue(out.startswith('note: --repo changes nothing'), out)
 
-    def test_monitor_sync_runs_only_the_sync(self):
-        code, _, _ = self.call('--monitor-sync')
-        self.assertEqual((code, self.monitor.calls), (0, [('sync', self.home)]))
-
-    def test_monitor_sync_end_to_end_registers_the_plugin_disabled(self):
-        result = self.run_install('--monitor-sync', monitor=True)
-        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
-        self.assertIn('DORMANT', result.stdout)
-        data = json.loads(self.read(self.settings))
-        self.assertIs(data['enabledPlugins']['monitor-agent@monitor-agent-local'], False)
-        self.assertEqual(data['theme'], 'dark')
+    def test_nothing_in_the_script_names_a_server(self):
+        with open(install.__file__, encoding='utf-8') as handle:
+            text = handle.read().lower()
+        for word in ('monitor', 'cm-agent', 'bitreka', 'http://', 'https://'):
+            self.assertNotIn(word, text)
 
 
 class FlagNotices(unittest.TestCase):
     def notes(self, **changes):
-        base = dict(with_monitor=False, channel=None, check=False, remove=False, monitor_sync=False,
-                    no_monitor=False, repo=install.DEFAULT_REPO)
+        base = dict(check=False, remove=False, repo=install.DEFAULT_REPO)
         return install.flag_notices(Namespace(**{**base, **changes}))
 
     def test_no_flag_no_note(self):
         self.assertEqual(self.notes(), [])
-        self.assertEqual(self.notes(channel='test'), [], 'a channel on a plain install picks the monitor server')
-
-    def test_with_monitor_changes_nothing(self):
-        [note] = self.notes(with_monitor=True)
-        self.assertIn('--with-monitor changes nothing', note)
-
-    def test_a_channel_next_to_a_mode_that_ignores_it_is_named(self):
-        for mode in ('check', 'remove', 'monitor_sync', 'no_monitor'):
-            with self.subTest(mode=mode):
-                [note] = self.notes(channel='dev', **{mode: True})
-                self.assertIn('--dev only picks the monitor', note)
 
     def test_repo_changes_nothing(self):
         [note] = self.notes(repo='/somewhere/else')
         self.assertIn('--repo changes nothing', note)
-
-    def test_every_note_is_reported_not_only_the_first(self):
-        self.assertEqual(len(self.notes(with_monitor=True, channel='test', check=True, repo='/x')), 3)
 
 
 class Units(unittest.TestCase):

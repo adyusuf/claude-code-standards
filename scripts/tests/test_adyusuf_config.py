@@ -21,7 +21,7 @@ _spec.loader.exec_module(cfg)
 
 # The maintainer's list of 17/10/2026, key by key.
 EXPECTED = {
-    'mode': 'C', 'mode_model': 'sonnet', 'monitor.connect': True, 'monitor.message_format': 'short',
+    'mode': 'C', 'mode_model': 'sonnet',
     'write.unit_tests': True, 'write.e2e': True,
     'merge.dev': True, 'merge.test': True, 'merge.prod': True,
     'push.dev': True, 'push.test': True, 'push.prod': True,
@@ -156,6 +156,30 @@ class Unreadable(Tool):
         self.assertEqual(1, code, err)
         with open(self.user, encoding='utf-8') as handle:
             self.assertEqual('{ broken', handle.read())
+
+
+class RetiredKeys(Tool):
+    """A file written before a setting was retired still holds it: that key is skipped, the rest of the layer applies."""
+
+    def test_a_file_with_the_retired_monitor_keys_still_applies_its_other_settings(self):
+        with open(self.user, 'w', encoding='utf-8') as handle:
+            json.dump({'mode': 'B', 'monitor': {'connect': False, 'message_format': 'full'}, 'push': {'prod': False}}, handle)
+        data = self.values()
+        self.assertEqual([], data['problems'])
+        self.assertEqual('B', data['values']['mode'])
+        self.assertFalse(data['values']['push.prod'])
+        self.assertNotIn('monitor.connect', data['values'])
+
+    def test_the_retired_keys_are_not_settings_any_more(self):
+        for key in cfg.RETIRED_KEYS:
+            self.assertNotIn(key, cfg.SPECS)
+            _, err, code = self.run_tool('set', key, 'yes')
+            self.assertEqual(2, code, err)
+
+    def test_the_session_start_block_does_not_mention_the_monitor(self):
+        out, _, code = self.run_tool('context')
+        self.assertEqual(0, code)
+        self.assertNotIn('monitor', out.lower())
 
 
 class Agents(Tool):

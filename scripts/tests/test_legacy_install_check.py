@@ -121,7 +121,7 @@ class Links(Fixture):
         self.assertTrue(out.startswith('⚠️ adyusuf: the old symlinked install is still present'), out)
         self.assertIn('1 symlink(s) under ~/.claude (modes)', out)
         self.assertNotIn('settings.json', out)
-        self.assertIn(f'python3 {self.checkout}/scripts/install.py --remove --no-monitor', out)
+        self.assertIn(f'python3 {self.checkout}/scripts/install.py --remove', out)
         self.assertNotIn(FALLBACK, out)
         self.assertIn('load TWICE', out)
 
@@ -135,7 +135,7 @@ class Links(Fixture):
         self.link('docs', os.path.join(self.base, 'gone', 'docs'))
         out, _ = self.run_check()
         self.assertIn('1 symlink(s) under ~/.claude (docs)', out)
-        self.assertIn(f'python3 {FALLBACK}/scripts/install.py --remove --no-monitor', out)
+        self.assertIn(f'python3 {FALLBACK}/scripts/install.py --remove', out)
 
     def test_the_checkout_comes_from_the_first_link_that_points_into_one(self):
         self.link('agents', os.path.join(self.base, 'elsewhere', 'agents'))     # dangling: no install.py there
@@ -162,7 +162,7 @@ class Settings(Fixture):
         self.assertEqual(err, '')
         self.assertIn('1 old hook entry in ~/.claude/settings.json', out)
         self.assertNotIn('symlink(s)', out)
-        self.assertIn(f'python3 {FALLBACK}/scripts/install.py --remove --no-monitor', out)
+        self.assertIn(f'python3 {FALLBACK}/scripts/install.py --remove', out)
 
     def test_entries_are_counted_across_events_and_the_plural_is_right(self):
         events = self.entries(GUARD)
@@ -286,7 +286,7 @@ class Failures(Fixture):
 class Message(unittest.TestCase):
     def test_the_command_names_the_checkout_and_asks_for_a_new_session(self):
         text = check.message(['/h/.claude/modes'], [], '/work/ccs')
-        self.assertIn('run: python3 /work/ccs/scripts/install.py --remove --no-monitor  (then start a new session)', text)
+        self.assertIn('run: python3 /work/ccs/scripts/install.py --remove  (then start a new session)', text)
 
     def test_the_plural_of_entries(self):
         self.assertIn('1 old hook entry in', check.message([], ['a'], None))

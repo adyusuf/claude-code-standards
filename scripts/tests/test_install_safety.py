@@ -31,7 +31,7 @@ class ClaudeMustBeThere(Fixture):
         os.remove(self.settings)
         os.rmdir(self.claude())
         env = dict(os.environ, PATH=without_claude(os.environ['PATH']))
-        result = subprocess.run([sys.executable, install.__file__, '--home', self.home, '--no-monitor'],
+        result = subprocess.run([sys.executable, install.__file__, '--home', self.home],
                                 capture_output=True, text=True, encoding='utf-8', env=env)
         self.assertEqual(result.returncode, 2)
         self.assertIn('Claude Code is not installed', result.stderr)
