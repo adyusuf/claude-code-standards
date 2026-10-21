@@ -315,6 +315,8 @@ def notify(event, payload_text):
             before = json.load(handle)
     except (OSError, ValueError):
         before = None
+    if isinstance(before, dict):
+        before = {key: value for key, value in before.items() if key in SPECS}   # a retired key is not a change
     if before == values:
         return None
     try:
@@ -407,8 +409,12 @@ def main(argv):
                 raise ConfigError('not valid JSON: %s' % error)
             if not isinstance(incoming, dict):
                 raise ConfigError('expected a JSON object of {"key": value}')
-            write_layer(path, {key: check(key, value) for key, value in flatten(incoming).items()})
-            print('%d setting(s) written to %s' % (len(flatten(incoming)), path))
+            flat = flatten(incoming)
+            skipped = sorted(key for key in flat if key in RETIRED_KEYS)   # a panel saved before they were retired
+            write_layer(path, {key: check(key, value) for key, value in flat.items() if key not in RETIRED_KEYS})
+            print('%d setting(s) written to %s' % (len(flat) - len(skipped), path))
+            if skipped:
+                print('skipped (retired, no longer settings): %s' % ', '.join(skipped))
             return 0
         raise ConfigError(__doc__.split('Layers,')[0].strip())
     except ConfigError as error:

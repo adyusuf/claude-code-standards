@@ -15,10 +15,13 @@ warning names exactly what `install.py --remove` takes out (a dotfiles link at o
 """
 import importlib.util
 import os
+import shlex
 import sys
 
 HERE = os.path.dirname(os.path.realpath(__file__))
-REMOVE_COMMAND = 'python3 {checkout}/scripts/install.py --remove'
+# The command runs THIS copy of install.py (the plugin's own), never the one in the old checkout: an older checkout's
+# install.py may still do more than take the old install out.
+REMOVE_COMMAND = 'python3 {script} --remove'
 
 
 def home_dir():
@@ -42,15 +45,6 @@ def legacy_links(home, install=None):
     return [link for link, _ in install.legacy_links(home)]
 
 
-def checkout_of(links):
-    """The checkout the old links point into: the parent of the first link's target, if it has install.py."""
-    for link in links:
-        candidate = os.path.dirname(os.path.realpath(link))
-        if os.path.isfile(os.path.join(candidate, 'scripts', 'install.py')):
-            return candidate
-    return None
-
-
 def legacy_settings(home, hooks):
     path = os.path.join(home, '.claude', 'settings.json')
     try:
@@ -61,13 +55,13 @@ def legacy_settings(home, hooks):
     return hooks.legacy_commands(data)
 
 
-def message(links, commands, checkout):
+def message(links, commands):
     found = []
     if links:
         found.append(f'{len(links)} symlink(s) under ~/.claude ({", ".join(os.path.basename(p) for p in links)})')
     if commands:
         found.append(f'{len(commands)} old hook entr{"y" if len(commands) == 1 else "ies"} in ~/.claude/settings.json')
-    command = REMOVE_COMMAND.format(checkout=checkout or '<your claude-code-standards checkout>')
+    command = REMOVE_COMMAND.format(script=shlex.quote(os.path.join(HERE, 'install.py')))
     return (f'⚠️ adyusuf: the old symlinked install is still present next to the plugin — {" and ".join(found)}. '
             'Until it is removed the global rules, the role agents and the destructive-command guard load TWICE. '
             f'To finish the move, run: {command}  (then start a new session).')
@@ -88,7 +82,7 @@ def main():
     else:
         commands = legacy_settings(home, hooks)
     if links or commands:
-        print(message(links, commands, checkout_of(links)))
+        print(message(links, commands))
     return 0
 
 

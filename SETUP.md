@@ -201,7 +201,8 @@ written into `~/.claude` by hand; read the warning in
   installing it: `claude --plugin-dir <worktree>` (it takes precedence over the installed plugin for that session).
 - **Moving off the old link install** (`~/.claude/{CLAUDE.md,agents,docs,modes,scripts,standards}` and
   `~/.claude/skills/adyusuf` were links into a checkout): run
-  `python3 <that checkout>/scripts/install.py --remove` first — it removes those links (and a dangling
+  the command the plugin prints at session start first (`python3 <plugin cache>/scripts/install.py --remove`: the plugin's
+  own copy, never the old checkout's, whose `install.py` may be an older version) — it removes those links (and a dangling
   link at one of those names, whose target cannot be checked), the old hook entries incl. the retired board's from
   `settings.json` (backed up first) and puts your own files back from the newest backup. Until then the
   rules, agents and guard load twice; the plugin says so at session start (`scripts/legacy-install-check.py`).
@@ -226,7 +227,7 @@ python3 <checkout>/scripts/install.py --check    # report only (old links/hooks,
 | Commit refused by the real-name check | A folder key or alias from your map is in the staged change or message | Use the nickname. The exception is `--no-verify`, and yours alone |
 | Real-name check prints a warning and passes | No `docs/project-nicknames.tsv` | Create it (§4), or set `REAL_NAMES_STRICT=1` to make this a failure |
 | `CLAUDE.md` size gate refuses a commit | The file grew past its ceiling in `scripts/md-budget.tsv` | Move the rule into `standards/<topic>.md` first; raise the ceiling only with a written reason |
-| A hook runs twice per tool call; the rules or agents load twice | The old link install is still there next to the plugin | `python3 <checkout>/scripts/install.py --remove` (§6) |
+| A hook runs twice per tool call; the rules or agents load twice | The old link install is still there next to the plugin | the command the session-start notice prints, `python3 <plugin cache>/scripts/install.py --remove` (§6) |
 | A session has no `[Global working rules` in its context | `python3` not on `PATH` (Windows, §1), or the plugin is disabled | Add `python3`; `/plugin` › Installed › enable `adyusuf` |
 | `install-live-hooks.py` aborts and touches nothing | `~/.claude/settings.json` is not valid JSON | Fix the JSON, rerun |
 | Every Bash call mentioning push/rm/drop is BLOCKED with "no Python 3 interpreter" | Neither `python3` nor a Python 3 `python` on the hook's `PATH` | Install Python 3; on Windows add `python3.exe` (§1) |

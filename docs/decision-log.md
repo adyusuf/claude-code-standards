@@ -1662,5 +1662,9 @@ nothing in this repository's copy was changed for it.** The project below worked
     invalidate the whole layer; the next write drops them.
   - **Not touched:** an agent already installed on a machine, and the plugin entry `install.py` once registered for it
     in `settings.json`. `install.py --remove` no longer uninstalls it; that is the agent's own `cm-agent uninstall`.
+  - **QA findings fixed in the same change:** the old-install notice (`legacy-install-check.py`) now prints the plugin's
+    OWN `install.py --remove`, never the old checkout's (an older checkout's `install.py` still uninstalled the agent
+    unless `--no-monitor` was given); `adyusuf_config.py apply` skips the retired keys a panel saved earlier still holds
+    and says so; `notify` ignores them when it compares a session's seen state, so no false "settings changed" notice.
   - **History stays:** the entries above that mention claude-monitor describe what was true when they were written.
     They are the record of why, not a relationship; this entry supersedes the ones that made the monitor optional.
