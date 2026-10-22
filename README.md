@@ -204,7 +204,7 @@ because something broke first.
 | Engineering standards | `standards/` | 24 documents + 7 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate, measurement and install scripts | `scripts/` | 34 scripts + 846 tests |
+| Gate, measurement and install scripts | `scripts/` | 35 scripts + 890 tests |
 | Slash commands, skills and hooks — one plugin, `/adyusuf:<name>` | `.claude-plugin/`, `commands/`, `skills/`, `hooks/` | 9 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
@@ -466,12 +466,37 @@ Claude Code session:
 /plugin install adyusuf@adyusuf-marketplace
 ```
 
-Claude Code copies it into its plugin cache like any other plugin: no links, no install
-script, nothing written into your `~/.claude` by hand. A new session shows
+Claude Code copies it into its plugin cache like any other plugin: no links, nothing
+written into your `~/.claude` by hand. A new session shows
 `[Global working rules, part 1/…` in its context (the plugin's hooks print `CLAUDE.md`).
 `/plugin update adyusuf` brings a new version; `/plugin` disables or removes it.
 Details, prerequisites (`python3` and `bash` on `PATH`) and the move off an older
 link install: [`SETUP.md`](SETUP.md) §6.
+
+**Or with one script that also keeps it up to date.** `scripts/plugin-setup.py` is a single standard-library
+file you can download on its own, before you have a checkout:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/adyusuf/claude-code-standards/prod/scripts/plugin-setup.py
+python3 plugin-setup.py
+```
+
+(PowerShell: `Invoke-WebRequest https://raw.githubusercontent.com/adyusuf/claude-code-standards/prod/scripts/plugin-setup.py -OutFile plugin-setup.py`.
+Read the file before you run it; it is about 270 lines.) It asks GitHub which commit the `prod` branch is on and
+compares that with the commit Claude Code has installed:
+
+| What it finds | What it does |
+|---|---|
+| The plugin is not installed | Links the marketplace (`adyusuf/claude-code-standards#prod`, the connection to GitHub) and installs the plugin. |
+| Installed, and it is the newest | Says so and changes nothing. If the marketplace link is missing it adds it. |
+| Installed, and GitHub has a newer commit | Asks **"Remove the old one and install the new one? [y/N]"**. On yes it refreshes the marketplace, removes the old version **keeping the plugin's data** (`--keep-data`), installs the new one in the same scope, and checks that your settings, the enabled state and the marketplace link are as they were. On no it leaves everything as it is. |
+
+Your settings are not in the plugin, so they carry on unchanged: `~/.claude/adyusuf.json`, a project's
+`.claude/adyusuf.json` and the marketplace link in Claude Code's own settings. `~/.claude/adyusuf.json` is copied to
+`~/.claude-standards/backups/` first and put back if the replacement disturbed it. `--check` only reports (exit 1
+when work is due), `--yes` answers the question for you (needed without a terminal), `--ref test` picks another
+branch while no marketplace is linked yet. A failed step stops the run and prints the command to retry. Open a new
+Claude Code session afterwards (or `/reload-plugins`).
 
 ⚠️ **`settings.example.json` is mine, not a template.** It carries my plugin selection
 and a marketplace pointing at a directory in my home folder. Decide the rest yourself;
@@ -576,12 +601,15 @@ and answers `/adyusuf:panels`. It reads `~/.claude/plugins/installed_plugins.jso
   - an optional `curl` goes to a test-deploy URL that *you* set (`TEST_VERSION_URL`), and only when you set it;
   - `require-private-remote.sh` (a pre-push hook you install yourself) asks GitHub, through `gh api`, whether
     a repository is private.
+- **`scripts/plugin-setup.py`** (only when you run it) contacts GitHub: `git ls-remote` for the commit of the
+  plugin's branch, and the `claude plugin` commands it starts fetch the marketplace from GitHub. It sends no
+  data of yours and changes only the plugin install; its log goes to `~/.claude-standards/logs/`.
 - **`scripts/step-stats.py`** reads Claude Code's local transcripts (`~/.claude/projects`) to count steps and
   tokens. It writes a sanitised report into this repository's `docs/` and refuses when a project name or path
   would leak.
 
 **No telemetry.** The plugin itself sends nothing anywhere. The only data that leaves your machine is what
-you start: the gate's advisory lookups. Turn the plugin off or remove it with `/plugin`.
+you start: the gate's advisory lookups, and `plugin-setup.py` asking GitHub for the newest commit. Turn the plugin off or remove it with `/plugin`.
 
 ## Anonymization
 
