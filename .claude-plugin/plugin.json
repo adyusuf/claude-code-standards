@@ -10,5 +10,6 @@
   "privacyPolicyUrl": "https://github.com/adyusuf/claude-code-standards/blob/prod/PRIVACY.md",
   "supportUrl": "https://github.com/adyusuf/claude-code-standards/issues",
   "documentationUrl": "https://github.com/adyusuf/claude-code-standards/blob/prod/SETUP.md",
-  "termsOfServiceUrl": "https://github.com/adyusuf/claude-code-standards/blob/prod/LICENSE"
+  "termsOfServiceUrl": "https://github.com/adyusuf/claude-code-standards/blob/prod/LICENSE",
+  "types": "./types/index.d.ts"
 }

@@ -44,6 +44,8 @@ went to. Never edit the JSON files by hand when the tool can do it.
 | `mode_model` | keep, sonnet, haiku, fable | What the Opus-defined agents run on (`keep` = as defined). Same override order as `mode`. |
 | `agents.<role>.enabled` | auto, on, off | One of the 14 roles: `auto` follows the mode's set, `on` adds it, `off` removes it (mode A runs none). |
 | `agents.<role>.model` | default, opus, sonnet, haiku, fable | The model that one agent runs on; `default` follows its definition and the mode's Opus override. |
+| `pod.connect` | yes/no | "Connect to pod" (default no). A stored setting only: nothing in this plugin connects to anything or sends a message because of it (user decision 20/10/2026). |
+| `pod.message_format` | short, full | "Message format" (default short). Stored only, like `pod.connect`. |
 | `write.unit_tests` | yes/no | Write unit tests when the code is done (#32). |
 | `write.e2e` | yes/no | Write e2e specs (optional to run, #33). |
 | `merge.dev` `merge.test` `merge.prod` | yes/no | Merge finished code into that branch (#26, #34). |
@@ -57,13 +59,12 @@ went to. Never edit the JSON files by hand when the tool can do it.
 When the user wants to change settings without naming them (no argument, "change the settings", "open the settings",
 "show the settings in the right-hand boxes"):
 
-**The rail boxes first.** The separate `adyusuf-panels` plugin (its own repository; `SETUP.md` §6 has the install
-commands) draws three boxes in the right-hand rail: *Settings* (a checkbox
-for every yes/no setting, a dropdown for every list), *Agents* (a checkbox per agent, a model dropdown) and *Promotion*
-(dev/test/prod, read-only). Each click runs `adyusuf_config.py set`. Open them with `/adyusuf-panels`, say that they are
+**The rail boxes first.** This plugin's mod (`hooks/register.tsx`) draws three boxes in the right-hand rail: *Settings* (a
+checkbox for every yes/no setting, a dropdown for every list), *Agents* (a checkbox per agent, a model dropdown) and *Promotion*
+(dev/test/prod, read-only). Each click runs `adyusuf_config.py set`. Open them with `/adyusuf:panels`, say that they are
 there and stop: the user changes the settings in the boxes, not in the chat. Never build a page or an Artifact for this.
 
-**Only when the boxes cannot be shown** (the plugin is not installed, the surface draws no panes, mods are off): run
+**Only when the boxes cannot be shown** (the surface draws no panes, mods are off, the plugin is an old copy without them): run
 `show`, then ask with the `AskUserQuestion` tool, which draws clickable buttons, checkboxes and dropdowns in the chat.
 Put the current value in each question or option ("now: yes"), because the tool cannot pre-select.
 

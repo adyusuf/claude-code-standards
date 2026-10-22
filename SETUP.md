@@ -30,6 +30,7 @@ want it enforced.
 | ShellCheck | 0.11.0 | `brew install shellcheck` | SAST for the shell scripts |
 | CodeQL CLI | 2.27.1 | `brew install --cask codeql` | SAST for the Python |
 | kcov | 43 | `brew install kcov` | Line coverage of the shell scripts |
+| Deno | 2.x | `brew install deno` | Line coverage of the mod's engine-free TypeScript logic (`hooks/choose.ts`, rule #29 exception, `standards/10` §7.2a) |
 | `coverage` (Python package) | 7.10.7 | §2, step 3 | Line coverage of the Python scripts |
 | Node.js | 22 | `brew install node` | Only to run the coverage step on a copy of the scripts that carries JavaScript; this repository has none |
 | GitHub CLI (`gh`) | 2.23.0 | `brew install gh` | Only for `require-private-remote.sh` and opening pull requests |
@@ -194,11 +195,10 @@ the 14 role agents as `adyusuf:<role>`, the destructive-command guard and the `C
 written into `~/.claude` by hand; read the warning in
 [`README.md` Level 4](README.md#level-4--run-it-live-the-way-i-do) first.
 
-- **The right-hand boxes (optional, a separate repository):** `adyusuf-panels` adds Settings, Agents and Promotion boxes to
-  the rail. It lives in its own repository (`~/ClaudeCode/adyusuf-panels`; rule #29 cannot measure TypeScript here):
-  `claude plugin marketplace add ~/ClaudeCode/adyusuf-panels`, then `claude plugin install adyusuf-panels@adyusuf-panels`.
-  It needs the `adyusuf` plugin above, runs `git` and `python3` locally and contacts no server. `/adyusuf-panels` opens the
-  boxes. Update `adyusuf` first (`/plugin update adyusuf`): the boxes show the settings of the installed copy.
+- **The right-hand boxes (part of the plugin):** the Settings, Agents and Promotion boxes open in the rail at session start
+  and with `/adyusuf:panels`. They run `git` and `python3` locally and contact no server. They show the settings of the
+  installed copy, so `/plugin update adyusuf` brings new settings into them. Where mods are not switched on, the session
+  asks once ("Turn on the mods…"); the config skill falls back to clickable questions in the chat.
 - **Update:** `/plugin marketplace update adyusuf-marketplace`, then `/plugin update adyusuf` and `/reload-plugins`
   (or turn auto-update on for the marketplace under `/plugin` › Marketplaces). The plugin has no `version`, so every
   commit on `prod` is a new version. Never edit the cache: the next update replaces it.

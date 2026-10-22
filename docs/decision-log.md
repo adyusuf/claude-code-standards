@@ -1675,15 +1675,20 @@ nothing in this repository's copy was changed for it.** The project below worked
   built it are gone: `skills/config/panel.template.html`, the `panel` and `panel-data` commands of
   `adyusuf_config.py`, "The panel" section of the config skill and their tests.
 - **What replaces it:** the rail boxes the user meant by "the boxes on the right (Environment, Context, Connectors,
-  Outputs, Changes)": the `adyusuf-panels` mod (written 17/10/2026 in one session's own mods folder, so no later session
-  had it). It is TypeScript, and rule #29 cannot measure its coverage (`claude plugin test` reports none), so it does NOT
-  live in this repository (user choice 22/10/2026): it is its own repository, `~/ClaudeCode/adyusuf-panels` (local, no
-  remote yet), installed with `claude plugin marketplace add <folder>`. Settings, Agents and Promotion boxes with
-  checkboxes and dropdowns; each click runs `adyusuf_config.py set`. It finds the script through the `adyusuf` plugin the
-  plugin manager records as installed (`installed_plugins.json`; QA found that "the newest folder in the cache" is a
-  replaced version after an update), so the retired monitor settings vanish from the boxes once `adyusuf` is updated. The
-  config skill sends the user to the boxes first and uses `AskUserQuestion` (buttons, checkboxes, dropdowns in the chat)
-  only when they cannot be shown.
+  Outputs, Changes)": the mod written 17/10/2026 in one session's own mods folder (so no later session had it). It is now
+  part of THIS plugin (user decision 22/10/2026: "not a separate plugin"): `hooks/register.tsx`, listed under `modules` in
+  `hooks/hooks.json` beside the command hooks, answering `/adyusuf:panels`; the logic is in `hooks/choose.ts`. Settings,
+  Agents and Promotion boxes with checkboxes and dropdowns; each click runs `adyusuf_config.py set`. It finds the script
+  through the `adyusuf` plugin the plugin manager records as installed (`installed_plugins.json`; QA found that "the
+  newest folder in the cache" is a replaced version after an update), so retired settings vanish from the boxes once
+  `adyusuf` is updated. The config skill sends the user to the boxes first and uses `AskUserQuestion` (buttons, checkboxes,
+  dropdowns in the chat) only when they cannot be shown.
+- **Rule #29, the one written exception (user decision 22/10/2026):** `claude plugin test` reports no coverage, so TypeScript
+  that runs only inside the engine could not be measured. `standards/10` §7.2a: the logic (`hooks/choose.ts`, no engine
+  import) is measured with Deno in `scripts/coverage.sh` and held to 80% (100% now, 34/34 lines); the engine glue
+  (`hooks/register.tsx`) is the ONE listed file, reported "not measured, listed exclusion" in every run; anything else
+  there that is not tested logic makes the run NOT MEASURED. Deno is a new prerequisite of the coverage gate (SETUP §1).
+  The separate repository `~/ClaudeCode/adyusuf-panels` that was started for the mod is obsolete.
 - **Kept on purpose:** `apply` and the read path still skip the two retired `monitor.*` keys, because a file written
   earlier may hold them; `group` stays in the schema (it titles the sections of `show` and the boxes).
 - **Not done here:** the published Artifact is deleted separately (it is not in the repository).

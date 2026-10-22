@@ -108,6 +108,18 @@ the denominator.
 migrations included — and **83.0%** once they were excluded. EF migrations run by
 themselves during tests and made up 85% of the denominator.
 
+### 7.2a The one written exception: the Claude Code mod (user decision 22/10/2026)
+
+TypeScript that runs only inside Claude Code's engine (the mod: `hooks/*.ts`, `hooks/*.tsx`) has no runner that reports
+coverage (`claude plugin test` prints pass/fail only). So, in `scripts/coverage.sh` and nowhere else:
+
+- its **logic** lives in engine-free files (no import from `claude-code`), is measured with Deno and held to the threshold;
+- its **engine glue** is ONE listed file (`ts_glue`), with the reason beside it, reported "not measured, listed exclusion"
+  in every run — never dropped silently;
+- any other `.ts`/`.tsx` there that is neither measured logic nor that glue file makes the run NOT MEASURED (blocks);
+- adding a file to the glue list, or putting logic into it, is loosening the threshold → **forbidden**. Keep the glue thin:
+  every decision goes into the logic files, where it is tested.
+
 ### 7.3 The gate
 
 - A step in the shared gate core (`scripts/gate-core.sh`), running at **every** promotion including `dev`; below the threshold the exit code is ≠ 0. CI calls the same script (#19, #25).
