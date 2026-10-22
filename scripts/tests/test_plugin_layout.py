@@ -141,6 +141,11 @@ class RootPluginTest(unittest.TestCase):
         self.assertTrue(os.path.isfile(os.path.join(REPO, 'types', 'index.d.ts')))
         self.assertIn("name: 'adyusuf:panels'", read('hooks', 'register.tsx'))
 
+    def test_panels_command_exists_as_a_file_so_it_is_there_where_mods_do_not_load(self):
+        # The mod registers /adyusuf:panels only where it runs; the file is the fallback everywhere else.
+        self.assertIn('panels', own_names())
+        self.assertIn('adyusuf_config.py', read('commands', 'panels.md'))
+
     def test_hook_events_are_exactly_the_six(self):
         self.assertEqual(sorted(normalised_hooks()),
                          ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStart', 'UserPromptSubmit'])
