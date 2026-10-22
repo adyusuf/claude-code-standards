@@ -9,8 +9,7 @@ description: Break a task into items in this session's plan file, route each to 
 
 When several sessions and agents work at once — across more than one project — the
 chat alone no longer shows who is doing what, what is waiting for you and where each
-commit has landed. Agent start and stop are recorded elsewhere (the claude-monitor
-agent, when installed), but nothing records the plan: which tasks exist, which role does
+commit has landed. Nothing else records the plan: which tasks exist, which role does
 each one, and whether a returned agent's work was actually accepted. This skill keeps
 that plan in one small file per session, so it survives a long session and a context
 compaction, and you can open it at any time.
@@ -48,8 +47,8 @@ started — propose the mode change in one line (#27). Work you do yourself has 
 ## 3. Tag every agent call
 
 Put the task id in the Agent `description`: `"[T-3] SMS pause sentence"`, and call the
-role by its plugin name (`subagent_type: "adyusuf:<role>"`). The monitor records agents
-by that description, so the tag links them to the row.
+role by its plugin name (`subagent_type: "adyusuf:<role>"`). The tag links the agent's
+work to its row in the plan file.
 
 ## 4. Keep the status current — in the same turn as the work
 
@@ -71,13 +70,9 @@ task's commit as soon as it exists (several: `<sha>, <sha>`).
 in for an approval that needs the user's explicit yes (promotion, deploy, deletion,
 sending outward) — that is asked for in the chat in its own words.
 
-## 5. The monitor (optional)
-
-If the `monitor_note` tool is available (the claude-monitor agent), send one line per
-status change: `T-3 → done (abc1234)`. Without it — not installed, not connected, unreachable —
-the file is the record, and that is not a problem to report.
-
-## 6. The chat table still ships
+## 5. The chat table still ships
 
 The plan file is an extra record; the status table in the reply stays mandatory. Take
-its figures from the file, not from memory.
+its figures from the file, not from memory. The on-screen task list stays too, with the
+same items: phases, decision tasks, related work inserted, unrelated work queued — never
+dropped (`${CLAUDE_PLUGIN_ROOT}/standards/00-working-method.md` §1a).

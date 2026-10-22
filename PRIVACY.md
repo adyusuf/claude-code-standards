@@ -1,6 +1,6 @@
 # Privacy policy — the `adyusuf` plugin
 
-Last updated: 13/10/2026 · Maintainer: Adnan Yusuf (<https://github.com/adyusuf>)
+Last updated: 20/10/2026 · Maintainer: Adnan Yusuf (<https://github.com/adyusuf>)
 
 The `adyusuf` plugin is a set of working rules, skills, commands, role agents, hooks and scripts for Claude
 Code. It has **no service of its own**: nothing it contains runs on a server the maintainer operates, and the
@@ -28,12 +28,6 @@ All reading happens on your own machine. Nothing read is sent anywhere by the pl
 
 The plugin itself sends nothing. Data leaves your machine only through steps **you** start:
 
-- **claude-monitor's agent (optional).** `install.py` installs it, and it stays disabled until you connect it
-  to a claude-monitor server (you approve the connection on the web). Once connected, the agent sends that
-  server your sessions' activity (sessions, subagents, Claude Code's task tools). While it is connected,
-  `/adyusuf:board-plan` also sends one line per task status change through the agent's `monitor_note` tool.
-  The agent and the server are separate software; their data handling is described in the claude-monitor
-  repository (<https://github.com/adyusuf/claude-monitor>).
 - **The gate**, which you run in your own project, can do three things that reach the network:
   - install your dependencies and fetch security advisories from your package registries;
   - call a test-deploy URL that you set (`TEST_VERSION_URL`);
@@ -42,8 +36,7 @@ The plugin itself sends nothing. Data leaves your machine only through steps **y
 
 ## Your choices
 
-Disable or uninstall the plugin with `/plugin`. Leave the monitor agent uninstalled (`install.py --no-monitor`),
-or disconnect it with `cm-agent logout`.
+Disable or uninstall the plugin with `/plugin`.
 
 ## Contact
 

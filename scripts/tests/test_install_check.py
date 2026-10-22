@@ -1,7 +1,6 @@
 """install.py --check — read-only; exit 1 while an old link or hook is left or the plugin is not installed.
 
-Exit-code cases run the real script against a temp HOME (--no-monitor, so no agent is needed); the monitor part of
-the check runs in this process with a FakeMonitor.
+Exit-code cases run the real script against a temp HOME.
 """
 import json
 import os
@@ -12,7 +11,7 @@ import tempfile
 import unittest
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from test_install import PLUGIN_LINK, FakeMonitor, Fixture, install  # noqa: E402
+from test_install import PLUGIN_LINK, Fixture, install  # noqa: E402
 
 
 class CheckExitCodes(Fixture):
@@ -80,44 +79,29 @@ class CheckExitCodes(Fixture):
     def test_a_missing_claude_folder_is_reported_not_refused(self):
         # --check is exempt from the "Claude Code must be there" refusal: it reports the plugin as missing.
         shutil.rmtree(self.claude())
-        result = subprocess.run([sys.executable, install.__file__, '--home', self.home, '--check', '--no-monitor'],
+        result = subprocess.run([sys.executable, install.__file__, '--home', self.home, '--check'],
                                 capture_output=True, text=True, encoding='utf-8',
-                                env=dict(os.environ, PATH=self.agent_home))        # no `claude` on PATH either
+                                env=dict(os.environ, PATH=self.empty_path))        # no `claude` on PATH either
         self.assertEqual(result.returncode, 1)
         self.assertIn('plugin: ✗ not installed', result.stdout)
 
 
-class CheckAndTheMonitor(Fixture):
+class CheckInProcess(Fixture):
     def setUp(self):
         super().setUp()
         self.plugin_entry()
 
-    def test_a_missing_monitor_is_reported_and_does_not_fail_the_check(self):
-        # The monitor is optional (user decision 13/10/2026): clean legacy + plugin installed + monitor missing = 0.
-        monitor = FakeMonitor(check_code=1)
-        code, out, _ = self.call('--check', monitor=monitor)
+    def test_a_clean_home_with_the_plugin_installed_passes(self):
+        code, out, _ = self.call('--check')
         self.assertEqual(code, 0)
-        self.assertEqual(monitor.calls, [('check', self.home)], 'the monitor was still asked, so its report is printed')
-        self.assertIn('monitor (optional', out)
         self.assertIn('✓ everything is in place', out)
         self.assertNotIn('problem(s)', out)
 
-    def test_a_healthy_monitor_passes_and_was_asked_about_this_home(self):
-        code, _, _ = self.call('--check')
-        self.assertEqual(code, 0)
-        self.assertEqual(self.monitor.calls, [('check', self.home)])
-
-    def test_no_monitor_does_not_ask_the_monitor(self):
-        code, _, _ = self.call('--check', '--no-monitor', monitor=FakeMonitor(check_code=1))
-        self.assertEqual(code, 0)
-
-    def test_a_missing_monitor_is_not_counted_with_the_other_problems(self):
+    def test_an_old_link_is_the_only_problem_counted(self):
         self.link_legacy('docs')
-        for check_code in (0, 1, 2):
-            with self.subTest(check_code=check_code):
-                code, out, _ = self.call('--check', monitor=FakeMonitor(check_code=check_code))
-                self.assertEqual(code, 1)
-                self.assertIn('✗ 1 problem(s)', out)           # the old link only; never 2
+        code, out, _ = self.call('--check')
+        self.assertEqual(code, 1)
+        self.assertIn('✗ 1 problem(s)', out)
 
 
 class PluginInstalledShapes(unittest.TestCase):
