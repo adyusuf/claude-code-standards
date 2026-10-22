@@ -54,6 +54,7 @@ MODE_ROLES = {'A': (), 'B': B_ROLES, 'C': C_ROLES, 'D': D_ROLES, 'E': D_ROLES}
 AGENTS_DIR = os.path.join(ROOT, 'agents')
 
 
+POD_FORMATS = ('short', 'full')
 AGENT_STATES = ('auto', 'on', 'off')
 AGENT_MODELS = ('default', 'opus', 'sonnet', 'haiku', 'fable')
 
@@ -62,6 +63,8 @@ AGENT_MODELS = ('default', 'opus', 'sonnet', 'haiku', 'fable')
 SCHEMA = (
     [dict(_enum('mode', 'Working mode', MODES), group='Session'),
      dict(_enum('mode_model', 'Model that replaces Opus in the agents', MODELS), group='Session'),
+     dict(_bool('pod.connect', 'Connect to pod'), group='Pod'),
+     dict(_enum('pod.message_format', 'Message format', POD_FORMATS), group='Pod'),
      dict(_bool('write.unit_tests', 'Write unit tests'), group='Writing'),
      dict(_bool('write.e2e', 'Write e2e specs'), group='Writing')]
     + [dict(_bool('merge.' + t, 'Merge into ' + t), group='Merge') for t in TARGETS]
@@ -252,6 +255,7 @@ def context(effective, problems):
             shown(value('e2e_after_deploy.' + target))))
     lines = ['adyusuf configuration (effective; global rule #34 - follow it, do not ask what it answers):',
              '  mode %s, model for the Opus agents: %s' % (value('mode'), value('mode_model')),
+             '  pod: connect %s, message format %s' % (shown(value('pod.connect')), value('pod.message_format')),
              '  write unit tests: %s, write e2e: %s' % (shown(value('write.unit_tests')), shown(value('write.e2e')))]
     active = agents({k: v[0] for k, v in effective.items()})
     lines.append('  agents: %s' % (', '.join('%s (%s)' % (row['role'], row['runs_on']) for row in active) or 'none'))

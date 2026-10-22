@@ -1,6 +1,10 @@
 {
   "mode": "C",
   "mode_model": "sonnet",
+  "pod": {
+    "connect": false,
+    "message_format": "short"
+  },
   "write": {
     "unit_tests": true,
     "e2e": true

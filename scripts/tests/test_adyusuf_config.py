@@ -21,7 +21,7 @@ _spec.loader.exec_module(cfg)
 
 # The maintainer's list of 17/10/2026, key by key.
 EXPECTED = {
-    'mode': 'C', 'mode_model': 'sonnet',
+    'mode': 'C', 'mode_model': 'sonnet', 'pod.connect': False, 'pod.message_format': 'short',
     'write.unit_tests': True, 'write.e2e': True,
     'merge.dev': True, 'merge.test': True, 'merge.prod': True,
     'push.dev': True, 'push.test': True, 'push.prod': True,
@@ -225,10 +225,11 @@ class RetiredKeys(Tool):
         self.assertEqual(2, code, err)
         self.assertFalse(os.path.exists(self.user))
 
-    def test_the_session_start_block_does_not_mention_the_monitor(self):
+    def test_the_session_start_block_does_not_mention_the_monitor_and_names_the_pod_settings(self):
         out, _, code = self.run_tool('context')
         self.assertEqual(0, code)
         self.assertNotIn('monitor', out.lower())
+        self.assertIn('pod: connect no, message format short', out)
 
 
 class Agents(Tool):
