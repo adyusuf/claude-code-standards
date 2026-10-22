@@ -1707,3 +1707,23 @@ nothing in this repository's copy was changed for it.** The project below worked
   to an older installed copy of the plugin, which then ignores that layer and says so, so update `adyusuf` before setting them.
 - **Not changed:** #29 (coverage) is part of what runs at every promotion and no setting turns it off; e2e stays optional
   and never blocks a promotion (#33), so a red `e2e_after_deploy` run is reported, not a reason to refuse the merge.
+
+## One script installs and updates the plugin from GitHub (22/10/2026, user decision)
+
+- **Decision:** `scripts/plugin-setup.py` installs the `adyusuf` plugin and brings it up to date. It asks GitHub for the
+  commit of the marketplace's branch and compares it with Claude Code's `installed_plugins.json`: not installed → link the
+  marketplace and install; already newest → nothing; older → ask "Remove the old one and install the new one?" and on yes
+  remove (`--keep-data`) and install in the same scope. The user's settings (`~/.claude/adyusuf.json`, a project's
+  `.claude/adyusuf.json`), the enabled state and the marketplace link must come out unchanged; the script checks that and
+  puts the settings file back from a copy if a replacement disturbed it. README Level 3 carries the download line.
+- **Why a new file and not `install.py`:** `install.py` is documented, and tested (`test_install_run.py`), as contacting no
+  server. The installer has to ask GitHub, so it is a separate standalone file; the "no server" claim stays true of
+  `install.py` and the network use is listed in README › What this does to your machine and `PRIVACY.md`.
+- **Why standalone:** it must run on a machine that has no checkout yet, so it imports nothing from `scripts/` and uses only
+  the standard library (no new dependency, #10).
+- **Fail-closed:** without a terminal and without `--yes` it does not replace anything; an unreadable marketplace list, a
+  GitHub that does not answer, a marketplace linked to a non-GitHub source and a branch name that could pass for an option
+  all stop the run before any change. A replacement that fails after the removal prints the retry command and exits 2.
+- **Not changed:** the plugin still has no `version` (every `prod` commit is new), and `/plugin update adyusuf` remains the
+  in-session way to update.
+

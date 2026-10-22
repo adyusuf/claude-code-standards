@@ -212,6 +212,15 @@ written into `~/.claude` by hand; read the warning in
   `settings.json` (backed up first) and puts your own files back from the newest backup. Until then the
   rules, agents and guard load twice; the plugin says so at session start (`scripts/legacy-install-check.py`).
 
+**One script for install and update:** `scripts/plugin-setup.py` (standalone, standard library only; download it with
+the `curl` line in [`README.md` Level 3](README.md#level-3--install-it-as-a-plugin)). It asks GitHub for the newest
+commit of `prod`, then: not installed → links the marketplace and installs; already newest → nothing; older →
+asks "Remove the old one and install the new one?" and on yes removes it (`--keep-data`), installs the new one and
+checks that `~/.claude/adyusuf.json`, the enabled state and the marketplace link are unchanged. `--check` reports only
+(exit 1 when work is due), `--yes` skips the question, `--ref <branch>` picks the branch for a first link. It needs
+`claude` and `git` on `PATH` and reaches GitHub; log: `~/.claude-standards/logs/plugin-setup-<stamp>.log`, backup of
+your settings file: `~/.claude-standards/backups/plugin-setup-<stamp>/`.
+
 **`install.py` contacts no server.** A plain run prints the two `/plugin` commands and reports the plugin and any
 leftover of the old link install; `--check` reports the same without writing anything. Every run except `--check`
 logs to `~/.claude-standards/logs/install-<date>-<time>.log`; backups go to `~/.claude-standards/backups/` (outside
