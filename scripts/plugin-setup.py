@@ -13,6 +13,7 @@ Usage:
     python3 plugin-setup.py --yes          # replace without asking (needed when stdin is not a terminal)
     python3 plugin-setup.py --check        # report only: contacts GitHub, changes nothing, exit 1 if work is due
     python3 plugin-setup.py --ref test     # the branch to install when no marketplace is linked yet
+    python3 plugin-setup.py --claude PATH  # the claude program, when it is installed but not on PATH
 
 Your settings live outside the plugin (~/.claude/adyusuf.json, a project's .claude/adyusuf.json) and the marketplace
 link lives in Claude Code's own settings; neither is touched. ~/.claude/adyusuf.json is copied to
@@ -21,6 +22,7 @@ Exit codes: 0 done / current / you answered no · 1 --check found work to do · 
 """
 import argparse
 import datetime
+import glob
 import json
 import os
 import re
@@ -229,7 +231,52 @@ def decide(ctx, args):
 
 
 def preflight(which):
-    return [f'{tool} is not on PATH' for tool in ('claude', 'git') if not which(tool)]
+    return [f'{tool} is not on PATH' for tool in ('git',) if not which(tool)]
+
+
+def bundled_claude(home, env):
+    """The copy the Claude desktop app keeps for its Code tab, newest version first. It is there on a machine that
+    has the desktop app and no terminal install: <app data>/Claude/claude-code/<version>/<hash>/..."""
+    roots = [os.path.join(env['APPDATA'], 'Claude')] if env.get('APPDATA') else []
+    roots += [os.path.join(home, 'Library', 'Application Support', 'Claude'), os.path.join(home, '.config', 'Claude')]
+    found = []
+    for root in roots:
+        base = os.path.join(root, 'claude-code', '*', '*')
+        found += glob.glob(os.path.join(base, 'claude.exe')) + glob.glob(os.path.join(base, 'claude'))
+        found += glob.glob(os.path.join(base, 'claude.app', 'Contents', 'MacOS', 'claude'))
+
+    def version(path):
+        parts = path.split(os.sep)
+        folder = parts[parts.index('claude-code') + 1] if 'claude-code' in parts else ''
+        return [int(n) for n in re.findall(r'\d+', folder)]
+    return sorted(found, key=version, reverse=True)
+
+
+def claude_candidates(home, env):
+    """Where Claude Code's installers put the command, for a terminal whose PATH does not have it yet."""
+    folders = [os.path.join(home, '.local', 'bin'), os.path.join(home, '.claude', 'local'),
+               os.path.join(home, '.npm-global', 'bin'), '/usr/local/bin', '/opt/homebrew/bin']
+    if env.get('APPDATA'):
+        folders.append(os.path.join(env['APPDATA'], 'npm'))
+    named = [os.path.join(folder, name) for folder in folders for name in ('claude.exe', 'claude.cmd', 'claude')]
+    return named + bundled_claude(home, env)
+
+
+def locate_claude(ctx, explicit, env):
+    """(note, problem). `claude` must be runnable: on PATH, or found (or given) and its folder put on PATH for this
+    run only. Windows installs often leave the current terminal without it until a new one is opened."""
+    if not explicit and ctx.which('claude'):
+        return None, None
+    path = explicit or next((c for c in claude_candidates(ctx.home, env) if ctx.exists(c)), None)
+    if not path or not ctx.exists(path):
+        given = f'--claude {path} does not exist' if explicit else \
+            'claude is not on PATH and not in the usual folders (the Claude desktop app\'s own copy included)'
+        return None, (f'{given}. Either install the Claude Code command (https://claude.com/claude-code) and open a new '
+                      'terminal, or do the same inside the Claude desktop app\'s Code tab: '
+                      f'/plugin marketplace add {REPO}#{DEFAULT_REF}  then  /plugin install {PLUGIN_ID}. '
+                      'Or pass --claude <full path> (Windows: Get-Command claude; macOS/Linux: command -v claude)')
+    env['PATH'] = os.path.dirname(os.path.abspath(path)) + os.pathsep + env.get('PATH', '')
+    return f'claude    {path} (not on PATH — its folder is added to PATH for this run only)', None
 
 
 def main(argv, ctx=None):
@@ -237,6 +284,7 @@ def main(argv, ctx=None):
     parser.add_argument('--check', action='store_true')
     parser.add_argument('--yes', action='store_true')
     parser.add_argument('--ref', default=DEFAULT_REF)
+    parser.add_argument('--claude', help='full path of the claude program, when it is installed but not on PATH')
     parser.add_argument('--home', default=os.path.expanduser('~'))
     args = parser.parse_args(argv)
     lines = []
@@ -245,16 +293,20 @@ def main(argv, ctx=None):
         lines.append(text)
         print(text, flush=True)
 
-    ctx = ctx or types.SimpleNamespace(run=run, ask=input, tty=sys.stdin.isatty(), which=shutil.which)
+    ctx = ctx or types.SimpleNamespace(run=run, ask=input, tty=sys.stdin.isatty(), which=shutil.which,
+                                       exists=os.path.isfile)
     ctx.say, ctx.home = say, os.path.abspath(args.home)
     ctx.stamp = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
     if not REF_OK.match(args.ref):
         print(f'✗ --ref {args.ref!r} is not a branch name', file=sys.stderr)
         return 2
-    missing = preflight(ctx.which)
+    note, problem = locate_claude(ctx, args.claude, os.environ)
+    missing = ([problem] if problem else []) + preflight(ctx.which)
     if missing:
         print('✗ ' + '; '.join(missing) + ' — nothing was changed', file=sys.stderr)
         return 2
+    if note:
+        say(note)
     try:
         return decide(ctx, args)
     finally:

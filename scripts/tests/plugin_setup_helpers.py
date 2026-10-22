@@ -98,8 +98,9 @@ class Case(unittest.TestCase):
         with open(os.path.join(self.home, '.claude', 'settings.json'), 'w', encoding='utf-8') as handle:
             json.dump({'enabledPlugins': {setup.PLUGIN_ID: enabled}}, handle)
 
-    def go(self, fake, *args, answer='y', tty=True, which=lambda tool: f'/bin/{tool}'):
-        ctx = types.SimpleNamespace(run=fake, ask=lambda prompt: answer, tty=tty, which=which)
+    def go(self, fake, *args, answer='y', tty=True, which=lambda tool: f'/bin/{tool}', existing=()):
+        ctx = types.SimpleNamespace(run=fake, ask=lambda prompt: answer, tty=tty, which=which,
+                                    exists=lambda path: path in existing)
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             code = setup.main(['--home', self.home, *args], ctx)
