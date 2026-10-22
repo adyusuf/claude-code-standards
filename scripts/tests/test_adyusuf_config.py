@@ -21,7 +21,7 @@ _spec.loader.exec_module(cfg)
 
 # The maintainer's list of 17/10/2026, key by key.
 EXPECTED = {
-    'mode': 'C', 'mode_model': 'sonnet', 'monitor.connect': True, 'monitor.message_format': 'short',
+    'mode': 'C', 'mode_model': 'sonnet',
     'write.unit_tests': True, 'write.e2e': True,
     'merge.dev': True, 'merge.test': True, 'merge.prod': True,
     'push.dev': True, 'push.test': True, 'push.prod': True,
@@ -158,6 +158,47 @@ class Unreadable(Tool):
             self.assertEqual('{ broken', handle.read())
 
 
+class RetiredKeys(Tool):
+    """A file written before a setting was retired still holds it: that key is skipped, the rest of the layer applies."""
+
+    def test_a_file_with_the_retired_monitor_keys_still_applies_its_other_settings(self):
+        with open(self.user, 'w', encoding='utf-8') as handle:
+            json.dump({'mode': 'B', 'monitor': {'connect': False, 'message_format': 'full'}, 'push': {'prod': False}}, handle)
+        data = self.values()
+        self.assertEqual([], data['problems'])
+        self.assertEqual('B', data['values']['mode'])
+        self.assertFalse(data['values']['push.prod'])
+        self.assertNotIn('monitor.connect', data['values'])
+
+    def test_the_retired_keys_are_not_settings_any_more(self):
+        for key in cfg.RETIRED_KEYS:
+            self.assertNotIn(key, cfg.SPECS)
+            _, err, code = self.run_tool('set', key, 'yes')
+            self.assertEqual(2, code, err)
+
+    def test_apply_of_a_panel_saved_before_the_retirement_writes_the_rest_and_says_what_it_skipped(self):
+        payload = json.dumps({'mode': 'B', 'monitor.connect': True, 'monitor.message_format': 'short', 'push.prod': False})
+        out, err, code = self.run_tool('apply', '-', stdin=payload)
+        self.assertEqual(0, code, err)
+        self.assertIn('2 setting(s) written', out)
+        self.assertIn('skipped (retired', out)
+        data = self.values()
+        self.assertEqual('B', data['values']['mode'])
+        self.assertFalse(data['values']['push.prod'])
+        with open(self.user, encoding='utf-8') as handle:
+            self.assertNotIn('monitor', json.load(handle))
+
+    def test_apply_still_refuses_a_key_that_never_existed(self):
+        _, err, code = self.run_tool('apply', '-', stdin=json.dumps({'mode': 'B', 'monitor.nonsense': 1}))
+        self.assertEqual(2, code, err)
+        self.assertFalse(os.path.exists(self.user))
+
+    def test_the_session_start_block_does_not_mention_the_monitor(self):
+        out, _, code = self.run_tool('context')
+        self.assertEqual(0, code)
+        self.assertNotIn('monitor', out.lower())
+
+
 class Agents(Tool):
     def test_mode_c_lists_nine_agents_and_only_opus_moves_to_the_override(self):
         rows = {r['role']: r for r in json.loads(self.run_tool('agents', '--json')[0])}
@@ -283,6 +324,17 @@ class Notify(Tool):
         return json.loads(result.stdout)['hookSpecificOutput'] if result.stdout.strip() else None
 
     def test_the_first_call_of_a_session_says_nothing_it_only_remembers(self):
+        self.assertIsNone(self.hook())
+
+    def test_a_seen_file_that_still_holds_a_retired_key_is_not_a_change(self):
+        # A session that started before the retirement recorded the two monitor keys: that alone is not a change.
+        self.hook()
+        path = os.path.join(self.seen, 'sess-1')
+        with open(path, encoding='utf-8') as handle:
+            seen = json.load(handle)
+        seen.update({'monitor.connect': True, 'monitor.message_format': 'short'})
+        with open(path, 'w', encoding='utf-8') as handle:
+            json.dump(seen, handle)
         self.assertIsNone(self.hook())
 
     def test_an_unchanged_configuration_stays_silent(self):

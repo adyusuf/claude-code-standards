@@ -204,7 +204,7 @@ because something broke first.
 | Engineering standards | `standards/` | 24 documents + 7 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate, measurement and install scripts | `scripts/` | 35 scripts + 842 tests |
+| Gate, measurement and install scripts | `scripts/` | 34 scripts + 835 tests |
 | Slash commands, skills and hooks — one plugin, `/adyusuf:<name>` | `.claude-plugin/`, `commands/`, `skills/`, `hooks/` | 8 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
@@ -487,8 +487,8 @@ an explicit update step; the guidance files still have their own size and rule-l
 gates (`scripts/md-size-gate.sh`, `scripts/md-rule-gate.py`), because a bad rule
 reaches every session once it is updated.
 
-`scripts/install.py` now installs only claude-monitor's agent (optional) and, with
-`--remove --no-monitor`, takes an older link install back out.
+`scripts/install.py` installs nothing now: it prints the two `/plugin` commands and, with
+`--remove`, takes an older link install back out.
 
 I would not start here. Start at Level 1 and come back once a rule has earned its
 place in your own week.
@@ -556,20 +556,11 @@ them opens a network connection.
 | `PostToolUse` (Edit/Write), `Stop` | `md-hook.sh` | checks a touched `CLAUDE.md` against its size budget and for dropped rules; prints a warning |
 
 **What runs only when you call it.**
-- **`/adyusuf:*` skills and commands** tell Claude what to do. They run nothing on their own. One sends
-  data: when claude-monitor's agent is installed and connected, `/adyusuf:board-plan` sends one line per task
-  status change (for example `T-3 → done (abc1234)`) to that server through the agent's `monitor_note` tool.
-  Without the agent it writes only the local plan file.
-- **`scripts/install.py`** (optional, from a checkout) does two things:
-  - installs claude-monitor's agent: it clones `github.com/adyusuf/claude-monitor`, builds it with the .NET
-    SDK, and registers it in `~/.claude/settings.json` (backed up first);
-  - with `--remove`, it takes the old link install out of `~/.claude`.
-
-  The agent stays **disabled** until you connect it to a claude-monitor server. You approve that connection
-  on the web, and the server is one of those named in `scripts/install_monitor.py` or the one you pass with
-  `--monitor-server`. Once connected, the agent sends that server your sessions' activity: sessions,
-  subagents and Claude Code's task tools. The data model is in the claude-monitor repository.
-  `--no-monitor` skips the agent entirely.
+- **`/adyusuf:*` skills and commands** tell Claude what to do. They run nothing on their own and send
+  nothing anywhere: `/adyusuf:board-plan` writes only the local plan file.
+- **`scripts/install.py`** (optional, from a checkout) contacts no server. It prints the two `/plugin`
+  commands and reports what is left of the old link install; with `--remove` it takes that install out of
+  `~/.claude` (the `settings.json` backup comes first).
 - **The gate** (`scripts/gate-core.sh` and its libraries, which you run in your own project) runs your
   project's tools on your machine: formatter, tests, coverage, `gitleaks`, `codeql`. Four of its steps
   reach the network:
@@ -585,8 +576,7 @@ them opens a network connection.
   would leak.
 
 **No telemetry.** The plugin itself sends nothing anywhere. The only data that leaves your machine is what
-you start: the monitor agent once you connect it, and the gate's advisory lookups. Turn the plugin off or
-remove it with `/plugin`.
+you start: the gate's advisory lookups. Turn the plugin off or remove it with `/plugin`.
 
 ## Anonymization
 

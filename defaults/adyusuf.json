@@ -1,10 +1,6 @@
 {
   "mode": "C",
   "mode_model": "sonnet",
-  "monitor": {
-    "connect": true,
-    "message_format": "short"
-  },
   "write": {
     "unit_tests": true,
     "e2e": true

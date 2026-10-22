@@ -8,6 +8,7 @@ import io
 import json
 import os
 import runpy
+import shlex
 import shutil
 import subprocess
 import sys
@@ -24,7 +25,7 @@ _spec.loader.exec_module(check)
 MD_HOOK = 'bash "$HOME/.claude/scripts/md-hook.sh"'
 GUARD = 'bash "$HOME/.claude/hooks/guard-destructive.sh"'
 PLUGIN_HOOK = 'bash "${CLAUDE_PLUGIN_ROOT}/scripts/md-hook.sh"'
-FALLBACK = '<your claude-code-standards checkout>'
+OWN_INSTALL = shlex.quote(os.path.join(os.path.realpath(SCRIPTS), 'install.py'))   # what the hook prints
 
 
 def snapshot(root):
@@ -121,8 +122,8 @@ class Links(Fixture):
         self.assertTrue(out.startswith('⚠️ adyusuf: the old symlinked install is still present'), out)
         self.assertIn('1 symlink(s) under ~/.claude (modes)', out)
         self.assertNotIn('settings.json', out)
-        self.assertIn(f'python3 {self.checkout}/scripts/install.py --remove --no-monitor', out)
-        self.assertNotIn(FALLBACK, out)
+        self.assertIn(f'python3 {OWN_INSTALL} --remove', out)
+        self.assertNotIn(self.checkout, out)
         self.assertIn('load TWICE', out)
 
     def test_several_links_are_counted_and_named_by_their_last_path_part(self):
@@ -131,25 +132,19 @@ class Links(Fixture):
         out, _ = self.run_check()
         self.assertIn('3 symlink(s) under ~/.claude (CLAUDE.md, standards, adyusuf)', out)
 
-    def test_a_dangling_link_is_still_reported_and_names_the_placeholder_checkout(self):
+    def test_a_dangling_link_is_still_reported_with_the_same_command(self):
         self.link('docs', os.path.join(self.base, 'gone', 'docs'))
         out, _ = self.run_check()
         self.assertIn('1 symlink(s) under ~/.claude (docs)', out)
-        self.assertIn(f'python3 {FALLBACK}/scripts/install.py --remove --no-monitor', out)
+        self.assertIn(f'python3 {OWN_INSTALL} --remove', out)
 
-    def test_the_checkout_comes_from_the_first_link_that_points_into_one(self):
-        self.link('agents', os.path.join(self.base, 'elsewhere', 'agents'))     # dangling: no install.py there
+    def test_the_command_runs_the_hooks_own_install_py_never_the_old_checkouts(self):
+        # An older checkout's install.py may still do more than take the old install out, so it is never named.
         self.link('modes')
         out, _ = self.run_check()
-        self.assertIn(f'python3 {self.checkout}/scripts/install.py', out)
-
-    def test_checkout_of_needs_an_install_py_beside_the_target(self):
-        link = os.path.join(self.dot, 'modes')
-        os.symlink(os.path.join(self.checkout, 'modes'), link)
-        self.assertEqual(check.checkout_of([link]), self.checkout)
-        os.remove(os.path.join(self.checkout, 'scripts', 'install.py'))
-        self.assertIsNone(check.checkout_of([link]))
-        self.assertIsNone(check.checkout_of([]))
+        self.assertIn(OWN_INSTALL, out)
+        self.assertTrue(os.path.isfile(OWN_INSTALL))
+        self.assertNotIn(os.path.join(self.checkout, 'scripts', 'install.py'), out)
 
 
 class Settings(Fixture):
@@ -162,7 +157,7 @@ class Settings(Fixture):
         self.assertEqual(err, '')
         self.assertIn('1 old hook entry in ~/.claude/settings.json', out)
         self.assertNotIn('symlink(s)', out)
-        self.assertIn(f'python3 {FALLBACK}/scripts/install.py --remove --no-monitor', out)
+        self.assertIn(f'python3 {OWN_INSTALL} --remove', out)
 
     def test_entries_are_counted_across_events_and_the_plural_is_right(self):
         events = self.entries(GUARD)
@@ -284,13 +279,13 @@ class Failures(Fixture):
 
 
 class Message(unittest.TestCase):
-    def test_the_command_names_the_checkout_and_asks_for_a_new_session(self):
-        text = check.message(['/h/.claude/modes'], [], '/work/ccs')
-        self.assertIn('run: python3 /work/ccs/scripts/install.py --remove --no-monitor  (then start a new session)', text)
+    def test_the_command_names_the_hooks_own_script_and_asks_for_a_new_session(self):
+        text = check.message(['/h/.claude/modes'], [])
+        self.assertIn(f'run: python3 {OWN_INSTALL} --remove  (then start a new session)', text)
 
     def test_the_plural_of_entries(self):
-        self.assertIn('1 old hook entry in', check.message([], ['a'], None))
-        self.assertIn('2 old hook entries in', check.message([], ['a', 'b'], None))
+        self.assertIn('1 old hook entry in', check.message([], ['a']))
+        self.assertIn('2 old hook entries in', check.message([], ['a', 'b']))
 
 
 if __name__ == '__main__':

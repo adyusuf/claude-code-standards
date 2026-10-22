@@ -1,23 +1,16 @@
 #!/usr/bin/env python3
-"""The claude-monitor agent, and the ONE way off the old linked install. The rule set itself is a plugin.
+"""The ONE way off the old linked install, and the check that the plugin is in place. The rule set itself is a plugin.
 
 The adyusuf rule set is a standard Claude Code plugin (decision log, 13/10/2026: no symlinks, no install script).
 Install it from inside Claude Code; /plugin update brings each promotion to prod:
     /plugin marketplace add adyusuf/claude-code-standards#prod
     /plugin install adyusuf@adyusuf-marketplace
-This script links nothing and wires no hooks. What it still does:
+This script links nothing, wires no hooks and talks to no server. What it does:
 
 Usage:
-    python3 scripts/install.py                 # print the two /plugin commands, then the monitor agent on prod
-    python3 scripts/install.py --test          # the same, the monitor agent connected to test
-    python3 scripts/install.py --dev           # the same, the monitor agent connected to a LOCAL API
-    python3 scripts/install.py --no-monitor    # only print the two /plugin commands
-    python3 scripts/install.py --monitor-server URL   # another claude-monitor API than the channel's
-    python3 scripts/install.py --monitor-sync  # re-derive the agent's ON/OFF from its connection (e.g. after logout)
+    python3 scripts/install.py                 # print the two /plugin commands and what is left of the old install
     python3 scripts/install.py --check         # exit 1 while an old link or hook is left, or the plugin is missing
     python3 scripts/install.py --remove        # MIGRATION: take the old links and hooks out (backups stay)
-    python3 scripts/install.py --remove --no-monitor  # the same, and the monitor agent stays installed
---prod is the default. --prod/--test/--dev only pick the monitor's server now; --with-monitor changes nothing.
 
 --remove, the migration off the old install (it linked ~/.claude/{CLAUDE.md,agents,docs,modes,scripts,standards}
 and ~/.claude/skills/adyusuf -> <checkout>/plugin, and wired hooks into settings.json):
@@ -28,17 +21,14 @@ and ~/.claude/skills/adyusuf -> <checkout>/plugin, and wired hooks into settings
        or folder is never touched, and neither is a link to an existing target outside this repository.
     2. Takes the legacy hooks out through install-live-hooks.py (settings.json is backed up first) — the old
        guard and md-hook entries and the retired live board's. An unreadable settings.json stops --remove there
-       (exit 2, "partially removed"): the monitor and the restore are not touched until it is fixed and rerun.
-    3. Unless --no-monitor: uninstalls the monitor agent, as before.
-    4. Puts back what the old install moved aside, from ~/.claude-standards/backups/ (never over an occupied place).
+       (exit 2, "partially removed"): the restore is not touched until it is fixed and rerun.
+    3. Puts back what the old install moved aside, from ~/.claude-standards/backups/ (never over an occupied place).
 --check reads ~/.claude/plugins/installed_plugins.json for the adyusuf@adyusuf-marketplace entry; a missing file
-or entry is "not installed" and fails the check. The monitor step: install_monitor.py builds cm-agent and connects
-it to the channel's server; its plugin is ENABLED only while connected, otherwise DORMANT. The monitor is OPTIONAL
-(decision 13/10/2026): missing, not connected or unreachable is printed, never a failure or a counted problem.
-Log: install, --remove and --monitor-sync write their whole output to ~/.claude-standards/logs/install-<stamp>.log
+or entry is "not installed" and fails the check.
+Log: install and --remove write their whole output to ~/.claude-standards/logs/install-<stamp>.log
 as well as the console (--check is read-only and writes none).
-Exit codes: 0 done (a monitor that could not be installed is a warning) · 1 --check found a problem ·
-2 refused or failed (preflight, or --remove on an unreadable settings.json).
+Exit codes: 0 done · 1 --check found a problem · 2 refused or failed (preflight, or --remove on an unreadable
+settings.json).
 """
 import argparse
 import importlib.util
@@ -76,8 +66,8 @@ def find_bash(which=shutil.which, exists=os.path.exists, windows=os.name == 'nt'
 
 
 def preflight(which=shutil.which, windows=os.name == 'nt'):
-    """(errors, warnings). An error stops before anything runs: the monitor step clones with git, and the plugin's
-    own hooks run through bash and python3."""
+    """(errors, warnings). An error stops before anything runs: the plugin is installed from a git marketplace,
+    and its own hooks run through bash and python3."""
     errors, warnings = [], []
     if sys.version_info < (3, 9):
         errors.append(f'Python 3.9+ is required, this is {sys.version.split()[0]}')
@@ -140,49 +130,21 @@ def remove_links(home):
 def flag_notices(args):
     """One line per flag that no longer does anything in this run."""
     notes = []
-    if args.with_monitor:
-        notes.append('--with-monitor changes nothing: the monitor is on by default')
-    if args.channel and (args.check or args.remove or args.monitor_sync or args.no_monitor):
-        notes.append(f'--{args.channel} only picks the monitor\'s server for an install; it changes nothing here')
     if args.repo != DEFAULT_REPO:
         notes.append('--repo changes nothing: no link points into a checkout any more')
     return notes
-
-
-def monitor_configured(home):
-    """The configuration's `monitor.connect` (scripts/adyusuf_config.py). Yes when it cannot be read: the default is on."""
-    try:
-        config = load('adyusuf_config', 'adyusuf_config.py')
-        values, _ = config.load(os.path.join(home, '.claude', 'adyusuf.json'))
-        return values['monitor.connect'][0] is not False
-    except Exception:   # a broken configuration must not stop an install; the default (on) applies
-        return True
 
 
 def main(argv):
     parser = argparse.ArgumentParser(description=__doc__.split('\n')[0])
     parser.add_argument('--check', action='store_true')
     parser.add_argument('--remove', action='store_true')
-    branch = parser.add_mutually_exclusive_group()
-    branch.add_argument('--prod', dest='channel', action='store_const', const='prod', help='the default')
-    branch.add_argument('--test', dest='channel', action='store_const', const='test')
-    branch.add_argument('--dev', dest='channel', action='store_const', const='dev', help='its monitor API is local')
-    parser.add_argument('--no-monitor', action='store_true', help='skip the claude-monitor agent')
-    parser.add_argument('--with-monitor', action='store_true', help=argparse.SUPPRESS)    # the default; kept
-    parser.add_argument('--monitor-server', help="a claude-monitor API other than the channel's")
-    parser.add_argument('--monitor-sync', action='store_true',
-                        help="switch the agent's plugin on or off to match its connection, nothing else")
     parser.add_argument('--repo', default=DEFAULT_REPO, help=argparse.SUPPRESS)   # accepted; nothing links to it
     parser.add_argument('--home', default=os.path.expanduser('~'))
     args = parser.parse_args(argv)
-    start, home, channel = os.path.realpath(args.repo), os.path.abspath(args.home), args.channel or 'prod'
-    monitor = not args.no_monitor
-    if monitor and not (args.check or args.remove or args.monitor_sync) and not monitor_configured(home):
-        monitor = False
-        print('note: the configuration says monitor.connect = no (adyusuf:config), so the monitor agent is skipped like --no-monitor')
+    start, home = os.path.realpath(args.repo), os.path.abspath(args.home)
     if hasattr(sys.stdout, 'reconfigure'):
-        # A cp1252 console must not crash on ✓/—, and each line must land BEFORE the git/dotnet output that
-        # follows it: a block-buffered pipe printed the steps after the build log (seen 04/10/2026).
+        # A cp1252 console must not crash on ✓/—, and each line must land in order with any child-process output.
         sys.stdout.reconfigure(errors='replace', line_buffering=True)
     for note in flag_notices(args):
         print(f'note: {note}')
@@ -194,35 +156,29 @@ def main(argv):
         for error in refused:
             print(f'✗ {error}', file=sys.stderr)
         return 2
-    if args.monitor_sync:
-        return safety.logged(home, lambda: load('install_monitor', 'install_monitor.py').sync(home=home))
     if args.remove:
-        return safety.logged(home, lambda: remove_all(start, home, monitor))
+        return safety.logged(home, lambda: remove_all(start, home))
     if args.check:                                        # read-only: no log
-        return check_all(start, home, monitor)
-    return safety.logged(home, lambda: install_all(start, home, channel, monitor, args.monitor_server))
+        return check_all(start, home)
+    return safety.logged(home, lambda: install_all(start, home))
 
 
-def remove_all(start, home, monitor):
+def remove_all(start, home):
     print('links:')
     remove_links(home)
     print('hooks:')
     code = hooks.remove(start, home)
     if code:
         print('✗ partially removed — the links are out, settings.json could not be read: fix it and rerun '
-              '--remove (the monitor and the restore were not touched)')
+              '--remove (the restore was not touched)')
         return code
-    if monitor:
-        load('install_monitor', 'install_monitor.py').remove(home=home)
-    else:
-        print('monitor: left installed (--no-monitor)')
     safety.restore_latest(home)                           # your CLAUDE.md and folders come back from the backup
     print(f'removed; every backup is kept in {safety.store(home, "backups")}')
     plugin_commands()
     return code
 
 
-def check_all(start, home, monitor):
+def check_all(start, home):
     print('old linked install (install.py --remove takes it out):')
     leftovers = legacy_links(home)
     for link, target in leftovers:
@@ -233,21 +189,12 @@ def check_all(start, home, monitor):
     installed, said = safety.plugin_installed(home, PLUGIN_ID)
     print(f'plugin: {"✓" if installed else "✗"} {said}')
     problems += not installed
-    if monitor:
-        # The monitor is optional (user decision 13/10/2026): missing, not connected or unreachable is reported,
-        # never counted as a problem.
-        print('monitor (optional — not a problem when missing or not connected):')
-        load('install_monitor', 'install_monitor.py').check(home=home)
     print('✓ everything is in place' if not problems else f'✗ {problems} problem(s)')
     return 1 if problems else 0
 
 
-def install_all(start, home, channel, monitor, server_override):
-    agent = load('install_monitor', 'install_monitor.py') if monitor else None
-    server = (server_override or agent.SERVERS[channel]) if monitor else None
+def install_all(start, home):
     print('choices:')
-    print(f'  channel     {channel}  (--prod default · --test · --dev: the monitor\'s server only)')
-    print(f'  monitor     {"on -> " + server if monitor else "off (--no-monitor)"}')
     print(f'  claude      {os.path.join(home, ".claude")}  (Claude Code found, writable)')
     errors, warnings = preflight()
     for warning in warnings:
@@ -263,12 +210,6 @@ def install_all(start, home, channel, monitor, server_override):
     if leftovers:
         print(f'⚠️  {leftovers} piece(s) of the old linked install are still here — run install.py --remove '
               'before installing the plugin, or the rules and the roles load twice')
-    if monitor:
-        print(f'monitor ({server}, optional):')
-        code = agent.install(server, home=home)
-        if code:
-            # Optional (user decision 13/10/2026): a monitor that cannot be built or reached is not a failure.
-            print(f'⚠️  the monitor agent was not installed or connected (exit {code}) — optional, the rules are unaffected')
     print('✓ done — open a NEW Claude Code session after installing the plugin')
     return 0
 
