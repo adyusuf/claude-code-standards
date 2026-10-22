@@ -24,7 +24,14 @@ python "$d\plugin-setup.py"
 
 Add `--check` to only report (exit 1 when work is due), `--yes` to answer the question for yourself, `--ref <branch>` to
 link another branch on a first install. Afterwards open a new Claude Code session (or `/reload-plugins`). Windows also
-needs a `python3` on `PATH` for the plugin's own hooks: [`SETUP.md`](SETUP.md) §1. What the script does, step by step:
+needs a `python3` on `PATH` for the plugin's own hooks: [`SETUP.md`](SETUP.md) §1.
+
+**"claude is not on PATH"?** The script looks in the installers' usual folders and in the copy the **Claude desktop
+app** keeps for its Code tab (`%APPDATA%\Claude\claude-code\…` on Windows, `~/Library/Application Support/Claude/claude-code/…`
+on macOS), and uses what it finds for that run. If you have only the desktop app and it finds nothing, do the same two
+steps inside the app's **Code** tab: `/plugin marketplace add adyusuf/claude-code-standards#prod`, then
+`/plugin install adyusuf@adyusuf-marketplace`. Or pass the program yourself: `--claude <full path>` (PowerShell:
+`Get-Command claude`; macOS/Linux: `command -v claude`). What the script does, step by step:
 [Level 3](#level-3--install-it-as-a-plugin).
 
 **AI changed our lives — at least the lives of those of us who write software.**
@@ -231,7 +238,7 @@ because something broke first.
 | Engineering standards | `standards/` | 24 documents + 7 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate, measurement and install scripts | `scripts/` | 29 scripts + 679 tests |
+| Gate, measurement and install scripts | `scripts/` | 29 scripts + 689 tests |
 | Slash commands, skills and hooks — one plugin, `/adyusuf:<name>` | `.claude-plugin/`, `commands/`, `skills/`, `hooks/` | 9 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 

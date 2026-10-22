@@ -4,6 +4,7 @@ import contextlib
 import io
 import json
 import os
+import re
 import sys
 import tempfile
 import unittest
@@ -126,10 +127,12 @@ class Helpers(unittest.TestCase):
                 contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(setup.main(['--home', tmp, '--check']), 2)
 
-    def test_nothing_but_github_is_named_as_a_server(self):
+    def test_only_github_is_contacted_and_claude_com_is_printed_advice_only(self):
         with open(setup.__file__, encoding='utf-8') as handle:
             text = handle.read()
-        self.assertEqual(sorted(set(__import__('re').findall(r'https?://[^/\s\'"]+', text))), ['https://github.com'])
+        self.assertEqual(sorted(set(re.findall(r'https?://[^/\s\'"]+', text))), ['https://claude.com', 'https://github.com'])
+        for network in ('urllib', 'http.client', 'socket', 'requests'):
+            self.assertNotIn(f'import {network}', text)
 
 
 if __name__ == '__main__':
