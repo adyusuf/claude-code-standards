@@ -11,9 +11,8 @@ maintainer receives no data from it. The full inventory is in
 
 All reading happens on your own machine. Nothing read is sent anywhere by the plugin.
 
-- **The hooks** read this plugin's `CLAUDE.md`, your `~/.claude` folder (links and `settings.json`, to warn
-  about an old install), the command Claude is about to run (to refuse destructive ones) and a `CLAUDE.md` you
-  edit (to check its size).
+- **The hooks** read this plugin's `CLAUDE.md`, the command Claude is about to run (to refuse destructive ones) and
+  a `CLAUDE.md` you edit (to check its size).
 - **The settings and the rail boxes** (`scripts/adyusuf_config.py`, `hooks/register.tsx`) read your own and a project's
   `adyusuf.json`, `~/.claude/plugins/installed_plugins.json` (to find the installed copy of this plugin) and, for the
   Promotion box, the branch names, commit messages and `Gate-Waived:` lines of the repository you are in, through
@@ -25,8 +24,8 @@ All reading happens on your own machine. Nothing read is sent anywhere by the pl
 
 - `step-stats.py` writes only aggregate counts (steps, tokens) to `docs/measurement-log.md`. A sanitiser
   removes project names and paths, and the script refuses to write when one survives.
-- `install.py` and `plugin-setup.py` write logs (and `plugin-setup.py` a copy of your `adyusuf.json` before it replaces
-  the plugin) under `~/.claude-standards/` on your machine.
+- `plugin-setup.py` writes its log, and a copy of your `adyusuf.json` before it replaces the plugin, under
+  `~/.claude-standards/` on your machine.
 - Changing a setting (in the rail boxes or with `/adyusuf:config`) writes `~/.claude/adyusuf.json`, or a project's
   `.claude/adyusuf.json` when you ask for the project layer. A short lock file goes to your temp folder while it writes.
 - Nothing is retained anywhere else.

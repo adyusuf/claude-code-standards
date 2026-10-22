@@ -100,7 +100,7 @@ class Registration(unittest.TestCase):
 
     @staticmethod
     def rules_commands(event):
-        """The rules-context.py commands of an event; SessionStart also carries the legacy-install check."""
+        """The rules-context.py commands of an event."""
         with open(HOOKS, encoding='utf-8') as handle:
             groups = json.load(handle)['hooks'][event]
         return [h['command'] for group in groups for h in group['hooks'] if 'rules-context.py' in h['command']]

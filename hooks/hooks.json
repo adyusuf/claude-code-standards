@@ -24,15 +24,6 @@
             "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/adyusuf_config.py\" context"
           }
         ]
-      },
-      {
-        "matcher": "startup",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/legacy-install-check.py\""
-          }
-        ]
       }
     ],
     "SubagentStart": [
