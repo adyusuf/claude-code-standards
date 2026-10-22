@@ -1,6 +1,10 @@
 {
   "mode": "C",
   "mode_model": "sonnet",
+  "pod": {
+    "connect": false,
+    "message_format": "short"
+  },
   "write": {
     "unit_tests": true,
     "e2e": true
@@ -15,19 +19,20 @@
     "test": true,
     "prod": true
   },
-  "run_before_push": {
-    "dev": {
-      "unit": false,
-      "e2e": false
-    },
-    "test": {
-      "unit": true,
-      "e2e": false
-    },
-    "prod": {
-      "unit": true,
-      "e2e": false
-    }
+  "gates_before_push": {
+    "dev": false,
+    "test": true,
+    "prod": true
+  },
+  "ci_before_merge": {
+    "dev": false,
+    "test": true,
+    "prod": true
+  },
+  "e2e_after_deploy": {
+    "dev": false,
+    "test": false,
+    "prod": true
   },
   "agents": {
     "product-manager": {

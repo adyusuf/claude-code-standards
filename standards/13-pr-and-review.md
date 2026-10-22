@@ -176,16 +176,17 @@ defaults say what normally happens and whoever wants something else changes the 
 
 | Setting | Effect |
 |---|---|
+| `ci_before_merge.<t>` = yes | Before merging into `<t>`, wait for the project's CI to be green on the code being merged (the commit that will be merged, §8). `no` merges without waiting and the merge commit carries `Gate-Waived: ci`. Defaults: dev no, test yes, prod yes. |
 | `merge.<t>` = yes | Merge the finished code into `<t>` (`--no-ff`, from the fresh remote tip, §8). `no` leaves it out, and the later targets with it. |
-| `run_before_push.<t>.unit` = yes | Run the unit tests on the merged result before `<t>` is pushed. The project's **gate owner** runs them: CI where its minutes are free (wait for it to be green on the commit), else the local gate. |
-| `run_before_push.<t>.e2e` = yes | Run e2e the same way (optional by rule #33; by hand or `GATE_RUN_E2E=1`). |
+| `gates_before_push.<t>` = yes | Run the gates (unit tests, coverage, secret scan, SAST) on the merged result before `<t>` is pushed. Defaults: dev no, test yes, prod yes. The project's **gate owner** runs them: CI where its minutes are free (wait for it to be green on the commit), else the local gate. |
 | `push.<t>` = yes | Push `<t>` after its merge and its gates. `no` leaves the merge local and the report says so. |
+| `e2e_after_deploy.<t>` = yes | After `<t>` is deployed, run the e2e suite against it (Playwright / Maestro, `11`/`12`). It applies only where the project has an e2e suite and deploys that target; otherwise the report says "no e2e suite" or "not deployed", which is not a failure. The deploy itself still needs the user's approval (#20, #27). Defaults: dev no, test no, prod yes. A red run is reported with the failing specs; whether to roll back is the user's call. |
 
 **A red gate blocks** the push of that target and every later one; it is fixed, not waved through (§8, point 5). **A gate set
 to no is not run and is recorded**: the merge commit message ends with one line naming only what was skipped,
 
 ```
-Gate-Waived: unit, e2e (neden: configuration)
+Gate-Waived: ci, gates (neden: configuration)
 ```
 
 (`neden:` is the literal the user gave; a scanner accepts `reason:` too.) **Before the `prod` merge**, scan the range being

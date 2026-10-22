@@ -125,9 +125,21 @@ class RootPluginTest(unittest.TestCase):
         self.assertNotIn('version', manifest)
 
     def test_marketplace_lists_exactly_the_one_plugin_at_the_repository_root(self):
+        # The right-hand rail boxes are NOT a second plugin (user decision 22/10/2026): they are the mod inside this one.
         marketplace = json.loads(read('.claude-plugin', 'marketplace.json'))
         self.assertEqual(marketplace['name'], 'adyusuf-marketplace')
         self.assertEqual([(p['name'], p['source']) for p in marketplace['plugins']], [(NAMESPACE, './')])
+
+    def test_the_mod_is_listed_in_hooks_json_beside_the_command_hooks_and_its_files_exist(self):
+        hooks = json.loads(read('hooks', 'hooks.json'))
+        self.assertEqual(hooks['modules'], ['./register.tsx'])
+        self.assertIn('SessionStart', hooks['hooks'])                    # the command hooks are still there
+        for name in ('register.tsx', 'choose.ts', 'choose.test.ts', 'register.test.tsx'):
+            self.assertTrue(os.path.isfile(os.path.join(REPO, 'hooks', name)), name)
+        manifest = json.loads(read('.claude-plugin', 'plugin.json'))
+        self.assertEqual(manifest['types'], './types/index.d.ts')
+        self.assertTrue(os.path.isfile(os.path.join(REPO, 'types', 'index.d.ts')))
+        self.assertIn("name: 'adyusuf:panels'", read('hooks', 'register.tsx'))
 
     def test_hook_events_are_exactly_the_six(self):
         self.assertEqual(sorted(normalised_hooks()),

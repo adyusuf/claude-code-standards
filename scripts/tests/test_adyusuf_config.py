@@ -21,13 +21,13 @@ _spec.loader.exec_module(cfg)
 
 # The maintainer's list of 17/10/2026, key by key.
 EXPECTED = {
-    'mode': 'C', 'mode_model': 'sonnet',
+    'mode': 'C', 'mode_model': 'sonnet', 'pod.connect': False, 'pod.message_format': 'short',
     'write.unit_tests': True, 'write.e2e': True,
     'merge.dev': True, 'merge.test': True, 'merge.prod': True,
     'push.dev': True, 'push.test': True, 'push.prod': True,
-    'run_before_push.dev.unit': False, 'run_before_push.dev.e2e': False,
-    'run_before_push.test.unit': True, 'run_before_push.test.e2e': False,
-    'run_before_push.prod.unit': True, 'run_before_push.prod.e2e': False,
+    'gates_before_push.dev': False, 'gates_before_push.test': True, 'gates_before_push.prod': True,
+    'ci_before_merge.dev': False, 'ci_before_merge.test': True, 'ci_before_merge.prod': True,
+    'e2e_after_deploy.dev': False, 'e2e_after_deploy.test': False, 'e2e_after_deploy.prod': True,
 }
 
 
@@ -109,14 +109,14 @@ class Layers(Tool):
         self.assertTrue(self.values()['values']['push.prod'])
 
     def test_a_set_writes_nested_json_and_keeps_the_other_keys(self):
-        self.run_tool('set', 'run_before_push.dev.unit', 'yes')
+        self.run_tool('set', 'gates_before_push.dev', 'yes')
         self.run_tool('set', 'mode', 'e')
         with open(self.user, encoding='utf-8') as handle:
-            self.assertEqual({'run_before_push': {'dev': {'unit': True}}, 'mode': 'E'}, json.load(handle))
+            self.assertEqual({'gates_before_push': {'dev': True}, 'mode': 'E'}, json.load(handle))
 
     def test_get_prints_the_effective_value(self):
         self.assertEqual('C\n', self.run_tool('get', 'mode')[0])
-        self.assertEqual('no\n', self.run_tool('get', 'run_before_push.dev.unit')[0])
+        self.assertEqual('no\n', self.run_tool('get', 'gates_before_push.dev')[0])
 
 
 class Validation(Tool):
@@ -131,10 +131,10 @@ class Validation(Tool):
         _, err, code = self.run_tool('apply', '-', stdin=json.dumps({'push.prod': False, 'mode': 'Z'}))
         self.assertEqual(2, code, err)
         self.assertFalse(os.path.exists(self.user))
-        out, _, code = self.run_tool('apply', '-', stdin=json.dumps({'push.prod': False, 'run_before_push': {'dev': {'unit': True}}}))
+        out, _, code = self.run_tool('apply', '-', stdin=json.dumps({'push.prod': False, 'gates_before_push': {'dev': True}}))
         self.assertEqual(0, code, out)
         data = self.values()['values']
-        self.assertEqual((False, True), (data['push.prod'], data['run_before_push.dev.unit']))
+        self.assertEqual((False, True), (data['push.prod'], data['gates_before_push.dev']))
 
     def test_apply_rejects_json_that_is_not_an_object(self):
         for text in ('not json', '[1, 2]'):
@@ -170,6 +170,35 @@ class Unreadable(Tool):
             self.assertEqual('{ broken', handle.read())
 
 
+class ConcurrentWrites(Tool):
+    """Clicks in the rail boxes arrive in quick succession; found by QA: 37 of 40 two-way races lost a change."""
+
+    def test_many_simultaneous_sets_all_land_and_leave_no_temp_file(self):
+        keys = ['push.dev', 'push.test', 'push.prod', 'merge.dev', 'merge.test', 'merge.prod', 'write.e2e', 'write.unit_tests']
+        env = dict(os.environ, ADYUSUF_CONFIG_USER=self.user)
+        tool = os.path.join(SCRIPTS, 'adyusuf_config.py')
+        for round_ in range(5):
+            if os.path.exists(self.user):
+                os.remove(self.user)
+            procs = [subprocess.Popen(['python3', tool, 'set', key, 'no'], cwd=self.repo, env=env,
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) for key in keys]
+            results = []
+            for proc in procs:
+                _, err = proc.communicate()
+                results.append((proc.returncode, err))
+            self.assertEqual([(0, '')] * len(keys), results, 'round %d' % round_)
+            with open(self.user, encoding='utf-8') as handle:
+                written = cfg.flatten(json.load(handle))
+            self.assertEqual({key: False for key in keys}, written, 'round %d lost a change' % round_)
+        self.assertEqual([], [name for name in os.listdir(self.home) if name.endswith('.tmp')])
+
+    def test_the_file_is_replaced_not_truncated_in_place(self):
+        self.run_tool('set', 'mode', 'B')
+        before = os.stat(self.user).st_ino
+        self.run_tool('set', 'mode', 'D')
+        self.assertNotEqual(before, os.stat(self.user).st_ino)       # a new file took its place (os.replace)
+
+
 class RetiredKeys(Tool):
     """A file written before a setting was retired still holds it: that key is skipped, the rest of the layer applies."""
 
@@ -181,6 +210,26 @@ class RetiredKeys(Tool):
         self.assertEqual('B', data['values']['mode'])
         self.assertFalse(data['values']['push.prod'])
         self.assertNotIn('monitor.connect', data['values'])
+
+    def test_a_file_with_the_retired_run_before_push_keys_still_applies_its_other_settings(self):
+        with open(self.user, 'w', encoding='utf-8') as handle:
+            json.dump({'run_before_push': {'dev': {'unit': True, 'e2e': True}, 'prod': {'e2e': False}}, 'gates_before_push': {'dev': True},
+                       'mode': 'B'}, handle)
+        data = self.values()
+        self.assertEqual([], data['problems'])
+        self.assertTrue(data['values']['gates_before_push.dev'])
+        self.assertEqual('B', data['values']['mode'])
+        self.assertNotIn('run_before_push.dev.e2e', data['values'])
+        self.assertNotIn('run_before_push.dev.unit', data['values'])
+
+    def test_the_new_ci_and_e2e_after_deploy_settings_exist_for_every_target(self):
+        for group in ('ci_before_merge', 'e2e_after_deploy'):
+            for target in ('dev', 'test', 'prod'):
+                self.assertIn('%s.%s' % (group, target), cfg.SPECS)
+        out, _, code = self.run_tool('context')
+        self.assertEqual(0, code)
+        self.assertIn('prod: CI before merge yes, merge yes, gates before push yes, push yes, e2e after deploy yes', out)
+        self.assertIn('dev: CI before merge no, merge yes, gates before push no, push yes, e2e after deploy no', out)
 
     def test_the_retired_keys_are_not_settings_any_more(self):
         for key in cfg.RETIRED_KEYS:
@@ -205,10 +254,11 @@ class RetiredKeys(Tool):
         self.assertEqual(2, code, err)
         self.assertFalse(os.path.exists(self.user))
 
-    def test_the_session_start_block_does_not_mention_the_monitor(self):
+    def test_the_session_start_block_does_not_mention_the_monitor_and_names_the_pod_settings(self):
         out, _, code = self.run_tool('context')
         self.assertEqual(0, code)
         self.assertNotIn('monitor', out.lower())
+        self.assertIn('pod: connect no, message format short (stored only; nothing acts on it)', out)
 
 
 class Agents(Tool):
@@ -349,6 +399,25 @@ class Notify(Tool):
                                            cwd=self.repo, capture_output=True, text=True, env=env,
                                            input=json.dumps({'session_id': 's'})).returncode)
 
+    def test_settings_a_session_never_saw_are_not_a_change(self):
+        # Found by QA: after /plugin update a running session's seen-file lacks the new keys, so the first call listed all
+        # of them as "None -> value" although the user changed nothing.
+        self.hook()
+        seen = os.path.join(self.seen, 'sess-1')
+        with open(seen, encoding='utf-8') as handle:
+            values = json.load(handle)
+        for key in [k for k in values if k.startswith(('ci_before_merge', 'e2e_after_deploy', 'pod.', 'gates_before_push'))]:
+            del values[key]
+        values['monitor.connect'] = True                                  # and a retired key the old script wrote
+        with open(seen, 'w', encoding='utf-8') as handle:
+            json.dump(values, handle)
+        self.assertIsNone(self.hook())
+        with open(seen, encoding='utf-8') as handle:
+            self.assertIn('pod.connect', json.load(handle))               # remembered silently
+        self.run_tool('set', 'push.prod', 'no')
+        note = self.hook()
+        self.assertIn('push.prod: yes -> no', note['additionalContext'])
+        self.assertNotIn('pod.connect', note['additionalContext'].split('\n')[0])
 
 class RoleSetsMatchTheRepository(unittest.TestCase):
     """The role sets are written in the script; the agent files and the mode documents are the source."""
