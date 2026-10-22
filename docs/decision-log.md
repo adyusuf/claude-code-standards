@@ -1744,3 +1744,17 @@ nothing in this repository's copy was changed for it.** The project below worked
   removed by hand. Earlier entries of this log that name the removed scripts are history and stay as written.
 - **Kept:** the gate's own install-like tools are unrelated and stay (`pre-commit.sh --install`, `md-size-gate.sh --init`).
 
+## plugin-setup.py finds `claude` when it is not on PATH, including the Claude desktop app's own copy (22/10/2026, user report)
+
+- **Report:** on Windows the script stopped with "claude is not on PATH". The user has the Claude desktop app and, as far as
+  they know, no terminal install, so there is no `claude` command in any shell.
+- **Decision:** `claude` is looked up on `PATH`, then in the installers' folders (`~/.local/bin`, `~/.claude/local`,
+  `~/.npm-global/bin`, `%APPDATA%\npm`, `/usr/local/bin`, `/opt/homebrew/bin`) and in the copy the desktop app keeps for its
+  Code tab (`<app data>/Claude/claude-code/<version>/<hash>/`, newest numeric version first; the macOS layout was read on
+  this machine, the Windows `%APPDATA%\Claude\claude-code\...\claude.exe` layout is the same by convention and has not been
+  seen on a Windows machine). A folder found that way is put on `PATH` for that run only; nothing is written to the
+  user's environment. `--claude <path>` overrides. When nothing is found the run stops before any change and prints the two
+  `/plugin` commands to type in the app's Code tab, which does the same job without a terminal install.
+- **Not done on purpose:** the script does not install the Claude Code command itself. That is a download-and-run of
+  someone else's installer, which is the user's step, and the Code-tab commands make it unnecessary for this plugin.
+
