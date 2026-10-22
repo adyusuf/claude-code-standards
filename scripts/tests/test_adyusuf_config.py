@@ -25,9 +25,9 @@ EXPECTED = {
     'write.unit_tests': True, 'write.e2e': True,
     'merge.dev': True, 'merge.test': True, 'merge.prod': True,
     'push.dev': True, 'push.test': True, 'push.prod': True,
-    'run_before_push.dev.unit': False, 'run_before_push.dev.e2e': False,
-    'run_before_push.test.unit': True, 'run_before_push.test.e2e': False,
-    'run_before_push.prod.unit': True, 'run_before_push.prod.e2e': False,
+    'gates_before_push.dev': False, 'gates_before_push.test': True, 'gates_before_push.prod': True,
+    'ci_before_merge.dev': False, 'ci_before_merge.test': True, 'ci_before_merge.prod': True,
+    'e2e_after_deploy.dev': False, 'e2e_after_deploy.test': False, 'e2e_after_deploy.prod': True,
 }
 
 
@@ -109,14 +109,14 @@ class Layers(Tool):
         self.assertTrue(self.values()['values']['push.prod'])
 
     def test_a_set_writes_nested_json_and_keeps_the_other_keys(self):
-        self.run_tool('set', 'run_before_push.dev.unit', 'yes')
+        self.run_tool('set', 'gates_before_push.dev', 'yes')
         self.run_tool('set', 'mode', 'e')
         with open(self.user, encoding='utf-8') as handle:
-            self.assertEqual({'run_before_push': {'dev': {'unit': True}}, 'mode': 'E'}, json.load(handle))
+            self.assertEqual({'gates_before_push': {'dev': True}, 'mode': 'E'}, json.load(handle))
 
     def test_get_prints_the_effective_value(self):
         self.assertEqual('C\n', self.run_tool('get', 'mode')[0])
-        self.assertEqual('no\n', self.run_tool('get', 'run_before_push.dev.unit')[0])
+        self.assertEqual('no\n', self.run_tool('get', 'gates_before_push.dev')[0])
 
 
 class Validation(Tool):
@@ -131,10 +131,10 @@ class Validation(Tool):
         _, err, code = self.run_tool('apply', '-', stdin=json.dumps({'push.prod': False, 'mode': 'Z'}))
         self.assertEqual(2, code, err)
         self.assertFalse(os.path.exists(self.user))
-        out, _, code = self.run_tool('apply', '-', stdin=json.dumps({'push.prod': False, 'run_before_push': {'dev': {'unit': True}}}))
+        out, _, code = self.run_tool('apply', '-', stdin=json.dumps({'push.prod': False, 'gates_before_push': {'dev': True}}))
         self.assertEqual(0, code, out)
         data = self.values()['values']
-        self.assertEqual((False, True), (data['push.prod'], data['run_before_push.dev.unit']))
+        self.assertEqual((False, True), (data['push.prod'], data['gates_before_push.dev']))
 
     def test_apply_rejects_json_that_is_not_an_object(self):
         for text in ('not json', '[1, 2]'):
@@ -181,6 +181,26 @@ class RetiredKeys(Tool):
         self.assertEqual('B', data['values']['mode'])
         self.assertFalse(data['values']['push.prod'])
         self.assertNotIn('monitor.connect', data['values'])
+
+    def test_a_file_with_the_retired_run_before_push_keys_still_applies_its_other_settings(self):
+        with open(self.user, 'w', encoding='utf-8') as handle:
+            json.dump({'run_before_push': {'dev': {'unit': True, 'e2e': True}, 'prod': {'e2e': False}}, 'gates_before_push': {'dev': True},
+                       'mode': 'B'}, handle)
+        data = self.values()
+        self.assertEqual([], data['problems'])
+        self.assertTrue(data['values']['gates_before_push.dev'])
+        self.assertEqual('B', data['values']['mode'])
+        self.assertNotIn('run_before_push.dev.e2e', data['values'])
+        self.assertNotIn('run_before_push.dev.unit', data['values'])
+
+    def test_the_new_ci_and_e2e_after_deploy_settings_exist_for_every_target(self):
+        for group in ('ci_before_merge', 'e2e_after_deploy'):
+            for target in ('dev', 'test', 'prod'):
+                self.assertIn('%s.%s' % (group, target), cfg.SPECS)
+        out, _, code = self.run_tool('context')
+        self.assertEqual(0, code)
+        self.assertIn('prod: CI before merge yes, merge yes, gates before push yes, push yes, e2e after deploy yes', out)
+        self.assertIn('dev: CI before merge no, merge yes, gates before push no, push yes, e2e after deploy no', out)
 
     def test_the_retired_keys_are_not_settings_any_more(self):
         for key in cfg.RETIRED_KEYS:

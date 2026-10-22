@@ -33,7 +33,8 @@ MODES = ('A', 'B', 'C', 'D', 'E')
 MODELS = ('keep', 'sonnet', 'haiku', 'fable')
 # Settings that no longer exist. A user's file written before they were retired still holds them: they are skipped
 # on read, so one stale key never makes the whole layer invalid (and the next write drops them).
-RETIRED_KEYS = ('monitor.connect', 'monitor.message_format')
+RETIRED_KEYS = (('monitor.connect', 'monitor.message_format')
+                + tuple('run_before_push.%s.%s' % (t, gate) for t in TARGETS for gate in ('unit', 'e2e')))
 
 
 def _bool(key, label):
@@ -65,9 +66,9 @@ SCHEMA = (
      dict(_bool('write.e2e', 'Write e2e specs'), group='Writing')]
     + [dict(_bool('merge.' + t, 'Merge into ' + t), group='Merge') for t in TARGETS]
     + [dict(_bool('push.' + t, 'Push ' + t), group='Push') for t in TARGETS]
-    + [dict(_bool('run_before_push.%s.%s' % (t, gate), 'Run %s before pushing %s' % (
-        'unit tests' if gate == 'unit' else 'e2e', t)), group='Gates before a push')
-       for t in TARGETS for gate in ('unit', 'e2e')]
+    + [dict(_bool('gates_before_push.' + t, 'Run gates before pushing %s' % t), group='Gates before a push') for t in TARGETS]
+    + [dict(_bool('ci_before_merge.' + t, 'Run CI before merging %s' % t), group='CI before merge') for t in TARGETS]
+    + [dict(_bool('e2e_after_deploy.' + t, 'Run e2e after deploying %s' % t), group='E2E after deploy') for t in TARGETS]
     + [dict(_enum('agents.%s.%s' % (role, field), '%s: %s' % (role, field), options), group='Agents')
        for role in D_ROLES for field, options in (('enabled', AGENT_STATES), ('model', AGENT_MODELS))])
 SPECS = {spec['key']: spec for spec in SCHEMA}
@@ -245,9 +246,10 @@ def context(effective, problems):
     value = lambda key: effective[key][0]  # noqa: E731
     steps = []
     for target in TARGETS:
-        gates = [g for g in ('unit', 'e2e') if value('run_before_push.%s.%s' % (target, g))]
-        steps.append('%s: merge %s, push %s, run before push: %s' % (
-            target, shown(value('merge.' + target)), shown(value('push.' + target)), ', '.join(gates) or 'nothing'))
+        steps.append('%s: CI before merge %s, merge %s, gates before push %s, push %s, e2e after deploy %s' % (
+            target, shown(value('ci_before_merge.' + target)), shown(value('merge.' + target)),
+            shown(value('gates_before_push.' + target)), shown(value('push.' + target)),
+            shown(value('e2e_after_deploy.' + target))))
     lines = ['adyusuf configuration (effective; global rule #34 - follow it, do not ask what it answers):',
              '  mode %s, model for the Opus agents: %s' % (value('mode'), value('mode_model')),
              '  write unit tests: %s, write e2e: %s' % (shown(value('write.unit_tests')), shown(value('write.e2e')))]

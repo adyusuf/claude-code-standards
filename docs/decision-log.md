@@ -1687,3 +1687,18 @@ nothing in this repository's copy was changed for it.** The project below worked
 - **Kept on purpose:** `apply` and the read path still skip the two retired `monitor.*` keys, because a file written
   earlier may hold them; `group` stays in the schema (it titles the sections of `show` and the boxes).
 - **Not done here:** the published Artifact is deleted separately (it is not in the repository).
+
+## Settings: CI before merge, gates before push and e2e after deploy replace `run_before_push` (22/10/2026, user decision)
+
+- **Decision:** the six `run_before_push.<t>.unit|e2e` settings are retired. Three groups, each per target, replace them:
+  `ci_before_merge.<t>` (defaults dev no, test yes, prod yes), `gates_before_push.<t>` ("Run gates before pushing";
+  dev no, test yes, prod yes) and `e2e_after_deploy.<t>` (dev no, test no, prod yes). Rule #34 (`CLAUDE.md`),
+  `standards/13` §8a, `standards/00` §1a and the config skill say what each does: CI is waited for before the merge, the
+  gates (unit tests, coverage, secret scan, SAST) run on the merged result before the push, e2e runs against the target
+  after it is deployed, and only where the project has a suite and deploys that target. A CI that is not waited for is
+  recorded as `Gate-Waived: ci`, gates that are not run as `Gate-Waived: gates`.
+- **Compatibility:** a user's file that still holds `run_before_push.*` keeps working: the keys are in `RETIRED_KEYS` and
+  skipped on read (the old values are not carried over; the new defaults apply). A file that holds the NEW keys is unknown
+  to an older installed copy of the plugin, which then ignores that layer and says so, so update `adyusuf` before setting them.
+- **Not changed:** #29 (coverage) is part of what runs at every promotion and no setting turns it off; e2e stays optional
+  and never blocks a promotion (#33), so a red `e2e_after_deploy` run is reported, not a reason to refuse the merge.
