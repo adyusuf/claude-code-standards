@@ -55,6 +55,18 @@ class Shipped(unittest.TestCase):
                 self.assertGreater(len(spec['options']), 1, spec)
 
 
+class NoPanel(unittest.TestCase):
+    """The settings page (an Artifact built from panel.template.html) was removed 22/10/2026."""
+
+    def test_the_template_and_the_commands_are_gone(self):
+        self.assertFalse(os.path.exists(os.path.join(ROOT, 'skills', 'config', 'panel.template.html')))
+        for command in ('panel', 'panel-data'):
+            result = subprocess.run(['python3', os.path.join(SCRIPTS, 'adyusuf_config.py'), command],
+                                    capture_output=True, text=True)
+            self.assertEqual(2, result.returncode, command)
+            self.assertEqual('', result.stdout)
+
+
 class Tool(unittest.TestCase):
     def setUp(self):
         self.home = tempfile.mkdtemp()
@@ -176,7 +188,7 @@ class RetiredKeys(Tool):
             _, err, code = self.run_tool('set', key, 'yes')
             self.assertEqual(2, code, err)
 
-    def test_apply_of_a_panel_saved_before_the_retirement_writes_the_rest_and_says_what_it_skipped(self):
+    def test_apply_of_a_file_saved_before_the_retirement_writes_the_rest_and_says_what_it_skipped(self):
         payload = json.dumps({'mode': 'B', 'monitor.connect': True, 'monitor.message_format': 'short', 'push.prod': False})
         out, err, code = self.run_tool('apply', '-', stdin=payload)
         self.assertEqual(0, code, err)
@@ -263,50 +275,6 @@ class Agents(Tool):
         self.assertIn('agents: product-manager (sonnet)', out)
         self.assertIn('qa (sonnet)', out)
         self.assertIn('doc-writer (haiku)', out)
-
-    def test_panel_data_carries_everything_the_panel_draws(self):
-        data = json.loads(self.run_tool('panel-data')[0])
-        self.assertEqual(sorted(EXPECTED), sorted(data['values']))
-        self.assertEqual(14, len(data['roles']))
-        self.assertEqual(14, len(data['agents']))                           # every role, active or not, with its settings
-        self.assertEqual({'name': 'qa', 'defined': 'opus', 'modes': ['C', 'D', 'E']}, [r for r in data['roles'] if r['name'] == 'qa'][0])
-
-
-class Panel(Tool):
-    def page(self):
-        out, err, code = self.run_tool('panel')
-        self.assertEqual(0, code, err)
-        return out
-
-    def embedded(self, page):
-        import re
-        literal = re.search(r'var DATA = (\{.*?\});\n  var TARGETS', page, re.S).group(1)
-        return json.loads(literal)
-
-    def test_the_page_embeds_the_data_it_draws_from(self):
-        data = self.embedded(self.page())
-        self.assertEqual(EXPECTED, data['defaults'])
-        self.assertEqual(EXPECTED, data['values'])
-        self.assertEqual(sorted(EXPECTED), sorted(spec['key'] for spec in data['schema']))
-        self.assertEqual(14, len(data['roles']))
-
-    def test_the_page_follows_the_effective_values_not_only_the_defaults(self):
-        self.run_tool('set', 'push.prod', 'no')
-        data = self.embedded(self.page())
-        self.assertFalse(data['values']['push.prod'])
-        self.assertTrue(data['defaults']['push.prod'])          # the reset button still returns to the shipped value
-
-    def test_nothing_in_the_data_can_close_the_script_early(self):
-        self.run_tool('set', 'mode', 'B')
-        page = self.page()
-        body = page.split('<script>', 1)[1]
-        self.assertEqual(1, body.count('</script>'))
-        self.assertNotIn('__PANEL_DATA__', page)
-
-    def test_every_setting_is_reachable_from_the_page(self):
-        page = self.page()
-        for key in EXPECTED:
-            self.assertIn('"%s"' % key, page, key)
 
 
 class Notify(Tool):

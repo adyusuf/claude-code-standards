@@ -6,17 +6,15 @@
     adyusuf_config.py set <key> <value> [--project]    change one setting (default scope: the user's)
     adyusuf_config.py unset <key> [--project]    fall back to the next layer
     adyusuf_config.py apply <file|-> [--project] set many at once from a JSON object {"push.prod": false, ...}
-    adyusuf_config.py schema                     the keys with type, options and label (the panel is built from it)
+    adyusuf_config.py schema                     the keys with type, options and label
     adyusuf_config.py agents [--json] [--all]    the active agents and the model each one runs on (--all: inactive too)
     adyusuf_config.py reset-agents [--project]   remove every agents.<role>.* setting (back to the mode's own set)
-    adyusuf_config.py panel-data                 everything the panel needs: schema, values, defaults, sources, roles
-    adyusuf_config.py panel                      the panel page (HTML) with that data embedded, ready to publish as an Artifact
     adyusuf_config.py context                    the block the SessionStart hook prints
     adyusuf_config.py notify <event>             hook: tells the running session when a setting changed (stdin: the payload)
 
 Layers, lowest first: defaults/adyusuf.json (shipped with the plugin) < ~/.claude/adyusuf.json (the user's own
 defaults) < <project>/.claude/adyusuf.json (committed, like .claude/mode). The user changes them with the
-`adyusuf:config` skill or the panel; Claude never asks what a setting already answers (global rule #34).
+`adyusuf:config` skill; Claude never asks what a setting already answers (global rule #34).
 
 Keys are dotted (`push.prod`); files hold them nested. A key is validated against SCHEMA, a file that does not
 parse is reported and ignored (the layer below wins) - the SessionStart hook must never fail a session.
@@ -53,14 +51,13 @@ C_ROLES = ('product-manager', 'analyst', 'architect', 'designer', 'developer', '
 D_ROLES = C_ROLES + ('data', 'observability', 'security', 'coverage-auditor', 'e2e-writer')
 MODE_ROLES = {'A': (), 'B': B_ROLES, 'C': C_ROLES, 'D': D_ROLES, 'E': D_ROLES}
 AGENTS_DIR = os.path.join(ROOT, 'agents')
-PANEL_TEMPLATE = os.path.join(ROOT, 'skills', 'config', 'panel.template.html')
 
 
 AGENT_STATES = ('auto', 'on', 'off')
 AGENT_MODELS = ('default', 'opus', 'sonnet', 'haiku', 'fable')
 
 
-# The one definition of what can be set: order is the panel's order. `group` titles the panel sections.
+# The one definition of what can be set: order is the display order. `group` titles the sections of `show`.
 SCHEMA = (
     [dict(_enum('mode', 'Working mode', MODES), group='Session'),
      dict(_enum('mode_model', 'Model that replaces Opus in the agents', MODELS), group='Session'),
@@ -257,7 +254,7 @@ def context(effective, problems):
     active = agents({k: v[0] for k, v in effective.items()})
     lines.append('  agents: %s' % (', '.join('%s (%s)' % (row['role'], row['runs_on']) for row in active) or 'none'))
     lines.extend('  ' + step for step in steps)
-    lines.append('  change it with the adyusuf:config skill (or its panel); the mode may also be set per session or per project.')
+    lines.append('  change it with the adyusuf:config skill; the mode may also be set per session or per project.')
     lines.extend('  ! ' + problem for problem in problems)
     return '\n'.join(lines)
 
@@ -270,27 +267,6 @@ def render_agents(values):
     lines.extend('  %-18s defined %-7s runs on %s%s' % (r['role'], r['defined'], r['runs_on'],
                  '' if r['enabled'] == 'auto' else '   [%s]' % r['enabled']) for r in rows)
     return '\n'.join(lines)
-
-
-def panel_data(effective, problems):
-    roles = sorted({role for roles in MODE_ROLES.values() for role in roles})
-    defaults, _ = read_layer(DEFAULTS_FILE)
-    return {'schema': SCHEMA,
-            'defaults': defaults,
-            'values': {k: v[0] for k, v in effective.items()},
-            'sources': {k: v[1] for k, v in effective.items()},
-            'roles': [{'name': role, 'defined': defined_model(role), 'modes': [m for m in MODES if role in MODE_ROLES[m]]}
-                      for role in roles],
-            'agents': agents({k: v[0] for k, v in effective.items()}, include_inactive=True),
-            'problems': problems}
-
-
-def panel_html(effective, problems):
-    """The panel page: the template with the data as a JSON literal (a '</' inside it cannot close the script)."""
-    with open(PANEL_TEMPLATE, encoding='utf-8') as handle:
-        template = handle.read()
-    data = json.dumps(panel_data(effective, problems)).replace('</', '<\\/')
-    return template.replace('__PANEL_DATA__', data)
 
 
 def seen_dir():
@@ -341,7 +317,7 @@ def main(argv):
     command = args[0] if args else ''
     path = project_file() if scope_project else user_file()
     try:
-        if command in ('show', 'context', 'get', 'schema', 'agents', 'panel-data', 'panel') and scope_project:
+        if command in ('show', 'context', 'get', 'schema', 'agents') and scope_project:
             raise ConfigError('--project only applies to set, unset and apply')
         if command == 'show':
             effective, problems = load()
@@ -363,12 +339,6 @@ def main(argv):
             effective, _ = load()
             write_layer(path, {}, [key for key in SPECS if key.startswith('agents.')])
             print('every agents.* setting removed from %s' % path)
-            return 0
-        if command == 'panel':
-            sys.stdout.write(panel_html(*load()))
-            return 0
-        if command == 'panel-data':
-            print(json.dumps(panel_data(*load()), indent=2))
             return 0
         if command == 'context':
             print(context(*load()))
@@ -410,7 +380,7 @@ def main(argv):
             if not isinstance(incoming, dict):
                 raise ConfigError('expected a JSON object of {"key": value}')
             flat = flatten(incoming)
-            skipped = sorted(key for key in flat if key in RETIRED_KEYS)   # a panel saved before they were retired
+            skipped = sorted(key for key in flat if key in RETIRED_KEYS)   # a file saved before they were retired
             write_layer(path, {key: check(key, value) for key, value in flat.items() if key not in RETIRED_KEYS})
             print('%d setting(s) written to %s' % (len(flat) - len(skipped), path))
             if skipped:

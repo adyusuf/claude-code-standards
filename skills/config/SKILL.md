@@ -6,7 +6,7 @@ description: Shows or changes the adyusuf defaults that replace questions - work
 # adyusuf configuration
 
 Claude does not ask what a setting already answers (global rule #34). These settings are the answers. The user
-changes them here, or in the panel (below); everything else in this skill is mechanics.
+changes them here; everything else in this skill is mechanics.
 
 Layers, lowest first: the plugin's `defaults/adyusuf.json` < the user's `~/.claude/adyusuf.json` < the project's
 `.claude/adyusuf.json` (committed, like `.claude/mode`). A change is written to the **user** layer unless the user says
@@ -16,7 +16,8 @@ The tool is `${CLAUDE_PLUGIN_ROOT}/scripts/adyusuf_config.py` (`python3`):
 
 | The user says | Run |
 |---|---|
-| "show the settings" / no argument | `show` (add `--json` for a machine view), then `agents` |
+| "show the settings" | `show` (add `--json` for a machine view), then `agents` |
+| no argument / "change the settings" / "open the settings" | `show`, then the clickable questions below ("Changing settings with clicks") |
 | "which agents are active" | `agents` (`--all` includes the inactive ones): the roles that run and the model each runs on |
 | "don't push prod" / "push prod: no" | `set push.prod no` |
 | "run unit tests before dev" | `set run_before_push.dev.unit yes` |
@@ -47,19 +48,29 @@ went to. Never edit the JSON files by hand when the tool can do it.
 | `push.dev` `push.test` `push.prod` | yes/no | Push that branch after its merge. |
 | `run_before_push.<t>.unit` / `.e2e` | yes/no | Run that gate before pushing `<t>`. Not run = recorded as `Gate-Waived:` on the merge commit (#34). |
 
-## The panel
+## Changing settings with clicks
 
-"Show the settings in the right-hand boxes" means the settings panel: an Artifact with a checkbox for every yes/no
-setting, a dropdown for every list, and a box listing the agents the mode enables with the model each runs on. Build it
-from `panel-data` (never hard-code the keys), publish it with the Artifact tool in the current session, open it in the side
-pane, and keep what the user changes in the artifact's own database. To apply the user's changes ("apply the panel"):
-read the panel's values with `ArtifactData` (collection `settings`, document `current`, field `values`; no document means nothing was
-changed in the panel), then `apply` them as one JSON object - validated all-or-nothing - and print `show`. When a setting changes from the command line, update the panel's stored values too, so the two never disagree.
+When the user wants to change settings without naming them (no argument, "change the settings", "open the settings"),
+do not ask in prose and do not build a page: show `show`, then ask with the `AskUserQuestion` tool, which draws
+clickable buttons, checkboxes and dropdowns in the app. Put the current value in each question or option ("now: yes"),
+because the tool cannot pre-select.
+
+1. **One question, `multiSelect: true` (checkboxes): "Which settings do you want to change?"** with four options:
+   *Mode and model* · *Writing* (unit tests, e2e) · *Merge, push and gates* · *One agent*.
+2. **One `AskUserQuestion` call for each ticked group** (at most four questions per call, two to four options each):
+   - *Mode and model*: mode as buttons A / B / C / D (E through "Other"), then `mode_model` as buttons keep / sonnet /
+     haiku / fable.
+   - *Writing*: `write.unit_tests` and `write.e2e`, each as yes / no buttons.
+   - *Merge, push and gates*: four checkbox questions (`multiSelect: true`), options dev / test / prod: "Merge into",
+     "Push", "Run unit tests before the push", "Run e2e before the push". A ticked box is yes, an unticked one no.
+   - *One agent*: the role (qa, developer, architect, security, any other through "Other"), then `enabled` as buttons
+     auto / on / off and `model` as buttons default / sonnet / haiku / opus (fable through "Other").
+3. **Write all the answers with one `apply`** (validated all-or-nothing), print `show`, and say which layer it went to.
+   Skip a question the user did not tick in step 1, and never ask again for what they answered.
 
 ## When a change takes effect
 
-At once, but never in the middle of a step. The files change immediately (the boxes in the side pane write them on the
-spot; the settings page needs "apply the panel"). A `UserPromptSubmit` hook and a `PostToolUse` hook (agent calls and shell
+At once, but never in the middle of a step. The files change immediately. A `UserPromptSubmit` hook and a `PostToolUse` hook (agent calls and shell
 commands, the task boundaries) run `adyusuf_config.py notify`: the first time a session sees different effective settings it
 receives a note naming what changed, and the note says to apply them **from the next task** and not to restart or split the
 step in progress. A note is sent once per change and per session; a session that never saw the settings stays silent.
