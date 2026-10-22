@@ -73,7 +73,7 @@ working copy**; `[Collection]` serialization only protects within a single proce
 - If a field is deleted or renamed this test **turns red** — which is precisely its purpose.
 - Validation against the OpenAPI schema can be automated.
 
-## 7. Coverage — THE THRESHOLD IS 80%, no exceptions (global rule #29)
+## 7. Coverage — THE THRESHOLD IS 80%, one written exception (§7.2a, global rule #29)
 
 **THE DECISION:** line coverage in every codebase is **at least 80%**. This
 section used to say "coverage is a diagnostic, not a target"; that sentence has

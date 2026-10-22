@@ -82,6 +82,31 @@ class TypeScriptStep(FakeVenv):
         self.assertIn('NOT MEASURED: no test loads hooks/logic.ts', out)
         self.assertEqual(3, code, out)
 
+    def test_hand_written_script_files_anywhere_under_hooks_cannot_hide(self):
+        # Found by QA: only hooks/*.ts and hooks/*.tsx were looked at, so logic moved into a subfolder (or into .mts, .cts,
+        # .js, .jsx) and imported by the glue was never listed, never measured, and the run passed.
+        for name in ('lib/helper.ts', 'extra.mts', 'extra.cts', 'extra.js', 'lib/deep/extra.jsx'):
+            with self.subTest(name=name):
+                self.setUp()
+                self.put('register.tsx', GLUE)
+                self.put(name, LOGIC)
+                out, code = self.run_ts()
+                self.assertEqual(3, code, out)
+                self.assertTrue('NOT MEASURED' in out or 'n/a' not in out, out)
+                self.tearDown()
+
+    def test_every_way_of_naming_the_engine_marks_a_file_as_engine_code(self):
+        for text in ('import type { X } from "claude-code"\n', "const m = await import('claude-code')\n",
+                     "const m = require('claude-code')\n", "import { y } from 'claude-code/testing'\n"):
+            with self.subTest(text=text):
+                self.setUp()
+                self.put('register.tsx', GLUE)
+                self.put('other.ts', text)
+                out, code = self.run_ts()
+                self.assertIn('hooks/other.ts imports the engine but is not the listed glue file', out)
+                self.assertEqual(3, code, out)
+                self.tearDown()
+
     @unittest.skipUnless(shutil.which('deno'), 'needs Deno')
     def test_a_red_logic_test_is_not_a_measurement(self):
         self.put('logic.ts', LOGIC)

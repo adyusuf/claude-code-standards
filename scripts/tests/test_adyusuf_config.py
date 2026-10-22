@@ -170,6 +170,35 @@ class Unreadable(Tool):
             self.assertEqual('{ broken', handle.read())
 
 
+class ConcurrentWrites(Tool):
+    """Clicks in the rail boxes arrive in quick succession; found by QA: 37 of 40 two-way races lost a change."""
+
+    def test_many_simultaneous_sets_all_land_and_leave_no_temp_file(self):
+        keys = ['push.dev', 'push.test', 'push.prod', 'merge.dev', 'merge.test', 'merge.prod', 'write.e2e', 'write.unit_tests']
+        env = dict(os.environ, ADYUSUF_CONFIG_USER=self.user)
+        tool = os.path.join(SCRIPTS, 'adyusuf_config.py')
+        for round_ in range(5):
+            if os.path.exists(self.user):
+                os.remove(self.user)
+            procs = [subprocess.Popen(['python3', tool, 'set', key, 'no'], cwd=self.repo, env=env,
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True) for key in keys]
+            results = []
+            for proc in procs:
+                _, err = proc.communicate()
+                results.append((proc.returncode, err))
+            self.assertEqual([(0, '')] * len(keys), results, 'round %d' % round_)
+            with open(self.user, encoding='utf-8') as handle:
+                written = cfg.flatten(json.load(handle))
+            self.assertEqual({key: False for key in keys}, written, 'round %d lost a change' % round_)
+        self.assertEqual([], [name for name in os.listdir(self.home) if name.endswith('.tmp')])
+
+    def test_the_file_is_replaced_not_truncated_in_place(self):
+        self.run_tool('set', 'mode', 'B')
+        before = os.stat(self.user).st_ino
+        self.run_tool('set', 'mode', 'D')
+        self.assertNotEqual(before, os.stat(self.user).st_ino)       # a new file took its place (os.replace)
+
+
 class RetiredKeys(Tool):
     """A file written before a setting was retired still holds it: that key is skipped, the rest of the layer applies."""
 
@@ -229,7 +258,7 @@ class RetiredKeys(Tool):
         out, _, code = self.run_tool('context')
         self.assertEqual(0, code)
         self.assertNotIn('monitor', out.lower())
-        self.assertIn('pod: connect no, message format short', out)
+        self.assertIn('pod: connect no, message format short (stored only; nothing acts on it)', out)
 
 
 class Agents(Tool):
@@ -370,6 +399,25 @@ class Notify(Tool):
                                            cwd=self.repo, capture_output=True, text=True, env=env,
                                            input=json.dumps({'session_id': 's'})).returncode)
 
+    def test_settings_a_session_never_saw_are_not_a_change(self):
+        # Found by QA: after /plugin update a running session's seen-file lacks the new keys, so the first call listed all
+        # of them as "None -> value" although the user changed nothing.
+        self.hook()
+        seen = os.path.join(self.seen, 'sess-1')
+        with open(seen, encoding='utf-8') as handle:
+            values = json.load(handle)
+        for key in [k for k in values if k.startswith(('ci_before_merge', 'e2e_after_deploy', 'pod.', 'gates_before_push'))]:
+            del values[key]
+        values['monitor.connect'] = True                                  # and a retired key the old script wrote
+        with open(seen, 'w', encoding='utf-8') as handle:
+            json.dump(values, handle)
+        self.assertIsNone(self.hook())
+        with open(seen, encoding='utf-8') as handle:
+            self.assertIn('pod.connect', json.load(handle))               # remembered silently
+        self.run_tool('set', 'push.prod', 'no')
+        note = self.hook()
+        self.assertIn('push.prod: yes -> no', note['additionalContext'])
+        self.assertNotIn('pod.connect', note['additionalContext'].split('\n')[0])
 
 class RoleSetsMatchTheRepository(unittest.TestCase):
     """The role sets are written in the script; the agent files and the mode documents are the source."""

@@ -69,11 +69,13 @@ there and stop: the user changes the settings in the boxes, not in the chat. Nev
 Put the current value in each question or option ("now: yes"), because the tool cannot pre-select.
 
 1. One question, `multiSelect: true` (checkboxes): "Which settings do you want to change?" with four options: *Mode and
-   model* · *Writing* (unit tests, e2e) · *Merge, push and gates* · *One agent*.
+   model* · *Writing and pod* (unit tests, e2e, `pod.connect`, `pod.message_format`) · *Merge, push and gates* ·
+   *One agent*.
 2. One `AskUserQuestion` call for each ticked group (at most four questions per call, two to four options each):
    - *Mode and model*: mode as buttons A / B / C / D (E through "Other"), then `mode_model` as buttons keep / sonnet /
      haiku / fable.
-   - *Writing*: `write.unit_tests` and `write.e2e`, each as yes / no buttons.
+   - *Writing and pod*: `write.unit_tests`, `write.e2e` and `pod.connect`, each as yes / no buttons, then
+     `pod.message_format` as buttons short / full (the pod settings are stored only; nothing acts on them).
    - *Merge, push and gates*: five checkbox questions (`multiSelect: true`, two calls), options dev / test / prod: "Run CI
      before merging", "Merge into", "Run gates before the push", "Push", "Run e2e after deploying". A ticked box is
      yes, an unticked one no.

@@ -2,7 +2,7 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { AgentRow, Promotion, Settings, Stage } from '../types'
-import { enabledFor, installPathOf, overrideNote, waivedLines } from './choose'
+import { countOf, enabledFor, overrideNote, plannedStages, refSet, scriptDir, settingGroups, waivedLines, waivedRange } from './choose'
 
 const SETTINGS = 'adyusuf-settings'
 const AGENTS = 'adyusuf-agents'
@@ -18,18 +18,11 @@ const CACHE = '$HOME/.claude/plugins/cache/adyusuf-marketplace/adyusuf'
 
 type Run = (argv: readonly string[]) => Promise<{ exitCode: number; stdout: string; stderr: string }>
 
-/**
- * The configuration script of the INSTALLED adyusuf plugin ('' when it has none yet). The folder is the one the plugin
- * manager records, never "the newest in the cache": a version that /plugin update replaced is marked and then becomes
- * the newest. Without a record, the newest folder that is not marked as replaced.
- */
+/** The configuration script of the INSTALLED adyusuf plugin ('' when it has none yet); the choice is choose.ts's scriptDir. */
 async function scriptPath(run: Run): Promise<string> {
   const record = await run(['sh', '-c', 'cat "$HOME/.claude/plugins/installed_plugins.json" 2>/dev/null'])
-  let dir = installPathOf(record.stdout, PLUGIN_ID)
-  if (!dir) {
-    const found = await run(['sh', '-c', `for d in $(ls -dt ${CACHE}/*/ 2>/dev/null); do [ -e "$d.orphaned_at" ] || { echo "$d"; break; }; done`])
-    dir = found.stdout.trim().replace(/\/$/, '')
-  }
+  const cache = await run(['sh', '-c', `for d in $(ls -dt ${CACHE}/*/ 2>/dev/null); do if [ -e "$d.orphaned_at" ]; then echo "orphaned $d"; else echo "live $d"; fi; done`])
+  const dir = scriptDir(record.stdout, PLUGIN_ID, cache.stdout)
   if (!dir) return ''
   const has = await run(['test', '-f', `${dir}/scripts/adyusuf_config.py`])
   return has.exitCode === 0 ? `${dir}/scripts/adyusuf_config.py` : ''
@@ -72,25 +65,18 @@ async function refreshPromotion($: EngineInterface) {
     await update($, promotion, () => ({ stages: [], error: 'Not inside a git repository' }) as Promotion)
     return
   }
-  const have = new Set(refs.stdout.split('\n').map(line => line.trim()).filter(Boolean))
-  const waivedIn = async (range: string): Promise<string[]> => {
-    const log = await git(['log', '--format=@@%h%n%B', range])
-    return log.exitCode === 0 ? waivedLines(log.stdout) : []
-  }
   const stages: Stage[] = []
-  const order = ['dev', 'test', 'prod']
-  for (let i = 0; i < order.length; i++) {
-    const branch = order[i]
-    if (!have.has(`origin/${branch}`)) continue
-    const tip = await git(['rev-parse', '--short', `origin/${branch}`])
-    let unpushed = 0
-    if (have.has(branch)) {
-      const ahead = await git(['rev-list', '--count', `origin/${branch}..${branch}`])
-      unpushed = Number(ahead.stdout.trim()) || 0
-    }
-    const previous = order[i - 1]
-    const waived = previous && have.has(`origin/${previous}`) ? await waivedIn(`origin/${branch}..origin/${previous}`) : []
-    stages.push({ branch, origin: tip.stdout.trim(), unpushed, waived })
+  for (const stage of plannedStages(refSet(refs.stdout))) {
+    const tip = await git(['rev-parse', '--short', `origin/${stage.branch}`])
+    const ahead = stage.local ? await git(['rev-list', '--count', `origin/${stage.branch}..${stage.branch}`]) : null
+    const range = waivedRange(stage)
+    const log = range ? await git(['log', '--format=@@%h%n%B', range]) : null
+    stages.push({
+      branch: stage.branch,
+      origin: tip.stdout.trim(),
+      unpushed: ahead ? countOf(ahead.stdout) : 0,
+      waived: log && log.exitCode === 0 ? waivedLines(log.stdout) : [],
+    })
   }
   await update($, promotion, () => ({ stages }) as Promotion)
 }
@@ -113,16 +99,22 @@ async function setSetting($: EngineInterface, key: string, value: string) {
   }
 }
 
-/** A failing read must never stop the session from starting. */
-async function safely(work: Promise<void>) {
+/** A failing read must never stop the session from starting; the Settings box says what failed instead of waiting forever. */
+async function safely($: EngineInterface, work: Promise<void>) {
   try {
     await work
-  } catch {
-    // the box shows what it has; the next refresh tries again
+  } catch (error) {
+    await update($, settingsError, () => `Could not read: ${String(error).slice(0, 200)}`)
   }
 }
 
 const AGENT_MODELS = ['default', 'opus', 'sonnet', 'haiku', 'fable']
+
+// Clicks run one after another: two settings changed quickly must not race each other's read-modify-write.
+let queue: Promise<void> = Promise.resolve()
+function click($: EngineInterface, key: string, value: string) {
+  queue = queue.then(() => setSetting($, key, value)).catch(() => undefined)
+}
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
@@ -130,8 +122,8 @@ export const register: Register = on => {
     void $.ui.open({ id: SETTINGS, title: 'Settings' })
     void $.ui.open({ id: AGENTS, title: 'Agents' })
     void $.ui.open({ id: PROMOTION, title: 'Promotion' })
-    await safely(refreshSettings($))
-    await safely(refreshPromotion($))
+    await safely($, refreshSettings($))
+    await safely($, refreshPromotion($))
     return next(e)
   })
 
@@ -139,14 +131,15 @@ export const register: Register = on => {
     await $.ui.open({ id: SETTINGS, title: 'Settings' })
     await $.ui.open({ id: AGENTS, title: 'Agents' })
     await $.ui.open({ id: PROMOTION, title: 'Promotion' })
-    await safely(refreshSettings($))
-    await safely(refreshPromotion($))
+    await safely($, refreshSettings($))
+    await safely($, refreshPromotion($))
     return { text: 'adyusuf boxes opened.' }
   })
 
-  // The promotion box follows the work: a turn may have merged or pushed.
+  // The boxes follow the work: a turn may have merged, pushed or changed a setting through /adyusuf:config.
   on('turn.complete', async ($, e, next) => {
-    await safely(refreshPromotion($))
+    await safely($, refreshSettings($))
+    await safely($, refreshPromotion($))
     return next(e)
   })
 
@@ -156,10 +149,8 @@ export const register: Register = on => {
     const problem = await read($, settingsError)
     const problems = await read($, settingsProblems)
     if (!data) return <Text dimColor>{problem || 'Reading the configuration…'}</Text>
-    const groups: string[] = []
-    data.schema.filter(spec => !spec.key.startsWith('agents.')).forEach(spec => { if (!groups.includes(spec.group)) groups.push(spec.group) })
-    const set = (key: string, value: string) => setSetting($, key, value)
-    const shownSchema = data.schema.filter(spec => !spec.key.startsWith('agents.'))
+    const { groups, shown: shownSchema } = settingGroups(data.schema)
+    const set = (key: string, value: string) => click($, key, value)
     return (
       <Box flexDirection="column">
         {problem !== '' && <Text color="red">{problem}</Text>}
@@ -214,7 +205,7 @@ export const register: Register = on => {
                 key={`on-${agent.role}`}
                 onPress={() => {
                   if (mode === 'A') return
-                  void setSetting($, `agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
+                  click($, `agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
                 }}
               >
                 {agent.active ? '[x] ' : '[ ] '}{agent.role}{!agent.in_mode && agent.active ? ' (added)' : ''}{agent.in_mode && !agent.active && mode !== 'A' ? ' (off)' : ''}
@@ -225,7 +216,7 @@ export const register: Register = on => {
                   label={`  model (defined ${agent.defined}):`}
                   value={agent.model}
                   options={AGENT_MODELS.map(option => ({ value: option, label: option === 'default' ? `default (${agent.runs_on})` : option }))}
-                  onSelect={picked => void setSetting($, `agents.${agent.role}.model`, picked)}
+                  onSelect={picked => click($, `agents.${agent.role}.model`, picked)}
                 />
               )}
             </Box>
