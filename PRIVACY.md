@@ -1,6 +1,6 @@
 # Privacy policy — the `adyusuf` plugin
 
-Last updated: 20/10/2026 · Maintainer: Adnan Yusuf (<https://github.com/adyusuf>)
+Last updated: 22/10/2026 · Maintainer: Adnan Yusuf (<https://github.com/adyusuf>)
 
 The `adyusuf` plugin is a set of working rules, skills, commands, role agents, hooks and scripts for Claude
 Code. It has **no service of its own**: nothing it contains runs on a server the maintainer operates, and the
@@ -14,6 +14,10 @@ All reading happens on your own machine. Nothing read is sent anywhere by the pl
 - **The hooks** read this plugin's `CLAUDE.md`, your `~/.claude` folder (links and `settings.json`, to warn
   about an old install), the command Claude is about to run (to refuse destructive ones) and a `CLAUDE.md` you
   edit (to check its size).
+- **The settings and the rail boxes** (`scripts/adyusuf_config.py`, `hooks/register.tsx`) read your own and a project's
+  `adyusuf.json`, `~/.claude/plugins/installed_plugins.json` (to find the installed copy of this plugin) and, for the
+  Promotion box, the branch names, commit messages and `Gate-Waived:` lines of the repository you are in, through
+  read-only `git` commands.
 - **`scripts/step-stats.py`** reads Claude Code's local session transcripts (`~/.claude/projects`), and only
   when you run it. Transcripts can contain personal data.
 
@@ -22,6 +26,8 @@ All reading happens on your own machine. Nothing read is sent anywhere by the pl
 - `step-stats.py` writes only aggregate counts (steps, tokens) to `docs/measurement-log.md`. A sanitiser
   removes project names and paths, and the script refuses to write when one survives.
 - `install.py` writes logs and backups under `~/.claude-standards/` on your machine.
+- Changing a setting (in the rail boxes or with `/adyusuf:config`) writes `~/.claude/adyusuf.json`, or a project's
+  `.claude/adyusuf.json` when you ask for the project layer. A short lock file goes to your temp folder while it writes.
 - Nothing is retained anywhere else.
 
 ## What it sends

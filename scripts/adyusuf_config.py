@@ -6,27 +6,33 @@
     adyusuf_config.py set <key> <value> [--project]    change one setting (default scope: the user's)
     adyusuf_config.py unset <key> [--project]    fall back to the next layer
     adyusuf_config.py apply <file|-> [--project] set many at once from a JSON object {"push.prod": false, ...}
-    adyusuf_config.py schema                     the keys with type, options and label (the panel is built from it)
+    adyusuf_config.py schema                     the keys with type, options and label
     adyusuf_config.py agents [--json] [--all]    the active agents and the model each one runs on (--all: inactive too)
     adyusuf_config.py reset-agents [--project]   remove every agents.<role>.* setting (back to the mode's own set)
-    adyusuf_config.py panel-data                 everything the panel needs: schema, values, defaults, sources, roles
-    adyusuf_config.py panel                      the panel page (HTML) with that data embedded, ready to publish as an Artifact
     adyusuf_config.py context                    the block the SessionStart hook prints
     adyusuf_config.py notify <event>             hook: tells the running session when a setting changed (stdin: the payload)
 
 Layers, lowest first: defaults/adyusuf.json (shipped with the plugin) < ~/.claude/adyusuf.json (the user's own
 defaults) < <project>/.claude/adyusuf.json (committed, like .claude/mode). The user changes them with the
-`adyusuf:config` skill or the panel; Claude never asks what a setting already answers (global rule #34).
+`adyusuf:config` skill; Claude never asks what a setting already answers (global rule #34).
 
 Keys are dotted (`push.prod`); files hold them nested. A key is validated against SCHEMA, a file that does not
 parse is reported and ignored (the layer below wins) - the SessionStart hook must never fail a session.
 Exit codes: 0 done · 1 a configuration file is unreadable (set/unset/apply refuse to overwrite it) ·
 2 bad usage, unknown key or invalid value (nothing is written).
 """
+import contextlib
+import hashlib
 import json
 import os
 import subprocess
 import sys
+import tempfile
+
+try:
+    import fcntl
+except ImportError:      # Windows: no advisory lock, the atomic replace below still never leaves a half-written file
+    fcntl = None
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULTS_FILE = os.path.join(ROOT, 'defaults', 'adyusuf.json')
@@ -35,7 +41,8 @@ MODES = ('A', 'B', 'C', 'D', 'E')
 MODELS = ('keep', 'sonnet', 'haiku', 'fable')
 # Settings that no longer exist. A user's file written before they were retired still holds them: they are skipped
 # on read, so one stale key never makes the whole layer invalid (and the next write drops them).
-RETIRED_KEYS = ('monitor.connect', 'monitor.message_format')
+RETIRED_KEYS = (('monitor.connect', 'monitor.message_format')
+                + tuple('run_before_push.%s.%s' % (t, gate) for t in TARGETS for gate in ('unit', 'e2e')))
 
 
 def _bool(key, label):
@@ -53,24 +60,26 @@ C_ROLES = ('product-manager', 'analyst', 'architect', 'designer', 'developer', '
 D_ROLES = C_ROLES + ('data', 'observability', 'security', 'coverage-auditor', 'e2e-writer')
 MODE_ROLES = {'A': (), 'B': B_ROLES, 'C': C_ROLES, 'D': D_ROLES, 'E': D_ROLES}
 AGENTS_DIR = os.path.join(ROOT, 'agents')
-PANEL_TEMPLATE = os.path.join(ROOT, 'skills', 'config', 'panel.template.html')
 
 
+POD_FORMATS = ('short', 'full')
 AGENT_STATES = ('auto', 'on', 'off')
 AGENT_MODELS = ('default', 'opus', 'sonnet', 'haiku', 'fable')
 
 
-# The one definition of what can be set: order is the panel's order. `group` titles the panel sections.
+# The one definition of what can be set: order is the display order. `group` titles the sections of `show`.
 SCHEMA = (
     [dict(_enum('mode', 'Working mode', MODES), group='Session'),
      dict(_enum('mode_model', 'Model that replaces Opus in the agents', MODELS), group='Session'),
+     dict(_bool('pod.connect', 'Connect to pod'), group='Pod'),
+     dict(_enum('pod.message_format', 'Message format', POD_FORMATS), group='Pod'),
      dict(_bool('write.unit_tests', 'Write unit tests'), group='Writing'),
      dict(_bool('write.e2e', 'Write e2e specs'), group='Writing')]
     + [dict(_bool('merge.' + t, 'Merge into ' + t), group='Merge') for t in TARGETS]
     + [dict(_bool('push.' + t, 'Push ' + t), group='Push') for t in TARGETS]
-    + [dict(_bool('run_before_push.%s.%s' % (t, gate), 'Run %s before pushing %s' % (
-        'unit tests' if gate == 'unit' else 'e2e', t)), group='Gates before a push')
-       for t in TARGETS for gate in ('unit', 'e2e')]
+    + [dict(_bool('gates_before_push.' + t, 'Run gates before pushing %s' % t), group='Gates before a push') for t in TARGETS]
+    + [dict(_bool('ci_before_merge.' + t, 'Run CI before merging %s' % t), group='CI before merge') for t in TARGETS]
+    + [dict(_bool('e2e_after_deploy.' + t, 'Run e2e after deploying %s' % t), group='E2E after deploy') for t in TARGETS]
     + [dict(_enum('agents.%s.%s' % (role, field), '%s: %s' % (role, field), options), group='Agents')
        for role in D_ROLES for field, options in (('enabled', AGENT_STATES), ('model', AGENT_MODELS))])
 SPECS = {spec['key']: spec for spec in SCHEMA}
@@ -212,18 +221,37 @@ def load(user_path=None):
     return effective, problems
 
 
+@contextlib.contextmanager
+def locked(path):
+    """One writer at a time per configuration file (clicks in the rail boxes arrive in quick succession). The lock file
+    lives in the temp folder, keyed by the path, so no `.lock` lands in ~/.claude or in a project's committed `.claude/`."""
+    name = 'adyusuf-config-%s.lock' % hashlib.sha1(os.path.abspath(path).encode('utf-8')).hexdigest()[:16]
+    with open(os.path.join(tempfile.gettempdir(), name), 'a') as handle:
+        if fcntl:
+            fcntl.flock(handle, fcntl.LOCK_EX)
+        yield                                    # closing the handle releases the lock
+
+
 def write_layer(path, changes, removals=()):
-    """Merge `changes` into the layer's file and write it back. Refuses to overwrite an unreadable file."""
-    current, problem = read_layer(path)
-    if problem:
-        raise ConfigError('refusing to overwrite an unreadable configuration file - ' + problem, 1)
-    current.update(changes)
-    for key in removals:
-        current.pop(key, None)
+    """Merge `changes` into the layer's file and write it back. Refuses to overwrite an unreadable file. The read, the
+    change and the write happen under a lock, and the file is replaced atomically: a reader never sees it half-written."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    with open(path, 'w', encoding='utf-8') as handle:
-        json.dump(nest(current), handle, indent=2)
-        handle.write('\n')
+    with locked(path):
+        current, problem = read_layer(path)
+        if problem:
+            raise ConfigError('refusing to overwrite an unreadable configuration file - ' + problem, 1)
+        current.update(changes)
+        for key in removals:
+            current.pop(key, None)
+        temp = '%s.%d.tmp' % (path, os.getpid())
+        try:
+            with open(temp, 'w', encoding='utf-8') as handle:
+                json.dump(nest(current), handle, indent=2)
+                handle.write('\n')
+            os.replace(temp, path)
+        finally:
+            if os.path.exists(temp):
+                os.remove(temp)
 
 
 def shown(value):
@@ -248,16 +276,19 @@ def context(effective, problems):
     value = lambda key: effective[key][0]  # noqa: E731
     steps = []
     for target in TARGETS:
-        gates = [g for g in ('unit', 'e2e') if value('run_before_push.%s.%s' % (target, g))]
-        steps.append('%s: merge %s, push %s, run before push: %s' % (
-            target, shown(value('merge.' + target)), shown(value('push.' + target)), ', '.join(gates) or 'nothing'))
+        steps.append('%s: CI before merge %s, merge %s, gates before push %s, push %s, e2e after deploy %s' % (
+            target, shown(value('ci_before_merge.' + target)), shown(value('merge.' + target)),
+            shown(value('gates_before_push.' + target)), shown(value('push.' + target)),
+            shown(value('e2e_after_deploy.' + target))))
     lines = ['adyusuf configuration (effective; global rule #34 - follow it, do not ask what it answers):',
              '  mode %s, model for the Opus agents: %s' % (value('mode'), value('mode_model')),
+             '  pod: connect %s, message format %s (stored only; nothing acts on it)' % (
+                 shown(value('pod.connect')), value('pod.message_format')),
              '  write unit tests: %s, write e2e: %s' % (shown(value('write.unit_tests')), shown(value('write.e2e')))]
     active = agents({k: v[0] for k, v in effective.items()})
     lines.append('  agents: %s' % (', '.join('%s (%s)' % (row['role'], row['runs_on']) for row in active) or 'none'))
     lines.extend('  ' + step for step in steps)
-    lines.append('  change it with the adyusuf:config skill (or its panel); the mode may also be set per session or per project.')
+    lines.append('  change it with the adyusuf:config skill; the mode may also be set per session or per project.')
     lines.extend('  ! ' + problem for problem in problems)
     return '\n'.join(lines)
 
@@ -270,27 +301,6 @@ def render_agents(values):
     lines.extend('  %-18s defined %-7s runs on %s%s' % (r['role'], r['defined'], r['runs_on'],
                  '' if r['enabled'] == 'auto' else '   [%s]' % r['enabled']) for r in rows)
     return '\n'.join(lines)
-
-
-def panel_data(effective, problems):
-    roles = sorted({role for roles in MODE_ROLES.values() for role in roles})
-    defaults, _ = read_layer(DEFAULTS_FILE)
-    return {'schema': SCHEMA,
-            'defaults': defaults,
-            'values': {k: v[0] for k, v in effective.items()},
-            'sources': {k: v[1] for k, v in effective.items()},
-            'roles': [{'name': role, 'defined': defined_model(role), 'modes': [m for m in MODES if role in MODE_ROLES[m]]}
-                      for role in roles],
-            'agents': agents({k: v[0] for k, v in effective.items()}, include_inactive=True),
-            'problems': problems}
-
-
-def panel_html(effective, problems):
-    """The panel page: the template with the data as a JSON literal (a '</' inside it cannot close the script)."""
-    with open(PANEL_TEMPLATE, encoding='utf-8') as handle:
-        template = handle.read()
-    data = json.dumps(panel_data(effective, problems)).replace('</', '<\\/')
-    return template.replace('__PANEL_DATA__', data)
 
 
 def seen_dir():
@@ -315,20 +325,27 @@ def notify(event, payload_text):
             before = json.load(handle)
     except (OSError, ValueError):
         before = None
+    def remember():
+        try:
+            os.makedirs(seen_dir(), exist_ok=True)
+            with open(path, 'w', encoding='utf-8') as handle:
+                json.dump(values, handle)
+            return True
+        except OSError:
+            return False
+
+    changes = []
     if isinstance(before, dict):
         before = {key: value for key, value in before.items() if key in SPECS}   # a retired key is not a change
-    if before == values:
+        # A setting the seen-file never had (the plugin was updated mid-session) is new, not changed.
+        changes = ['%s: %s -> %s' % (key, shown(before[key]), shown(values[key])) for key in sorted(values)
+                   if key in before and before[key] != values[key]]
+        if not changes:
+            if before != values:
+                remember()                      # only new settings appeared: remember them, say nothing
+            return None
+    if not remember() or before is None:
         return None
-    try:
-        os.makedirs(seen_dir(), exist_ok=True)
-        with open(path, 'w', encoding='utf-8') as handle:
-            json.dump(values, handle)
-    except OSError:
-        return None
-    if before is None:
-        return None
-    changes = ['%s: %s -> %s' % (key, shown(before.get(key)), shown(values[key])) for key in sorted(values)
-               if before.get(key) != values[key]]
     text = ('adyusuf settings changed (/adyusuf:config). Apply them from the NEXT task on; finish the step in progress as it '
             'was started, do not restart or split it. Changes: ' + '; '.join(changes) + '.\n' + context(effective, problems))
     return {'hookSpecificOutput': {'hookEventName': event, 'additionalContext': text}}
@@ -341,7 +358,7 @@ def main(argv):
     command = args[0] if args else ''
     path = project_file() if scope_project else user_file()
     try:
-        if command in ('show', 'context', 'get', 'schema', 'agents', 'panel-data', 'panel') and scope_project:
+        if command in ('show', 'context', 'get', 'schema', 'agents') and scope_project:
             raise ConfigError('--project only applies to set, unset and apply')
         if command == 'show':
             effective, problems = load()
@@ -363,12 +380,6 @@ def main(argv):
             effective, _ = load()
             write_layer(path, {}, [key for key in SPECS if key.startswith('agents.')])
             print('every agents.* setting removed from %s' % path)
-            return 0
-        if command == 'panel':
-            sys.stdout.write(panel_html(*load()))
-            return 0
-        if command == 'panel-data':
-            print(json.dumps(panel_data(*load()), indent=2))
             return 0
         if command == 'context':
             print(context(*load()))
@@ -410,7 +421,7 @@ def main(argv):
             if not isinstance(incoming, dict):
                 raise ConfigError('expected a JSON object of {"key": value}')
             flat = flatten(incoming)
-            skipped = sorted(key for key in flat if key in RETIRED_KEYS)   # a panel saved before they were retired
+            skipped = sorted(key for key in flat if key in RETIRED_KEYS)   # a file saved before they were retired
             write_layer(path, {key: check(key, value) for key, value in flat.items() if key not in RETIRED_KEYS})
             print('%d setting(s) written to %s' % (len(flat) - len(skipped), path))
             if skipped:

@@ -112,6 +112,60 @@ else
 fi
 if [ "$js_status" != 0 ] && [ "$status" = 0 ]; then status="$js_status"; fi
 
+# TypeScript of the Claude Code mod (every .ts/.tsx/.mts/.cts/.js/.jsx under hooks/): the NARROW exception of rule #29 (user decision
+# 22/10/2026). The mod runs only inside Claude Code's engine, whose test runner (`claude plugin test`) reports no
+# coverage. So: (1) the logic lives in engine-free files (no import from 'claude-code'); they are MEASURED here with Deno
+# and held to the threshold; (2) the engine glue is the ONE exclusion below, with its reason, and is reported "not
+# measured" in every run - never dropped silently; (3) any other hand-written script file anywhere under hooks/ that is
+# neither tested logic nor that listed glue file makes the run NOT MEASURED. Adding a file to the glue list is loosening #29.
+ts_glue="hooks/register.tsx"          # imports 'claude-code' and draws through the engine; no runner reports its lines
+echo "▶ TypeScript mod logic (threshold ${min}%)"
+ts_status=0
+ts_all="$(find hooks \( -name '*.ts' -o -name '*.tsx' -o -name '*.mts' -o -name '*.cts' -o -name '*.js' -o -name '*.jsx' \) \
+  -not -name '*.test.*' -not -name '*.d.ts' 2>/dev/null | sort)"
+ts_logic=""
+ts_tests=()
+while IFS= read -r one; do [ -n "$one" ] && ts_tests+=("$one"); done < <(find hooks -name '*.test.ts' 2>/dev/null | sort)
+for file in $ts_all; do
+  [ "$file" = "$ts_glue" ] && continue
+  if grep -q -E "(from|import[(]?|require[(]) *['\"]claude-code" "$file"; then
+    echo "  NOT MEASURED: $file imports the engine but is not the listed glue file ($ts_glue)"; ts_status=3
+  else
+    ts_logic="$ts_logic $file"
+  fi
+done
+if [ -z "$ts_all" ]; then
+  echo "  n/a: no TypeScript here"
+elif ! command -v deno >/dev/null 2>&1; then
+  echo "  NOT MEASURED: deno is not installed (brew install deno)"; ts_status=3
+elif [ "$ts_status" = 0 ] && [ "${#ts_tests[@]}" = 0 ] && [ -n "$ts_logic" ]; then
+  echo "  NOT MEASURED: no test loads$ts_logic"; ts_status=3
+elif [ "$ts_status" = 0 ]; then
+  ts_cov="$(mktemp -d)"
+  if ! deno test --quiet --sloppy-imports --coverage="$ts_cov" --import-map=scripts/ts-shim/import_map.json "${ts_tests[@]}" \
+        >"$ts_cov/run.log" 2>&1; then
+    sed 's/^/  /' "$ts_cov/run.log" | head -20
+    echo "  ✗ the tests are red — coverage of a red suite is not a measurement"; ts_status=1
+  else
+    ts_lines=0; ts_hit=0
+    for file in $ts_logic; do
+      lcov="$(deno coverage "$ts_cov" --lcov --include="$(printf '%s' "$file" | sed 's/\./\\./g')\$" 2>/dev/null)"
+      lf="$(printf '%s\n' "$lcov" | sed -n 's/^LF://p' | head -1)"; lh="$(printf '%s\n' "$lcov" | sed -n 's/^LH://p' | head -1)"
+      if [ -z "$lf" ]; then echo "  NOT MEASURED: no test loads $file"; ts_status=3; continue; fi
+      printf '    %-28s %s/%s  %s%%\n' "$file" "$lh" "$lf" "$(( lf == 0 ? 100 : 100 * lh / lf ))"
+      ts_lines=$((ts_lines + lf)); ts_hit=$((ts_hit + lh))
+    done
+    if [ "$ts_status" = 0 ]; then
+      pct=$(( ts_lines == 0 ? 100 : 100 * ts_hit / ts_lines ))
+      echo "    TOTAL                        ${ts_hit}/${ts_lines}  ${pct}%"
+      if [ "$pct" -ge "$min" ]; then echo "  ✓ at or above ${min}%"; else echo "  ✗ below ${min}%"; ts_status=1; fi
+    fi
+  fi
+  rm -rf "$ts_cov"
+  echo "  not measured, listed exclusion (rule #29, narrow exception): $ts_glue - engine glue, no runner reports its lines"
+fi
+if [ "$ts_status" != 0 ] && [ "$status" = 0 ]; then status="$ts_status"; fi
+
 # Shell: MEASURED by scripts/coverage-shell.sh (kcov). It used to be reported here
 # as permanently NOT MEASURED, which made this gate impossible to pass on macOS at
 # any Python coverage. Two things were actually in the way and both are fixed:
