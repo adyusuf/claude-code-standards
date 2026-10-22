@@ -1614,3 +1614,57 @@ nothing in this repository's copy was changed for it.** The project below worked
   COVERAGE_MIN` after the conf is sourced: it is a plain shell variable today, so a project's `coverage.sh` never sees
   the conf's value (a `COVERAGE_MIN=99` mutation left that project's gate green). (4) A test of any tool the gate runs
   must not depend on variables the gate exports (`COVERAGE_*`): two new tests failed only inside the gate for that reason.
+
+## Phased work stays on the on-screen task list; decisions are tasks; nothing is dropped (18/10/2026, user decision)
+
+- **Trigger:** tasks disappeared from the on-screen list between turns — an interrupted request (a deploy check) was
+  simply abandoned when a new message arrived. The user asked that phased, sequential work always stay on screen and
+  never get lost.
+- **Decision:** `standards/00-working-method.md` §1a. Phased work is listed with its phase from the first message;
+  open choices are asked AND listed as `P0 · Decide …`, then collapse into a completed `Decided: …` line and expand
+  into concrete tasks; related new work is inserted at its phase, unrelated work and interrupted tasks are queued as
+  `Queued · …`; the list is resent whole on every change. A one-question/one-answer exchange gets no list.
+- **Demonstrated** on "I want a sudoku mobile app" (no code written): platform → both, framework → React Native +
+  Expo, backend → yes; the backend answer raised two more decisions (features, sign-in), and the answers expanded
+  into API and app tasks, while the interrupted deploy report stayed queued at the end.
+- **Not in `CLAUDE.md`:** the file is at its size ceiling (`scripts/md-budget.tsv`); a new permanent rule goes into
+  `standards/` first. The `board-plan` skill points to §1a.
+
+## The task list carries the delivery stages and follows the configuration (18/10/2026, user decision)
+
+- **Decision:** `standards/00-working-method.md` §1a gains two bullets. The delivery stages (plan + analysis, code,
+  unit tests, review, merge / gate / push, deploy, release) are list items, but only the stages that will really
+  happen and whose turn can be seen — no deploy for an offline app, no e2e while no gate runs it (#33), the review
+  the active mode has. The merge, gate and push items are derived from `/adyusuf:config` (#34): a target appears
+  only if `merge.<t>` is yes, its gate only if `run_before_push.<t>.<gate>` is yes, its push only if `push.<t>` is
+  yes; a setting changed mid-session is re-read at the next task and the list resent.
+- **Demonstrated** on "I want a chess mobile app" (no code written): online multiplayer made a deploy stage appear;
+  Stockfish's GPL made a source-publication item appear; with `run_before_push.test.unit` and `.prod.unit` yes and
+  the dev gates no, the list showed "merge dev, push dev (no gate: config)", "merge test, unit gate, push test",
+  "merge prod, unit gate, push prod".
+
+## No relation to claude-monitor or its daemon; nothing connects, nothing is sent (20/10/2026, user decision)
+
+- **Request:** "remove the standards' tie to the daemon, no relation to claude-monitor should remain" and "no
+  connecting to the daemon, no sending messages".
+- **Decision:** the rule set has no code, setting, document or example that installs, connects to, configures or
+  messages claude-monitor's agent (`cm-agent`) or its server.
+  - **Removed:** the monitor installer module (`install_monitor.py`) and its test; the monitor step, the `--prod`/`--test`/`--dev`,
+    `--no-monitor`, `--with-monitor`, `--monitor-server` and `--monitor-sync` flags of `install.py` (it now prints the
+    two `/plugin` commands and reports or removes the old link install); the `monitor.connect` and
+    `monitor.message_format` settings and their line in the session-start block; the `monitor_note` section of
+    `/adyusuf:board-plan` (the plan file is the only record); `CLAUDE_MONITOR_HOME` and `CM_AGENT_HOME` from
+    `.env.example` and `SETUP.md`; the .NET SDK prerequisite (it existed only to build the agent); the monitor
+    paragraphs of `README.md`, `PRIVACY.md`, `SETUP.md`, `scripts/README.md` and `standards/22`; the `monitor.bitreka.com`
+    example in `standards/20`.
+  - **Kept for compatibility:** a user's `~/.claude/adyusuf.json` written before this change still holds the two
+    retired keys. `adyusuf_config.py` lists them in `RETIRED_KEYS` and skips them on read, so one stale key does not
+    invalidate the whole layer; the next write drops them.
+  - **Not touched:** an agent already installed on a machine, and the plugin entry `install.py` once registered for it
+    in `settings.json`. `install.py --remove` no longer uninstalls it; that is the agent's own `cm-agent uninstall`.
+  - **QA findings fixed in the same change:** the old-install notice (`legacy-install-check.py`) now prints the plugin's
+    OWN `install.py --remove`, never the old checkout's (an older checkout's `install.py` still uninstalled the agent
+    unless `--no-monitor` was given); `adyusuf_config.py apply` skips the retired keys a panel saved earlier still holds
+    and says so; `notify` ignores them when it compares a session's seen state, so no false "settings changed" notice.
+  - **History stays:** the entries above that mention claude-monitor describe what was true when they were written.
+    They are the record of why, not a relationship; this entry supersedes the ones that made the monitor optional.

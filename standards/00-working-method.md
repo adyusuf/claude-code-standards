@@ -12,6 +12,38 @@
 4. **If something is unclear:** finish the independent parts; ask one clear question
    about the rest. If a wrong assumption would throw the work away, **ask first**.
 
+### 1a. Phased work lives on the on-screen task list — nothing gets lost (PERMANENT, all projects)
+
+Work that splits into phases or sequential steps is kept on the **task list the client
+shows on screen** (the desktop app's `update_plan`, the CLI's task tools) from the first
+message until it is done. A one-question/one-answer exchange gets no list.
+
+- **Phases are visible:** each item carries its phase (`P0 · …`, `P1 · …`); the whole
+  plan goes up in the first message, before any work.
+- **Open choices are decision tasks:** what cannot be decided from the request, the code
+  or a default (platform, framework, backend…) is asked **and** listed as
+  `P0 · Decide …`. Once answered it collapses into one completed `Decided: …` line, and
+  the answer **expands into concrete tasks** — a decision that adds work adds items.
+- **New work never pushes old work off the list:** related to the topic → inserted at
+  the phase it belongs to; unrelated → appended as `Queued · …` and done afterwards, in
+  order. An interrupted task is not dropped: it stays on the list as `Queued · …`.
+- **The list is resent whole whenever it changes**, so it never shows an abandoned plan;
+  an item leaves it only by being done or by the user saying "drop it".
+- **The delivery stages are items too:** plan + analysis → code → unit tests → review →
+  merge / gate / push → deploy → release. Only a stage that will **really happen** is
+  listed, and only once its turn can be seen: deploy appears when there is something to
+  deploy (a backend), never for an offline app; e2e never appears while no gate runs it
+  (#33); the review is the one the active mode has (the `qa` agent in C/D/E, my own pass
+  in A/B).
+- **Merge, gate and push items come from the configuration (#34, `/adyusuf:config`):**
+  per target, in order dev → test → prod — the target only if `merge.<t>` is yes (a no
+  drops it and every later target); its gate (`unit`, `e2e`) only if
+  `run_before_push.<t>.<gate>` is yes, else the item says "no gate: config"; its push
+  only if `push.<t>` is yes. **A setting changed mid-session** (the config's `notify`
+  hook says so) is re-read at the next task and the list is resent with the new items.
+- The session's plan file (`22-live-board.md`, the `board-plan` skill) is an extra
+  record; the on-screen list is what the user follows.
+
 ## 2. Plan → approval → execute
 
 - A small single-file change: just do it.

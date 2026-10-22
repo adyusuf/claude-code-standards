@@ -1,12 +1,11 @@
 # 22 — The plan file (what replaced the live board)
 
 > **History.** Until 03/10/2026 this standard described a local "live board": hooks wrote an event log into
-> every project, a Python server showed it on `127.0.0.1`, and `board.py` wrote the plan. `claude-monitor`
-> removed that board (its commit `86684df`, ADR-0002; last version: tag `archive/board-final`) for
-> **cm-agent**, which only **observes** (sessions, subagents, Claude Code's own task tools) and offers Claude
-> two tools, `monitor_status` and `monitor_note`. Nothing replaced the plan itself — mode, roles, routing,
-> task ids, semantic status, commits. On 13/10/2026 the user chose a **local plan file** for that part
-> (`docs/decision-log.md`); the board's launchers, hooks and CLI were removed from this repository.
+> every project, a Python server showed it on `127.0.0.1`, and `board.py` wrote the plan. That board was
+> retired and nothing replaced the plan itself — mode, roles, routing, task ids, semantic status, commits.
+> On 13/10/2026 the user chose a **local plan file** for that part (`docs/decision-log.md`); the board's
+> launchers, hooks and CLI were removed from this repository. Nothing here connects to a server or sends a
+> message (user decision 20/10/2026).
 
 ## 1. What it is
 
@@ -40,13 +39,3 @@ reply stays the deliverable (`00-working-method.md` §10).
   `adyusuf:<role>`.
 - **No published board.** No Artifact dashboard or hosted page (`00-working-method.md` §10).
 - **Progress percentages are not written.** They cannot be measured; states and commits can (§10b).
-
-## 4. The monitor
-
-When the claude-monitor agent is installed (`scripts/install.py`, `SETUP.md`), it records sessions, subagents
-and Claude Code's task tools by itself; `monitor_note` adds one line per status change. Its design and data
-model are in the `claude-monitor` repository (<https://github.com/adyusuf/claude-monitor>).
-
-⚠️ **The monitor is optional (user decision 13/10/2026).** No agent installed, not connected, or its server
-unreachable: nothing connects, and that is **not a problem** — not a finding, not a failed step, nothing to
-report or repair. The plan file is the record either way.

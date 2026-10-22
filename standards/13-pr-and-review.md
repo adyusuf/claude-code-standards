@@ -190,8 +190,7 @@ Gate-Waived: unit, e2e (neden: configuration)
 
 (`neden:` is the literal the user gave; a scanner accepts `reason:` too.) **Before the `prod` merge**, scan the range being
 promoted for those lines and put the result in the report - for example `git log --format=%B origin/prod..origin/test |
-grep '^Gate-Waived:'` (a project may ship a helper; the Claude Monitor repository's `waived-gates.sh <source> <target>`
-lists commit, gate and reason). It is reported, not asked: the user has already said what runs. "A step that did not run
+grep '^Gate-Waived:'` (a project may ship a helper that lists commit, gate and reason). It is reported, not asked: the user has already said what runs. "A step that did not run
 did not pass" (#25) stays true in the report.
 
 **What no setting changes:** coverage ≥ 80% per codebase (#29) is part of what the gate owner runs and is not a setting;

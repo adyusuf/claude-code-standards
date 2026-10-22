@@ -1,6 +1,6 @@
 ---
 name: config
-description: Shows or changes the adyusuf defaults that replace questions - working mode and the model for the Opus agents, monitor connection and message format, whether unit tests and e2e specs are written, which of dev/test/prod are merged and pushed, and which tests run before a push. Also shows which agents the mode enables and the model each one runs on. Use it when the user says "/adyusuf:config", "change the defaults", "stop asking me", "don't push prod", "run e2e before test", "show the settings" or "which agents are active".
+description: Shows or changes the adyusuf defaults that replace questions - working mode and the model for the Opus agents, whether unit tests and e2e specs are written, which of dev/test/prod are merged and pushed, and which tests run before a push. Also shows which agents the mode enables and the model each one runs on. Use it when the user says "/adyusuf:config", "change the defaults", "stop asking me", "don't push prod", "run e2e before test", "show the settings" or "which agents are active".
 ---
 
 # adyusuf configuration
@@ -41,8 +41,6 @@ went to. Never edit the JSON files by hand when the tool can do it.
 | `mode_model` | keep, sonnet, haiku, fable | What the Opus-defined agents run on (`keep` = as defined). Same override order as `mode`. |
 | `agents.<role>.enabled` | auto, on, off | One of the 14 roles: `auto` follows the mode's set, `on` adds it, `off` removes it (mode A runs none). |
 | `agents.<role>.model` | default, opus, sonnet, haiku, fable | The model that one agent runs on; `default` follows its definition and the mode's Opus override. |
-| `monitor.connect` | yes/no | Whether the installer connects the monitor agent (`scripts/install.py`; `no` = `--no-monitor`). |
-| `monitor.message_format` | short, full | The format of messages that come from the monitor. Stored here; the agent's own setting is in the claude-monitor project. |
 | `write.unit_tests` | yes/no | Write unit tests when the code is done (#32). |
 | `write.e2e` | yes/no | Write e2e specs (optional to run, #33). |
 | `merge.dev` `merge.test` `merge.prod` | yes/no | Merge finished code into that branch (#26, #34). |

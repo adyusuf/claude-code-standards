@@ -68,13 +68,13 @@ Cross-Origin-Opener-Policy: same-origin
 - **Root: `C:\iis`.** Every IIS-served deployment lives under it — not `C:\inetpub`, not a product folder at
   the drive root, not a working checkout (`C:\Work\...`).
 - **One main folder per environment: `C:\iis\<domain>_<env>`.** `<domain>` is the host name the environment
-  answers on, `<env>` is `test` or `prod` (dev is not deployed on a server). `monitor.bitreka.com` in
-  production is `C:\iis\monitor.bitreka.com_prod`. Test and production never share a directory (above).
+  answers on, `<env>` is `test` or `prod` (dev is not deployed on a server). `app.example.com` in
+  production is `C:\iis\app.example.com_prod`. Test and production never share a directory (above).
 - **Components below it: `api\`, `web\`, `admin\` …**, one folder per deployable. Beneath a component folder the
   layout is the project's own (for example `releases\<commit>` with the live one pointed at) and is written in
   its `SETUP.md`. The main folder's other contents — the environment file, backups, archives, logs — sit
   **beside** the components, never inside a folder IIS serves; Request Filtering is the second line, not the first.
-- **One site and one application pool per environment, named after the main folder:** `monitor.bitreka.com_prod`.
+- **One site and one application pool per environment, named after the main folder:** `app.example.com_prod`.
   The components (`api\`, `web\` …) are **folders, not IIS sub-applications and not pools of their own** (user
   decision 06/10/2026: "do not split web, api … into sub-applications and pools"). A site and its pool carry the
   same name (one pool per site, above), so a `w3wp` in Task Manager, an event-log line or a deploy log leads to
