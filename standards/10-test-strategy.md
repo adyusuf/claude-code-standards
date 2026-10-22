@@ -73,7 +73,7 @@ working copy**; `[Collection]` serialization only protects within a single proce
 - If a field is deleted or renamed this test **turns red** — which is precisely its purpose.
 - Validation against the OpenAPI schema can be automated.
 
-## 7. Coverage — THE THRESHOLD IS 80%, no exceptions (global rule #29)
+## 7. Coverage — THE THRESHOLD IS 80%, one written exception (§7.2a, global rule #29)
 
 **THE DECISION:** line coverage in every codebase is **at least 80%**. This
 section used to say "coverage is a diagnostic, not a target"; that sentence has
@@ -107,6 +107,18 @@ the denominator.
 ⚠️ **The raw number misleads.** One project's backend measured 95.0% with
 migrations included — and **83.0%** once they were excluded. EF migrations run by
 themselves during tests and made up 85% of the denominator.
+
+### 7.2a The one written exception: the Claude Code mod (user decision 22/10/2026)
+
+TypeScript that runs only inside Claude Code's engine (the mod: `hooks/*.ts`, `hooks/*.tsx`) has no runner that reports
+coverage (`claude plugin test` prints pass/fail only). So, in `scripts/coverage.sh` and nowhere else:
+
+- its **logic** lives in engine-free files (no import from `claude-code`), is measured with Deno and held to the threshold;
+- its **engine glue** is ONE listed file (`ts_glue`), with the reason beside it, reported "not measured, listed exclusion"
+  in every run — never dropped silently;
+- any other `.ts`/`.tsx` there that is neither measured logic nor that glue file makes the run NOT MEASURED (blocks);
+- adding a file to the glue list, or putting logic into it, is loosening the threshold → **forbidden**. Keep the glue thin:
+  every decision goes into the logic files, where it is tested.
 
 ### 7.3 The gate
 

@@ -6,7 +6,7 @@ description: Shows or changes the adyusuf defaults that replace questions - work
 # adyusuf configuration
 
 Claude does not ask what a setting already answers (global rule #34). These settings are the answers. The user
-changes them here, or in the panel (below); everything else in this skill is mechanics.
+changes them here; everything else in this skill is mechanics.
 
 Layers, lowest first: the plugin's `defaults/adyusuf.json` < the user's `~/.claude/adyusuf.json` < the project's
 `.claude/adyusuf.json` (committed, like `.claude/mode`). A change is written to the **user** layer unless the user says
@@ -16,10 +16,13 @@ The tool is `${CLAUDE_PLUGIN_ROOT}/scripts/adyusuf_config.py` (`python3`):
 
 | The user says | Run |
 |---|---|
-| "show the settings" / no argument | `show` (add `--json` for a machine view), then `agents` |
+| "show the settings" | `show` (add `--json` for a machine view), then `agents` |
+| no argument / "change the settings" / "open the settings" | `show`, then the clickable questions below ("Changing settings with clicks") |
 | "which agents are active" | `agents` (`--all` includes the inactive ones): the roles that run and the model each runs on |
 | "don't push prod" / "push prod: no" | `set push.prod no` |
-| "run unit tests before dev" | `set run_before_push.dev.unit yes` |
+| "run the gates before pushing dev" | `set gates_before_push.dev yes` |
+| "run CI before merging prod" | `set ci_before_merge.prod yes` |
+| "run e2e after deploying test" | `set e2e_after_deploy.test yes` |
 | "mode D, haiku" | `set mode D` and `set mode_model haiku` |
 | "turn qa off" / "developer on haiku" | `set agents.qa.enabled off` / `set agents.developer.model haiku` |
 | "all agents back to the mode" | `reset-agents` (add `--project` for the project layer) |
@@ -41,25 +44,49 @@ went to. Never edit the JSON files by hand when the tool can do it.
 | `mode_model` | keep, sonnet, haiku, fable | What the Opus-defined agents run on (`keep` = as defined). Same override order as `mode`. |
 | `agents.<role>.enabled` | auto, on, off | One of the 14 roles: `auto` follows the mode's set, `on` adds it, `off` removes it (mode A runs none). |
 | `agents.<role>.model` | default, opus, sonnet, haiku, fable | The model that one agent runs on; `default` follows its definition and the mode's Opus override. |
+| `pod.connect` | yes/no | "Connect to pod" (default no). A stored setting only: nothing in this plugin connects to anything or sends a message because of it (user decision 20/10/2026). |
+| `pod.message_format` | short, full | "Message format" (default short). Stored only, like `pod.connect`. |
 | `write.unit_tests` | yes/no | Write unit tests when the code is done (#32). |
 | `write.e2e` | yes/no | Write e2e specs (optional to run, #33). |
 | `merge.dev` `merge.test` `merge.prod` | yes/no | Merge finished code into that branch (#26, #34). |
 | `push.dev` `push.test` `push.prod` | yes/no | Push that branch after its merge. |
-| `run_before_push.<t>.unit` / `.e2e` | yes/no | Run that gate before pushing `<t>`. Not run = recorded as `Gate-Waived:` on the merge commit (#34). |
+| `gates_before_push.<t>` | yes/no | Run the gates (unit tests, coverage, secret scan, SAST: `scripts/merge-gate.sh`) on the merged result before pushing `<t>` (defaults: dev no, test yes, prod yes). Not run = recorded as `Gate-Waived: gates` on the merge commit (#34). |
+| `ci_before_merge.<t>` | yes/no | Wait for the project's CI to be green on the code before merging it into `<t>` (defaults: dev no, test yes, prod yes). Not waited for = `Gate-Waived: ci` on the merge commit. |
+| `e2e_after_deploy.<t>` | yes/no | Run the e2e suite against `<t>` after it is deployed (defaults: dev no, test no, prod yes). Applies only where the project has an e2e suite and deploys that target; otherwise the report says so. |
 
-## The panel
+## Changing settings with clicks
 
-"Show the settings in the right-hand boxes" means the settings panel: an Artifact with a checkbox for every yes/no
-setting, a dropdown for every list, and a box listing the agents the mode enables with the model each runs on. Build it
-from `panel-data` (never hard-code the keys), publish it with the Artifact tool in the current session, open it in the side
-pane, and keep what the user changes in the artifact's own database. To apply the user's changes ("apply the panel"):
-read the panel's values with `ArtifactData` (collection `settings`, document `current`, field `values`; no document means nothing was
-changed in the panel), then `apply` them as one JSON object - validated all-or-nothing - and print `show`. When a setting changes from the command line, update the panel's stored values too, so the two never disagree.
+When the user wants to change settings without naming them (no argument, "change the settings", "open the settings",
+"show the settings in the right-hand boxes"):
+
+**The rail boxes first.** This plugin's mod (`hooks/register.tsx`) draws three boxes in the right-hand rail: *Settings* (a
+checkbox for every yes/no setting, a dropdown for every list), *Agents* (a checkbox per agent, a model dropdown) and *Promotion*
+(dev/test/prod, read-only). Each click runs `adyusuf_config.py set`. Open them with `/adyusuf:panels`, say that they are
+there and stop: the user changes the settings in the boxes, not in the chat. Never build a page or an Artifact for this.
+
+**Only when the boxes cannot be shown** (the surface draws no panes, mods are off, the plugin is an old copy without them): run
+`show`, then ask with the `AskUserQuestion` tool, which draws clickable buttons, checkboxes and dropdowns in the chat.
+Put the current value in each question or option ("now: yes"), because the tool cannot pre-select.
+
+1. One question, `multiSelect: true` (checkboxes): "Which settings do you want to change?" with four options: *Mode and
+   model* · *Writing and pod* (unit tests, e2e, `pod.connect`, `pod.message_format`) · *Merge, push and gates* ·
+   *One agent*.
+2. One `AskUserQuestion` call for each ticked group (at most four questions per call, two to four options each):
+   - *Mode and model*: mode as buttons A / B / C / D (E through "Other"), then `mode_model` as buttons keep / sonnet /
+     haiku / fable.
+   - *Writing and pod*: `write.unit_tests`, `write.e2e` and `pod.connect`, each as yes / no buttons, then
+     `pod.message_format` as buttons short / full (the pod settings are stored only; nothing acts on them).
+   - *Merge, push and gates*: five checkbox questions (`multiSelect: true`, two calls), options dev / test / prod: "Run CI
+     before merging", "Merge into", "Run gates before the push", "Push", "Run e2e after deploying". A ticked box is
+     yes, an unticked one no.
+   - *One agent*: the role (qa, developer, architect, security, any other through "Other"), then `enabled` as buttons
+     auto / on / off and `model` as buttons default / sonnet / haiku / opus (fable through "Other").
+3. Write all the answers with one `apply` (validated all-or-nothing), print `show`, and say which layer it went to. Skip
+   a question the user did not tick in step 1, and never ask again for what they answered.
 
 ## When a change takes effect
 
-At once, but never in the middle of a step. The files change immediately (the boxes in the side pane write them on the
-spot; the settings page needs "apply the panel"). A `UserPromptSubmit` hook and a `PostToolUse` hook (agent calls and shell
+At once, but never in the middle of a step. The files change immediately. A `UserPromptSubmit` hook and a `PostToolUse` hook (agent calls and shell
 commands, the task boundaries) run `adyusuf_config.py notify`: the first time a session sees different effective settings it
 receives a note naming what changed, and the note says to apply them **from the next task** and not to restart or split the
 step in progress. A note is sent once per change and per session; a session that never saw the settings stays silent.
