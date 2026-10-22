@@ -125,9 +125,12 @@ class RootPluginTest(unittest.TestCase):
         self.assertNotIn('version', manifest)
 
     def test_marketplace_lists_exactly_the_one_plugin_at_the_repository_root(self):
+        # The right-hand rail boxes (adyusuf-panels) are TypeScript, and rule #29 cannot measure that here: they live in
+        # their own repository, so this marketplace lists the rule set alone.
         marketplace = json.loads(read('.claude-plugin', 'marketplace.json'))
         self.assertEqual(marketplace['name'], 'adyusuf-marketplace')
         self.assertEqual([(p['name'], p['source']) for p in marketplace['plugins']], [(NAMESPACE, './')])
+        self.assertFalse(os.path.exists(os.path.join(REPO, 'mods')), 'no mod code in this repository')
 
     def test_hook_events_are_exactly_the_six(self):
         self.assertEqual(sorted(normalised_hooks()),

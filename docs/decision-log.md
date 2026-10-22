@@ -1669,13 +1669,21 @@ nothing in this repository's copy was changed for it.** The project below worked
   - **History stays:** the entries above that mention claude-monitor describe what was true when they were written.
     They are the record of why, not a relationship; this entry supersedes the ones that made the monitor optional.
 
-## The settings page (panel) is removed (22/10/2026, user decision)
+## The settings page (panel) is removed; the settings live in the right-hand rail (22/10/2026, user decision)
 
 - **Decision:** `/adyusuf:config` has no settings page any more. The Artifact "adyusuf Settings" and everything that
   built it are gone: `skills/config/panel.template.html`, the `panel` and `panel-data` commands of
-  `adyusuf_config.py`, "The panel" section of the config skill and their tests. Settings are shown and changed with
-  `show`, `set`, `unset`, `apply`, `agents` and `reset-agents`, and, for a user who names nothing, with clickable
-  questions (`AskUserQuestion`: buttons, checkboxes, dropdowns) that the skill drives and then writes with one `apply`.
-- **Kept on purpose:** `apply` and the read path still skip the two retired `monitor.*` keys, because a file or a
-  stored page written earlier may hold them; `group` stays in the schema (it titles the sections of `show`).
+  `adyusuf_config.py`, "The panel" section of the config skill and their tests.
+- **What replaces it:** the rail boxes the user meant by "the boxes on the right (Environment, Context, Connectors,
+  Outputs, Changes)": the `adyusuf-panels` mod (written 17/10/2026 in one session's own mods folder, so no later session
+  had it). It is TypeScript, and rule #29 cannot measure its coverage (`claude plugin test` reports none), so it does NOT
+  live in this repository (user choice 22/10/2026): it is its own repository, `~/ClaudeCode/adyusuf-panels` (local, no
+  remote yet), installed with `claude plugin marketplace add <folder>`. Settings, Agents and Promotion boxes with
+  checkboxes and dropdowns; each click runs `adyusuf_config.py set`. It finds the script through the `adyusuf` plugin the
+  plugin manager records as installed (`installed_plugins.json`; QA found that "the newest folder in the cache" is a
+  replaced version after an update), so the retired monitor settings vanish from the boxes once `adyusuf` is updated. The
+  config skill sends the user to the boxes first and uses `AskUserQuestion` (buttons, checkboxes, dropdowns in the chat)
+  only when they cannot be shown.
+- **Kept on purpose:** `apply` and the read path still skip the two retired `monitor.*` keys, because a file written
+  earlier may hold them; `group` stays in the schema (it titles the sections of `show` and the boxes).
 - **Not done here:** the published Artifact is deleted separately (it is not in the repository).

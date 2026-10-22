@@ -50,14 +50,22 @@ went to. Never edit the JSON files by hand when the tool can do it.
 
 ## Changing settings with clicks
 
-When the user wants to change settings without naming them (no argument, "change the settings", "open the settings"),
-do not ask in prose and do not build a page: show `show`, then ask with the `AskUserQuestion` tool, which draws
-clickable buttons, checkboxes and dropdowns in the app. Put the current value in each question or option ("now: yes"),
-because the tool cannot pre-select.
+When the user wants to change settings without naming them (no argument, "change the settings", "open the settings",
+"show the settings in the right-hand boxes"):
 
-1. **One question, `multiSelect: true` (checkboxes): "Which settings do you want to change?"** with four options:
-   *Mode and model* · *Writing* (unit tests, e2e) · *Merge, push and gates* · *One agent*.
-2. **One `AskUserQuestion` call for each ticked group** (at most four questions per call, two to four options each):
+**The rail boxes first.** The separate `adyusuf-panels` plugin (its own repository; `SETUP.md` §6 has the install
+commands) draws three boxes in the right-hand rail: *Settings* (a checkbox
+for every yes/no setting, a dropdown for every list), *Agents* (a checkbox per agent, a model dropdown) and *Promotion*
+(dev/test/prod, read-only). Each click runs `adyusuf_config.py set`. Open them with `/adyusuf-panels`, say that they are
+there and stop: the user changes the settings in the boxes, not in the chat. Never build a page or an Artifact for this.
+
+**Only when the boxes cannot be shown** (the plugin is not installed, the surface draws no panes, mods are off): run
+`show`, then ask with the `AskUserQuestion` tool, which draws clickable buttons, checkboxes and dropdowns in the chat.
+Put the current value in each question or option ("now: yes"), because the tool cannot pre-select.
+
+1. One question, `multiSelect: true` (checkboxes): "Which settings do you want to change?" with four options: *Mode and
+   model* · *Writing* (unit tests, e2e) · *Merge, push and gates* · *One agent*.
+2. One `AskUserQuestion` call for each ticked group (at most four questions per call, two to four options each):
    - *Mode and model*: mode as buttons A / B / C / D (E through "Other"), then `mode_model` as buttons keep / sonnet /
      haiku / fable.
    - *Writing*: `write.unit_tests` and `write.e2e`, each as yes / no buttons.
@@ -65,8 +73,8 @@ because the tool cannot pre-select.
      "Push", "Run unit tests before the push", "Run e2e before the push". A ticked box is yes, an unticked one no.
    - *One agent*: the role (qa, developer, architect, security, any other through "Other"), then `enabled` as buttons
      auto / on / off and `model` as buttons default / sonnet / haiku / opus (fable through "Other").
-3. **Write all the answers with one `apply`** (validated all-or-nothing), print `show`, and say which layer it went to.
-   Skip a question the user did not tick in step 1, and never ask again for what they answered.
+3. Write all the answers with one `apply` (validated all-or-nothing), print `show`, and say which layer it went to. Skip
+   a question the user did not tick in step 1, and never ask again for what they answered.
 
 ## When a change takes effect
 

@@ -555,6 +555,11 @@ them opens a network connection.
 | `PreToolUse` (Bash) | `guard-destructive.sh` | reads the command Claude is about to run and refuses the never-do ones (`rm -rf`, force push, `DROP`) |
 | `PostToolUse` (Edit/Write), `Stop` | `md-hook.sh` | checks a touched `CLAUDE.md` against its size budget and for dropped rules; prints a warning |
 
+**The optional `adyusuf-panels` plugin** (its own repository, not part of this one) opens three boxes in the right-hand rail at session start. It reads
+`~/.claude/plugins/installed_plugins.json` (through `sh`/`cat`/`test`) to find the installed `adyusuf` plugin, runs
+`python3 scripts/adyusuf_config.py show/agents/schema/set` from that copy and read-only `git` commands (`for-each-ref`,
+`rev-parse`, `rev-list`, `log`) in the current repository. It opens no network connection.
+
 **What runs only when you call it.**
 - **`/adyusuf:*` skills and commands** tell Claude what to do. They run nothing on their own and send
   nothing anywhere: `/adyusuf:board-plan` writes only the local plan file.

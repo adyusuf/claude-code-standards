@@ -194,6 +194,11 @@ the 14 role agents as `adyusuf:<role>`, the destructive-command guard and the `C
 written into `~/.claude` by hand; read the warning in
 [`README.md` Level 4](README.md#level-4--run-it-live-the-way-i-do) first.
 
+- **The right-hand boxes (optional, a separate repository):** `adyusuf-panels` adds Settings, Agents and Promotion boxes to
+  the rail. It lives in its own repository (`~/ClaudeCode/adyusuf-panels`; rule #29 cannot measure TypeScript here):
+  `claude plugin marketplace add ~/ClaudeCode/adyusuf-panels`, then `claude plugin install adyusuf-panels@adyusuf-panels`.
+  It needs the `adyusuf` plugin above, runs `git` and `python3` locally and contacts no server. `/adyusuf-panels` opens the
+  boxes. Update `adyusuf` first (`/plugin update adyusuf`): the boxes show the settings of the installed copy.
 - **Update:** `/plugin marketplace update adyusuf-marketplace`, then `/plugin update adyusuf` and `/reload-plugins`
   (or turn auto-update on for the marketplace under `/plugin` › Marketplaces). The plugin has no `version`, so every
   commit on `prod` is a new version. Never edit the cache: the next update replaces it.
