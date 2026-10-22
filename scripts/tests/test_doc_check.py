@@ -168,7 +168,7 @@ class DocCheck(unittest.TestCase):
         # `python3 scripts/x.py` was reported as "states 3 scripts": a finding with no
         # fix except rewording a correct shell command. A count is never glued to a word.
         files = consistent()
-        files['README.md'] += '\n```bash\npython3 scripts/install-live-hooks.py --check\n```\n'
+        files['README.md'] += '\n```bash\npython3 scripts/plugin-setup.py --check\n```\n'
         self.assertEqual(dc.run(build(files)), [])
 
     def test_a_real_count_is_still_caught_beside_a_glued_digit(self):

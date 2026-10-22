@@ -186,8 +186,8 @@ install script. In a Claude Code session (or the same words after `claude plugin
 ```
 
 Start a new session. **Verify:** the session's context carries `[Global working rules, part 1/…` (ask Claude to
-quote it), `/adyusuf:software-standards` opens, and `python3 <checkout>/scripts/install.py --check` ends
-with `✓ everything is in place`. **Where it works:** fully in Claude Code (terminal, desktop app, IDEs) and in
+quote it), `/adyusuf:software-standards` opens, and `python3 <checkout>/scripts/plugin-setup.py --check` ends
+with `✓ the installed plugin is the newest`. **Where it works:** fully in Claude Code (terminal, desktop app, IDEs) and in
 Cowork, which loads hooks and agents. In claude.ai chat only the skills and commands work: chat skips hooks and
 agents, so the global rules, the guard and the 14 roles are not there. The plugin brings the global rules (its `SessionStart` and
 `SubagentStart` hooks print `CLAUDE.md` through `scripts/rules-context.py`), every `/adyusuf:*` skill and command,
@@ -204,32 +204,14 @@ written into `~/.claude` by hand; read the warning in
   commit on `prod` is a new version. Never edit the cache: the next update replaces it.
 - **Another branch:** `/plugin marketplace add adyusuf/claude-code-standards#test`. To try a working copy without
   installing it: `claude --plugin-dir <worktree>` (it takes precedence over the installed plugin for that session).
-- **Moving off the old link install** (`~/.claude/{CLAUDE.md,agents,docs,modes,scripts,standards}` and
-  `~/.claude/skills/adyusuf` were links into a checkout): run
-  the command the plugin prints at session start first (`python3 <plugin cache>/scripts/install.py --remove`: the plugin's
-  own copy, never the old checkout's, whose `install.py` may be an older version) — it removes those links (and a dangling
-  link at one of those names, whose target cannot be checked), the old hook entries incl. the retired board's from
-  `settings.json` (backed up first) and puts your own files back from the newest backup. Until then the
-  rules, agents and guard load twice; the plugin says so at session start (`scripts/legacy-install-check.py`).
-
-**One script for install and update:** `scripts/plugin-setup.py` (standalone, standard library only; download it with
-the `curl` line in [`README.md` Level 3](README.md#level-3--install-it-as-a-plugin)). It asks GitHub for the newest
+**One script for install and update:** `scripts/plugin-setup.py` (standalone, standard library only; download and run it with the
+macOS/Linux or Windows commands at [the top of `README.md`](README.md#install)). It asks GitHub for the newest
 commit of `prod`, then: not installed → links the marketplace and installs; already newest → nothing; older →
 asks "Remove the old one and install the new one?" and on yes removes it (`--keep-data`), installs the new one and
 checks that `~/.claude/adyusuf.json`, the enabled state and the marketplace link are unchanged. `--check` reports only
 (exit 1 when work is due), `--yes` skips the question, `--ref <branch>` picks the branch for a first link. It needs
 `claude` and `git` on `PATH` and reaches GitHub; log: `~/.claude-standards/logs/plugin-setup-<stamp>.log`, backup of
 your settings file: `~/.claude-standards/backups/plugin-setup-<stamp>/`.
-
-**`install.py` contacts no server.** A plain run prints the two `/plugin` commands and reports the plugin and any
-leftover of the old link install; `--check` reports the same without writing anything. Every run except `--check`
-logs to `~/.claude-standards/logs/install-<date>-<time>.log`; backups go to `~/.claude-standards/backups/` (outside
-`~/.claude`, whose cleanup prunes old files) and are never deleted.
-
-```bash
-python3 <checkout>/scripts/install.py            # the /plugin commands, and what is left of the old install
-python3 <checkout>/scripts/install.py --check    # report only (old links/hooks, the plugin)
-```
 
 ## 7. Common errors
 
@@ -241,9 +223,7 @@ python3 <checkout>/scripts/install.py --check    # report only (old links/hooks,
 | Commit refused by the real-name check | A folder key or alias from your map is in the staged change or message | Use the nickname. The exception is `--no-verify`, and yours alone |
 | Real-name check prints a warning and passes | No `docs/project-nicknames.tsv` | Create it (§4), or set `REAL_NAMES_STRICT=1` to make this a failure |
 | `CLAUDE.md` size gate refuses a commit | The file grew past its ceiling in `scripts/md-budget.tsv` | Move the rule into `standards/<topic>.md` first; raise the ceiling only with a written reason |
-| A hook runs twice per tool call; the rules or agents load twice | The old link install is still there next to the plugin | the command the session-start notice prints, `python3 <plugin cache>/scripts/install.py --remove` (§6) |
 | A session has no `[Global working rules` in its context | `python3` not on `PATH` (Windows, §1), or the plugin is disabled | Add `python3`; `/plugin` › Installed › enable `adyusuf` |
-| `install-live-hooks.py` aborts and touches nothing | `~/.claude/settings.json` is not valid JSON | Fix the JSON, rerun |
 | Every Bash call mentioning push/rm/drop is BLOCKED with "no Python 3 interpreter" | Neither `python3` nor a Python 3 `python` on the hook's `PATH` | Install Python 3; on Windows add `python3.exe` (§1) |
 | Gate runs on stale branches | The local `dev`/`test` are behind `origin` | `git fetch`, and branch off `origin/dev` |
 
