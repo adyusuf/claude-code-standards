@@ -767,7 +767,7 @@ that runs. What was built, and the decisions behind it:
   correctly. A first version blocked heredocs that merely *wrote* the text "--no-verify"
   (13 of 16 such commands); the git rules now ignore heredoc bodies, the SQL and `rm`
   rules do not (a `psql <<EOF` heredoc executes).
-- **Activation (`scripts/install-live-hooks.py`).** Symlinks live in `~/.claude/hooks`,
+- **Activation (`install-live-hooks.py`, removed 22/10/2026).** Symlinks live in `~/.claude/hooks`,
   not `~/.claude/scripts`: `scripts` points into the PROD worktree, so a new file there
   would be untracked in prod and collide with the next promotion. The links point into
   the `dev` checkout; after a promotion `--repo <prod checkout>` re-points them.
@@ -1726,4 +1726,21 @@ nothing in this repository's copy was changed for it.** The project below worked
   all stop the run before any change. A replacement that fails after the removal prints the retry command and exits 2.
 - **Not changed:** the plugin still has no `version` (every `prod` commit is new), and `/plugin update adyusuf` remains the
   in-session way to update.
+
+## The other install scripts are removed; the README opens with the macOS and Windows install commands (22/10/2026, user decision)
+
+- **Decision:** `scripts/plugin-setup.py` is the repository's only install script. Removed: `install.py` (the check and the
+  migration off the old linked install), `install_safety.py`, `install_channel.py`, `install-live-hooks.py`, `onboard.py`
+  (the helper for taking only Levels 1-2 into `~/.claude`) and `legacy-install-check.py` (the `SessionStart` hook that
+  warned while the old link install was still there), with their tests (`test_install*.py`, `test_legacy_*.py`,
+  `test_onboard.py`). The hook entry is gone from `hooks/hooks.json`, so a session now starts with the rules and the
+  configuration context only. The README opens with an Install section: one macOS/Linux command and one Windows
+  (PowerShell) command that download `plugin-setup.py` into a fresh temporary folder and run it.
+- **Why it was safe to do:** the old linked install is gone from the machine this is maintained on (`install.py --check`
+  reported no link, no legacy hook and the plugin installed, immediately before the removal); the plugin has been the only
+  install path since 13/10/2026.
+- **What is lost, on purpose:** a machine that still holds the old links in `~/.claude` (`CLAUDE.md`, `agents`, `docs`,
+  `modes`, `scripts`, `standards`, `skills/adyusuf`) no longer gets a warning or a one-command cleanup; those links are
+  removed by hand. Earlier entries of this log that name the removed scripts are history and stay as written.
+- **Kept:** the gate's own install-like tools are unrelated and stay (`pre-commit.sh --install`, `md-size-gate.sh --init`).
 

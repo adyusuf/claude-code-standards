@@ -1,5 +1,32 @@
 # claude-code-standards
 
+## Install
+
+One script installs the `adyusuf` plugin, or updates it. It asks GitHub for the newest commit of `prod`; if an
+older version is installed it asks **"Remove the old one and install the new one? [y/N]"** and, on yes, replaces it
+while your settings and the marketplace link carry on unchanged. Without the plugin it links the marketplace and
+installs from scratch. It needs `python3`, `git` and `claude` on `PATH`; read the file before you run it (about 270
+lines, standard library only).
+
+**macOS / Linux** (Terminal):
+
+```bash
+d=$(mktemp -d) && curl -fsSL https://raw.githubusercontent.com/adyusuf/claude-code-standards/prod/scripts/plugin-setup.py -o "$d/plugin-setup.py" && python3 "$d/plugin-setup.py"
+```
+
+**Windows** (PowerShell):
+
+```powershell
+$d = New-Item -ItemType Directory -Path (Join-Path $env:TEMP ([guid]::NewGuid()))
+Invoke-WebRequest https://raw.githubusercontent.com/adyusuf/claude-code-standards/prod/scripts/plugin-setup.py -OutFile "$d\plugin-setup.py"
+python "$d\plugin-setup.py"
+```
+
+Add `--check` to only report (exit 1 when work is due), `--yes` to answer the question for yourself, `--ref <branch>` to
+link another branch on a first install. Afterwards open a new Claude Code session (or `/reload-plugins`). Windows also
+needs a `python3` on `PATH` for the plugin's own hooks: [`SETUP.md`](SETUP.md) §1. What the script does, step by step:
+[Level 3](#level-3--install-it-as-a-plugin).
+
 **AI changed our lives — at least the lives of those of us who write software.**
 
 The coding world will not be what it was. But the real question is not whether
@@ -204,7 +231,7 @@ because something broke first.
 | Engineering standards | `standards/` | 24 documents + 7 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate, measurement and install scripts | `scripts/` | 35 scripts + 890 tests |
+| Gate, measurement and install scripts | `scripts/` | 29 scripts + 679 tests |
 | Slash commands, skills and hooks — one plugin, `/adyusuf:<name>` | `.claude-plugin/`, `commands/`, `skills/`, `hooks/` | 9 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
@@ -470,20 +497,11 @@ Claude Code copies it into its plugin cache like any other plugin: no links, not
 written into your `~/.claude` by hand. A new session shows
 `[Global working rules, part 1/…` in its context (the plugin's hooks print `CLAUDE.md`).
 `/plugin update adyusuf` brings a new version; `/plugin` disables or removes it.
-Details, prerequisites (`python3` and `bash` on `PATH`) and the move off an older
-link install: [`SETUP.md`](SETUP.md) §6.
+Details and prerequisites (`python3` and `bash` on `PATH`): [`SETUP.md`](SETUP.md) §6.
 
 **Or with one script that also keeps it up to date.** `scripts/plugin-setup.py` is a single standard-library
-file you can download on its own, before you have a checkout:
-
-```bash
-curl -fsSLO https://raw.githubusercontent.com/adyusuf/claude-code-standards/prod/scripts/plugin-setup.py
-python3 plugin-setup.py
-```
-
-(PowerShell: `Invoke-WebRequest https://raw.githubusercontent.com/adyusuf/claude-code-standards/prod/scripts/plugin-setup.py -OutFile plugin-setup.py`.
-Read the file before you run it; it is about 270 lines.) It asks GitHub which commit the `prod` branch is on and
-compares that with the commit Claude Code has installed:
+file; the macOS/Linux and Windows commands that download and run it are at [the top of this README](#install). It asks
+GitHub which commit the `prod` branch is on and compares that with the commit Claude Code has installed:
 
 | What it finds | What it does |
 |---|---|
@@ -511,9 +529,6 @@ gate, and reaches my sessions only by promotion to `prod` and `/plugin update`
 an explicit update step; the guidance files still have their own size and rule-loss
 gates (`scripts/md-size-gate.sh`, `scripts/md-rule-gate.py`), because a bad rule
 reaches every session once it is updated.
-
-`scripts/install.py` installs nothing now: it prints the two `/plugin` commands and, with
-`--remove`, takes an older link install back out.
 
 I would not start here. Start at Level 1 and come back once a rule has earned its
 place in your own week.
@@ -576,7 +591,6 @@ them opens a network connection.
 | When | Script | What it does |
 |---|---|---|
 | `SessionStart`, `SubagentStart` | `rules-context.py` | prints this repository's `CLAUDE.md` (in parts of < 10,000 characters) into the session and every subagent; reads only that file |
-| `SessionStart` (startup) | `legacy-install-check.py` | reads `~/.claude` (links, `settings.json`) and warns when an old link install of this rule set is still there; changes nothing |
 | `PreToolUse` (Bash) | `guard-destructive.sh` | reads the command Claude is about to run and refuses the never-do ones (`rm -rf`, force push, `DROP`) |
 | `PostToolUse` (Edit/Write), `Stop` | `md-hook.sh` | checks a touched `CLAUDE.md` against its size budget and for dropped rules; prints a warning |
 
@@ -588,9 +602,6 @@ and answers `/adyusuf:panels`. It reads `~/.claude/plugins/installed_plugins.jso
 **What runs only when you call it.**
 - **`/adyusuf:*` skills and commands** tell Claude what to do. They run nothing on their own and send
   nothing anywhere: `/adyusuf:board-plan` writes only the local plan file.
-- **`scripts/install.py`** (optional, from a checkout) contacts no server. It prints the two `/plugin`
-  commands and reports what is left of the old link install; with `--remove` it takes that install out of
-  `~/.claude` (the `settings.json` backup comes first).
 - **The gate** (`scripts/gate-core.sh` and its libraries, which you run in your own project) runs your
   project's tools on your machine: formatter, tests, coverage, `gitleaks`, `codeql`. Four of its steps
   reach the network:
