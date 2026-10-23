@@ -1758,3 +1758,23 @@ nothing in this repository's copy was changed for it.** The project below worked
 - **Not done on purpose:** the script does not install the Claude Code command itself. That is a download-and-run of
   someone else's installer, which is the user's step, and the Code-tab commands make it unnecessary for this plugin.
 
+## Settings: CI after push and e2e before deploy replace CI before merge and e2e after deploy (23/10/2026, user decision)
+
+- **Decision:** the two groups are replaced, in the config script, `defaults/adyusuf.json`, rule #34 (`CLAUDE.md`),
+  `standards/13` §8a, `standards/00` §1a and the config skill:
+  - `ci_after_push.<t>` ("Run CI after pushing dev / test / prod"; defaults dev no, test yes, prod yes): after `<t>` is
+    pushed, wait for the project's CI to finish on the pushed commit; a red run stops every later target. A project with
+    no CI reports "no CI", which is not a failure. Not waiting is still recorded as `Gate-Waived: ci` on the merge commit.
+  - `e2e_before_deploy.<t>` for `test` and `prod` only ("Run e2e on dev before deploying test", "Run e2e on test before
+    deploying prod"; defaults both no): the e2e suite runs on the environment below the one about to be deployed.
+- **Assumption to confirm:** a red e2e before a deploy blocks the promotion to that target. The user asked for the run, so
+  it behaves like `GATE_RUN_E2E=1` in #33 (a requested run that is red blocks); the old `e2e_after_deploy` only reported.
+- **Why the order changed:** CI that runs before the merge needed the code on a remote already; after the push the CI run is
+  on the exact commit that was pushed, and `gates_before_push` is the local script (`scripts/merge-gate.sh`) in every case.
+- **Compatibility:** `ci_before_merge.*` and `e2e_after_deploy.*` are in `RETIRED_KEYS`: a user's file that still holds them
+  keeps working, the keys are skipped on read (their values are not carried over, the new defaults apply) and the next write
+  drops them. A file that holds the NEW keys is unknown to an older installed copy of the plugin, which then ignores that
+  layer and says so, so update `adyusuf` before setting them.
+- **Not changed:** #29 (coverage) is part of what runs at every promotion and no setting turns it off; e2e stays optional
+  (#33) unless a setting asks for it.
+

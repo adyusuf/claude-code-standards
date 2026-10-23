@@ -15,6 +15,8 @@
     "~/.claude": "Plugin install (13/10/2026, user decision): ~/.claude no longer holds links into the rule set; the same files are reached relative to the adyusuf plugin root (stated in the rules-context hook header and standards/README.md). Same target, new path — no rule removed.",
     "~/.claude/modes/README.md": "Plugin install (13/10/2026, user decision): ~/.claude no longer holds links into the rule set; the same files are reached relative to the adyusuf plugin root (stated in the rules-context hook header and standards/README.md). Same target, new path — no rule removed.",
     "~/.claude/modes/autonomous-run.md": "Plugin install (13/10/2026, user decision): ~/.claude no longer holds links into the rule set; the same files are reached relative to the adyusuf plugin root (stated in the rules-context hook header and standards/README.md). Same target, new path — no rule removed.",
-    "~/.claude/standards/": "Plugin install (13/10/2026, user decision): ~/.claude no longer holds links into the rule set; the same files are reached relative to the adyusuf plugin root (stated in the rules-context hook header and standards/README.md). Same target, new path — no rule removed."
+    "~/.claude/standards/": "Plugin install (13/10/2026, user decision): ~/.claude no longer holds links into the rule set; the same files are reached relative to the adyusuf plugin root (stated in the rules-context hook header and standards/README.md). Same target, new path — no rule removed.",
+    "ci_before_merge.<t>": "Settings replaced (23/10/2026, user decision): ci_before_merge became ci_after_push and e2e_after_deploy became e2e_before_deploy; both old keys are in RETIRED_KEYS and rule #34 names the new ones.",
+    "e2e_after_deploy.<t>": "Settings replaced (23/10/2026, user decision): ci_before_merge became ci_after_push and e2e_after_deploy became e2e_before_deploy; both old keys are in RETIRED_KEYS and rule #34 names the new ones."
   }
 }

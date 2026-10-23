@@ -24,15 +24,14 @@
     "test": true,
     "prod": true
   },
-  "ci_before_merge": {
+  "ci_after_push": {
     "dev": false,
     "test": true,
     "prod": true
   },
-  "e2e_after_deploy": {
-    "dev": false,
+  "e2e_before_deploy": {
     "test": false,
-    "prod": true
+    "prod": false
   },
   "agents": {
     "product-manager": {

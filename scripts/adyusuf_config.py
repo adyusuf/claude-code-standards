@@ -37,12 +37,14 @@ except ImportError:      # Windows: no advisory lock, the atomic replace below s
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULTS_FILE = os.path.join(ROOT, 'defaults', 'adyusuf.json')
 TARGETS = ('dev', 'test', 'prod')
+E2E_STAGES = (('dev', 'test'), ('test', 'prod'))      # (the environment e2e runs on, the target about to be deployed)
 MODES = ('A', 'B', 'C', 'D', 'E')
 MODELS = ('keep', 'sonnet', 'haiku', 'fable')
 # Settings that no longer exist. A user's file written before they were retired still holds them: they are skipped
 # on read, so one stale key never makes the whole layer invalid (and the next write drops them).
 RETIRED_KEYS = (('monitor.connect', 'monitor.message_format')
-                + tuple('run_before_push.%s.%s' % (t, gate) for t in TARGETS for gate in ('unit', 'e2e')))
+                + tuple('run_before_push.%s.%s' % (t, gate) for t in TARGETS for gate in ('unit', 'e2e'))
+                + tuple('%s.%s' % (group, t) for group in ('ci_before_merge', 'e2e_after_deploy') for t in TARGETS))
 
 
 def _bool(key, label):
@@ -78,8 +80,9 @@ SCHEMA = (
     + [dict(_bool('merge.' + t, 'Merge into ' + t), group='Merge') for t in TARGETS]
     + [dict(_bool('push.' + t, 'Push ' + t), group='Push') for t in TARGETS]
     + [dict(_bool('gates_before_push.' + t, 'Run gates before pushing %s' % t), group='Gates before a push') for t in TARGETS]
-    + [dict(_bool('ci_before_merge.' + t, 'Run CI before merging %s' % t), group='CI before merge') for t in TARGETS]
-    + [dict(_bool('e2e_after_deploy.' + t, 'Run e2e after deploying %s' % t), group='E2E after deploy') for t in TARGETS]
+    + [dict(_bool('ci_after_push.' + t, 'Run CI after pushing %s' % t), group='CI after push') for t in TARGETS]
+    + [dict(_bool('e2e_before_deploy.' + after, 'Run e2e on %s before deploying %s' % (on, after)), group='E2E before deploy')
+       for on, after in E2E_STAGES]
     + [dict(_enum('agents.%s.%s' % (role, field), '%s: %s' % (role, field), options), group='Agents')
        for role in D_ROLES for field, options in (('enabled', AGENT_STATES), ('model', AGENT_MODELS))])
 SPECS = {spec['key']: spec for spec in SCHEMA}
@@ -276,10 +279,11 @@ def context(effective, problems):
     value = lambda key: effective[key][0]  # noqa: E731
     steps = []
     for target in TARGETS:
-        steps.append('%s: CI before merge %s, merge %s, gates before push %s, push %s, e2e after deploy %s' % (
-            target, shown(value('ci_before_merge.' + target)), shown(value('merge.' + target)),
-            shown(value('gates_before_push.' + target)), shown(value('push.' + target)),
-            shown(value('e2e_after_deploy.' + target))))
+        steps.append('%s: merge %s, gates before push %s, push %s, CI after push %s' % (
+            target, shown(value('merge.' + target)), shown(value('gates_before_push.' + target)),
+            shown(value('push.' + target)), shown(value('ci_after_push.' + target))))
+    steps.append('e2e before deploy: ' + ', '.join(
+        'on %s before deploying %s %s' % (on, after, shown(value('e2e_before_deploy.' + after))) for on, after in E2E_STAGES))
     lines = ['adyusuf configuration (effective; global rule #34 - follow it, do not ask what it answers):',
              '  mode %s, model for the Opus agents: %s' % (value('mode'), value('mode_model')),
              '  pod: connect %s, message format %s (stored only; nothing acts on it)' % (
