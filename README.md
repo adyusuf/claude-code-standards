@@ -238,7 +238,7 @@ because something broke first.
 | Engineering standards | `standards/` | 24 documents + 7 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate, measurement and install scripts | `scripts/` | 30 scripts + 715 tests |
+| Gate, measurement and install scripts | `scripts/` | 31 scripts + 727 tests |
 | Slash commands, skills and hooks — one plugin, `/adyusuf:<name>` | `.claude-plugin/`, `commands/`, `skills/`, `hooks/` | 9 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
@@ -619,6 +619,8 @@ and answers `/adyusuf:panels`. It reads `~/.claude/plugins/installed_plugins.jso
   - an optional `curl` goes to a test-deploy URL that *you* set (`TEST_VERSION_URL`), and only when you set it;
   - `require-private-remote.sh` (a pre-push hook you install yourself) asks GitHub, through `gh api`, whether
     a repository is private.
+- **`scripts/adyusuf_page.py`** (only when you ask for the Session Settings page) builds a page from your settings and the
+  repository's branch tips and publishes it, through Claude, as a private Artifact on claude.ai; nothing else leaves.
 - **`scripts/plugin-setup.py`** (only when you run it) contacts GitHub: `git ls-remote` for the commit of the
   plugin's branch, and the `claude plugin` commands it starts fetch the marketplace from GitHub. It sends no
   data of yours and changes only the plugin install; its log goes to `~/.claude-standards/logs/`.
