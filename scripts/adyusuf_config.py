@@ -3,17 +3,19 @@
 
     adyusuf_config.py show [--json]              every setting, its value and where the value comes from
     adyusuf_config.py get <key>                  one effective value
-    adyusuf_config.py set <key> <value> [--project]    change one setting (default scope: the user's)
-    adyusuf_config.py unset <key> [--project]    fall back to the next layer
-    adyusuf_config.py apply <file|-> [--project] set many at once from a JSON object {"push.prod": false, ...}
+    adyusuf_config.py set <key> <value> [--project|--session ID]   change one setting (default scope: the user's)
+    adyusuf_config.py unset <key> [--project|--session ID]         fall back to the next layer
+    adyusuf_config.py apply <file|-> [--project|--session ID]      set many at once from a JSON object {"push.prod": false, ...}
+    (--session ID: show, get, agents and context also read that session's layer)
     adyusuf_config.py schema                     the keys with type, options and label
     adyusuf_config.py agents [--json] [--all]    the active agents and the model each one runs on (--all: inactive too)
     adyusuf_config.py reset-agents [--project]   remove every agents.<role>.* setting (back to the mode's own set)
-    adyusuf_config.py context                    the block the SessionStart hook prints
+    adyusuf_config.py context [--stdin]          the block the SessionStart hook prints (--stdin: take the session id from the hook payload)
     adyusuf_config.py notify <event>             hook: tells the running session when a setting changed (stdin: the payload)
 
 Layers, lowest first: defaults/adyusuf.json (shipped with the plugin) < ~/.claude/adyusuf.json (the user's own
-defaults) < <project>/.claude/adyusuf.json (committed, like .claude/mode). The user changes them with the
+defaults) < <project>/.claude/adyusuf.json (committed, like .claude/mode) < the session's own layer (adyusuf_session.py:
+what the rail boxes change; gone with the session). The user changes them with the
 `adyusuf:config` skill; Claude never asks what a setting already answers (global rule #34).
 
 Keys are dotted (`push.prod`); files hold them nested. A key is validated against SCHEMA, a file that does not
@@ -33,6 +35,9 @@ try:
     import fcntl
 except ImportError:      # Windows: no advisory lock, the atomic replace below still never leaves a half-written file
     fcntl = None
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import adyusuf_session as sessions  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DEFAULTS_FILE = os.path.join(ROOT, 'defaults', 'adyusuf.json')
@@ -208,14 +213,18 @@ def read_layer(path):
         return {}, '%s: %s' % (path, error)
 
 
-def load(user_path=None):
-    """(effective {key: (value, source)}, problems [str]). `user_path` replaces the user's file (the installer's --home)."""
+def load(user_path=None, session=None):
+    """(effective {key: (value, source)}, problems [str]). `user_path` replaces the user's file (the installer's --home);
+    `session` adds that session's layer on top (an unusable id adds nothing)."""
     problems = []
     defaults, problem = read_layer(DEFAULTS_FILE)
     if problem:
         problems.append(problem)
     effective = {spec['key']: (defaults.get(spec['key']), 'default') for spec in SCHEMA}
-    for source, path in (('user', user_path or user_file()), ('project', project_file())):
+    layers = [('user', user_path or user_file()), ('project', project_file())]
+    if sessions.valid(session):
+        layers.append(('session', sessions.session_file(session)))
+    for source, path in layers:
         values, problem = read_layer(path)
         if problem:
             problems.append(problem)
@@ -274,7 +283,7 @@ def render(effective, problems):
     return '\n'.join(lines)
 
 
-def context(effective, problems):
+def context(effective, problems, session=None):
     """The compact block a session starts with: the effective values, what they mean, how to change them."""
     value = lambda key: effective[key][0]  # noqa: E731
     steps = []
@@ -293,6 +302,9 @@ def context(effective, problems):
     lines.append('  agents: %s' % (', '.join('%s (%s)' % (row['role'], row['runs_on']) for row in active) or 'none'))
     lines.extend('  ' + step for step in steps)
     lines.append('  change it with the adyusuf:config skill; the mode may also be set per session or per project.')
+    if sessions.valid(session):
+        lines.append('  this session is %s: what the rail boxes change applies to it only (adyusuf_config.py set --session %s '
+                     '<key> <value>); a new session starts from the saved defaults.' % (session, session))
     lines.extend('  ! ' + problem for problem in problems)
     return '\n'.join(lines)
 
@@ -321,7 +333,7 @@ def notify(event, payload_text):
         session = ''
     if not session or not all(ch.isalnum() or ch in '-_' for ch in session):
         return None
-    effective, problems = load()
+    effective, problems = load(session=session)
     values = {key: value[0] for key, value in effective.items()}
     path = os.path.join(seen_dir(), session)
     try:
@@ -351,21 +363,46 @@ def notify(event, payload_text):
     if not remember() or before is None:
         return None
     text = ('adyusuf settings changed (/adyusuf:config). Apply them from the NEXT task on; finish the step in progress as it '
-            'was started, do not restart or split it. Changes: ' + '; '.join(changes) + '.\n' + context(effective, problems))
+            'was started, do not restart or split it. Changes: ' + '; '.join(changes) + '.\n' + context(effective, problems, session))
     return {'hookSpecificOutput': {'hookEventName': event, 'additionalContext': text}}
+
+
+def payload_session():
+    """The session id a hook's JSON payload on stdin carries ('' when it holds none). Only called for `context --stdin`:
+    reading stdin would block a run that was not given a payload."""
+    try:
+        session = json.loads(sys.stdin.read()).get('session_id')
+    except (OSError, ValueError, AttributeError):
+        return ''
+    return session if sessions.valid(session) else ''
 
 
 def main(argv):
     args = list(argv)
     scope_project = '--project' in args
     args = [a for a in args if a != '--project']
+    session = None
+    if '--session' in args:
+        at = args.index('--session')
+        session = args[at + 1] if at + 1 < len(args) else ''
+        del args[at:at + 2]
     command = args[0] if args else ''
-    path = project_file() if scope_project else user_file()
     try:
+        if session is not None and not sessions.valid(session):
+            raise ConfigError('--session needs a session id (letters, digits, - and _)')
+        if session is not None and scope_project:
+            raise ConfigError('--project and --session cannot be combined')
         if command in ('show', 'context', 'get', 'schema', 'agents') and scope_project:
             raise ConfigError('--project only applies to set, unset and apply')
+        if command in ('set', 'unset', 'apply', 'reset-agents'):
+            path = sessions.session_file(session) if session else (project_file() if scope_project else user_file())
+
+        def write(*parts):
+            write_layer(*parts)
+            if session:
+                sessions.prune()                  # a session file nobody has touched for two weeks goes
         if command == 'show':
-            effective, problems = load()
+            effective, problems = load(session=session)
             if '--json' in args:
                 print(json.dumps({'values': {k: v[0] for k, v in effective.items()}, 'sources': {k: v[1] for k, v in effective.items()},
                                   'problems': problems}, indent=2))
@@ -373,7 +410,7 @@ def main(argv):
                 print(render(effective, problems))
             return 0
         if command == 'agents':
-            effective, _ = load()
+            effective, _ = load(session=session)
             values = {k: v[0] for k, v in effective.items()}
             if '--json' in args:
                 print(json.dumps(agents(values, include_inactive='--all' in args), indent=2))
@@ -382,11 +419,12 @@ def main(argv):
             return 0
         if command == 'reset-agents':
             effective, _ = load()
-            write_layer(path, {}, [key for key in SPECS if key.startswith('agents.')])
+            write(path, {}, [key for key in SPECS if key.startswith('agents.')])
             print('every agents.* setting removed from %s' % path)
             return 0
         if command == 'context':
-            print(context(*load()))
+            session = session or (payload_session() if '--stdin' in args else '')
+            print(context(*load(session=session), session))
             return 0
         if command == 'notify' and len(args) == 2:
             try:
@@ -400,20 +438,20 @@ def main(argv):
             print(json.dumps(SCHEMA, indent=2))
             return 0
         if command == 'get' and len(args) == 2:
-            effective, _ = load()
+            effective, _ = load(session=session)
             if args[1] not in effective:
                 raise ConfigError("unknown setting '%s'" % args[1])
             print(shown(effective[args[1]][0]))
             return 0
         if command == 'set' and len(args) == 3:
-            write_layer(path, {args[1]: check(args[1], args[2])})
+            write(path, {args[1]: check(args[1], args[2])})
             print('%s = %s  (%s)' % (args[1], shown(check(args[1], args[2])), path))
             return 0
         if command == 'unset' and len(args) == 2:
             check_key = args[1]
             if check_key not in SPECS:
                 raise ConfigError("unknown setting '%s'" % check_key)
-            write_layer(path, {}, (check_key,))
+            write(path, {}, (check_key,))
             print('%s removed from %s' % (check_key, path))
             return 0
         if command == 'apply' and len(args) == 2:
@@ -426,7 +464,7 @@ def main(argv):
                 raise ConfigError('expected a JSON object of {"key": value}')
             flat = flatten(incoming)
             skipped = sorted(key for key in flat if key in RETIRED_KEYS)   # a file saved before they were retired
-            write_layer(path, {key: check(key, value) for key, value in flat.items() if key not in RETIRED_KEYS})
+            write(path, {key: check(key, value) for key, value in flat.items() if key not in RETIRED_KEYS})
             print('%d setting(s) written to %s' % (len(flat) - len(skipped), path))
             if skipped:
                 print('skipped (retired, no longer settings): %s' % ', '.join(skipped))

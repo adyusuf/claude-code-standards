@@ -26,8 +26,9 @@ All reading happens on your own machine. Nothing read is sent anywhere by the pl
   removes project names and paths, and the script refuses to write when one survives.
 - `plugin-setup.py` writes its log, and a copy of your `adyusuf.json` before it replaces the plugin, under
   `~/.claude-standards/` on your machine.
-- Changing a setting (in the rail boxes or with `/adyusuf:config`) writes `~/.claude/adyusuf.json`, or a project's
-  `.claude/adyusuf.json` when you ask for the project layer. A short lock file goes to your temp folder while it writes.
+- Changing a setting with `/adyusuf:config` writes `~/.claude/adyusuf.json`, or a project's `.claude/adyusuf.json` when you
+  ask for the project layer. A change made in the rail boxes writes `~/.claude/adyusuf-session/<session id>.json`, which
+  applies to that session only; files nobody has written to for 14 days are removed. A short lock file goes to your temp folder while it writes.
 - Nothing is retained anywhere else.
 
 ## What it sends
