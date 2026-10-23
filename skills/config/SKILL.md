@@ -21,8 +21,8 @@ The tool is `${CLAUDE_PLUGIN_ROOT}/scripts/adyusuf_config.py` (`python3`):
 | "which agents are active" | `agents` (`--all` includes the inactive ones): the roles that run and the model each runs on |
 | "don't push prod" / "push prod: no" | `set push.prod no` |
 | "run the gates before pushing dev" | `set gates_before_push.dev yes` |
-| "run CI before merging prod" | `set ci_before_merge.prod yes` |
-| "run e2e after deploying test" | `set e2e_after_deploy.test yes` |
+| "wait for CI after pushing prod" | `set ci_after_push.prod yes` |
+| "run e2e on dev before deploying test" | `set e2e_before_deploy.test yes` |
 | "mode D, haiku" | `set mode D` and `set mode_model haiku` |
 | "turn qa off" / "developer on haiku" | `set agents.qa.enabled off` / `set agents.developer.model haiku` |
 | "all agents back to the mode" | `reset-agents` (add `--project` for the project layer) |
@@ -51,8 +51,8 @@ went to. Never edit the JSON files by hand when the tool can do it.
 | `merge.dev` `merge.test` `merge.prod` | yes/no | Merge finished code into that branch (#26, #34). |
 | `push.dev` `push.test` `push.prod` | yes/no | Push that branch after its merge. |
 | `gates_before_push.<t>` | yes/no | Run the gates (unit tests, coverage, secret scan, SAST: `scripts/merge-gate.sh`) on the merged result before pushing `<t>` (defaults: dev no, test yes, prod yes). Not run = recorded as `Gate-Waived: gates` on the merge commit (#34). |
-| `ci_before_merge.<t>` | yes/no | Wait for the project's CI to be green on the code before merging it into `<t>` (defaults: dev no, test yes, prod yes). Not waited for = `Gate-Waived: ci` on the merge commit. |
-| `e2e_after_deploy.<t>` | yes/no | Run the e2e suite against `<t>` after it is deployed (defaults: dev no, test no, prod yes). Applies only where the project has an e2e suite and deploys that target; otherwise the report says so. |
+| `ci_after_push.<t>` | yes/no | After pushing `<t>`, wait for the project's CI to be green on the pushed commit; red stops the later targets (defaults: dev no, test yes, prod yes). Not waited for = `Gate-Waived: ci` on the merge commit. A project with no CI reports "no CI". |
+| `e2e_before_deploy.<t>` (`test`, `prod`) | yes/no | Before `<t>` is deployed, run the e2e suite on the environment below it (`test`: on dev, `prod`: on test); red blocks the promotion (defaults: both no). Applies only where the project has an e2e suite and that environment; otherwise the report says so. |
 
 ## Changing settings with clicks
 
@@ -76,9 +76,9 @@ Put the current value in each question or option ("now: yes"), because the tool 
      haiku / fable.
    - *Writing and pod*: `write.unit_tests`, `write.e2e` and `pod.connect`, each as yes / no buttons, then
      `pod.message_format` as buttons short / full (the pod settings are stored only; nothing acts on them).
-   - *Merge, push and gates*: five checkbox questions (`multiSelect: true`, two calls), options dev / test / prod: "Run CI
-     before merging", "Merge into", "Run gates before the push", "Push", "Run e2e after deploying". A ticked box is
-     yes, an unticked one no.
+   - *Merge, push and gates*: five checkbox questions (`multiSelect: true`, two calls): "Merge into", "Run gates before the
+     push", "Push", "Run CI after pushing" (options dev / test / prod) and "Run e2e before deploying" (options *on dev
+     before deploying test*, *on test before deploying prod*). A ticked box is yes, an unticked one no.
    - *One agent*: the role (qa, developer, architect, security, any other through "Other"), then `enabled` as buttons
      auto / on / off and `model` as buttons default / sonnet / haiku / opus (fable through "Other").
 3. Write all the answers with one `apply` (validated all-or-nothing), print `show`, and say which layer it went to. Skip
