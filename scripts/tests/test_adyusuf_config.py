@@ -26,8 +26,8 @@ EXPECTED = {
     'merge.dev': True, 'merge.test': True, 'merge.prod': True,
     'push.dev': True, 'push.test': True, 'push.prod': True,
     'gates_before_push.dev': False, 'gates_before_push.test': True, 'gates_before_push.prod': True,
-    'ci_before_merge.dev': False, 'ci_before_merge.test': True, 'ci_before_merge.prod': True,
-    'e2e_after_deploy.dev': False, 'e2e_after_deploy.test': False, 'e2e_after_deploy.prod': True,
+    'ci_after_push.dev': False, 'ci_after_push.test': True, 'ci_after_push.prod': True,
+    'e2e_before_deploy.test': False, 'e2e_before_deploy.prod': False,
 }
 
 
@@ -222,14 +222,35 @@ class RetiredKeys(Tool):
         self.assertNotIn('run_before_push.dev.e2e', data['values'])
         self.assertNotIn('run_before_push.dev.unit', data['values'])
 
-    def test_the_new_ci_and_e2e_after_deploy_settings_exist_for_every_target(self):
-        for group in ('ci_before_merge', 'e2e_after_deploy'):
-            for target in ('dev', 'test', 'prod'):
-                self.assertIn('%s.%s' % (group, target), cfg.SPECS)
+    def test_ci_after_push_exists_for_every_target_and_e2e_before_deploy_for_test_and_prod(self):
+        for target in ('dev', 'test', 'prod'):
+            self.assertIn('ci_after_push.%s' % target, cfg.SPECS)
+        self.assertEqual(sorted(k for k in cfg.SPECS if k.startswith('e2e_before_deploy.')),
+                         ['e2e_before_deploy.prod', 'e2e_before_deploy.test'])
+        self.assertEqual(cfg.SPECS['e2e_before_deploy.test']['label'], 'Run e2e on dev before deploying test')
+        self.assertEqual(cfg.SPECS['e2e_before_deploy.prod']['label'], 'Run e2e on test before deploying prod')
+        self.assertEqual(cfg.SPECS['ci_after_push.test']['group'], 'CI after push')
+        self.assertEqual(cfg.SPECS['e2e_before_deploy.prod']['group'], 'E2E before deploy')
+
+    def test_the_context_names_the_new_settings(self):
         out, _, code = self.run_tool('context')
         self.assertEqual(0, code)
-        self.assertIn('prod: CI before merge yes, merge yes, gates before push yes, push yes, e2e after deploy yes', out)
-        self.assertIn('dev: CI before merge no, merge yes, gates before push no, push yes, e2e after deploy no', out)
+        self.assertIn('prod: merge yes, gates before push yes, push yes, CI after push yes', out)
+        self.assertIn('dev: merge yes, gates before push no, push yes, CI after push no', out)
+        self.assertIn('e2e before deploy: on dev before deploying test no, on test before deploying prod no', out)
+
+    def test_the_old_ci_before_merge_and_e2e_after_deploy_keys_are_retired_and_skipped(self):
+        for group in ('ci_before_merge', 'e2e_after_deploy'):
+            for target in ('dev', 'test', 'prod'):
+                key = '%s.%s' % (group, target)
+                self.assertIn(key, cfg.RETIRED_KEYS)
+                self.assertNotIn(key, cfg.SPECS)
+        with open(self.user, 'w', encoding='utf-8') as handle:
+            json.dump({'ci_before_merge': {'prod': False}, 'e2e_after_deploy': {'prod': False}, 'ci_after_push': {'test': False}}, handle)
+        data = self.values()
+        self.assertIs(data['values']['ci_after_push.test'], False)
+        self.assertNotIn('ci_before_merge.prod', data['values'])
+        self.assertNotIn('e2e_after_deploy.prod', data['values'])
 
     def test_the_retired_keys_are_not_settings_any_more(self):
         for key in cfg.RETIRED_KEYS:
@@ -406,7 +427,7 @@ class Notify(Tool):
         seen = os.path.join(self.seen, 'sess-1')
         with open(seen, encoding='utf-8') as handle:
             values = json.load(handle)
-        for key in [k for k in values if k.startswith(('ci_before_merge', 'e2e_after_deploy', 'pod.', 'gates_before_push'))]:
+        for key in [k for k in values if k.startswith(('ci_after_push', 'e2e_before_deploy', 'pod.', 'gates_before_push'))]:
             del values[key]
         values['monitor.connect'] = True                                  # and a retired key the old script wrote
         with open(seen, 'w', encoding='utf-8') as handle:

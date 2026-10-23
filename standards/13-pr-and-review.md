@@ -176,11 +176,11 @@ defaults say what normally happens and whoever wants something else changes the 
 
 | Setting | Effect |
 |---|---|
-| `ci_before_merge.<t>` = yes | Before merging into `<t>`, wait for the project's CI to be green on the code being merged (the commit that will be merged, §8). `no` merges without waiting and the merge commit carries `Gate-Waived: ci`. Defaults: dev no, test yes, prod yes. |
 | `merge.<t>` = yes | Merge the finished code into `<t>` (`--no-ff`, from the fresh remote tip, §8). `no` leaves it out, and the later targets with it. |
-| `gates_before_push.<t>` = yes | Run the gates (unit tests, coverage, secret scan, SAST) on the merged result before `<t>` is pushed. Defaults: dev no, test yes, prod yes. The project's **gate owner** runs them: CI where its minutes are free (wait for it to be green on the commit), else the local gate. |
+| `gates_before_push.<t>` = yes | Run the gates (unit tests, coverage, secret scan, SAST) on the merged result before `<t>` is pushed, with the local gate (`scripts/merge-gate.sh`). Defaults: dev no, test yes, prod yes. |
 | `push.<t>` = yes | Push `<t>` after its merge and its gates. `no` leaves the merge local and the report says so. |
-| `e2e_after_deploy.<t>` = yes | After `<t>` is deployed, run the e2e suite against it (Playwright / Maestro, `11`/`12`). It applies only where the project has an e2e suite and deploys that target; otherwise the report says "no e2e suite" or "not deployed", which is not a failure. The deploy itself still needs the user's approval (#20, #27). Defaults: dev no, test no, prod yes. A red run is reported with the failing specs; whether to roll back is the user's call. |
+| `ci_after_push.<t>` = yes | After `<t>` is pushed, wait for the project's CI to finish on the pushed commit. A red run is reported with the failing job and stops every later target. A project with no CI says "no CI", which is not a failure. `no` does not wait and the merge commit carries `Gate-Waived: ci`. Defaults: dev no, test yes, prod yes. |
+| `e2e_before_deploy.<t>` = yes (`test`, `prod`) | Before `<t>` is deployed, run the e2e suite (Playwright / Maestro, `11`/`12`) against the environment below it: `e2e_before_deploy.test` runs on `dev` before `test` is deployed, `e2e_before_deploy.prod` runs on `test` before `prod` is deployed. It applies only where the project has an e2e suite and that environment; otherwise the report says "no e2e suite" or "no such environment", which is not a failure. A red run is reported with the failing specs and blocks the promotion to `<t>` (it was asked for, #33). The deploy itself still needs the user's approval (#20, #27). Defaults: both no. |
 
 **A red gate blocks** the push of that target and every later one; it is fixed, not waved through (§8, point 5). **A gate set
 to no is not run and is recorded**: the merge commit message ends with one line naming only what was skipped,

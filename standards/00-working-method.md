@@ -36,11 +36,11 @@ message until it is done. A one-question/one-answer exchange gets no list.
   (#33); the review is the one the active mode has (the `qa` agent in C/D/E, my own pass
   in A/B).
 - **Merge, gate and push items come from the configuration (#34, `/adyusuf:config`):**
-  per target, in order dev → test → prod — a CI wait only if `ci_before_merge.<t>` is yes; the target only if
+  per target, in order dev → test → prod — the target only if
   `merge.<t>` is yes (a no drops it and every later target); its gates only if
   `gates_before_push.<t>` is yes, else the item says "no gate: config"; its push
-  only if `push.<t>` is yes; an e2e item after the deploy only if `e2e_after_deploy.<t>` is yes and the project has
-  both a suite and a deploy for that target. **A setting changed mid-session** (the config's `notify`
+  only if `push.<t>` is yes; a CI wait after the push only if `ci_after_push.<t>` is yes; an e2e item before the deploy of
+  `test`/`prod` only if `e2e_before_deploy.<t>` is yes and the project has both a suite and that environment. **A setting changed mid-session** (the config's `notify`
   hook says so) is re-read at the next task and the list is resent with the new items.
 - The session's plan file (`22-live-board.md`, the `board-plan` skill) is an extra
   record; the on-screen list is what the user follows.
