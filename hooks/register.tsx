@@ -28,6 +28,15 @@ async function scriptPath(run: Run): Promise<string> {
   return has.exitCode === 0 ? `${dir}/scripts/adyusuf_config.py` : ''
 }
 
+/** This session's id ('' when the engine will not say): the boxes change THIS session's layer only, never the saved defaults. */
+async function sessionId($: EngineInterface): Promise<string> {
+  try {
+    return (await $.session.id()) || ''
+  } catch {
+    return ''
+  }
+}
+
 async function refreshSettings($: EngineInterface) {
   const run: Run = argv => $.process.run(argv)
   const script = await scriptPath(run)
@@ -35,8 +44,10 @@ async function refreshSettings($: EngineInterface) {
     await update($, settingsError, () => 'The adyusuf plugin with /adyusuf:config is not installed yet: /plugin update adyusuf')
     return
   }
-  const shown = await run(['python3', script, 'show', '--json'])
-  const agents = await run(['python3', script, 'agents', '--json', '--all'])
+  const id = await sessionId($)
+  const scope = id ? ['--session', id] : []
+  const shown = await run(['python3', script, 'show', '--json', ...scope])
+  const agents = await run(['python3', script, 'agents', '--json', '--all', ...scope])
   const schema = await run(['python3', script, 'schema'])
   if (shown.exitCode !== 0 || agents.exitCode !== 0 || schema.exitCode !== 0) {
     await update($, settingsError, () => (shown.stderr || agents.stderr || schema.stderr || 'adyusuf_config.py failed').slice(0, 300))
@@ -89,7 +100,12 @@ async function setSetting($: EngineInterface, key: string, value: string) {
     await $.ui.toast('The adyusuf plugin is not installed yet: /plugin install adyusuf@adyusuf-marketplace')
     return
   }
-  const done = await run(['python3', script, 'set', key, value])
+  const id = await sessionId($)
+  if (!id) {
+    await $.ui.toast('Could not tell which session this is, so nothing was changed (the saved defaults stay as they are)')
+    return
+  }
+  const done = await run(['python3', script, 'set', '--session', id, key, value])
   if (done.exitCode !== 0) await $.ui.toast(done.stderr.trim().slice(0, 200) || 'The change was refused')
   await refreshSettings($)
   const now = await read($, settings)
@@ -180,7 +196,7 @@ export const register: Register = on => {
             })}
           </Box>
         ))}
-        <Text dimColor>Changes are written to ~/.claude/adyusuf.json (/adyusuf:config).</Text>
+        <Text dimColor>Changes apply to this session only; a new session starts from your saved defaults (/adyusuf:config saves them).</Text>
       </Box>
     )
   })
