@@ -9,8 +9,14 @@ Claude does not ask what a setting already answers (global rule #34). These sett
 changes them here; everything else in this skill is mechanics.
 
 Layers, lowest first: the plugin's `defaults/adyusuf.json` < the user's `~/.claude/adyusuf.json` < the project's
-`.claude/adyusuf.json` (committed, like `.claude/mode`). A change is written to the **user** layer unless the user says
-"for this project", which writes the project layer.
+`.claude/adyusuf.json` (committed, like `.claude/mode`) < **this session's own layer**. A change typed as a command is
+written to the **user** layer unless the user says "for this project" (the project layer) or "for this session" (the
+session layer, `--session <id>`; the id is on the `this session is <id>` line of the start-of-session block).
+
+**The rail boxes and the clickable questions change the session layer only.** A new session has a new id, finds no
+session file and starts from the saved defaults; nothing a click did is kept. To keep a value, say so ("make it my
+default"): then `set <key> <value>` (user layer) or `--project`. A resumed session keeps its id, so its changes stay;
+`/clear` starts a new one.
 
 The tool is `${CLAUDE_PLUGIN_ROOT}/scripts/adyusuf_config.py` (`python3`):
 
@@ -27,6 +33,7 @@ The tool is `${CLAUDE_PLUGIN_ROOT}/scripts/adyusuf_config.py` (`python3`):
 | "turn qa off" / "developer on haiku" | `set agents.qa.enabled off` / `set agents.developer.model haiku` |
 | "all agents back to the mode" | `reset-agents` (add `--project` for the project layer) |
 | "for this project only" | add `--project` |
+| "for this session only" | add `--session <id>` (works with `set`, `unset`, `apply`, `reset-agents`, and `show`/`get`/`agents`/`context` to read it) |
 | "back to the default" | `unset <key>` (add `--project` for the project layer) |
 | several at once | `apply <file or ->` with a JSON object `{"push.prod": false, ...}` |
 | "what can I change" | `schema` |
@@ -61,7 +68,7 @@ When the user wants to change settings without naming them (no argument, "change
 
 **The rail boxes first.** This plugin's mod (`hooks/register.tsx`) draws three boxes in the right-hand rail: *Settings* (a
 checkbox for every yes/no setting, a dropdown for every list), *Agents* (a checkbox per agent, a model dropdown) and *Promotion*
-(dev/test/prod, read-only). Each click runs `adyusuf_config.py set`. Open them with `/adyusuf:panels`, say that they are
+(dev/test/prod, read-only). Each click runs `adyusuf_config.py set --session <id>`: it changes this session only. Open them with `/adyusuf:panels`, say that they are
 there and stop: the user changes the settings in the boxes, not in the chat. Never build a page or an Artifact for this.
 
 **Only when the boxes cannot be shown** (the surface draws no panes, mods are off, the plugin is an old copy without them): run
@@ -81,7 +88,9 @@ Put the current value in each question or option ("now: yes"), because the tool 
      before deploying test*, *on test before deploying prod*). A ticked box is yes, an unticked one no.
    - *One agent*: the role (qa, developer, architect, security, any other through "Other"), then `enabled` as buttons
      auto / on / off and `model` as buttons default / sonnet / haiku / opus (fable through "Other").
-3. Write all the answers with one `apply` (validated all-or-nothing), print `show`, and say which layer it went to. Skip
+3. Write all the answers with one `apply --session <id>` (validated all-or-nothing; the id is on the `this session is <id>`
+   line), print `show --session <id>`, and say that it went to this session's layer. If the user asks to keep them, repeat
+   the same `apply` without `--session`. Skip
    a question the user did not tick in step 1, and never ask again for what they answered.
 
 ## When a change takes effect

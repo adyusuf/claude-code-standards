@@ -1778,3 +1778,18 @@ nothing in this repository's copy was changed for it.** The project below worked
 - **Not changed:** #29 (coverage) is part of what runs at every promotion and no setting turns it off; e2e stays optional
   (#33) unless a setting asks for it.
 
+## Rail-box changes apply to the current session only (23/10/2026, user decision)
+
+- **Decision:** a click in the Settings or Agents box changes that session, nothing else. A new session loads the saved
+  defaults (plugin defaults < `~/.claude/adyusuf.json` < the project's file); if nothing was changed it stays that way.
+  The mechanism is one more layer on top: `adyusuf_config.py set|unset|apply|reset-agents --session <id>` writes
+  `~/.claude/adyusuf-session/<id>.json` (`scripts/adyusuf_session.py`; `ADYUSUF_SESSION_DIR` overrides the folder),
+  `show|get|agents|context --session <id>` read it, and the hooks (`context` at session start, `notify` on each prompt)
+  take the id from the hook payload's `session_id`, so a change is announced to its own session only.
+- **How the panel knows its session:** it calls `$.session.id()` for every read and every click (the id changes on `/clear`)
+  and refuses to write when it cannot get one, rather than falling back to the saved defaults.
+- **Unchanged:** `/adyusuf:config` and a typed `set` still write the user layer (or `--project`); "keep this" from the boxes is
+  the same change without `--session`. A resumed session keeps its id, so its changes stay; files untouched for 14 days are
+  removed whenever a session file is written. Rules #34 and #29 are not affected.
+- **Not done:** a panel button that saves the session's values as the defaults.
+

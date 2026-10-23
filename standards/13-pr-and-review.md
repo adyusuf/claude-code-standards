@@ -169,8 +169,10 @@ When writing a comment: **what** is wrong + **why** it matters + **a suggestion*
 
 Since 17/10/2026 Claude **does not ask** whether to merge, run a gate or push: the answers are settings
 (`/adyusuf:config`, `scripts/adyusuf_config.py`; defaults in `defaults/adyusuf.json`, the user's own in
-`~/.claude/adyusuf.json`, a project's in `.claude/adyusuf.json`). Asking every time was too much work for the user, so the
-defaults say what normally happens and whoever wants something else changes the setting once.
+`~/.claude/adyusuf.json`, a project's in `.claude/adyusuf.json`, and the running session's own layer
+`~/.claude/adyusuf-session/<session id>.json`, which the rail boxes write and which ends with the session). Asking every
+time was too much work for the user, so the defaults say what normally happens and whoever wants something else changes
+the setting once, or for one session.
 
 **When the code is done**, for each target `<t>` in `dev`, `test`, `prod` (in that order; a batch merge, §8, is one merge):
 
