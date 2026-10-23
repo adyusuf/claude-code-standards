@@ -80,7 +80,7 @@ class Tool(unittest.TestCase):
         shutil.rmtree(self.home, ignore_errors=True)
 
     def run_tool(self, *args, stdin=None):
-        env = dict(os.environ, ADYUSUF_CONFIG_USER=self.user)
+        env = dict(os.environ, ADYUSUF_CONFIG_USER=self.user, ADYUSUF_SESSION_DIR=os.path.join(self.home, 'sessions'))
         result = subprocess.run(['python3', os.path.join(SCRIPTS, 'adyusuf_config.py'), *args], cwd=self.repo,
                                 capture_output=True, text=True, env=env, input=stdin)
         return result.stdout, result.stderr, result.returncode
@@ -356,7 +356,8 @@ class Notify(Tool):
         self.seen = os.path.join(self.home, 'seen')
 
     def hook(self, session='sess-1', event='UserPromptSubmit'):
-        env = dict(os.environ, ADYUSUF_CONFIG_USER=self.user, ADYUSUF_SEEN_DIR=self.seen)
+        env = dict(os.environ, ADYUSUF_CONFIG_USER=self.user, ADYUSUF_SEEN_DIR=self.seen,
+                   ADYUSUF_SESSION_DIR=os.path.join(self.home, 'sessions'))
         result = subprocess.run(['python3', os.path.join(SCRIPTS, 'adyusuf_config.py'), 'notify', event], cwd=self.repo,
                                 capture_output=True, text=True, env=env, input=json.dumps({'session_id': session}))
         self.assertEqual(0, result.returncode, result.stderr)

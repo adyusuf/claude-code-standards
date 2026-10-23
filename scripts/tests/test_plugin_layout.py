@@ -152,7 +152,7 @@ class RootPluginTest(unittest.TestCase):
 
     def test_rules_parts_one_to_four_and_the_configuration_on_session_start_and_nothing_else(self):
         rules = [f'{RULES_CTX} session {n} 4' for n in range(1, 5)]
-        rules.append(f'python3 "{ROOT}/scripts/adyusuf_config.py" context')    # the effective defaults (rule #34)
+        rules.append(f'python3 "{ROOT}/scripts/adyusuf_config.py" context --stdin')    # the effective defaults (rule #34)
         self.assertEqual(commands_of('SessionStart'), [(None, rules)])
 
     def test_rules_parts_one_to_four_on_subagent_start(self):

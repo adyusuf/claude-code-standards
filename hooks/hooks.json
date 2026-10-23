@@ -21,7 +21,7 @@
           },
           {
             "type": "command",
-            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/adyusuf_config.py\" context"
+            "command": "python3 \"${CLAUDE_PLUGIN_ROOT}/scripts/adyusuf_config.py\" context --stdin"
           }
         ]
       }

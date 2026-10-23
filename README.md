@@ -238,7 +238,7 @@ because something broke first.
 | Engineering standards | `standards/` | 24 documents + 7 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate, measurement and install scripts | `scripts/` | 29 scripts + 691 tests |
+| Gate, measurement and install scripts | `scripts/` | 30 scripts + 715 tests |
 | Slash commands, skills and hooks — one plugin, `/adyusuf:<name>` | `.claude-plugin/`, `commands/`, `skills/`, `hooks/` | 9 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
@@ -603,7 +603,7 @@ them opens a network connection.
 
 **The mod (`hooks/register.tsx`, listed in `hooks/hooks.json` under `modules`)** opens three boxes in the right-hand rail at session start
 and answers `/adyusuf:panels`. It reads `~/.claude/plugins/installed_plugins.json` (through `sh`/`cat`/`test`) to find the installed
-`adyusuf` plugin, runs `python3 scripts/adyusuf_config.py show/agents/schema/set` from that copy and read-only `git` commands
+`adyusuf` plugin, runs `python3 scripts/adyusuf_config.py show/agents/schema/set` (with `--session <id>`: a click changes that session only, never the saved defaults) from that copy and read-only `git` commands
 (`for-each-ref`, `rev-parse`, `rev-list`, `log`) in the current repository. It opens no network connection.
 
 **What runs only when you call it.**
