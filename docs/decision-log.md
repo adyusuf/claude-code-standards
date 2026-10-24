@@ -1793,3 +1793,19 @@ nothing in this repository's copy was changed for it.** The project below worked
   removed whenever a session file is written. Rules #34 and #29 are not affected.
 - **Not done:** a panel button that saves the session's values as the defaults.
 
+## The Session Settings page is withdrawn; the rail boxes load in the desktop app through CLAUDE_CODE_PLUGIN_DIRS (24/10/2026, user decision)
+
+- **Decision:** the HTML page (`adyusuf_page.py`, `skills/config/session-panel.html`, the comment round trip) was built on
+  23/10/2026 and the user did not want it: they want the boxes in the rail. The page, its tests and the published Artifact are
+  removed (the commit that added it is reverted; its entry above stays as the record of what was tried and why it was
+  clumsy: a change was not live until Claude applied it, one turn per Apply).
+- **The way to the rail:** the plugin's mod is not loaded in a desktop-app session by default. A session the app starts
+  loads the folders named in `CLAUDE_CODE_PLUGIN_DIRS` (the process environment or the `env` block of
+  `~/.claude/settings.json`) like `--plugin-dir`; the user set it to
+  `~/.claude/plugins/marketplaces/adyusuf-marketplace`, the marketplace clone that `plugin-setup.py` and
+  `/plugin marketplace update` keep at the `prod` tip. The previous `settings.json` is in
+  `~/.claude-standards/backups/settings-<stamp>.json`.
+- **Unverified:** whether the desktop app's rail seats a mod's panes. The engine's types name a `desktop` surface and the
+  panel's tests draw on it, but this was not seen working in the app on 24/10/2026; the line is removed again if it does
+  nothing.
+

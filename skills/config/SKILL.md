@@ -70,6 +70,8 @@ When the user wants to change settings without naming them (no argument, "change
 checkbox for every yes/no setting, a dropdown for every list), *Agents* (a checkbox per agent, a model dropdown) and *Promotion*
 (dev/test/prod, read-only). Each click runs `adyusuf_config.py set --session <id>`: it changes this session only. Open them with `/adyusuf:panels`, say that they are
 there and stop: the user changes the settings in the boxes, not in the chat. Never build a page or an Artifact for this.
+In the Claude desktop app the mod only loads when `CLAUDE_CODE_PLUGIN_DIRS` in `~/.claude/settings.json` names the
+plugin's folder (`SETUP.md` §6); say so rather than falling back to a page.
 
 **Only when the boxes cannot be shown** (the surface draws no panes, mods are off, the plugin is an old copy without them): run
 `show`, then ask with the `AskUserQuestion` tool, which draws clickable buttons, checkboxes and dropdowns in the chat.
