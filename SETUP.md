@@ -202,8 +202,9 @@ written into `~/.claude` by hand; read the warning in
   **The Claude desktop app** does not load an installed plugin's mod by itself. Name the plugin's folder in the `env` block
   of `~/.claude/settings.json` and start a new session: `"env": {"CLAUDE_CODE_PLUGIN_DIRS": "<home>/.claude/plugins/marketplaces/adyusuf-marketplace"}`
   (a session the app starts loads each folder like `--plugin-dir`, and that copy then takes precedence over the installed
-  one for the session; `plugin-setup.py` keeps that folder current). Whether the app's rail seats the boxes is checked per
-  app version: if nothing appears, remove the line again. Where mods are not switched on, the session
+  one for the session; `plugin-setup.py` keeps that folder current). Verified in the desktop app on 24/10/2026; if a later
+  app version shows nothing, remove the line again. The boxes run the installed plugin's script, so keep that copy current
+  (`plugin-setup.py`): an old copy shows retired options and fails on a click. Where mods are not switched on, the session
   asks once ("Turn on the mods…"); the config skill falls back to clickable questions in the chat.
 - **Update:** `/plugin marketplace update adyusuf-marketplace`, then `/plugin update adyusuf` and `/reload-plugins`
   (or turn auto-update on for the marketplace under `/plugin` › Marketplaces). The plugin has no `version`, so every
