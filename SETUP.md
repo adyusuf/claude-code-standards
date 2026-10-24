@@ -195,7 +195,7 @@ the 14 role agents as `adyusuf:<role>`, the destructive-command guard and the `C
 written into `~/.claude` by hand; read the warning in
 [`README.md` Level 4](README.md#level-4--run-it-live-the-way-i-do) first.
 
-- **The right-hand boxes (part of the plugin):** the Settings, Agents and Promotion boxes open in the rail at session start
+- **The right-hand boxes (part of the plugin):** one pane with the Settings, Agents and Promotion boxes (each folds by its header) opens at session start
   and with `/adyusuf:panels`. They run `git` and `python3` locally and contact no server. They show the settings of the
   installed copy, so `/plugin update adyusuf` brings new settings into them. A click changes **this session only**; a new
   session starts from your saved defaults (`~/.claude/adyusuf.json`, changed with `/adyusuf:config`).
