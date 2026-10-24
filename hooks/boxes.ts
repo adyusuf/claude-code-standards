@@ -1,10 +1,11 @@
 // What the boxes of the adyusuf pane show, kept apart from the engine so it can be tested without one: no import from
-// 'claude-code', no JSX. The element factory `h` and the elements themselves (Box, Text, Button, Select) are handed in as
-// `ui`: each surface has its own elements, and a test hands in a recording factory instead of the engine's.
+// 'claude-code', no JSX. The element factory `h` and the elements themselves (Box, Text, Button) are handed in as
+// `ui`: each surface has its own elements, and a test hands in a recording factory instead of the engine's. A choice among
+// several values is a radio list (one Button per option, `(•)` on the chosen one), not a dropdown (user decision 24/10/2026).
 import { enabledFor, settingGroups } from './choose'
 
 export type Factory = (type: unknown, props: Record<string, unknown> | null, ...children: unknown[]) => unknown
-export type Ui = { h: Factory; Box: unknown; Text: unknown; Button: unknown; Select: unknown }
+export type Ui = { h: Factory; Box: unknown; Text: unknown; Button: unknown }
 export type Press = (key: string, value: string) => void
 
 type Spec = { key: string; type: 'bool' | 'enum'; label: string; group: string; options?: string[] }
@@ -20,6 +21,22 @@ export type SectionId = (typeof SECTIONS)[number]
 export const FOLDED_AT_START: Record<string, boolean> = { agents: true, promotion: true }
 
 const AGENT_MODELS = ['default', 'opus', 'sonnet', 'haiku', 'fable']
+
+type Option = { value: string; label: string }
+
+/** A radio list: the label, then one pressable line per option, the chosen one marked `(•)`. `wrap` lays the options in a row. */
+export function radio(ui: Ui, key: string, label: string, options: Option[], value: string, press: Press, wrap = false) {
+  const { h } = ui
+  return h(
+    ui.Box,
+    { flexDirection: 'column' },
+    h(ui.Text, {}, label),
+    h(ui.Box, wrap ? { flexDirection: 'row', flexWrap: 'wrap', columnGap: 2, paddingLeft: 2 } : { flexDirection: 'column', paddingLeft: 2 },
+      options.map(option =>
+        h(ui.Button, { key: `${key}=${option.value}`, plain: true, onPress: () => press(key, option.value) },
+          `${option.value === value ? '(•)' : '( )'} ${option.label}`))),
+  )
+}
 
 /** One bordered box with a header that folds it; the summary stays visible while it is folded. */
 export function section(ui: Ui, id: SectionId, title: string, summary: string, folded: boolean, toggle: () => void, body: unknown) {
@@ -72,13 +89,7 @@ export function settingsBody(ui: Ui, data: SettingsData | null, problem: string,
             return h(ui.Button, { key: spec.key, onPress: () => void press(spec.key, value === true ? 'no' : 'yes') },
               value === true ? '[x] ' : '[ ] ', spec.label, tag)
           }
-          return h(ui.Select, {
-            key: spec.key,
-            label: `${spec.label}${tag}:`,
-            value: String(value),
-            options: (spec.options ?? []).map(option => ({ value: option, label: option })),
-            onSelect: (picked: string) => void press(spec.key, picked),
-          })
+          return radio(ui, spec.key, `${spec.label}${tag}:`, (spec.options ?? []).map(option => ({ value: option, label: option })), String(value), press)
         })),
     ),
     h(ui.Text, { dimColor: true }, 'Changes apply to this session only; a new session starts from your saved defaults (/adyusuf:config saves them).'),
@@ -105,13 +116,9 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
             },
           }, `${agent.active ? '[x] ' : '[ ] '}${agent.role}${!agent.in_mode && agent.active ? ' (added)' : ''}${agent.in_mode && !agent.active && mode !== 'A' ? ' (off)' : ''}`),
           agent.active
-            ? h(ui.Select, {
-              key: `model-${agent.role}`,
-              label: `  model (defined ${agent.defined}):`,
-              value: agent.model,
-              options: AGENT_MODELS.map(option => ({ value: option, label: option === 'default' ? `default (${agent.runs_on})` : option })),
-              onSelect: (picked: string) => press(`agents.${agent.role}.model`, picked),
-            })
+            ? radio(ui, `agents.${agent.role}.model`, `  model (defined ${agent.defined}):`,
+              AGENT_MODELS.map(option => ({ value: option, label: option === 'default' ? `default (${agent.runs_on})` : option })),
+              agent.model, press, true)
             : null)),
     ),
     h(ui.Text, { dimColor: true }, "A box ticked beyond the mode's set adds that agent; cleared, it removes one."),
