@@ -134,7 +134,7 @@ class RootPluginTest(unittest.TestCase):
         hooks = json.loads(read('hooks', 'hooks.json'))
         self.assertEqual(hooks['modules'], ['./register.tsx'])
         self.assertIn('SessionStart', hooks['hooks'])                    # the command hooks are still there
-        for name in ('register.tsx', 'choose.ts', 'choose.test.ts', 'register.test.tsx'):
+        for name in ('register.tsx', 'boxes.ts', 'boxes.test.ts', 'choose.ts', 'choose.test.ts', 'register.test.tsx'):
             self.assertTrue(os.path.isfile(os.path.join(REPO, 'hooks', name)), name)
         manifest = json.loads(read('.claude-plugin', 'plugin.json'))
         self.assertEqual(manifest['types'], './types/index.d.ts')

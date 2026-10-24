@@ -2,16 +2,21 @@ import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type { AgentRow, Promotion, Settings, Stage } from '../types'
-import { countOf, enabledFor, overrideNote, plannedStages, refSet, scriptDir, settingGroups, waivedLines, waivedRange } from './choose'
+import {
+  agentsBody, agentsSummary, FOLDED_AT_START, promotionBody, promotionSummary, section, settingsBody, settingsSummary,
+} from './boxes'
+import type { SectionId } from './boxes'
+import { countOf, overrideNote, plannedStages, refSet, scriptDir, waivedLines, waivedRange } from './choose'
 
-const SETTINGS = 'adyusuf-settings'
-const AGENTS = 'adyusuf-agents'
-const PROMOTION = 'adyusuf-promotion'
+/** One pane, three bordered boxes in it (Settings, Agents, Promotion), each folded by its header. */
+const BOXES = 'adyusuf-boxes'
+const TITLE = 'adyusuf'
 
 const settings = atom({ plugin: 'adyusuf', key: 'settings' } as const, null)
 const settingsError = atom({ plugin: 'adyusuf', key: 'settingsError' } as const, '')
 const settingsProblems = atom({ plugin: 'adyusuf', key: 'settingsProblems' } as const, [])
 const promotion = atom({ plugin: 'adyusuf', key: 'promotion' } as const, null)
+const folded = atom({ plugin: 'adyusuf', key: 'folded' } as const, FOLDED_AT_START)
 
 const PLUGIN_ID = 'adyusuf@adyusuf-marketplace'
 const CACHE = '$HOME/.claude/plugins/cache/adyusuf-marketplace/adyusuf'
@@ -124,8 +129,6 @@ async function safely($: EngineInterface, work: Promise<void>) {
   }
 }
 
-const AGENT_MODELS = ['default', 'opus', 'sonnet', 'haiku', 'fable']
-
 // Clicks run one after another: two settings changed quickly must not race each other's read-modify-write.
 let queue: Promise<void> = Promise.resolve()
 function click($: EngineInterface, key: string, value: string) {
@@ -135,18 +138,14 @@ function click($: EngineInterface, key: string, value: string) {
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'adyusuf:panels', description: 'Open the adyusuf settings, agents and promotion boxes' })
-    void $.ui.open({ id: SETTINGS, title: 'Settings' })
-    void $.ui.open({ id: AGENTS, title: 'Agents' })
-    void $.ui.open({ id: PROMOTION, title: 'Promotion' })
+    void $.ui.open({ id: BOXES, title: TITLE })
     await safely($, refreshSettings($))
     await safely($, refreshPromotion($))
     return next(e)
   })
 
   on('command.run', { command: 'adyusuf:panels' }, async $ => {
-    await $.ui.open({ id: SETTINGS, title: 'Settings' })
-    await $.ui.open({ id: AGENTS, title: 'Agents' })
-    await $.ui.open({ id: PROMOTION, title: 'Promotion' })
+    await $.ui.open({ id: BOXES, title: TITLE })
     await safely($, refreshSettings($))
     await safely($, refreshPromotion($))
     return { text: 'adyusuf boxes opened.' }
@@ -159,111 +158,24 @@ export const register: Register = on => {
     return next(e)
   })
 
-  on('ui.render', { component: 'Pane', requestId: SETTINGS }, async ($, e) => {
-    const { Box, Text, Button, Select } = $.ui.resolve(e)
+  on('ui.render', { component: 'Pane', requestId: BOXES }, async ($, e) => {
+    const ui = { ...$.ui.resolve(e), h }
+    const { Box } = ui
     const data = await read($, settings)
     const problem = await read($, settingsError)
     const problems = await read($, settingsProblems)
-    if (!data) return <Text dimColor>{problem || 'Reading the configuration…'}</Text>
-    const { groups, shown: shownSchema } = settingGroups(data.schema)
-    const set = (key: string, value: string) => click($, key, value)
+    const stages = await read($, promotion)
+    const fold = await read($, folded)
+    const press = (key: string, value: string) => click($, key, value)
+    const toggle = (id: SectionId) => () => void update($, folded, now => ({ ...now, [id]: !now[id] }))
     return (
       <Box flexDirection="column">
-        {problem !== '' && <Text color="red">{problem}</Text>}
-        {problems.map(line => <Text color="yellow">! {line}</Text>)}
-        {groups.map(group => (
-          <Box flexDirection="column" marginBottom={1}>
-            <Text bold dimColor>{group}</Text>
-            {shownSchema.filter(spec => spec.group === group).map(spec => {
-              const value = data.values[spec.key]
-              const from = data.sources[spec.key]
-              if (spec.type === 'bool') {
-                return (
-                  <Button key={spec.key} onPress={() => void set(spec.key, value === true ? 'no' : 'yes')}>
-                    {value === true ? '[x] ' : '[ ] '}{spec.label}{from && from !== 'default' ? ` (${from})` : ''}
-                  </Button>
-                )
-              }
-              return (
-                <Select
-                  key={spec.key}
-                  label={`${spec.label}${from && from !== 'default' ? ` (${from})` : ''}:`}
-                  value={String(value)}
-                  options={(spec.options ?? []).map(option => ({ value: option, label: option }))}
-                  onSelect={picked => void set(spec.key, picked)}
-                />
-              )
-            })}
-          </Box>
-        ))}
-        <Text dimColor>Changes apply to this session only; a new session starts from your saved defaults (/adyusuf:config saves them).</Text>
-      </Box>
-    )
-  })
-
-  on('ui.render', { component: 'Pane', requestId: AGENTS }, async ($, e) => {
-    const { Box, Text, Button, Select } = $.ui.resolve(e)
-    const data = await read($, settings)
-    if (!data) return <Text dimColor>Reading the configuration…</Text>
-    const mode = String(data.values.mode)
-    const model = String(data.values.mode_model)
-    const active = data.agents.filter(agent => agent.active).length
-    return (
-      <Box flexDirection="column">
-        <Text bold>
-          Mode {mode}: {mode === 'A' ? 'no agents, the session works alone' : `${active} of ${data.agents.length} agents active`}
-        </Text>
-        <Text dimColor>Opus agents run on {model === 'keep' ? 'their defined model' : model} unless one is set below</Text>
-        <Box flexDirection="column" marginTop={1}>
-          {data.agents.map(agent => (
-            <Box flexDirection="column" marginBottom={1}>
-              <Button
-                key={`on-${agent.role}`}
-                onPress={() => {
-                  if (mode === 'A') return
-                  click($, `agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
-                }}
-              >
-                {agent.active ? '[x] ' : '[ ] '}{agent.role}{!agent.in_mode && agent.active ? ' (added)' : ''}{agent.in_mode && !agent.active && mode !== 'A' ? ' (off)' : ''}
-              </Button>
-              {agent.active && (
-                <Select
-                  key={`model-${agent.role}`}
-                  label={`  model (defined ${agent.defined}):`}
-                  value={agent.model}
-                  options={AGENT_MODELS.map(option => ({ value: option, label: option === 'default' ? `default (${agent.runs_on})` : option }))}
-                  onSelect={picked => click($, `agents.${agent.role}.model`, picked)}
-                />
-              )}
-            </Box>
-          ))}
-        </Box>
-        <Text dimColor>A box ticked beyond the mode's set adds that agent; cleared, it removes one.</Text>
-      </Box>
-    )
-  })
-
-  on('ui.render', { component: 'Pane', requestId: PROMOTION }, async ($, e) => {
-    const { Box, Text } = $.ui.resolve(e)
-    const data = await read($, promotion)
-    if (!data) return <Text dimColor>Reading the branches…</Text>
-    if (data.error) return <Text dimColor>{data.error}</Text>
-    return (
-      <Box flexDirection="column">
-        {data.stages.map(stage => (
-          <Box flexDirection="column" marginBottom={1}>
-            <Text bold>
-              {stage.branch.padEnd(5)} origin {stage.origin}
-              {stage.unpushed > 0 ? `  ${stage.unpushed} not pushed` : '  pushed'}
-            </Text>
-            {stage.waived.length === 0 ? (
-              <Text dimColor>no waived gate on the way in</Text>
-            ) : (
-              stage.waived.map(line => <Text color="yellow">waived {line}</Text>)
-            )}
-          </Box>
-        ))}
-        {data.stages.length === 0 && <Text dimColor>No dev, test or prod branch here.</Text>}
+        {section(ui, 'settings', 'Settings', settingsSummary(data), fold.settings === true, toggle('settings'),
+          settingsBody(ui, data, problem, problems, press))}
+        {section(ui, 'agents', 'Agents', agentsSummary(data), fold.agents === true, toggle('agents'),
+          agentsBody(ui, data, press))}
+        {section(ui, 'promotion', 'Promotion', promotionSummary(stages), fold.promotion === true, toggle('promotion'),
+          promotionBody(ui, stages))}
       </Box>
     )
   })
