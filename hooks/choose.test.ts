@@ -110,8 +110,7 @@ test('the discovery output becomes the record text and the live/orphaned lines, 
   })
   const { record, listing } = parseDiscovery(output)
   expect(record).toBe('{"plugins":{}}')
-  expect(listing).toBe('orphaned C:/Users/a b/.claude/plugins/cache/m/p/49eb
-live C:/Users/a b/.claude/plugins/cache/m/p/3a60')
+  expect(listing).toBe('orphaned C:/Users/a b/.claude/plugins/cache/m/p/49eb\nlive C:/Users/a b/.claude/plugins/cache/m/p/3a60')
   expect(newestLiveDir(listing)).toBe('C:/Users/a b/.claude/plugins/cache/m/p/3a60')
 })
 
