@@ -1836,3 +1836,27 @@ nothing in this repository's copy was changed for it.** The project below worked
   `<setting>=<value>`); the pane no longer uses the engine's `Select` at all. Yes/no settings stay checkboxes.
 - **Tests:** `boxes.test.ts` pins the marking, the keys, the column and row layouts and the press-to-write path.
 
+
+## plugin-setup.py finds the desktop app's Claude Code on every install kind, and proves it is Claude Code (24/10/2026, user report)
+
+- **Report:** on Windows the script still stopped with "claude is not on PATH and not in the usual folders (the Claude
+  desktop app's own copy included)". The 22/10 entry searched only `%APPDATA%\Claude\claude-code\…`, a layout taken from
+  macOS by convention; the user asked for the desktop app to be found, and for macOS to behave the same.
+- **What was learned:** the desktop app keeps its Code-tab copy under `<data folder>/claude-code/<version>/<build id>/`,
+  but the data folder depends on how the app was installed: the standard installer uses `%APPDATA%\Claude`
+  (`~/Library/Application Support/Claude` on macOS); the Microsoft Store package, now the standard Windows installer
+  (`.msix`), uses `%LOCALAPPDATA%\Claude-Data\claude_<package id>\`; the 3P build uses `%LOCALAPPDATA%\Claude-3p`
+  (`~/Library/Application Support/Claude-3p`). The Windows desktop installer also puts a launcher named `claude.exe` on
+  PATH (`%LOCALAPPDATA%\Microsoft\WindowsApps`) that opens the desktop app instead of running a command. Sources: the
+  Claude Desktop installation page (Endpoint security software), anthropics/claude-code#25075, and a Store-layout report
+  (CodeZeno/Claude-Code-Usage-Monitor#183).
+- **Decision:** `desktop_roots()` lists one glob per install kind for `APPDATA`, `LOCALAPPDATA` (`Claude*`, `Claude-Data/*`,
+  the Store package's virtualised `Packages/*/LocalCache/Roaming/Claude*`), `~/Library/Application Support/Claude*` and
+  `~/.config/Claude*`; the copy is looked for at `claude-code/<version>/<build id>/` and at `claude-code/<version>/`.
+  Every candidate — on PATH, in an installer folder, bundled, or given with `--claude` — is run once with `--version`
+  (30 s limit) and counts only if it answers "Claude Code"; a PATH entry that fails is reported as skipped and the search
+  goes on. macOS was verified on this machine: with PATH stripped the bundled
+  `…/Claude/claude-code/2.1.308/<build id>/claude.app/Contents/MacOS/claude` is found, answers `2.1.308 (Claude Code)`
+  and runs `plugin marketplace list --json`. The Windows layouts come from the sources above, not from a Windows machine.
+- **Tests:** `test_plugin_setup_claude.py` pins the Store, Store-virtualised and 3P layouts, the launcher-on-PATH case
+  and a candidate that fails the probe; the fakes in the other files answer the probe with yes.

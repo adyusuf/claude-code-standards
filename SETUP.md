@@ -218,7 +218,8 @@ asks "Remove the old one and install the new one?" and on yes removes it (`--kee
 checks that `~/.claude/adyusuf.json`, the enabled state and the marketplace link are unchanged. `--check` reports only
 (exit 1 when work is due), `--yes` skips the question, `--ref <branch>` picks the branch for a first link. It needs
 `git` on `PATH` and the `claude` program: on `PATH`, in the installers' usual folders, in the copy the Claude desktop
-app keeps for its Code tab, or given with `--claude <path>`; with only the desktop app and none of those found it
+app keeps for its Code tab (standard, Microsoft Store and 3P installs, Windows and macOS), or given with `--claude <path>`;
+only a program that answers `--version` as Claude Code counts. With only the desktop app and none of those found it
 prints the two `/plugin` commands to type in the app's Code tab. It reaches GitHub; log: `~/.claude-standards/logs/plugin-setup-<stamp>.log`, backup of
 your settings file: `~/.claude-standards/backups/plugin-setup-<stamp>/`.
 
