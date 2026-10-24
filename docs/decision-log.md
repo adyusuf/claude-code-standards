@@ -1805,7 +1805,11 @@ nothing in this repository's copy was changed for it.** The project below worked
   `~/.claude/plugins/marketplaces/adyusuf-marketplace`, the marketplace clone that `plugin-setup.py` and
   `/plugin marketplace update` keep at the `prod` tip. The previous `settings.json` is in
   `~/.claude-standards/backups/settings-<stamp>.json`.
-- **Unverified:** whether the desktop app's rail seats a mod's panes. The engine's types name a `desktop` surface and the
-  panel's tests draw on it, but this was not seen working in the app on 24/10/2026; the line is removed again if it does
-  nothing.
+- **Verified (24/10/2026, by the user):** with the line set, a new desktop session shows the Settings, Agents and Promotion
+  boxes in its rail. A click wrote only a per-session file under `~/.claude/adyusuf-session/` and left `~/.claude/adyusuf.json`
+  unchanged. **Prerequisite found on the way:** the boxes run the configuration script of the INSTALLED plugin, so while that
+  copy was the old `29ea419` they listed the retired options and every click failed with a popup (the old script has no
+  `--session`). `plugin-setup.py` brings the installed copy to the `prod` tip; the mod itself comes from the folder.
+- **Not explained:** the two session files seen after the first clicks held `e2e_before_deploy` ticks, not the
+  `ci_after_push.dev` tick the user described; the user confirmed the click was accepted, so this was left as it stands.
 
