@@ -67,8 +67,8 @@ When the user wants to change settings without naming them (no argument, "change
 "show the settings in the right-hand boxes"):
 
 **The rail boxes first.** This plugin's mod (`hooks/register.tsx`, the boxes in `hooks/boxes.ts`) draws ONE pane beside the
-conversation with three bordered boxes, each folded by its header: *Settings* (a checkbox for every yes/no setting, a dropdown
-for every list), *Agents* (a checkbox per agent, a model dropdown; folded at start) and *Promotion* (dev/test/prod, read-only;
+conversation with three bordered boxes, each folded by its header: *Settings* (a checkbox for every yes/no setting, a radio list
+for every choice), *Agents* (a checkbox per agent, a model radio list; folded at start) and *Promotion* (dev/test/prod, read-only;
 folded at start). A header that is folded still shows a one-line summary. Each click runs `adyusuf_config.py set --session <id>`: it changes this session only. Open them with `/adyusuf:panels`, say that they are
 there and stop: the user changes the settings in the boxes, not in the chat. Never build a page or an Artifact for this.
 In the Claude desktop app the mod only loads when `CLAUDE_CODE_PLUGIN_DIRS` in `~/.claude/settings.json` names the

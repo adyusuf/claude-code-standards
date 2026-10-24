@@ -1826,3 +1826,13 @@ nothing in this repository's copy was changed for it.** The project below worked
   JSX: elements are built with a factory `h` that is handed in), so Deno measures it and `boxes.test.ts` pins it; the engine glue
   stays the ONE listed file, `hooks/register.tsx`, which only reads state, runs the script and returns the composed tree.
 
+## Choices in the boxes are radio lists, not dropdowns (24/10/2026, user decision)
+
+- **Decision:** every setting that picks one value from several (the working mode, the model for the Opus agents, the message
+  format, each agent's model) is drawn as a radio list: the label, then one pressable line per option, `(•)` on the chosen
+  one and `( )` on the others. Pressing a line writes that value to the session layer, as the dropdown did. Settings lists run
+  down the pane; an agent's model options lie in a wrapping row so a long agent list stays short.
+- **How:** the engine has no radio element, so `hooks/boxes.ts` builds it from plain Buttons (`radio`, keyed
+  `<setting>=<value>`); the pane no longer uses the engine's `Select` at all. Yes/no settings stay checkboxes.
+- **Tests:** `boxes.test.ts` pins the marking, the keys, the column and row layouts and the press-to-write path.
+
