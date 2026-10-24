@@ -25,9 +25,14 @@ class Locate(unittest.TestCase):
         self.home = self.tmp.name
         self.env = {'PATH': '/usr/bin'}
 
-    def ctx(self, on_path=False):
+    def ctx(self, on_path=False, probe=lambda path: True):
         return types.SimpleNamespace(home=self.home, which=lambda tool: '/x/claude' if on_path else None,
-                                     exists=lambda path: path.startswith(self.home) and os.path.isfile(path))
+                                     exists=lambda path: path.startswith(self.home) and os.path.isfile(path),
+                                     probe=probe)
+
+    def windows(self):
+        return dict(self.env, APPDATA=os.path.join(self.home, 'AppData', 'Roaming'),
+                    LOCALAPPDATA=os.path.join(self.home, 'AppData', 'Local'))
 
     def test_a_claude_on_path_needs_nothing(self):
         self.assertEqual(setup.locate_claude(self.ctx(True), None, self.env), (None, None))
@@ -50,6 +55,42 @@ class Locate(unittest.TestCase):
         path = touch(env['APPDATA'], 'Claude', 'claude-code', '2.1.308', 'abc123', 'claude.exe')
         note, problem = setup.locate_claude(self.ctx(), None, env)
         self.assertEqual((problem, path in note), (None, True))
+
+    def test_the_microsoft_store_desktop_app_is_found_on_windows(self):
+        env = self.windows()
+        path = touch(env['LOCALAPPDATA'], 'Claude-Data', 'claude_pzs8sxrjxfjjc', 'claude-code', '2.1.308', 'abc123',
+                     'claude.exe')
+        self.assertIn(path, setup.locate_claude(self.ctx(), None, env)[0])
+
+    def test_the_store_packages_virtualised_app_data_is_found_on_windows(self):
+        env = self.windows()
+        path = touch(env['LOCALAPPDATA'], 'Packages', 'Claude_pzs8sxrjxfjjc', 'LocalCache', 'Roaming', 'Claude',
+                     'claude-code', '2.1.308', 'claude.exe')
+        self.assertIn(path, setup.locate_claude(self.ctx(), None, env)[0])
+
+    def test_the_3p_desktop_app_is_found_on_windows_and_macos(self):
+        env = self.windows()
+        win = touch(env['LOCALAPPDATA'], 'Claude-3p', 'claude-code', '2.1.308', 'abc123', 'claude.exe')
+        self.assertIn(win, setup.locate_claude(self.ctx(), None, env)[0])
+        mac = touch(self.home, 'Library', 'Application Support', 'Claude-3p', 'claude-code', '2.1.308', 'abc123',
+                    'claude.app', 'Contents', 'MacOS', 'claude')
+        self.assertIn(mac, setup.locate_claude(self.ctx(), None, self.env)[0])
+
+    def test_the_desktop_apps_launcher_on_path_is_skipped_for_its_real_copy(self):
+        env = self.windows()
+        real = touch(env['APPDATA'], 'Claude', 'claude-code', '2.1.308', 'abc123', 'claude.exe')
+        note, problem = setup.locate_claude(self.ctx(True, probe=lambda p: p == real), None, env)
+        self.assertIsNone(problem)
+        self.assertIn('/x/claude on PATH is not Claude Code', note)
+        self.assertIn(real, note)
+
+    def test_a_copy_that_does_not_answer_as_claude_code_is_not_used(self):
+        touch(self.home, '.local', 'bin', 'claude')
+        _, problem = setup.locate_claude(self.ctx(probe=lambda p: False), None, self.env)
+        self.assertIn('claude is not on PATH', problem)
+        path = touch(self.home, 'custom', 'claude')
+        _, problem = setup.locate_claude(self.ctx(probe=lambda p: False), path, self.env)
+        self.assertIn('does not answer "--version" as Claude Code', problem)
 
     def test_the_desktop_apps_own_copy_is_found_on_macos(self):
         path = touch(self.home, 'Library', 'Application Support', 'Claude', 'claude-code', '2.1.308', 'abc123',
