@@ -142,9 +142,11 @@ elif [ "$ts_status" = 0 ] && [ "${#ts_tests[@]}" = 0 ] && [ -n "$ts_logic" ]; th
   echo "  NOT MEASURED: no test loads$ts_logic"; ts_status=3
 elif [ "$ts_status" = 0 ]; then
   ts_cov="$(mktemp -d)"
+  # The log lives OUTSIDE ts_cov: `deno test --coverage=<dir>` empties <dir> first, which deleted the log of a red run.
+  ts_log="$(mktemp)"
   if ! deno test --quiet --sloppy-imports --coverage="$ts_cov" --import-map=scripts/ts-shim/import_map.json "${ts_tests[@]}" \
-        >"$ts_cov/run.log" 2>&1; then
-    sed 's/^/  /' "$ts_cov/run.log" | head -20
+        >"$ts_log" 2>&1; then
+    sed 's/^/  /' "$ts_log" | head -20
     echo "  ✗ the tests are red — coverage of a red suite is not a measurement"; ts_status=1
   else
     ts_lines=0; ts_hit=0
@@ -161,7 +163,7 @@ elif [ "$ts_status" = 0 ]; then
       if [ "$pct" -ge "$min" ]; then echo "  ✓ at or above ${min}%"; else echo "  ✗ below ${min}%"; ts_status=1; fi
     fi
   fi
-  rm -rf "$ts_cov"
+  rm -rf "$ts_cov" "$ts_log"
   echo "  not measured, listed exclusion (rule #29, narrow exception): $ts_glue - engine glue, no runner reports its lines"
 fi
 if [ "$ts_status" != 0 ] && [ "$status" = 0 ]; then status="$ts_status"; fi

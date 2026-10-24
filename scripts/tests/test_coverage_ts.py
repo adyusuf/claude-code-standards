@@ -113,6 +113,7 @@ class TypeScriptStep(FakeVenv):
         self.put('logic.test.ts', "import { expect, test } from 'claude-code/testing'\ntest('bad', () => expect(1).toBe(2))\n")
         out, code = self.run_ts()
         self.assertIn('the tests are red', out)
+        self.assertNotIn('No such file', out)    # the failing run's own log must still be there to print
         self.assertEqual(1, code, out)
 
 
