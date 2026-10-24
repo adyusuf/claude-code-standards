@@ -601,7 +601,7 @@ them opens a network connection.
 | `PreToolUse` (Bash) | `guard-destructive.sh` | reads the command Claude is about to run and refuses the never-do ones (`rm -rf`, force push, `DROP`) |
 | `PostToolUse` (Edit/Write), `Stop` | `md-hook.sh` | checks a touched `CLAUDE.md` against its size budget and for dropped rules; prints a warning |
 
-**The mod (`hooks/register.tsx`, listed in `hooks/hooks.json` under `modules`)** opens three boxes in the right-hand rail at session start
+**The mod (`hooks/register.tsx`, listed in `hooks/hooks.json` under `modules`)** opens one pane beside the conversation at session start, with three bordered boxes in it (Settings, Agents, Promotion; each folds by its header)
 and answers `/adyusuf:panels`. It reads `~/.claude/plugins/installed_plugins.json` (through `sh`/`cat`/`test`) to find the installed
 `adyusuf` plugin, runs `python3 scripts/adyusuf_config.py show/agents/schema/set` (with `--session <id>`: a click changes that session only, never the saved defaults) from that copy and read-only `git` commands
 (`for-each-ref`, `rev-parse`, `rev-list`, `log`) in the current repository. It opens no network connection.

@@ -29,6 +29,8 @@ declare module 'claude-code' {
       /** Problems the script reports about the configuration files (an unreadable or invalid layer); empty when none. */
       settingsProblems: string[]
       promotion: Promotion | null
+      /** Which of the pane's boxes are folded, by id (settings, agents, promotion); the pane starts with agents and promotion folded. */
+      folded: Record<string, boolean>
     }
   }
 }

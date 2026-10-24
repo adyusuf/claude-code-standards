@@ -1813,3 +1813,16 @@ nothing in this repository's copy was changed for it.** The project below worked
 - **Not explained:** the two session files seen after the first clicks held `e2e_before_deploy` ticks, not the
   `ci_after_push.dev` tick the user described; the user confirmed the click was accepted, so this was left as it stands.
 
+## One pane with three foldable boxes instead of three panes (24/10/2026, user decision)
+
+- **Why:** in the desktop app the three panes (Settings, Agents, Promotion) came up as separate panels on the right. The user
+  wanted boxes inside the session rail, like the app's own Environment card. **Not possible from a plugin in this build:** the
+  engine's `RenderComponent` list ends at `Pane` (a pane is seated `dock` beside the transcript or `inline` above the prompt);
+  the app's own rail cards are not an extension point.
+- **Decision:** the closest thing the API allows. `hooks/register.tsx` opens ONE pane (`adyusuf-boxes`, titled "adyusuf") that
+  holds the three boxes as bordered sections, each folded by its header (`▾`/`▸`) with a one-line summary beside it; Agents and
+  Promotion start folded, so the pane opens as a short card. The fold state is `$.state` (`adyusuf.folded`).
+- **Structure (rule #29):** what the boxes draw moved to `hooks/boxes.ts`, engine-free (no import from `claude-code`, no
+  JSX: elements are built with a factory `h` that is handed in), so Deno measures it and `boxes.test.ts` pins it; the engine glue
+  stays the ONE listed file, `hooks/register.tsx`, which only reads state, runs the script and returns the composed tree.
+
