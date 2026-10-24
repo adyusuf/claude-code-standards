@@ -38,9 +38,6 @@ The plugin itself sends nothing. Data leaves your machine only through steps **y
 - **The gate**, which you run in your own project, can do three things that reach the network:
   - install your dependencies and fetch security advisories from your package registries;
   - call a test-deploy URL that you set (`TEST_VERSION_URL`);
-  - publish the Session Settings page, only when you ask for it (`/adyusuf:config` where the rail boxes cannot be drawn):
-    the page holds your settings, this session's id and the short branch tips and `Gate-Waived:` lines of the repository, as a
-    private Artifact on claude.ai that only you can open; staged changes come back to Claude as one comment;
   - ask GitHub, when you run `scripts/plugin-setup.py`, for the newest commit of the plugin's branch (`git ls-remote`),
     and let the `claude plugin` commands it starts fetch the marketplace from GitHub; it sends nothing of yours;
   - ask GitHub through `gh api` whether a repository is private (`require-private-remote.sh`, a hook you

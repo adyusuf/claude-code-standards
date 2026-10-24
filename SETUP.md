@@ -198,7 +198,12 @@ written into `~/.claude` by hand; read the warning in
 - **The right-hand boxes (part of the plugin):** the Settings, Agents and Promotion boxes open in the rail at session start
   and with `/adyusuf:panels`. They run `git` and `python3` locally and contact no server. They show the settings of the
   installed copy, so `/plugin update adyusuf` brings new settings into them. A click changes **this session only**; a new
-  session starts from your saved defaults (`~/.claude/adyusuf.json`, changed with `/adyusuf:config`). Where mods are not switched on, the session
+  session starts from your saved defaults (`~/.claude/adyusuf.json`, changed with `/adyusuf:config`).
+  **The Claude desktop app** does not load an installed plugin's mod by itself. Name the plugin's folder in the `env` block
+  of `~/.claude/settings.json` and start a new session: `"env": {"CLAUDE_CODE_PLUGIN_DIRS": "<home>/.claude/plugins/marketplaces/adyusuf-marketplace"}`
+  (a session the app starts loads each folder like `--plugin-dir`, and that copy then takes precedence over the installed
+  one for the session; `plugin-setup.py` keeps that folder current). Whether the app's rail seats the boxes is checked per
+  app version: if nothing appears, remove the line again. Where mods are not switched on, the session
   asks once ("Turn on the mods…"); the config skill falls back to clickable questions in the chat.
 - **Update:** `/plugin marketplace update adyusuf-marketplace`, then `/plugin update adyusuf` and `/reload-plugins`
   (or turn auto-update on for the marketplace under `/plugin` › Marketplaces). The plugin has no `version`, so every

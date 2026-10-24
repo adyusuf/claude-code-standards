@@ -1793,21 +1793,19 @@ nothing in this repository's copy was changed for it.** The project below worked
   removed whenever a session file is written. Rules #34 and #29 are not affected.
 - **Not done:** a panel button that saves the session's values as the defaults.
 
-## The Session Settings page for surfaces that cannot draw the rail boxes (23/10/2026, user decision)
+## The Session Settings page is withdrawn; the rail boxes load in the desktop app through CLAUDE_CODE_PLUGIN_DIRS (24/10/2026, user decision)
 
-- **Decision:** the Claude desktop app does not load the plugin's mod, so the Settings, Agents and Promotion boxes never
-  appear there. For such surfaces `scripts/adyusuf_page.py build --session <id>` builds a page from
-  `skills/config/session-panel.html` and the live configuration, published as an Artifact (`capabilities: {"comments": {}}`).
-  This reverses the config skill's earlier "never build a page or an Artifact for this" for that case only.
-- **How a click reaches the session:** an Artifact runs in a hosted frame and cannot run a command or write a file (checked:
-  the local filesystem MCP server is limited to project folders, so a `host:` call could not reach
-  `~/.claude/adyusuf-session/` either). The page therefore stages clicks and, on "Apply to this session", sends ONE comment
-  to Claude with the changes as a JSON object; Claude, which watches the artifact, runs `adyusuf_config.py apply --session
-  <id> -` (validated all-or-nothing), replies, resolves the thread and republishes the page. One turn per Apply, not per click.
-- **Limits, stated:** a change is not live until Claude has applied it, the page needs an editor of the artifact and a
-  watching session (it offers a copyable block otherwise), and the Promotion box is a snapshot from publishing time. The
-  rail boxes in a client that loads mods remain the live version. The comment text is treated as data: only its JSON object
-  is used, and the session id in it must be this session's.
-- **Tests:** the builder is covered (`test_adyusuf_page.py`); the page's own JavaScript has no unit tests and was exercised
-  by hand in the browser pane (staging, undo, the copy fallback) and, once published, through the comment round trip.
+- **Decision:** the HTML page (`adyusuf_page.py`, `skills/config/session-panel.html`, the comment round trip) was built on
+  23/10/2026 and the user did not want it: they want the boxes in the rail. The page, its tests and the published Artifact are
+  removed (the commit that added it is reverted; its entry above stays as the record of what was tried and why it was
+  clumsy: a change was not live until Claude applied it, one turn per Apply).
+- **The way to the rail:** the plugin's mod is not loaded in a desktop-app session by default. A session the app starts
+  loads the folders named in `CLAUDE_CODE_PLUGIN_DIRS` (the process environment or the `env` block of
+  `~/.claude/settings.json`) like `--plugin-dir`; the user set it to
+  `~/.claude/plugins/marketplaces/adyusuf-marketplace`, the marketplace clone that `plugin-setup.py` and
+  `/plugin marketplace update` keep at the `prod` tip. The previous `settings.json` is in
+  `~/.claude-standards/backups/settings-<stamp>.json`.
+- **Unverified:** whether the desktop app's rail seats a mod's panes. The engine's types name a `desktop` surface and the
+  panel's tests draw on it, but this was not seen working in the app on 24/10/2026; the line is removed again if it does
+  nothing.
 
