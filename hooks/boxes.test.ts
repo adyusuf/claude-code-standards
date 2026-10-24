@@ -1,11 +1,11 @@
 import { expect, test } from 'claude-code/testing'
 
-import { agentsBody, agentsSummary, FOLDED_AT_START, promotionBody, promotionSummary, SECTIONS, section, settingsBody, settingsSummary } from './boxes'
+import { agentsBody, agentsSummary, FOLDED_AT_START, promotionBody, promotionSummary, radio, SECTIONS, section, settingsBody, settingsSummary } from './boxes'
 
 // A recording factory: an element is { type, props, children }, so the tests read what the boxes would draw.
 type Node = { type: unknown; props: Record<string, any>; children: unknown[] }
 const h = (type: unknown, props: Record<string, unknown> | null, ...children: unknown[]): Node => ({ type, props: props ?? {}, children })
-const ui = { h, Box: 'Box', Text: 'Text', Button: 'Button', Select: 'Select' }
+const ui = { h, Box: 'Box', Text: 'Text', Button: 'Button' }
 
 function flat(items: unknown[]): unknown[] {
   return items.flatMap(item => (Array.isArray(item) ? flat(item) : item === null || item === '' ? [] : [item]))
@@ -91,8 +91,8 @@ test('Settings groups the settings in schema order, leaves the agents out and ma
   const heads = all(body, 'Text').filter(node => node.props.bold).map(words)
   expect(heads).toEqual(['Session', 'Push'])
   const buttons = all(body, 'Button').map(words)
-  expect(buttons).toEqual(['[x] Push prod', '[ ] Push test (session)'])
-  expect(all(body, 'Select')[0].props.label).toBe('Working mode (user):')
+  expect(buttons).toEqual(['( ) A', '(•) B', '( ) C', '[x] Push prod', '[ ] Push test (session)'])
+  expect(words(all(body, 'Text').find(node => words(node) === 'Working mode (user):'))).toBe('Working mode (user):')
   expect(words(all(body, 'Text').find(node => node.props.color === 'yellow'))).toBe('! a layer is unreadable')
 })
 
@@ -101,17 +101,27 @@ test('a problem is shown in red above the groups', () => {
   expect(words(all(body, 'Text').find(node => node.props.color === 'red'))).toBe('could not read')
 })
 
-test('pressing a yes/no setting asks for the opposite, and a select asks for what was picked', () => {
+test('pressing a yes/no setting asks for the opposite, and pressing a radio option asks for that option', () => {
   const calls: string[][] = []
   const body = settingsBody(ui, data(), '', [], (key, value) => { calls.push([key, value]) })
-  const [prod, test_] = all(body, 'Button')
+  const [, , modeC, prod, test_] = all(body, 'Button')
   prod.props.onPress()
   test_.props.onPress()
-  const mode = all(body, 'Select')[0]
-  mode.props.onSelect('C')
+  modeC.props.onPress()
   expect(calls).toEqual([['push.prod', 'no'], ['push.test', 'yes'], ['mode', 'C']])
-  expect(mode.props.options).toEqual([{ value: 'A', label: 'A' }, { value: 'B', label: 'B' }, { value: 'C', label: 'C' }])
-  expect(mode.props.value).toBe('B')
+  expect(all(body, 'Select').length).toBe(0)
+})
+
+test('a radio list marks the chosen option, keys every option by setting and value, and can lay them in a row', () => {
+  const opts = [{ value: 'a', label: 'one' }, { value: 'b', label: 'two' }]
+  const column = radio(ui, 'k', 'Pick:', opts, 'b', () => undefined) as Node
+  expect(all(column, 'Button').map(words)).toEqual(['( ) one', '(•) two'])
+  expect(all(column, 'Button').map(node => node.props.key)).toEqual(['k=a', 'k=b'])
+  expect(all(column, 'Box')[1].props.flexDirection).toBe('column')
+  const row = radio(ui, 'k', 'Pick:', opts, 'zzz', () => undefined, true) as Node
+  expect(all(row, 'Button').map(words)).toEqual(['( ) one', '( ) two'])
+  expect(all(row, 'Box')[1].props.flexDirection).toBe('row')
+  expect(all(row, 'Box')[1].props.flexWrap).toBe('wrap')
 })
 
 test('Agents waits until the configuration is read', () => {
@@ -120,32 +130,34 @@ test('Agents waits until the configuration is read', () => {
 
 test('Agents lists each role with its state, a model choice only for the active ones', () => {
   const body = agentsBody(ui, data(), () => undefined)
-  expect(all(body, 'Button').map(words)).toEqual(['[x] analyst', '[ ] qa', '[x] security (added)'])
-  expect(all(body, 'Select').map(node => node.props.key)).toEqual(['model-analyst', 'model-security'])
+  const toggles = all(body, 'Button').filter(node => String(node.props.key).startsWith('on-'))
+  expect(toggles.map(words)).toEqual(['[x] analyst', '[ ] qa', '[x] security (added)'])
+  const models = all(body, 'Button').filter(node => String(node.props.key).includes('.model='))
+  expect(models.map(node => node.props.key).filter(key => String(key).endsWith('=default'))).toEqual(['agents.analyst.model=default', 'agents.security.model=default'])
+  expect(words(models[0])).toBe('(•) default (sonnet)')
   expect(words(all(body, 'Text')[0])).toBe('Opus agents run on sonnet unless one is set below')
-  expect(all(body, 'Select')[0].props.options[0]).toEqual({ value: 'default', label: 'default (sonnet)' })
 })
 
 test('an agent of the mode that is switched off says so, and keep means the defined model', () => {
   const body = agentsBody(ui, data({ values: { mode: 'B', mode_model: 'keep' }, agents: [agent('analyst', { in_mode: true })] }), () => undefined)
-  expect(words(all(body, 'Button')[0])).toBe('[ ] analyst (off)')
+  expect(words(all(body, 'Button').find(node => String(node.props.key).startsWith('on-')))).toBe('[ ] analyst (off)')
   expect(words(all(body, 'Text')[0])).toBe('Opus agents run on their defined model unless one is set below')
 })
 
 test('pressing an agent writes what makes it the other way round, and mode A ignores the press', () => {
   const calls: string[][] = []
   const body = agentsBody(ui, data(), (key, value) => { calls.push([key, value]) })
-  const [analyst, qa, security] = all(body, 'Button')
+  const [analyst, qa, security] = all(body, 'Button').filter(node => String(node.props.key).startsWith('on-'))
   analyst.props.onPress()
   qa.props.onPress()
   security.props.onPress()
-  all(body, 'Select')[0].props.onSelect('opus')
+  all(body, 'Button').find(node => node.props.key === 'agents.analyst.model=opus')!.props.onPress()
   expect(calls).toEqual([
     ['agents.analyst.enabled', 'off'], ['agents.qa.enabled', 'on'], ['agents.security.enabled', 'auto'], ['agents.analyst.model', 'opus'],
   ])
   const quiet: string[][] = []
   const modeA = agentsBody(ui, data({ values: { mode: 'A', mode_model: 'sonnet' } }), (key, value) => { quiet.push([key, value]) })
-  all(modeA, 'Button')[1].props.onPress()
+  all(modeA, 'Button').filter(node => String(node.props.key).startsWith('on-'))[1].props.onPress()
   expect(quiet).toEqual([])
 })
 
