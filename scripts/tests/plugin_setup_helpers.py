@@ -100,7 +100,7 @@ class Case(unittest.TestCase):
 
     def go(self, fake, *args, answer='y', tty=True, which=lambda tool: f'/bin/{tool}', existing=()):
         ctx = types.SimpleNamespace(run=fake, ask=lambda prompt: answer, tty=tty, which=which,
-                                    exists=lambda path: path in existing)
+                                    exists=lambda path: path in existing, probe=lambda path: True)
         out, err = io.StringIO(), io.StringIO()
         with contextlib.redirect_stdout(out), contextlib.redirect_stderr(err):
             code = setup.main(['--home', self.home, *args], ctx)
