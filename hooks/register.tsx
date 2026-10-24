@@ -6,7 +6,9 @@ import {
   agentsBody, agentsSummary, FOLDED_AT_START, promotionBody, promotionSummary, section, settingsBody, settingsSummary,
 } from './boxes'
 import type { SectionId } from './boxes'
-import { countOf, overrideNote, plannedStages, refSet, scriptDir, waivedLines, waivedRange } from './choose'
+import {
+  countOf, DISCOVER_PY, IS_FILE_PY, overrideNote, parseDiscovery, plannedStages, refSet, scriptDir, waivedLines, waivedRange,
+} from './choose'
 
 /** One pane, three bordered boxes in it (Settings, Agents, Promotion), each folded by its header. */
 const BOXES = 'adyusuf-boxes'
@@ -18,19 +20,21 @@ const settingsProblems = atom({ plugin: 'adyusuf', key: 'settingsProblems' } as 
 const promotion = atom({ plugin: 'adyusuf', key: 'promotion' } as const, null)
 const folded = atom({ plugin: 'adyusuf', key: 'folded' } as const, FOLDED_AT_START)
 
-const PLUGIN_ID = 'adyusuf@adyusuf-marketplace'
-const CACHE = '$HOME/.claude/plugins/cache/adyusuf-marketplace/adyusuf'
+const PLUGIN = 'adyusuf'
+const MARKETPLACE = 'adyusuf-marketplace'
+const PLUGIN_ID = `${PLUGIN}@${MARKETPLACE}`
 
 type Run = (argv: readonly string[]) => Promise<{ exitCode: number; stdout: string; stderr: string }>
 
 /** The configuration script of the INSTALLED adyusuf plugin ('' when it has none yet); the choice is choose.ts's scriptDir. */
 async function scriptPath(run: Run): Promise<string> {
-  const record = await run(['sh', '-c', 'cat "$HOME/.claude/plugins/installed_plugins.json" 2>/dev/null'])
-  const cache = await run(['sh', '-c', `for d in $(ls -dt ${CACHE}/*/ 2>/dev/null); do if [ -e "$d.orphaned_at" ]; then echo "orphaned $d"; else echo "live $d"; fi; done`])
-  const dir = scriptDir(record.stdout, PLUGIN_ID, cache.stdout)
+  const found = await run(['python3', '-c', DISCOVER_PY, MARKETPLACE, PLUGIN])
+  const { record, listing } = parseDiscovery(found.stdout)
+  const dir = scriptDir(record, PLUGIN_ID, listing)
   if (!dir) return ''
-  const has = await run(['test', '-f', `${dir}/scripts/adyusuf_config.py`])
-  return has.exitCode === 0 ? `${dir}/scripts/adyusuf_config.py` : ''
+  const script = `${dir}/scripts/adyusuf_config.py`
+  const has = await run(['python3', '-c', IS_FILE_PY, script])
+  return has.exitCode === 0 ? script : ''
 }
 
 /** This session's id ('' when the engine will not say): the boxes change THIS session's layer only, never the saved defaults. */
