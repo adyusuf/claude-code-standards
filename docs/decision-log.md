@@ -1857,6 +1857,7 @@ nothing in this repository's copy was changed for it.** The project below worked
   (30 s limit) and counts only if it answers "Claude Code"; a PATH entry that fails is reported as skipped and the search
   goes on. macOS was verified on this machine: with PATH stripped the bundled
   `…/Claude/claude-code/2.1.308/<build id>/claude.app/Contents/MacOS/claude` is found, answers `2.1.308 (Claude Code)`
-  and runs `plugin marketplace list --json`. The Windows layouts come from the sources above, not from a Windows machine.
+  and runs `plugin marketplace list --json`. Windows: the user re-ran the PowerShell one-liner from `prod` on 24/10/2026 and
+  it found the desktop app's copy and completed.
 - **Tests:** `test_plugin_setup_claude.py` pins the Store, Store-virtualised and 3P layouts, the launcher-on-PATH case
   and a candidate that fails the probe; the fakes in the other files answer the probe with yes.
