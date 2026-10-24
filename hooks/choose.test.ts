@@ -1,8 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 
 import {
-  countOf, enabledFor, installPathOf, isWanted, newestLiveDir, overrideNote, plannedStages, refSet, scriptDir, settingGroups,
-  waivedLines, waivedRange,
+  countOf, enabledFor, installPathOf, isWanted, newestLiveDir, overrideNote, parseDiscovery, plannedStages, refSet, scriptDir,
+  settingGroups, waivedLines, waivedRange,
 } from './choose'
 
 const ID = 'adyusuf@adyusuf-marketplace'
@@ -101,4 +101,24 @@ test('git output is read as counts and ref sets', () => {
   expect(countOf('')).toBe(0)
   expect(countOf('x')).toBe(0)
   expect(refSet(' a \n\nb\n').size).toBe(2)
+})
+
+test('the discovery output becomes the record text and the live/orphaned lines, newest first', () => {
+  const output = JSON.stringify({
+    record: '{"plugins":{}}',
+    cache: [['orphaned', 'C:/Users/a b/.claude/plugins/cache/m/p/49eb'], ['live', 'C:/Users/a b/.claude/plugins/cache/m/p/3a60']],
+  })
+  const { record, listing } = parseDiscovery(output)
+  expect(record).toBe('{"plugins":{}}')
+  expect(listing).toBe('orphaned C:/Users/a b/.claude/plugins/cache/m/p/49eb\nlive C:/Users/a b/.claude/plugins/cache/m/p/3a60')
+  expect(newestLiveDir(listing)).toBe('C:/Users/a b/.claude/plugins/cache/m/p/3a60')
+})
+
+test('an empty, malformed or foreign discovery output names nothing', () => {
+  const none = { record: '', listing: '' }
+  expect(parseDiscovery('')).toEqual(none)
+  expect(parseDiscovery('not json')).toEqual(none)
+  expect(parseDiscovery('null')).toEqual(none)
+  expect(parseDiscovery('{"record": 5, "cache": "x"}')).toEqual(none)
+  expect(parseDiscovery('{"cache": [["live"], [1, 2], "live /x", ["live", "/ok"]]}')).toEqual({ record: '', listing: 'live /ok' })
 })
