@@ -27,8 +27,11 @@ link another branch on a first install. Afterwards open a new Claude Code sessio
 needs a `python3` on `PATH` for the plugin's own hooks: [`SETUP.md`](SETUP.md) §1.
 
 **"claude is not on PATH"?** The script looks in the installers' usual folders and in the copy the **Claude desktop
-app** keeps for its Code tab (`%APPDATA%\Claude\claude-code\…` on Windows, `~/Library/Application Support/Claude/claude-code/…`
-on macOS), and uses what it finds for that run. If you have only the desktop app and it finds nothing, do the same two
+app** keeps for its Code tab, whichever way the app was installed (Windows: `%APPDATA%\Claude`, the Microsoft Store
+package's `%LOCALAPPDATA%\Claude-Data\claude_…`, `%LOCALAPPDATA%\Claude-3p`; macOS: `~/Library/Application Support/Claude`
+or `Claude-3p`; then `claude-code/<version>/…`), and uses what it finds for that run — only a program that answers
+`--version` as Claude Code counts, so the desktop app's own `claude.exe` launcher on PATH is skipped. If you have only
+the desktop app and it finds nothing, do the same two
 steps inside the app's **Code** tab: `/plugin marketplace add adyusuf/claude-code-standards#prod`, then
 `/plugin install adyusuf@adyusuf-marketplace`. Or pass the program yourself: `--claude <full path>` (PowerShell:
 `Get-Command claude`; macOS/Linux: `command -v claude`). What the script does, step by step:

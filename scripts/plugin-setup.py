@@ -40,13 +40,13 @@ REF_OK = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._/-]*$')       # never starts with 
 SHA = re.compile(r'^[0-9a-f]{40}$')
 
 
-def run(command):
+def run(command, timeout=600):
     """(exit code, output) of a child process; GitHub is never allowed to prompt for a password."""
     env = dict(os.environ, GIT_TERMINAL_PROMPT='0')
     command = [shutil.which(command[0]) or command[0]] + command[1:]      # Windows: claude is claude.cmd
     try:
         done = subprocess.run(command, capture_output=True, text=True, encoding='utf-8', errors='replace',
-                              env=env, timeout=600)
+                              env=env, timeout=timeout)
     except (OSError, subprocess.SubprocessError) as error:
         return 127, str(error)
     return done.returncode, (done.stdout + done.stderr).strip()
@@ -234,16 +234,27 @@ def preflight(which):
     return [f'{tool} is not on PATH' for tool in ('git',) if not which(tool)]
 
 
+def desktop_roots(home, env):
+    """Glob patterns for the Claude desktop app's data folder, one per way the app can be installed: the standard
+    installer (<app data>/Claude), the Microsoft Store package (%LOCALAPPDATA%/Claude-Data/claude_<package>, or the
+    package's own virtualised app data) and the 3P build (Claude-3p)."""
+    roots = []
+    for var in ('APPDATA', 'LOCALAPPDATA'):
+        if env.get(var):
+            roots += [os.path.join(env[var], 'Claude*'), os.path.join(env[var], 'Claude-Data', '*'),
+                      os.path.join(env[var], 'Packages', '*', 'LocalCache', 'Roaming', 'Claude*')]
+    roots += [os.path.join(home, 'Library', 'Application Support', 'Claude*'), os.path.join(home, '.config', 'Claude*')]
+    return roots
+
+
 def bundled_claude(home, env):
     """The copy the Claude desktop app keeps for its Code tab, newest version first. It is there on a machine that
-    has the desktop app and no terminal install: <app data>/Claude/claude-code/<version>/<hash>/..."""
-    roots = [os.path.join(env['APPDATA'], 'Claude')] if env.get('APPDATA') else []
-    roots += [os.path.join(home, 'Library', 'Application Support', 'Claude'), os.path.join(home, '.config', 'Claude')]
+    has the desktop app and no terminal install: <app data>/claude-code/<version>/<build id>/claude(.exe|.app)."""
     found = []
-    for root in roots:
-        base = os.path.join(root, 'claude-code', '*', '*')
-        found += glob.glob(os.path.join(base, 'claude.exe')) + glob.glob(os.path.join(base, 'claude'))
-        found += glob.glob(os.path.join(base, 'claude.app', 'Contents', 'MacOS', 'claude'))
+    for root in desktop_roots(home, env):
+        for base in (os.path.join(root, 'claude-code', '*', '*'), os.path.join(root, 'claude-code', '*')):
+            found += glob.glob(os.path.join(base, 'claude.exe')) + glob.glob(os.path.join(base, 'claude'))
+            found += glob.glob(os.path.join(base, 'claude.app', 'Contents', 'MacOS', 'claude'))
 
     def version(path):
         parts = path.split(os.sep)
@@ -262,21 +273,36 @@ def claude_candidates(home, env):
     return named + bundled_claude(home, env)
 
 
+def is_claude_code(path):
+    """Only a program that answers `--version` with "Claude Code" counts: the Windows desktop installer also puts a
+    launcher named claude.exe on PATH, and that one opens the desktop app instead of running a command."""
+    code, out = run([path, '--version'], timeout=30)
+    return code == 0 and 'Claude Code' in out
+
+
 def locate_claude(ctx, explicit, env):
     """(note, problem). `claude` must be runnable: on PATH, or found (or given) and its folder put on PATH for this
     run only. Windows installs often leave the current terminal without it until a new one is opened."""
-    if not explicit and ctx.which('claude'):
+    on_path = None if explicit else ctx.which('claude')
+    if on_path and ctx.probe(on_path):
         return None, None
-    path = explicit or next((c for c in claude_candidates(ctx.home, env) if ctx.exists(c)), None)
-    if not path or not ctx.exists(path):
-        given = f'--claude {path} does not exist' if explicit else \
+    warning = f'note: {on_path} on PATH is not Claude Code (the desktop app\'s launcher?) — skipped\n' \
+        if on_path else ''
+    if explicit:
+        path = explicit if ctx.exists(explicit) else None
+    else:
+        path = next((c for c in claude_candidates(ctx.home, env) if ctx.exists(c) and ctx.probe(c)), None)
+    if not path:
+        given = f'--claude {explicit} does not exist' if explicit else \
             'claude is not on PATH and not in the usual folders (the Claude desktop app\'s own copy included)'
         return None, (f'{given}. Either install the Claude Code command (https://claude.com/claude-code) and open a new '
                       'terminal, or do the same inside the Claude desktop app\'s Code tab: '
                       f'/plugin marketplace add {REPO}#{DEFAULT_REF}  then  /plugin install {PLUGIN_ID}. '
                       'Or pass --claude <full path> (Windows: Get-Command claude; macOS/Linux: command -v claude)')
+    if explicit and not ctx.probe(path):
+        return None, f'--claude {path} does not answer "--version" as Claude Code — is it the claude program?'
     env['PATH'] = os.path.dirname(os.path.abspath(path)) + os.pathsep + env.get('PATH', '')
-    return f'claude    {path} (not on PATH — its folder is added to PATH for this run only)', None
+    return f'{warning}claude    {path} (not on PATH — its folder is added to PATH for this run only)', None
 
 
 def main(argv, ctx=None):
@@ -294,7 +320,7 @@ def main(argv, ctx=None):
         print(text, flush=True)
 
     ctx = ctx or types.SimpleNamespace(run=run, ask=input, tty=sys.stdin.isatty(), which=shutil.which,
-                                       exists=os.path.isfile)
+                                       exists=os.path.isfile, probe=is_claude_code)
     ctx.say, ctx.home = say, os.path.abspath(args.home)
     ctx.stamp = datetime.datetime.now().strftime('%Y%m%d-%H%M%S')
     if not REF_OK.match(args.ref):

@@ -123,7 +123,7 @@ class Helpers(unittest.TestCase):
 
     def test_main_builds_its_own_context_when_none_is_given(self):
         with tempfile.TemporaryDirectory() as tmp, \
-                mock.patch.object(setup, 'run', side_effect=lambda c: (1, 'x')), \
+                mock.patch.object(setup, 'run', side_effect=lambda c, timeout=600: (1, 'x')), \
                 contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(setup.main(['--home', tmp, '--check']), 2)
 
