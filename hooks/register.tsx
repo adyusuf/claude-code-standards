@@ -1,5 +1,4 @@
-import { atom, read, update } from 'claude-code'
-import type { EngineInterface, Register } from 'claude-code'
+import type { EngineInterface, Hook, Register } from 'claude-code'
 
 import type { AgentRow, Promotion, Settings, Stage } from '../types'
 import {
@@ -14,11 +13,12 @@ import {
 const BOXES = 'adyusuf-boxes'
 const TITLE = 'adyusuf'
 
-const settings = atom({ plugin: 'adyusuf', key: 'settings' } as const, null)
-const settingsError = atom({ plugin: 'adyusuf', key: 'settingsError' } as const, '')
-const settingsProblems = atom({ plugin: 'adyusuf', key: 'settingsProblems' } as const, [])
-const promotion = atom({ plugin: 'adyusuf', key: 'promotion' } as const, null)
-const folded = atom({ plugin: 'adyusuf', key: 'folded' } as const, FOLDED_AT_START)
+// The pane's values live in `$.state`, declared in ../types; a value never written reads as undefined, so each read names its initial one.
+const settings = { plugin: 'adyusuf', key: 'settings' } as const
+const settingsError = { plugin: 'adyusuf', key: 'settingsError' } as const
+const settingsProblems = { plugin: 'adyusuf', key: 'settingsProblems' } as const
+const promotion = { plugin: 'adyusuf', key: 'promotion' } as const
+const folded = { plugin: 'adyusuf', key: 'folded' } as const
 
 const PLUGIN = 'adyusuf'
 const MARKETPLACE = 'adyusuf-marketplace'
@@ -50,7 +50,7 @@ async function refreshSettings($: EngineInterface) {
   const run: Run = argv => $.process.run(argv)
   const script = await scriptPath(run)
   if (!script) {
-    await update($, settingsError, () => 'The adyusuf plugin with /adyusuf:config is not installed yet: /plugin update adyusuf')
+    await $.state.set(settingsError, 'The adyusuf plugin with /adyusuf:config is not installed yet: /plugin update adyusuf')
     return
   }
   const id = await sessionId($)
@@ -59,7 +59,7 @@ async function refreshSettings($: EngineInterface) {
   const agents = await run(['python3', script, 'agents', '--json', '--all', ...scope])
   const schema = await run(['python3', script, 'schema'])
   if (shown.exitCode !== 0 || agents.exitCode !== 0 || schema.exitCode !== 0) {
-    await update($, settingsError, () => (shown.stderr || agents.stderr || schema.stderr || 'adyusuf_config.py failed').slice(0, 300))
+    await $.state.set(settingsError, (shown.stderr || agents.stderr || schema.stderr || 'adyusuf_config.py failed').slice(0, 300))
     return
   }
   try {
@@ -70,11 +70,11 @@ async function refreshSettings($: EngineInterface) {
       sources: data.sources,
       agents: JSON.parse(agents.stdout) as AgentRow[],
     }
-    await update($, settings, () => next)
-    await update($, settingsError, () => '')
-    await update($, settingsProblems, () => data.problems ?? [])
+    await $.state.set(settings, next)
+    await $.state.set(settingsError, '')
+    await $.state.set(settingsProblems, data.problems ?? [])
   } catch (error) {
-    await update($, settingsError, () => `Unreadable answer from adyusuf_config.py: ${String(error).slice(0, 200)}`)
+    await $.state.set(settingsError, `Unreadable answer from adyusuf_config.py: ${String(error).slice(0, 200)}`)
   }
 }
 
@@ -82,7 +82,7 @@ async function refreshPromotion($: EngineInterface) {
   const git = (args: string[]) => $.process.run(['git', ...args])
   const refs = await git(['for-each-ref', '--format=%(refname:short)', 'refs/heads', 'refs/remotes/origin'])
   if (refs.exitCode !== 0) {
-    await update($, promotion, () => ({ stages: [], error: 'Not inside a git repository' }) as Promotion)
+    await $.state.set(promotion, ({ stages: [], error: 'Not inside a git repository' }) as Promotion)
     return
   }
   const stages: Stage[] = []
@@ -98,7 +98,7 @@ async function refreshPromotion($: EngineInterface) {
       waived: log && log.exitCode === 0 ? waivedLines(log.stdout) : [],
     })
   }
-  await update($, promotion, () => ({ stages }) as Promotion)
+  await $.state.set(promotion, ({ stages }) as Promotion)
 }
 
 
@@ -117,7 +117,7 @@ async function setSetting($: EngineInterface, key: string, value: string) {
   const done = await run(['python3', script, 'set', '--session', id, key, value])
   if (done.exitCode !== 0) await $.ui.toast(done.stderr.trim().slice(0, 200) || 'The change was refused')
   await refreshSettings($)
-  const now = await read($, settings)
+  const { value: now = null } = await $.state.get(settings)
   if (done.exitCode === 0 && now) {
     const note = overrideNote(key, value, now.values[key], now.sources[key])
     if (note) await $.ui.toast(note)
@@ -129,8 +129,14 @@ async function safely($: EngineInterface, work: Promise<void>) {
   try {
     await work
   } catch (error) {
-    await update($, settingsError, () => `Could not read: ${String(error).slice(0, 200)}`)
+    await $.state.set(settingsError, `Could not read: ${String(error).slice(0, 200)}`)
   }
+}
+
+/** Folds or unfolds one box of the pane; called from a press, never while drawing. */
+async function flip($: EngineInterface, id: SectionId) {
+  const { value: now = FOLDED_AT_START } = await $.state.get(folded)
+  await $.state.set(folded, { ...now, [id]: !now[id] })
 }
 
 // Clicks run one after another: two settings changed quickly must not race each other's read-modify-write.
@@ -139,48 +145,53 @@ function click($: EngineInterface, key: string, value: string) {
   queue = queue.then(() => setSetting($, key, value)).catch(() => undefined)
 }
 
+const onStart: Hook<'session.start'> = async ($, e, next) => {
+  await $.command.register({ name: 'adyusuf:panels', description: 'Open the adyusuf settings, agents and promotion boxes' })
+  void $.ui.open({ id: BOXES, title: TITLE })
+  await safely($, refreshSettings($))
+  await safely($, refreshPromotion($))
+  return next(e)
+}
+
+const onPanels: Hook<'command.run'> = async $ => {
+  await $.ui.open({ id: BOXES, title: TITLE })
+  await safely($, refreshSettings($))
+  await safely($, refreshPromotion($))
+  return { text: 'adyusuf boxes opened.' }
+}
+
+// The boxes follow the work: a turn may have merged, pushed or changed a setting through /adyusuf:config.
+const onTurnComplete: Hook<'turn.complete'> = async ($, e, next) => {
+  await safely($, refreshSettings($))
+  await safely($, refreshPromotion($))
+  return next(e)
+}
+
+const onRender: Hook<'ui.render'> = async ($, e) => {
+  const ui = { ...$.ui.resolve(e), h }
+  const { Box } = ui
+  const { value: data = null } = await $.state.get(settings)
+  const { value: problem = '' } = await $.state.get(settingsError)
+  const { value: problems = [] } = await $.state.get(settingsProblems)
+  const { value: stages = null } = await $.state.get(promotion)
+  const { value: fold = FOLDED_AT_START } = await $.state.get(folded)
+  const press = (key: string, value: string) => click($, key, value)
+  const toggle = (id: SectionId) => () => void flip($, id)
+  return (
+    <Box flexDirection="column">
+      {section(ui, 'settings', 'Settings', settingsSummary(data), fold.settings === true, toggle('settings'),
+        settingsBody(ui, data, problem, problems, press))}
+      {section(ui, 'agents', 'Agents', agentsSummary(data), fold.agents === true, toggle('agents'),
+        agentsBody(ui, data, press))}
+      {section(ui, 'promotion', 'Promotion', promotionSummary(stages), fold.promotion === true, toggle('promotion'),
+        promotionBody(ui, stages))}
+    </Box>
+  )
+}
+
 export const register: Register = on => {
-  on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'adyusuf:panels', description: 'Open the adyusuf settings, agents and promotion boxes' })
-    void $.ui.open({ id: BOXES, title: TITLE })
-    await safely($, refreshSettings($))
-    await safely($, refreshPromotion($))
-    return next(e)
-  })
-
-  on('command.run', { command: 'adyusuf:panels' }, async $ => {
-    await $.ui.open({ id: BOXES, title: TITLE })
-    await safely($, refreshSettings($))
-    await safely($, refreshPromotion($))
-    return { text: 'adyusuf boxes opened.' }
-  })
-
-  // The boxes follow the work: a turn may have merged, pushed or changed a setting through /adyusuf:config.
-  on('turn.complete', async ($, e, next) => {
-    await safely($, refreshSettings($))
-    await safely($, refreshPromotion($))
-    return next(e)
-  })
-
-  on('ui.render', { component: 'Pane', requestId: BOXES }, async ($, e) => {
-    const ui = { ...$.ui.resolve(e), h }
-    const { Box } = ui
-    const data = await read($, settings)
-    const problem = await read($, settingsError)
-    const problems = await read($, settingsProblems)
-    const stages = await read($, promotion)
-    const fold = await read($, folded)
-    const press = (key: string, value: string) => click($, key, value)
-    const toggle = (id: SectionId) => () => void update($, folded, now => ({ ...now, [id]: !now[id] }))
-    return (
-      <Box flexDirection="column">
-        {section(ui, 'settings', 'Settings', settingsSummary(data), fold.settings === true, toggle('settings'),
-          settingsBody(ui, data, problem, problems, press))}
-        {section(ui, 'agents', 'Agents', agentsSummary(data), fold.agents === true, toggle('agents'),
-          agentsBody(ui, data, press))}
-        {section(ui, 'promotion', 'Promotion', promotionSummary(stages), fold.promotion === true, toggle('promotion'),
-          promotionBody(ui, stages))}
-      </Box>
-    )
-  })
+  on('session.start', onStart)
+  on('command.run', { command: 'adyusuf:panels' }, onPanels)
+  on('turn.complete', onTurnComplete)
+  on('ui.render', { component: 'Pane', requestId: BOXES }, onRender)
 }
