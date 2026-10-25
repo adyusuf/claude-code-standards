@@ -1861,3 +1861,18 @@ nothing in this repository's copy was changed for it.** The project below worked
   it found the desktop app's copy and completed.
 - **Tests:** `test_plugin_setup_claude.py` pins the Store, Store-virtualised and 3P layouts, the launcher-on-PATH case
   and a candidate that fails the probe; the fakes in the other files answer the probe with yes.
+
+
+## The mod spells every engine call `$.noun.method(...)` and every registration `on("event", hook)` (25/10/2026, plugin directory review)
+
+- **Why:** the claude.ai plugin directory asked, in its review of the mod: "Write each call on the capability object as
+  `$.noun.method(...)`, each registration as `on("event", hook)` on a line of its own, and pass `$` or the `on` function only as
+  one whole argument to a function declared at the top of the same file." `claude plugin validate` enforces the same spelling
+  for `$.state`: its reference must carry `plugin` and `key` as literals, in the call or in a const of the file.
+- **Decision (`hooks/register.tsx`):** the `atom`/`read`/`update` helpers (they took `$` as an argument into the engine's own
+  module) are gone; the pane reads and writes its five values with `$.state.get(ref)` and `$.state.set(ref, value)`, each ref a
+  `{ plugin, key } as const` of the file, a missing value defaulted at the read. Each hook is a named function above
+  `register`, and `register` is four one-line `on(...)` calls. `$` is passed whole, and only to functions declared in the file
+  (`safely`, `click`, `flip`, `setSetting`, `refreshSettings`, `refreshPromotion`, `sessionId`).
+- **Applies to:** every hooks module in this plugin, now and later. `hooks/boxes.ts` and `hooks/choose.ts` never receive `$`.
+- **Checked by:** `claude plugin validate .` (state reads and writes listed, no error) and `claude plugin test .` (32 pass).
