@@ -1876,3 +1876,22 @@ nothing in this repository's copy was changed for it.** The project below worked
   (`safely`, `click`, `flip`, `setSetting`, `refreshSettings`, `refreshPromotion`, `sessionId`).
 - **Applies to:** every hooks module in this plugin, now and later. `hooks/boxes.ts` and `hooks/choose.ts` never receive `$`.
 - **Checked by:** `claude plugin validate .` (state reads and writes listed, no error) and `claude plugin test .` (32 pass).
+
+
+## The Settings box is one line per setting in two blocks, and every setting change warns in the chat with its rules (28/10/2026, user decision)
+
+- **Why:** the long radio lists made the Settings box tall, and a setting changed in it (or through `/adyusuf:config`) left no trace
+  in the conversation, so nobody saw which rules the change had just re-pointed.
+- **Decision (`hooks/boxes.ts`):** Settings holds two blocks, "Session settings" (this session's layer) and "Claude settings" (the
+  saved defaults every new session starts from, the user's file). Each setting is one line: the label, then its pressable parts
+  `(•)A ( )B` or `[x]dev [ ]test`. Main model shows `keep` as `opus`. A setting no row names is still drawn, so a newer plugin
+  never hides one. Agents is one line per role, `[x]role (•)<resolved model> ( )opus ( )sonnet ( )haiku ( )fable`. A press in the
+  session block writes the session layer; a press in the Claude block writes the user's file.
+- **Decision (`hooks/notices.ts`, `hooks/register.tsx`):** every read of the configuration is compared with the one before; each
+  changed value becomes one `$.ui.log` line in the chat: scope, setting, old and new value, and the numbered rules the setting
+  steers (`#34` for merge/push, `#25` and `#29` for gates, `#27`/`#28` for mode and agents, and so on). A setting no rule reads
+  says so. A saved default that also moved the session's value is said once.
+- **Decision (operations, same day):** a shell command (Bash or PowerShell tool) that carries a `git merge`, a `git push` or a
+  gate/scan script run (`gate-core`, `merge-gate`, `codeql-scan`, `coverage`, `gitleaks`) logs a warning in the chat before it
+  runs: the operation, the stages it names (dev, test, prod), a forced push, and the rules in play (merge `#26 #34`, push
+  `#34 #26`, gate `#25 #19 #29 #33`). `hooks/notices.ts` `operationWarnings`, hooked in `hooks/register.tsx` (`onShell`).
