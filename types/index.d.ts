@@ -14,6 +14,8 @@ export type Settings = {
   schema: Spec[]
   values: Record<string, boolean | string>
   sources: Record<string, string>
+  /** The saved defaults a new session starts from (the "Claude settings" block): the same read, without a session layer. */
+  saved?: { values: Record<string, boolean | string>; sources: Record<string, string> }
   agents: AgentRow[]
 }
 export type Stage = { branch: string; origin: string; unpushed: number; waived: string[] }

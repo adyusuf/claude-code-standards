@@ -1,0 +1,79 @@
+// What the chat is told when a setting changes, kept apart from the engine so it can be tested without one: no import from
+// 'claude-code'. Every change becomes one warning line: the setting, its old and new value, and the numbered rules of the
+// global rule set that the setting steers (user decision 28/10/2026).
+
+type Values = Record<string, boolean | string>
+type Layer = { values: Values }
+type Spec = { key: string; label: string }
+/** What the pane has read: the session's effective settings, the saved defaults (once read) and the schema that labels them. */
+export type View = Layer & { schema: Spec[]; saved?: Layer }
+export type Change = { key: string; from: unknown; to: unknown }
+
+/** The rules a setting can steer, each in a few words (the full text is in CLAUDE.md). */
+export const RULES: Record<string, string> = {
+  '#8': 'tests get updated',
+  '#19': 'security scanning is automatic',
+  '#25': 'the shared gate runs at every promotion',
+  '#26': 'work off dev, one commit per task, merged through a gate',
+  '#27': 'the operating mode is selectable and the selection is the approval',
+  '#28': 'the auditor checks, sends work back and gets it fixed',
+  '#29': 'line coverage of at least 80% in every codebase, never waived',
+  '#31': 'the run cycle: full run, fix, rerun what was fixed',
+  '#32': 'all the code first, then the unit tests, then run them',
+  '#33': 'e2e is optional and never blocks a promotion',
+  '#34': 'merges, pushes and gates follow the configuration, not questions',
+}
+
+const RULES_OF: Array<[RegExp, string[]]> = [
+  [/^mode$/, ['#27', '#28']],
+  [/^mode_model$/, ['#27']],
+  [/^agents\./, ['#27', '#28']],
+  [/^write\.unit_tests$/, ['#8', '#32', '#29']],
+  [/^write\.e2e$/, ['#33', '#31']],
+  [/^merge\./, ['#34', '#26']],
+  [/^push\./, ['#34', '#26']],
+  [/^gates_before_push\./, ['#34', '#25', '#29']],
+  [/^ci_after_push\./, ['#34', '#19']],
+  [/^e2e_before_deploy\./, ['#33', '#34', '#31']],
+]
+
+/** The rule numbers a setting steers (empty when no rule reads it, as with the pod settings). */
+export function rulesFor(key: string): string[] {
+  const found = RULES_OF.find(([pattern]) => pattern.test(key))
+  return found ? found[1] : []
+}
+
+/** The keys whose value differs between two reads; nothing when there is no earlier read to compare with. */
+export function changesBetween(before: Layer | null | undefined, after: Layer): Change[] {
+  if (!before) return []
+  return Object.keys(after.values)
+    .filter(key => before.values[key] !== after.values[key])
+    .map(key => ({ key, from: before.values[key], to: after.values[key] }))
+}
+
+const shown = (value: unknown) => (value === true ? 'yes' : value === false ? 'no' : value === undefined ? 'unset' : String(value))
+
+/** One warning line for one change; `scope` says whether it is this session's layer or the saved defaults. */
+export function warning(change: Change, scope: string, schema: Spec[]): string {
+  const label = schema.find(spec => spec.key === change.key)?.label ?? change.key
+  const rules = rulesFor(change.key)
+  const tail = rules.length === 0
+    ? 'No rule reads this setting.'
+    : `Rules in play: ${rules.map(rule => `${rule} ${RULES[rule] ?? ''}`.trim()).join('; ')}.`
+  return `⚠ adyusuf setting changed (${scope}): ${label} (${change.key}) ${shown(change.from)} → ${shown(change.to)}. ${tail}`
+}
+
+/**
+ * The warning lines for what changed between two reads. A saved default that also moved the session's effective value is
+ * said once, as the saved change, not again as a session change to the same value.
+ */
+export function warnings(before: View | null, after: View): string[] {
+  if (!before) return []
+  const saved = after.saved ? changesBetween(before.saved, after.saved) : []
+  const said = new Set(saved.map(change => `${change.key}=${shown(change.to)}`))
+  const session = changesBetween(before, after).filter(change => !said.has(`${change.key}=${shown(change.to)}`))
+  return [
+    ...session.map(change => warning(change, 'this session', after.schema)),
+    ...saved.map(change => warning(change, 'saved defaults', after.schema)),
+  ]
+}

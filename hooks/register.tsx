@@ -4,10 +4,11 @@ import type { AgentRow, Promotion, Settings, Stage } from '../types'
 import {
   agentsBody, agentsSummary, FOLDED_AT_START, promotionBody, promotionSummary, section, settingsBody, settingsSummary,
 } from './boxes'
-import type { SectionId } from './boxes'
+import type { Scope, SectionId } from './boxes'
 import {
   countOf, DISCOVER_PY, IS_FILE_PY, overrideNote, parseDiscovery, plannedStages, refSet, scriptDir, waivedLines, waivedRange,
 } from './choose'
+import { warnings } from './notices'
 
 /** One pane, three bordered boxes in it (Settings, Agents, Promotion), each folded by its header. */
 const BOXES = 'adyusuf-boxes'
@@ -58,19 +59,26 @@ async function refreshSettings($: EngineInterface) {
   const shown = await run(['python3', script, 'show', '--json', ...scope])
   const agents = await run(['python3', script, 'agents', '--json', '--all', ...scope])
   const schema = await run(['python3', script, 'schema'])
-  if (shown.exitCode !== 0 || agents.exitCode !== 0 || schema.exitCode !== 0) {
-    await $.state.set(settingsError, (shown.stderr || agents.stderr || schema.stderr || 'adyusuf_config.py failed').slice(0, 300))
+  // Without --session: the saved defaults (user and project files), what a new session starts from.
+  const savedRead = await run(['python3', script, 'show', '--json'])
+  if (shown.exitCode !== 0 || agents.exitCode !== 0 || schema.exitCode !== 0 || savedRead.exitCode !== 0) {
+    await $.state.set(settingsError, (shown.stderr || agents.stderr || schema.stderr || savedRead.stderr || 'adyusuf_config.py failed').slice(0, 300))
     return
   }
   try {
     const data = JSON.parse(shown.stdout) as { values: Settings['values']; sources: Settings['sources']; problems?: string[] }
+    const saved = JSON.parse(savedRead.stdout) as { values: Settings['values']; sources: Settings['sources'] }
     const next: Settings = {
       schema: JSON.parse(schema.stdout),
       values: data.values,
       sources: data.sources,
+      saved: { values: saved.values, sources: saved.sources },
       agents: JSON.parse(agents.stdout) as AgentRow[],
     }
+    // Every change since the last read (a press in the boxes, /adyusuf:config, a hand edit) is a warning in the chat, with its rules.
+    const { value: before = null } = await $.state.get(settings)
     await $.state.set(settings, next)
+    for (const line of warnings(before, next)) $.ui.log(line)
     await $.state.set(settingsError, '')
     await $.state.set(settingsProblems, data.problems ?? [])
   } catch (error) {
@@ -102,24 +110,26 @@ async function refreshPromotion($: EngineInterface) {
 }
 
 
-async function setSetting($: EngineInterface, key: string, value: string) {
+/** `session` writes this session's layer; `saved` writes the user's file, the defaults every new session starts from. */
+async function setSetting($: EngineInterface, key: string, value: string, scope: Scope) {
   const run: Run = argv => $.process.run(argv)
   const script = await scriptPath(run)
   if (!script) {
     await $.ui.toast('The adyusuf plugin is not installed yet: /plugin install adyusuf@adyusuf-marketplace')
     return
   }
-  const id = await sessionId($)
-  if (!id) {
+  const id = scope === 'session' ? await sessionId($) : ''
+  if (scope === 'session' && !id) {
     await $.ui.toast('Could not tell which session this is, so nothing was changed (the saved defaults stay as they are)')
     return
   }
-  const done = await run(['python3', script, 'set', '--session', id, key, value])
+  const done = await run(['python3', script, 'set', ...(id ? ['--session', id] : []), key, value])
   if (done.exitCode !== 0) await $.ui.toast(done.stderr.trim().slice(0, 200) || 'The change was refused')
   await refreshSettings($)
   const { value: now = null } = await $.state.get(settings)
-  if (done.exitCode === 0 && now) {
-    const note = overrideNote(key, value, now.values[key], now.sources[key])
+  const layer = scope === 'saved' ? now?.saved : now
+  if (done.exitCode === 0 && layer) {
+    const note = overrideNote(key, value, layer.values[key], layer.sources[key])
     if (note) await $.ui.toast(note)
   }
 }
@@ -141,8 +151,8 @@ async function flip($: EngineInterface, id: SectionId) {
 
 // Clicks run one after another: two settings changed quickly must not race each other's read-modify-write.
 let queue: Promise<void> = Promise.resolve()
-function click($: EngineInterface, key: string, value: string) {
-  queue = queue.then(() => setSetting($, key, value)).catch(() => undefined)
+function click($: EngineInterface, key: string, value: string, scope: Scope) {
+  queue = queue.then(() => setSetting($, key, value, scope)).catch(() => undefined)
 }
 
 const onStart: Hook<'session.start'> = async ($, e, next) => {
@@ -175,7 +185,7 @@ const onRender: Hook<'ui.render'> = async ($, e) => {
   const { value: problems = [] } = await $.state.get(settingsProblems)
   const { value: stages = null } = await $.state.get(promotion)
   const { value: fold = FOLDED_AT_START } = await $.state.get(folded)
-  const press = (key: string, value: string) => click($, key, value)
+  const press = (key: string, value: string, scope: Scope = 'session') => click($, key, value, scope)
   const toggle = (id: SectionId) => () => void flip($, id)
   return (
     <Box flexDirection="column">
