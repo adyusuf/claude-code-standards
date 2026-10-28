@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """The adyusuf configuration: defaults instead of questions.
 
-    adyusuf_config.py show [--json]              every setting, its value and where the value comes from
+    adyusuf_config.py show [--json] [--user]     every setting, its value and where the value comes from (--user: only the
+                                                 shipped defaults and the user's own file, no project or session layer)
     adyusuf_config.py get <key>                  one effective value
     adyusuf_config.py set <key> <value> [--project|--session ID]   change one setting (default scope: the user's)
     adyusuf_config.py unset <key> [--project|--session ID]         fall back to the next layer
@@ -213,15 +214,15 @@ def read_layer(path):
         return {}, '%s: %s' % (path, error)
 
 
-def load(user_path=None, session=None):
+def load(user_path=None, session=None, project=True):
     """(effective {key: (value, source)}, problems [str]). `user_path` replaces the user's file (the installer's --home);
-    `session` adds that session's layer on top (an unusable id adds nothing)."""
+    `session` adds that session's layer on top (an unusable id adds nothing). `project=False` leaves the project's layer out."""
     problems = []
     defaults, problem = read_layer(DEFAULTS_FILE)
     if problem:
         problems.append(problem)
     effective = {spec['key']: (defaults.get(spec['key']), 'default') for spec in SCHEMA}
-    layers = [('user', user_path or user_file()), ('project', project_file())]
+    layers = [('user', user_path or user_file())] + ([('project', project_file())] if project else [])
     if sessions.valid(session):
         layers.append(('session', sessions.session_file(session)))
     for source, path in layers:
@@ -380,7 +381,8 @@ def payload_session():
 def main(argv):
     args = list(argv)
     scope_project = '--project' in args
-    args = [a for a in args if a != '--project']
+    scope_user = '--user' in args
+    args = [a for a in args if a not in ('--project', '--user')]
     session = None
     if '--session' in args:
         at = args.index('--session')
@@ -401,8 +403,10 @@ def main(argv):
             write_layer(*parts)
             if session:
                 sessions.prune()                  # a session file nobody has touched for two weeks goes
+        if scope_user and (command != 'show' or session is not None):
+            raise ConfigError('--user only applies to show, and not with --session')
         if command == 'show':
-            effective, problems = load(session=session)
+            effective, problems = load(session=session, project=not scope_user)
             if '--json' in args:
                 print(json.dumps({'values': {k: v[0] for k, v in effective.items()}, 'sources': {k: v[1] for k, v in effective.items()},
                                   'problems': problems}, indent=2))

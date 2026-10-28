@@ -108,6 +108,21 @@ class Layers(Tool):
         self.run_tool('unset', 'push.prod')
         self.assertTrue(self.values()['values']['push.prod'])
 
+    def test_show_user_leaves_out_the_project_and_session_layers(self):
+        self.run_tool('set', 'push.prod', 'no')
+        self.run_tool('set', 'push.test', 'no', '--project')
+        self.run_tool('set', 'mode', 'B', '--session', 'abc-1')
+        out, _, code = self.run_tool('show', '--json', '--user')
+        data = json.loads(out)
+        self.assertEqual(0, code)
+        self.assertEqual((False, 'user'), (data['values']['push.prod'], data['sources']['push.prod']))
+        self.assertEqual((True, 'default'), (data['values']['push.test'], data['sources']['push.test']))
+        self.assertEqual((EXPECTED['mode'], 'default'), (data['values']['mode'], data['sources']['mode']))
+
+    def test_user_only_applies_to_show_without_a_session(self):
+        for args in (('set', 'mode', 'B', '--user'), ('get', 'mode', '--user'), ('show', '--user', '--session', 'abc-1')):
+            self.assertEqual(2, self.run_tool(*args)[2], args)
+
     def test_a_set_writes_nested_json_and_keeps_the_other_keys(self):
         self.run_tool('set', 'gates_before_push.dev', 'yes')
         self.run_tool('set', 'mode', 'e')

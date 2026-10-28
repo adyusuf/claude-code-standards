@@ -14,7 +14,7 @@ export type Settings = {
   schema: Spec[]
   values: Record<string, boolean | string>
   sources: Record<string, string>
-  /** The saved defaults a new session starts from (the "Claude settings" block): the same read, without a session layer. */
+  /** The user-level defaults (the "Claude settings" block): shipped defaults plus the user's own file, no project or session layer. */
   saved?: { values: Record<string, boolean | string>; sources: Record<string, string> }
   agents: AgentRow[]
 }

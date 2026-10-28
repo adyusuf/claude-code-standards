@@ -59,8 +59,8 @@ async function refreshSettings($: EngineInterface) {
   const shown = await run(['python3', script, 'show', '--json', ...scope])
   const agents = await run(['python3', script, 'agents', '--json', '--all', ...scope])
   const schema = await run(['python3', script, 'schema'])
-  // Without --session: the saved defaults (user and project files), what a new session starts from.
-  const savedRead = await run(['python3', script, 'show', '--json'])
+  // The "Claude settings" block: the shipped defaults and the user's own file, with no project or session layer (user decision 28/10/2026).
+  const savedRead = await run(['python3', script, 'show', '--json', '--user'])
   if (shown.exitCode !== 0 || agents.exitCode !== 0 || schema.exitCode !== 0 || savedRead.exitCode !== 0) {
     await $.state.set(settingsError, (shown.stderr || agents.stderr || schema.stderr || savedRead.stderr || 'adyusuf_config.py failed').slice(0, 300))
     return
