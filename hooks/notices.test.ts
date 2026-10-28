@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { changesBetween, RULES, rulesFor, warning, warnings } from './notices'
+import { changesBetween, operationWarnings, RULES, rulesFor, warning, warnings } from './notices'
 import type { View } from './notices'
 
 const SCHEMA = [
@@ -72,4 +72,34 @@ test('before the saved defaults are read only the session is compared', () => {
   const lines = warnings(view({ mode: 'C' }), view({ mode: 'B' }))
   expect(lines.length).toBe(1)
   expect(lines[0].includes('(this session)')).toBe(true)
+})
+
+test('a git push names its stage, a forced one says so, and the rules in play follow', () => {
+  const lines = operationWarnings('git -C /repo push --force origin dev:prod')
+  expect(lines.length).toBe(1)
+  expect(lines[0]).toBe('⚠ adyusuf operation: git push (FORCED, prod). Rules in play: #34 merges, pushes and gates follow the configuration, not questions; #26 work off dev, one commit per task, merged through a gate. A force push is on the never-do list.')
+  expect(operationWarnings('git push origin test')[0].includes('(test)')).toBe(true)
+})
+
+test('a git merge is a merge, and merge-base or status are not operations', () => {
+  const lines = operationWarnings('git fetch && git merge --no-ff origin/dev')
+  expect(lines.length).toBe(1)
+  expect(lines[0].startsWith('⚠ adyusuf operation: git merge (dev). Rules in play: #26')).toBe(true)
+  expect(operationWarnings('git merge-base HEAD dev')).toEqual([])
+  expect(operationWarnings('git status; git log --oneline')).toEqual([])
+  expect(operationWarnings('git -c core.x=1 -C repo status')).toEqual([])
+  expect(operationWarnings('')).toEqual([])
+})
+
+test('a gate or scan script run names the gate rules, once however often it appears', () => {
+  const lines = operationWarnings('bash scripts/gate-core.sh dev && bash scripts/coverage.sh; gitleaks detect')
+  expect(lines.length).toBe(1)
+  expect(lines[0].startsWith('⚠ adyusuf operation: gate / scan run. Rules in play: #25')).toBe(true)
+  expect(lines[0].includes('#29')).toBe(true)
+  expect(operationWarnings('cat scripts/coverage.sh')).toEqual([])
+})
+
+test('a merge and a push in one command are two warnings, in the order they appear', () => {
+  const lines = operationWarnings('git merge dev | cat; git push -f origin prod')
+  expect(lines.map(line => line.slice(0, 40))).toEqual(['⚠ adyusuf operation: git merge (dev). R'.slice(0, 40), '⚠ adyusuf operation: git push (FORCED,'.slice(0, 40)])
 })

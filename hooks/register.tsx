@@ -8,7 +8,7 @@ import type { Scope, SectionId } from './boxes'
 import {
   countOf, DISCOVER_PY, IS_FILE_PY, overrideNote, parseDiscovery, plannedStages, refSet, scriptDir, waivedLines, waivedRange,
 } from './choose'
-import { warnings } from './notices'
+import { operationWarnings, warnings } from './notices'
 
 /** One pane, three bordered boxes in it (Settings, Agents, Promotion), each folded by its header. */
 const BOXES = 'adyusuf-boxes'
@@ -177,6 +177,13 @@ const onTurnComplete: Hook<'turn.complete'> = async ($, e, next) => {
   return next(e)
 }
 
+// A merge, a push or a gate run in a shell command is a warning in the chat before it runs, with the rules it falls under.
+const onShell: Hook<'tool.call'> = async ($, e, next) => {
+  const command = 'command' in e ? String(e.command) : ''
+  for (const line of operationWarnings(command)) $.ui.log(line)
+  return next(e)
+}
+
 const onRender: Hook<'ui.render'> = async ($, e) => {
   const ui = { ...$.ui.resolve(e), h }
   const { Box } = ui
@@ -203,5 +210,7 @@ export const register: Register = on => {
   on('session.start', onStart)
   on('command.run', { command: 'adyusuf:panels' }, onPanels)
   on('turn.complete', onTurnComplete)
+  on('tool.call', { tool: 'Bash' }, onShell)
+  on('tool.call', { tool: 'PowerShell' }, onShell)
   on('ui.render', { component: 'Pane', requestId: BOXES }, onRender)
 }

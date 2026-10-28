@@ -1891,5 +1891,7 @@ nothing in this repository's copy was changed for it.** The project below worked
   changed value becomes one `$.ui.log` line in the chat: scope, setting, old and new value, and the numbered rules the setting
   steers (`#34` for merge/push, `#25` and `#29` for gates, `#27`/`#28` for mode and agents, and so on). A setting no rule reads
   says so. A saved default that also moved the session's value is said once.
-- **Not done (asked about, not decided):** warning for the *operations* themselves (a `git merge`, a `git push`, a gate run) with
-  the rules they use; today only setting changes warn.
+- **Decision (operations, same day):** a shell command (Bash or PowerShell tool) that carries a `git merge`, a `git push` or a
+  gate/scan script run (`gate-core`, `merge-gate`, `codeql-scan`, `coverage`, `gitleaks`) logs a warning in the chat before it
+  runs: the operation, the stages it names (dev, test, prod), a forced push, and the rules in play (merge `#26 #34`, push
+  `#34 #26`, gate `#25 #19 #29 #33`). `hooks/notices.ts` `operationWarnings`, hooked in `hooks/register.tsx` (`onShell`).

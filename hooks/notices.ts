@@ -77,3 +77,45 @@ export function warnings(before: View | null, after: View): string[] {
     ...saved.map(change => warning(change, 'saved defaults', after.schema)),
   ]
 }
+
+/** The rules of the real operations a shell command can carry (user decision 28/10/2026): a merge, a push, a gate run. */
+const OPERATION_RULES: Record<string, string[]> = { merge: ['#26', '#34'], push: ['#34', '#26'], gate: ['#25', '#19', '#29', '#33'] }
+const GATE_SCRIPT = /(gate-core|merge-gate|codeql-scan|coverage|gitleaks)/
+const STAGES = ['dev', 'test', 'prod']
+
+/** The git subcommand of one command segment ('' when it is not a git call), skipping `-C <dir>` / `-c <k=v>` and other global flags. */
+function gitSubcommand(tokens: string[]): string {
+  if (tokens[0] !== 'git') return ''
+  for (let at = 1; at < tokens.length; at += 1) {
+    if (tokens[at] === '-C' || tokens[at] === '-c') at += 1
+    else if (!tokens[at].startsWith('-')) return tokens[at]
+  }
+  return ''
+}
+
+/**
+ * One warning line per real operation in a shell command - `git merge`, `git push`, a gate or scan script - naming the stages
+ * it touches, a forced push, and the rules in play. A command with none of them gives no line.
+ */
+export function operationWarnings(command: string): string[] {
+  const found = new Map<string, Set<string>>()
+  for (const segment of command.split(/&&|\|\||[;|\n]/)) {
+    const tokens = segment.trim().split(/\s+/).filter(token => token !== '')
+    const sub = gitSubcommand(tokens)
+    const name = sub === 'merge' || sub === 'push' ? sub : GATE_SCRIPT.test(segment) && /\.sh\b|gitleaks/.test(segment) ? 'gate' : ''
+    if (name === '') continue
+    const details = found.get(name) ?? new Set<string>()
+    for (const token of tokens) {
+      if (name !== 'gate' && /^(--force(-with-lease)?(=.*)?|-f)$/.test(token)) details.add('FORCED')
+      for (const part of token.split(/[:/]/)) if (name !== 'gate' && STAGES.includes(part)) details.add(part)
+    }
+    found.set(name, details)
+  }
+  return [...found.entries()].map(([name, details]) => {
+    const what = name === 'gate' ? 'gate / scan run' : `git ${name}`
+    const where = details.size > 0 ? ` (${[...details].join(', ')})` : ''
+    const rules = OPERATION_RULES[name].map(rule => `${rule} ${RULES[rule] ?? ''}`.trim()).join('; ')
+    const never = details.has('FORCED') ? ' A force push is on the never-do list.' : ''
+    return `⚠ adyusuf operation: ${what}${where}. Rules in play: ${rules}.${never}`
+  })
+}
