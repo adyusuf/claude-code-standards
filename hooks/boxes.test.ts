@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { agentsBody, agentsSummary, FOLDED_AT_START, promotionBody, promotionSummary, radio, SECTIONS, section, settingsBody, settingsSummary } from './boxes'
+import { agentsBody, agentsSummary, FOLDED_AT_START, promotionBody, promotionSummary, SECTIONS, section, settingsBody, settingsSummary } from './boxes'
 
 // A recording factory: an element is { type, props, children }, so the tests read what the boxes would draw.
 type Node = { type: unknown; props: Record<string, any>; children: unknown[] }
@@ -24,6 +24,7 @@ function words(node: unknown): string {
 
 const SCHEMA = [
   { key: 'mode', type: 'enum' as const, label: 'Working mode', group: 'Session', options: ['A', 'B', 'C'] },
+  { key: 'mode_model', type: 'enum' as const, label: 'Model that replaces Opus in the agents', group: 'Session', options: ['keep', 'sonnet'] },
   { key: 'push.prod', type: 'bool' as const, label: 'Push prod', group: 'Push' },
   { key: 'push.test', type: 'bool' as const, label: 'Push test', group: 'Push' },
   { key: 'agents.qa.enabled', type: 'enum' as const, label: 'qa: enabled', group: 'Agents', options: ['auto', 'on', 'off'] },
@@ -36,6 +37,7 @@ function data(over: Record<string, unknown> = {}) {
     schema: SCHEMA,
     values: { mode: 'B', mode_model: 'sonnet', 'push.prod': true, 'push.test': false },
     sources: { mode: 'user', 'push.prod': 'default', 'push.test': 'session' },
+    saved: { values: { mode: 'C', mode_model: 'keep', 'push.prod': false, 'push.test': false }, sources: {} },
     agents: [agent('analyst', { active: true, in_mode: true }), agent('qa'), agent('security', { active: true })],
     ...over,
   }
@@ -56,8 +58,8 @@ test('an unfolded section shows its body under a header that names it and says w
 })
 
 test('a folded section keeps its header and its summary and hides the body', () => {
-  const box = section(ui, 'agents', 'Agents', 'mode B: 2 of 14 active', true, () => undefined, 'BODY') as Node
-  expect(words(all(box, 'Button')[0])).toBe('▸ Agents  mode B: 2 of 14 active')
+  const box = section(ui, 'agents', 'Agents', 'mode B', true, () => undefined, 'BODY') as Node
+  expect(words(all(box, 'Button')[0])).toBe('▸ Agents  mode B')
   expect(flat(box.children).includes('BODY')).toBe(false)
 })
 
@@ -72,9 +74,9 @@ test('a header without a summary draws no empty summary text, and pressing it fo
 test('the summaries say what a folded box holds', () => {
   expect(settingsSummary(null)).toBe('')
   expect(settingsSummary(data())).toBe('1 changed in this session')
-  expect(settingsSummary(data({ sources: { mode: 'user' } }))).toBe('this session only')
+  expect(settingsSummary(data({ sources: { mode: 'user' } }))).toBe('')
   expect(agentsSummary(null)).toBe('')
-  expect(agentsSummary(data())).toBe('mode B: 2 of 3 active')
+  expect(agentsSummary(data())).toBe('mode B')
   expect(agentsSummary(data({ values: { mode: 'A' } }))).toBe('mode A: no agents')
   expect(promotionSummary(null)).toBe('')
   expect(promotionSummary({ stages: [], error: 'Not inside a git repository' })).toBe('')
@@ -86,62 +88,86 @@ test('Settings waits, and says why when the script could not be read', () => {
   expect(words(settingsBody(ui, null, 'script missing', [], () => undefined))).toBe('script missing')
 })
 
-test('Settings groups the settings in schema order, leaves the agents out and marks where a value comes from', () => {
-  const body = settingsBody(ui, data(), '', ['! a layer is unreadable'.slice(2)], () => undefined)
+test('Settings draws the session block and the Claude block, one line per row, the second from the saved defaults', () => {
+  const body = settingsBody(ui, data(), '', ['a layer is unreadable'], () => undefined)
   const heads = all(body, 'Text').filter(node => node.props.bold).map(words)
-  expect(heads).toEqual(['Session', 'Push'])
-  const buttons = all(body, 'Button').map(words)
-  expect(buttons).toEqual(['( ) A', '(•) B', '( ) C', '[x] Push prod', '[ ] Push test (session)'])
-  expect(words(all(body, 'Text').find(node => words(node) === 'Working mode (user):'))).toBe('Working mode (user):')
+  expect(heads).toEqual(['Session settings', 'Claude settings'])
+  const lines = all(body, 'Box').filter(node => node.props.flexDirection === 'row').map(node => flat(node.children).map(words).join(' '))
+  expect(lines).toEqual([
+    'Working mode ( )A (•)B ( )C', 'Main model (•)opus ( )sonnet', 'After merge push [ ]test [x]prod',
+    'Working mode ( )A ( )B (•)C', 'Main model (•)opus ( )sonnet', 'After merge push [ ]test [ ]prod',
+  ])
   expect(words(all(body, 'Text').find(node => node.props.color === 'yellow'))).toBe('! a layer is unreadable')
 })
 
-test('a problem is shown in red above the groups', () => {
+test('Main model shows keep as opus, because Opus agents then run on the model their file defines', () => {
+  const body = settingsBody(ui, data({ values: { mode: 'B', mode_model: 'sonnet' } }), '', [], () => undefined)
+  expect(all(body, 'Button').map(words).slice(3, 5)).toEqual(['( )opus', '(•)sonnet'])
+  expect(all(body, 'Button').find(node => String(node.props.key) === 'session/mode_model=keep')).toBeDefined()
+})
+
+test('the Claude block is left out until the saved defaults are read', () => {
+  const body = settingsBody(ui, data({ saved: undefined }), '', [], () => undefined)
+  expect(all(body, 'Text').filter(node => node.props.bold).map(words)).toEqual(['Session settings'])
+})
+
+test('a problem is shown in red above the blocks', () => {
   const body = settingsBody(ui, data(), 'could not read', [], () => undefined)
   expect(words(all(body, 'Text').find(node => node.props.color === 'red'))).toBe('could not read')
 })
 
-test('pressing a yes/no setting asks for the opposite, and pressing a radio option asks for that option', () => {
+test('a setting no row names is still drawn, so a newer plugin never hides one', () => {
+  const schema = [...SCHEMA, { key: 'future.flag', type: 'bool' as const, label: 'Future flag', group: 'Later' },
+    { key: 'future.kind', type: 'enum' as const, label: 'Future kind', group: 'Later', options: ['x', 'y'] }]
+  const values = { mode: 'B', mode_model: 'sonnet', 'future.flag': true, 'future.kind': 'y' }
+  const body = settingsBody(ui, data({ schema, values }), '', [], () => undefined)
+  const buttons = all(body, 'Button').map(words)
+  expect(buttons.includes('[x]Future flag')).toBe(true)
+  expect(buttons.includes('( )x') && buttons.includes('(•)y')).toBe(true)
+  expect(all(body, 'Text').map(words).includes('Future kind:')).toBe(true)
+})
+
+test('pressing a yes/no setting asks for the opposite and an option asks for that option, each on the block it was pressed in', () => {
   const calls: string[][] = []
-  const body = settingsBody(ui, data(), '', [], (key, value) => { calls.push([key, value]) })
-  const [, , modeC, prod, test_] = all(body, 'Button')
-  prod.props.onPress()
-  test_.props.onPress()
-  modeC.props.onPress()
-  expect(calls).toEqual([['push.prod', 'no'], ['push.test', 'yes'], ['mode', 'C']])
+  const body = settingsBody(ui, data(), '', [], (key, value, scope) => { calls.push([key, value, String(scope)]) })
+  const press = (key: string) => all(body, 'Button').find(node => node.props.key === key)!.props.onPress()
+  press('session/push.prod')
+  press('session/push.test')
+  press('session/mode=C')
+  press('saved/push.prod')
+  press('saved/mode=A')
+  expect(calls).toEqual([
+    ['push.prod', 'no', 'session'], ['push.test', 'yes', 'session'], ['mode', 'C', 'session'],
+    ['push.prod', 'yes', 'saved'], ['mode', 'A', 'saved'],
+  ])
   expect(all(body, 'Select').length).toBe(0)
 })
 
-test('a radio list marks the chosen option, keys every option by setting and value, and can lay them in a row', () => {
-  const opts = [{ value: 'a', label: 'one' }, { value: 'b', label: 'two' }]
-  const column = radio(ui, 'k', 'Pick:', opts, 'b', () => undefined) as Node
-  expect(all(column, 'Button').map(words)).toEqual(['( ) one', '(•) two'])
-  expect(all(column, 'Button').map(node => node.props.key)).toEqual(['k=a', 'k=b'])
-  expect(all(column, 'Box')[1].props.flexDirection).toBe('column')
-  const row = radio(ui, 'k', 'Pick:', opts, 'zzz', () => undefined, true) as Node
-  expect(all(row, 'Button').map(words)).toEqual(['( ) one', '( ) two'])
-  expect(all(row, 'Box')[1].props.flexDirection).toBe('row')
-  expect(all(row, 'Box')[1].props.flexWrap).toBe('wrap')
+test('every pressable part is keyed by block, setting and value, so the two blocks never collide', () => {
+  const keys = all(settingsBody(ui, data(), '', [], () => undefined), 'Button').map(node => String(node.props.key))
+  expect(new Set(keys).size).toBe(keys.length)
+  expect(keys.filter(key => key.startsWith('session/')).length).toBe(keys.filter(key => key.startsWith('saved/')).length)
 })
 
 test('Agents waits until the configuration is read', () => {
   expect(words(agentsBody(ui, null, () => undefined))).toBe('Reading the configuration…')
 })
 
-test('Agents lists each role with its state, a model choice only for the active ones', () => {
+test('Agents puts each role on one line with its state and, for the active ones, the model choice', () => {
   const body = agentsBody(ui, data(), () => undefined)
-  const toggles = all(body, 'Button').filter(node => String(node.props.key).startsWith('on-'))
-  expect(toggles.map(words)).toEqual(['[x] analyst', '[ ] qa', '[x] security (added)'])
+  const lines = all(body, 'Box').filter(node => node.props.flexDirection === 'row').map(node => flat(node.children).map(words).join(' '))
+  expect(lines).toEqual([
+    '[x]analyst (•)sonnet ( )opus ( )sonnet ( )haiku ( )fable',
+    '[ ]qa',
+    '[x]security (added) (•)sonnet ( )opus ( )sonnet ( )haiku ( )fable',
+  ])
   const models = all(body, 'Button').filter(node => String(node.props.key).includes('.model='))
   expect(models.map(node => node.props.key).filter(key => String(key).endsWith('=default'))).toEqual(['agents.analyst.model=default', 'agents.security.model=default'])
-  expect(words(models[0])).toBe('(•) default (sonnet)')
-  expect(words(all(body, 'Text')[0])).toBe('Opus agents run on sonnet unless one is set below')
 })
 
-test('an agent of the mode that is switched off says so, and keep means the defined model', () => {
+test('an agent of the mode that is switched off says so', () => {
   const body = agentsBody(ui, data({ values: { mode: 'B', mode_model: 'keep' }, agents: [agent('analyst', { in_mode: true })] }), () => undefined)
-  expect(words(all(body, 'Button').find(node => String(node.props.key).startsWith('on-')))).toBe('[ ] analyst (off)')
-  expect(words(all(body, 'Text')[0])).toBe('Opus agents run on their defined model unless one is set below')
+  expect(words(all(body, 'Button').find(node => String(node.props.key).startsWith('on-')))).toBe('[ ]analyst (off)')
 })
 
 test('pressing an agent writes what makes it the other way round, and mode A ignores the press', () => {
