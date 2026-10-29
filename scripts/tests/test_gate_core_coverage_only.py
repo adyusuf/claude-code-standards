@@ -51,6 +51,16 @@ class CoverageOnly(unittest.TestCase):
         self.assertIn('did NOT run', out)
         self.assertNotIn('GATE GREEN', out)
 
+    def test_a_passing_measurement_prints_the_figures_it_measured(self):
+        out, code = self.gate('COVERAGE_CMD="echo web 86.61% lines; echo backend 85.41% lines"\n', '--coverage-only')
+        self.assertEqual(0, code, out)
+        self.assertIn('web 86.61% lines', out)
+        self.assertIn('backend 85.41% lines', out)
+
+    def test_the_full_gate_prints_them_too(self):
+        out, _ = self.gate('COVERAGE_CMD="echo web 86.61% lines"\n')
+        self.assertIn('web 86.61% lines', out)
+
     def test_it_runs_no_other_step(self):
         out, _ = self.gate(self.measured(0) + 'SECRET_CMD="echo SECRET_RAN"\nSAST_CMD="echo SAST_RAN"\n',
                            '--coverage-only')
