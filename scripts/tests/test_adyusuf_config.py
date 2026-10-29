@@ -27,6 +27,7 @@ EXPECTED = {
     'push.dev': True, 'push.test': True, 'push.prod': True,
     'gates_before_push.dev': False, 'gates_before_push.test': True, 'gates_before_push.prod': True,
     'ci_after_push.dev': False, 'ci_after_push.test': True, 'ci_after_push.prod': True,
+    'ci.runner': 'hosted', 'deploy_after_push': 'test',
     'e2e_before_deploy.test': False, 'e2e_before_deploy.prod': False,
 }
 
@@ -236,6 +237,13 @@ class RetiredKeys(Tool):
         self.assertEqual('B', data['values']['mode'])
         self.assertNotIn('run_before_push.dev.e2e', data['values'])
         self.assertNotIn('run_before_push.dev.unit', data['values'])
+
+    def test_the_deploy_and_runner_settings_are_radio_choices_with_defaults(self):
+        # 29/10/2026: "After pushing update: (*) test ( ) prod" and where the shared SDLC workflow runs.
+        self.assertEqual(['test', 'prod'], cfg.SPECS['deploy_after_push']['options'])
+        self.assertEqual(['hosted', 'self-hosted'], cfg.SPECS['ci.runner']['options'])
+        self.assertEqual('enum', cfg.SPECS['deploy_after_push']['type'])
+        self.assertEqual('Deploy after push', cfg.SPECS['deploy_after_push']['group'])
 
     def test_ci_after_push_exists_for_every_target_and_e2e_before_deploy_for_test_and_prod(self):
         for target in ('dev', 'test', 'prod'):

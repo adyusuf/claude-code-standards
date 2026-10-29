@@ -1907,3 +1907,24 @@ nothing in this repository's copy was changed for it.** The project below worked
 
 **One gate for dev, test and prod (user decision 29/10/2026).** `gate-core.sh prod` used to run only its own extras (deploy check, e2e on request): no secret scan, CVE, SAST, backward-compatibility scan, CLAUDE.md or documents gate, and no coverage. Projects had already worked around it by running the prod gate with the test target. The shared step set now runs at every target; the deploy check and e2e stay opt-in extras at prod. Supersedes the coverage-only change of the same day. NOT done: moving the checks into one shared CI workflow and leaving only non-CI checks in the local gate (rules #19/#25 need a local run when CI is down - it is down for hosted runners while the account's payments fail); that is a separate decision.
 
+**One SDLC definition, steered by the panel (user decision 29/10/2026).** All CI is defined once, in
+`.github/workflows/sdlc.yml` of this repository (a reusable workflow); a project holds a ~15-line caller
+(`standards/templates/sdlc-caller.yml`, standards pinned by SHA) plus its `scripts/merge-gate.conf`. CI runs the same
+`gate-core.sh` step set as the local gate, taken from the pinned standards checkout (no twin needed in CI).
+- **Panel to CI.** CI cannot read the panel, so every merge writes the panel's SDLC settings into the project
+  (`scripts/sdlc_settings.py write` -> `.claude/sdlc-settings.json`, panel layers only: defaults < the user's file < the
+  session; a project's own `.claude/adyusuf.json` is ignored) and sets the repo variable `SDLC_RUNNER_LABELS` from
+  "CI runner" (`sdlc_settings.py vars`). `ci_after_push.<branch>` = no makes the workflow's `plan` job output ci=false and
+  no check runs; a missing settings file fails closed (the checks run). New panel settings start from the shipped defaults.
+- **New settings.** `deploy_after_push` (radio: test / prod, default test) and `ci.runner` (hosted / self-hosted, default hosted).
+- **Where each check lives.** In CI whenever it can run there: secret scan, dependency CVE, CodeQL SAST, backward
+  compatibility, coverage, the OWASP-relevant scans (the gate), DAST only where a project gives `dast-command`. Code review
+  stays in the LOCAL gate (the qa agent): in CI it needs a paid key as a repo secret (user chose local).
+- **Runners.** The workflow takes `runner-labels`; a project without runners of its own gets at least two on this
+  machine, public repos included (user choice) - so a fork's pull request is kept off them (`plan` is skipped unless the
+  PR's head repo is the repo itself) and the repo setting "approve all outside contributors' workflows" must be on.
+- **Not done yet:** installing the runners, adding the callers to the projects, running `sdlc_settings.py write/vars` as
+  part of every merge, the central copy of the user's settings that every session start reads, and the local gate reading
+  the same settings file. Verification of the workflow itself is blocked while hosted runners cannot start (the account's
+  payments failed) and until a runner exists.
+

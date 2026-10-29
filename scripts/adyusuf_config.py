@@ -71,6 +71,8 @@ AGENTS_DIR = os.path.join(ROOT, 'agents')
 
 
 POD_FORMATS = ('short', 'full')
+DEPLOY_ENVS = ('test', 'prod')                    # which environment a push is deployed to
+CI_RUNNERS = ('hosted', 'self-hosted')            # where the shared SDLC workflow runs (self-hosted: this Mac's runners)
 AGENT_STATES = ('auto', 'on', 'off')
 AGENT_MODELS = ('default', 'opus', 'sonnet', 'haiku', 'fable')
 
@@ -87,6 +89,8 @@ SCHEMA = (
     + [dict(_bool('push.' + t, 'Push ' + t), group='Push') for t in TARGETS]
     + [dict(_bool('gates_before_push.' + t, 'Run gates before pushing %s' % t), group='Gates before a push') for t in TARGETS]
     + [dict(_bool('ci_after_push.' + t, 'Run CI after pushing %s' % t), group='CI after push') for t in TARGETS]
+    + [dict(_enum('deploy_after_push', 'After pushing update, deploy to', DEPLOY_ENVS), group='Deploy after push'),
+       dict(_enum('ci.runner', 'CI runner', CI_RUNNERS), group='CI after push')]
     + [dict(_bool('e2e_before_deploy.' + after, 'Run e2e on %s before deploying %s' % (on, after)), group='E2E before deploy')
        for on, after in E2E_STAGES]
     + [dict(_enum('agents.%s.%s' % (role, field), '%s: %s' % (role, field), options), group='Agents')
