@@ -203,3 +203,10 @@ test('Promotion waits, shows an error, and lists each stage with its waived gate
     'test  origin bbb2222  2 not pushed', 'waived abc1234 gates (neden: configuration)',
   ])
 })
+
+test('"After pushing update:" is a radio line of test and prod, the chosen one marked', () => {
+  const schema = [...SCHEMA, { key: 'deploy_after_push', type: 'enum' as const, label: 'After pushing update, deploy to', group: 'Deploy after push', options: ['test', 'prod'] }]
+  const body = settingsBody(ui, data({ schema, values: { mode: 'B', mode_model: 'sonnet', deploy_after_push: 'prod' } }), '', [], () => undefined)
+  const lines = all(body, 'Box').filter(node => node.props.flexDirection === 'row').map(node => flat(node.children).map(words).join(' '))
+  expect(lines).toContain('After pushing update: ( )test (•)prod')
+})
