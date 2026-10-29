@@ -150,8 +150,8 @@ When writing a comment: **what** is wrong + **why** it matters + **a suggestion*
   5. **A red batch is never waved through**, and the gate's step set is never trimmed to fit a
      narrow re-run (#25).
 - **"Batch" does NOT chain the stages.** A batch reaching `dev` says nothing about `test`: the
-  `dev → test` promotion is a separate batch, a separate full run and gate, and the user's own
-  decision (#26.4). Never read "batch" as "merged to `dev` ⇒ also merged to `test`".
+  `dev → test` promotion is a separate batch, a separate full run and gate, decided by its own
+  `merge.test` setting (§8a, #26.4). Never read "batch" as "merged to `dev` ⇒ also merged to `test`".
 - `dev → test → prod`: a **promotion**, fast-forward/merge. Never a merge in the reverse direction.
 - **The `prod` gate runs on the ref being promoted** — normally a detached checkout of `origin/test`
   (the usual source), never on a `test`-into-`prod` merge candidate. It does **not** check the `test`
@@ -161,7 +161,9 @@ When writing a comment: **what** is wrong + **why** it matters + **a suggestion*
   merge candidate's new commit fails it by construction (measured 29/09/2026). The merge to `prod`
   follows the green run.
 - **E2E is optional and never run by a gate (user decision 03/10/2026, general rule; it replaces the 30/09/2026 "mandatory before `prod`" rule — there are not enough resources to run it).** The `test` and `prod` promotions WARN that e2e was not run and continue; `GATE_RUN_E2E=1` runs the suite and a red result then blocks like any step. The deployed-to-`test` check on `test → prod` is optional as well (04/10/2026, `GATE_CHECK_TEST_DEPLOY=1`).
-- **No** direct commit or PR to `test` and `prod` — only from the previous stage, with the user's approval.
+- **No** direct commit or PR to `test` and `prod` — only a promotion from the previous stage, made as the
+  configuration says (§8a: `merge.<t>`, `gates_before_push.<t>`, `push.<t>`; never asked). The deploy that follows
+  still needs the user's approval.
 - Before merging, `git fetch` and update if you are behind — a gate running against stale code gives false confidence.
 - A `--force` push happens only on your own feature branch and only with explicit approval.
 
