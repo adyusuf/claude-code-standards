@@ -89,10 +89,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          if ! command -v shellcheck >/dev/null; then sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck; fi
-          if ! command -v gitleaks >/dev/null; then
-            GL=8.30.0
-            curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GL}/gitleaks_${GL}_linux_x64.tar.gz" | sudo tar -xz -C /usr/local/bin gitleaks
+          if [ "$RUNNER_OS" = Linux ]; then
+            if ! command -v shellcheck >/dev/null; then sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck; fi
+            if ! command -v gitleaks >/dev/null; then
+              GL=8.30.0
+              curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GL}/gitleaks_${GL}_linux_x64.tar.gz" | sudo tar -xz -C /usr/local/bin gitleaks
+            fi
+          else
+            # A local runner (scripts/runner-setup.sh) uses the machine's own tools; nothing is installed there.
+            for tool in shellcheck gitleaks; do
+              command -v "$tool" >/dev/null || { echo "::error::$tool is not installed on this runner"; exit 1; }
+            done
           fi
       - name: Install the project's dependencies
         if: inputs.setup-command != ''

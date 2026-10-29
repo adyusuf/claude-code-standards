@@ -56,6 +56,14 @@ class Workflow(unittest.TestCase):
     def test_a_fork_pull_request_stays_off_the_runners(self):
         self.assertIn("github.event.pull_request.head.repo.full_name == github.repository", read(WORKFLOW))
 
+    def test_a_local_runner_never_installs_or_uses_sudo(self):
+        """Tools are installed only on Linux; any other runner (the Mac's own, scripts/runner-setup.sh) must already have them."""
+        text = read(WORKFLOW)
+        self.assertIn('"$RUNNER_OS" = Linux', text)
+        installs = text.split('"$RUNNER_OS" = Linux', 1)[1].split('else', 1)
+        self.assertIn('sudo', installs[0])
+        self.assertNotIn('sudo', installs[1].split('- name:', 1)[0])
+
     def test_code_review_is_not_a_ci_job(self):
         self.assertNotIn('ANTHROPIC_API_KEY', read(WORKFLOW))
 
