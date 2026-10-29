@@ -111,10 +111,18 @@ jobs:
           TARGET: ${{ needs.plan.outputs.target }}
           # On a push, compare the backward-compatibility scan with the commit before the push.
           COMPAT_BASE: ${{ github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000' && github.event.before || '' }}
+          # The review step and the e2e spec check read the merge base.
+          REVIEW_BASE: origin/${{ github.base_ref || github.ref_name }}
         run: |
           set -euo pipefail
-          # The same step set at every target (dev, test, prod): one core, taken from the pinned standards checkout.
-          bash .sdlc-standards/scripts/gate-core.sh "$TARGET"
+          # The same step set at every target (dev, test, prod). A project that adds steps of its own (#25: a project
+          # may add, never remove) keeps them in scripts/merge-gate.sh, which calls the core; CI runs that orchestrator
+          # so those steps are not lost. A project without one gets the core of the pinned standards checkout.
+          if [ -f scripts/merge-gate.sh ]; then
+            bash scripts/merge-gate.sh "$TARGET"
+          else
+            bash .sdlc-standards/scripts/gate-core.sh "$TARGET"
+          fi
 
   dast:
     needs: plan

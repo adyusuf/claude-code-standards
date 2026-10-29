@@ -64,6 +64,14 @@ class Workflow(unittest.TestCase):
         self.assertIn('sudo', installs[0])
         self.assertNotIn('sudo', installs[1].split('- name:', 1)[0])
 
+    def test_a_projects_own_gate_steps_are_not_lost_in_ci(self):
+        """The project's merge-gate.sh (core + the steps it added) is preferred; the pinned core is the fallback."""
+        text = read(WORKFLOW)
+        self.assertIn('if [ -f scripts/merge-gate.sh ]', text)
+        self.assertIn('bash scripts/merge-gate.sh "$TARGET"', text)
+        self.assertIn('bash .sdlc-standards/scripts/gate-core.sh "$TARGET"', text)
+        self.assertIn('REVIEW_BASE: origin/', text)
+
     def test_code_review_is_not_a_ci_job(self):
         self.assertNotIn('ANTHROPIC_API_KEY', read(WORKFLOW))
 

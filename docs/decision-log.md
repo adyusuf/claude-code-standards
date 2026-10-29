@@ -1924,6 +1924,7 @@ nothing in this repository's copy was changed for it.** The project below worked
   machine, public repos included (user choice) - so a fork's pull request is kept off them (`plan` is skipped unless the
   PR's head repo is the repo itself) and the repo setting "approve all outside contributors' workflows" must be on.
 - **Runner script (written, pilot first).** `scripts/runner-setup.sh install <owner/repo>` registers two launchd-service runners per repository (checksum-verified download, one-use token never printed, fork approval forced on a public repo or nothing is installed); `remove` moves the folders aside. The workflow's tool step installs nothing on a non-Linux runner: the machine's own gitleaks/shellcheck must exist. Pilot: one project, verified there before any other.
+- **Project steps in CI.** The Gate step runs the project's `scripts/merge-gate.sh` when it exists (core plus the steps the project added, #25), else the pinned standards core.
 - **Not done yet:** installing the runners in the other projects, adding the callers to the projects, running `sdlc_settings.py write/vars` as
   part of every merge, the central copy of the user's settings that every session start reads, and the local gate reading
   the same settings file. Verification of the workflow itself is blocked while hosted runners cannot start (the account's
