@@ -97,9 +97,17 @@ test('a gate or scan script run names the gate rules, once however often it appe
   expect(lines[0].startsWith('⚠ adyusuf operation: gate / scan run. Rules in play: #25')).toBe(true)
   expect(lines[0].includes('#29')).toBe(true)
   expect(operationWarnings('cat scripts/coverage.sh')).toEqual([])
+  expect(operationWarnings('grep -n x scripts/gate-core.sh; ls scripts/merge-gate.sh')).toEqual([])
+  expect(operationWarnings('GATE_RUN_E2E=1 bash -x scripts/merge-gate.sh test').length).toBe(1)
+  expect(operationWarnings('./scripts/gate-core.sh dev --list').length).toBe(1)
+  for (const wrapped of ['timeout 600 bash scripts/merge-gate.sh dev', 'env X=1 bash scripts/coverage.sh', 'nohup gitleaks detect', 'time bash scripts/gate-core.sh dev']) {
+    expect(operationWarnings(wrapped).length).toBe(1)
+  }
 })
 
 test('a merge and a push in one command are two warnings, in the order they appear', () => {
   const lines = operationWarnings('git merge dev | cat; git push -f origin prod')
-  expect(lines.map(line => line.slice(0, 40))).toEqual(['⚠ adyusuf operation: git merge (dev). R'.slice(0, 40), '⚠ adyusuf operation: git push (FORCED,'.slice(0, 40)])
+  expect(lines.length).toBe(2)
+  expect(lines[0].startsWith('⚠ adyusuf operation: git merge (dev). Rules in play: #26')).toBe(true)
+  expect(lines[1].startsWith('⚠ adyusuf operation: git push (FORCED, prod). Rules in play: #34')).toBe(true)
 })

@@ -56,7 +56,7 @@ directory, it usually is not — a ratcheted ceiling is enough there.
 
 | File | What it does |
 |---|---|
-| `pre-commit.sh` | The gate that runs BEFORE the commit: the CLAUDE.md size budget + gitleaks over the staged content. If either is red it **stops** the commit (`md-hook.sh` only warns; its exit code is always 0). Install: `bash scripts/pre-commit.sh --install`; deliberate bypass: `git commit --no-verify`. |
+| `pre-commit.sh` | The gate that runs BEFORE the commit: no commit directly on `dev`/`test`/`prod`/`main`/`master` (a merge in progress is allowed; override `ALLOW_PROTECTED_COMMIT=1`, #26), the CLAUDE.md size budget + gitleaks over the staged content. If any is red it **stops** the commit (`md-hook.sh` only warns; its exit code is always 0). Install: `bash scripts/pre-commit.sh --install`; deliberate bypass: `git commit --no-verify`. |
 | `step-stats.py` | Generates `docs/measurement-log.md`: the prefix distribution, the before/after comparison per configuration cut, per-role agent runs and cost, and **how many times each SDLC step ran**. Flags: `--write`, `--days N`. |
 | `step_stats_sanitiser.py`, `step_stats_transcripts.py`, `step_stats_cells.py` | `step-stats.py`'s parts, split off so no file passes 300 lines (#9): the sanitiser (`shape`, the runtime deny-set, the output scan), the transcript readers (prices, step patterns, per-transcript cost, agent roles) and the printed cells (`role_label`, `cut_delta`). `step-stats.py` loads them from beside itself and re-exports every name, so callers keep reading them from `step-stats.py`. Tests: `python3 -m unittest discover -s scripts/tests -p 'test_step_stats*.py'`. |
 | `doc-check.py` | Keeps the documentation from drifting: every relative link resolves, every backticked repo path exists, each index (`standards/`, `docs/`, `modes/`) lists every file beside it, the counts `README.md` states (rules, standards documents, templates, roles) equal what is on disk, and no `#NN` points past the last rule. ~0.1 s. Inside a git repository it reads only Markdown files git does not ignore (a plugin cache or vendored tree is not documentation). Runs as **step 3 of `pre-commit.sh`** when the script is present, except in the live `~/.claude` repository (see `pre-commit.sh` step notes). `python3 scripts/doc-check.py [root]`; tests: `python3 -m unittest scripts/tests/test_doc_check.py`. |
@@ -88,6 +88,12 @@ have the configuration checked out). The drift test in `md-hook.sh` covers it.
 
 `gate-core.sh <target> --list` prints the steps that WOULD run and the command
 each resolves to, and runs nothing — use it when rolling the gate into a project.
+It ends `LISTING ONLY`, never `GATE GREEN`: a listing is not a verdict. A step it can
+already see would be skipped or fail still ends INCOMPLETE / CLOSED, as the real run would.
+
+`gate-core.sh <target> --coverage-only` runs the coverage step alone. It is what runs when
+`gates_before_push.<t>` is no: the gate is off, coverage is not (#29, standards/13 §8a). It ends
+`COVERAGE GREEN`, never `GATE GREEN`, and `COVERAGE_CMD` must measure on its own.
 
 | Target | What runs |
 |---|---|
@@ -117,7 +123,7 @@ Not everything here is meant to be copied, and some copied files must be edited.
 | `md-size-gate.sh`, `md-rule-gate.py`, `md-split.py`, `audit-triage.py` | **Copy as is** | `audit-triage.tsv` is yours and starts absent: no file, no waiver. |
 | `md-budget.tsv` | **Do not copy — run `md-size-gate.sh --init`** | It writes your own budget: one row per `CLAUDE.md`, ceiling = its size today. A copy of this one carries our ceilings and exclusions, and `--update` only lowers rows that already exist. |
 | `pre-commit.sh` | **Copy as is, then `--install` in every clone** | A git hook is per clone; it is not committed. |
-| `guard-destructive.sh` | **Copy as is; register it** | In `.claude/settings.json` (shared) with `"$CLAUDE_PROJECT_DIR/scripts/guard-destructive.sh"`, or in your user settings. See `standards/18-setup-and-environment.md` §11. |
+| `guard-destructive.sh` + `guard-inspect.py` | **Copy both as is; register the hook** | Without `guard-inspect.py` beside it the hook blocks every command (it fails closed). Register it in `.claude/settings.json` (shared) with `"$CLAUDE_PROJECT_DIR/scripts/guard-destructive.sh"`, or in your user settings. See `standards/18-setup-and-environment.md` §11. |
 | `real-name-check.sh` + `commit-msg.sh` | **Copy as is, if you keep a local nickname map** | Run `pre-commit.sh --install` after copying so the `commit-msg` hook is linked too. Without the map they only warn. |
 | `doc-check.py` | **Copy if you want it** | Runs from `pre-commit.sh` when present. Checks that do not apply (no `standards/`, no index) are no-ops. |
 | `evidence-check.py` + `evidence-block.schema.json` | **Copy both, only if you run agents (modes C/D/E)** | The script loads the schema from beside itself. |

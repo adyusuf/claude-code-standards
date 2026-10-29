@@ -38,7 +38,8 @@ message until it is done. A one-question/one-answer exchange gets no list.
 - **Merge, gate and push items come from the configuration (#34, `/adyusuf:config`):**
   per target, in order dev → test → prod — the target only if
   `merge.<t>` is yes (a no drops it and every later target); its gates only if
-  `gates_before_push.<t>` is yes, else the item says "no gate: config"; its push
+  `gates_before_push.<t>` is yes, else the item says "no gate: config" and only coverage runs
+  (`gate-core.sh <t> --coverage-only`, #29); its push
   only if `push.<t>` is yes; a CI wait after the push only if `ci_after_push.<t>` is yes; an e2e item before the deploy of
   `test`/`prod` only if `e2e_before_deploy.<t>` is yes and the project has both a suite and that environment. **A setting changed mid-session** (the config's `notify`
   hook says so) is re-read at the next task and the list is resent with the new items.
@@ -156,6 +157,12 @@ solves it is the gate.
 carrying obligation or prohibition, backticked identifiers). The gate is verified by
 mutation: an attempt that deletes a known rule **must** break the gate. If it does not,
 the gate is decorative.
+
+**A project file never restates the global rule set** (user decision 29/10/2026, all projects): a project's
+`CLAUDE.md`, sub-`CLAUDE.md` and `docs/` rule files carry only what is specific to the project. A global rule
+restated there is deleted, or reduced to the project detail it adds; a pointer to the old install
+(`~/.claude/CLAUDE.md`, `~/.claude/standards/`, `~/.claude/scripts/`) is deleted, since the plugin loads the global
+rules itself. A file another tool reads without the plugin (Codex's `AGENTS.md`) keeps its own copy.
 
 ### 6b. The plugin/MCP surface counts against the token budget too
 
