@@ -211,6 +211,34 @@ class NothingToCompare(Fleet):
         out, _ = self.run_drift()
         self.assertNotIn('missing', out)
 
+    def guard_fleet(self, with_inspector):
+        self.write(self.canon, 'scripts/guard-destructive.sh',
+                   '#!/usr/bin/env bash\nhere="$(dirname "$0")"\npython3 "$here/guard-inspect.py"\n')
+        self.write(self.canon, 'scripts/guard-inspect.py', 'print(0)\n')
+        work = self.project('guarded', 'x\n', commit=False)
+        os.remove(os.path.join(work, 'scripts/gate-core.sh'))
+        shutil.copy(os.path.join(self.canon, 'scripts', 'guard-destructive.sh'), os.path.join(work, 'scripts'))
+        if with_inspector:
+            shutil.copy(os.path.join(self.canon, 'scripts', 'guard-inspect.py'), os.path.join(work, 'scripts'))
+        git(work, 'add', '-A')
+        git(work, 'commit', '-qm', 'guard')
+        git(work, 'push', '-q', 'origin', 'dev:dev')
+        git(work, 'fetch', '-q', 'origin')
+        env = dict(os.environ, TWIN_SEARCH_ROOT=self.home, TWIN_FILES='guard-destructive.sh guard-inspect.py')
+        done = subprocess.run(['bash', DRIFT], cwd=self.canon, capture_output=True, text=True, env=env)
+        return done.stdout + done.stderr, done.returncode
+
+    def test_a_twin_without_the_file_it_loads_from_beside_itself_is_drift(self):
+        # bitreka carried guard-destructive.sh without guard-inspect.py and was reported aligned.
+        out, code = self.guard_fleet(with_inspector=False)
+        self.assertEqual(1, code, out)
+        self.assertIn('guard-inspect.py (missing — guard-destructive.sh loads it)', out)
+
+    def test_a_twin_with_the_file_it_loads_is_aligned(self):
+        out, code = self.guard_fleet(with_inspector=True)
+        self.assertEqual(0, code, out)
+        self.assertIn('guarded: aligned', out)
+
     def test_no_sibling_checkout_is_n_a_and_passes(self):
         empty = tempfile.mkdtemp()
         try:

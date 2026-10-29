@@ -6,7 +6,7 @@
 |---|---|---|---|
 | **local** | Development | Seed / fake | The developer |
 | **dev** | Integration | Seed | Automatic (on every merge) |
-| **test** | Acceptance + e2e | Realistic, masked | Promotion with approval |
+| **test** | Acceptance + e2e | Realistic, masked | A promotion as the configuration says (#34); the deploy with approval |
 | **prod** | Live | Real | **Explicit user approval** |
 
 - On a Windows/IIS server the folders, site names and pool names follow `20-hardening.md` §6a (`C:\iis\<domain>_<env>\<component>`; one site and one pool per environment, named `<domain>_<env>`).

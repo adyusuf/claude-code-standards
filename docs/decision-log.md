@@ -461,6 +461,13 @@ the denominator list to generated code and verify it by mutation: if you remove 
 test from a covered file, does the gate turn red? Details and per-stack commands:
 `standards/10-test-strategy.md` §7.
 
+**Amended 29/10/2026 (user decision: "coverage always runs").** `gates_before_push.dev/test = no`
+used to skip the whole gate, coverage included, which contradicted "never waived". Two readings
+were put to the user: the setting wins (coverage only where the gate runs) or #29 wins (coverage
+runs even with the gate off). The user chose #29: with the gate off, `gate-core.sh <t>
+--coverage-only` runs the coverage step alone and blocks below the threshold; coverage never
+appears in a `Gate-Waived:` line. The cost is the coverage run's time on every such merge.
+
 ## §30 — Email in test data goes to a real mailbox
 
 - **Scope:** EVERY test address the system might send a message to — e2e (web and

@@ -94,7 +94,7 @@ test('Settings draws the session block and the Claude block, one line per row, t
   expect(heads).toEqual(['Session settings', 'Claude settings'])
   const lines = all(body, 'Box').filter(node => node.props.flexDirection === 'row').map(node => flat(node.children).map(words).join(' '))
   expect(lines).toEqual([
-    'Working mode ( )A (•)B ( )C', 'Main model (•)opus ( )sonnet', 'After merge push [ ]test [x]prod',
+    'Working mode ( )A (•)B ( )C', 'Main model ( )opus (•)sonnet', 'After merge push [ ]test [x]prod',
     'Working mode ( )A ( )B (•)C', 'Main model (•)opus ( )sonnet', 'After merge push [ ]test [ ]prod',
   ])
   expect(words(all(body, 'Text').find(node => node.props.color === 'yellow'))).toBe('! a layer is unreadable')
