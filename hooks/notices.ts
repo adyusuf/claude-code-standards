@@ -17,7 +17,7 @@ export const RULES: Record<string, string> = {
   '#26': 'work off dev, one commit per task, merged through a gate',
   '#27': 'the operating mode is selectable and the selection is the approval',
   '#28': 'the auditor checks, sends work back and gets it fixed',
-  '#29': 'line coverage of at least 80% in every codebase, never waived',
+  '#29': 'line coverage of at least 80% in every codebase, never waived: with the gate off it runs alone',
   '#31': 'the run cycle: full run, fix, rerun what was fixed',
   '#32': 'all the code first, then the unit tests, then run them',
   '#33': 'e2e is optional and never blocks a promotion',
@@ -83,6 +83,24 @@ const OPERATION_RULES: Record<string, string[]> = { merge: ['#26', '#34'], push:
 const GATE_SCRIPT = /(gate-core|merge-gate|codeql-scan|coverage|gitleaks)/
 const STAGES = ['dev', 'test', 'prod']
 
+/** Whether one command segment RUNS a gate or scan script (`bash scripts/gate-core.sh dev`, `gitleaks detect`), past any
+ * `VAR=value` prefixes, `env`/`nohup`/`time`/`timeout <n>` wrappers and a `bash`/`sh`/`zsh` launcher; reading or listing one
+ * (`cat scripts/coverage.sh`) is not a run. */
+function runsGateScript(tokens: string[]): boolean {
+  let at = 0
+  for (;;) {
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[at] ?? '') || ['env', 'nohup', 'time'].includes(tokens[at])) at += 1
+    else if (tokens[at] === 'timeout') at += 2
+    else break
+  }
+  if (['bash', 'sh', 'zsh'].includes(tokens[at])) {
+    at += 1
+    while (at < tokens.length && tokens[at].startsWith('-')) at += 1
+  }
+  const script = tokens[at] ?? ''
+  return GATE_SCRIPT.test(script) && /\.sh$|(^|\/)gitleaks$/.test(script)
+}
+
 /** The git subcommand of one command segment ('' when it is not a git call), skipping `-C <dir>` / `-c <k=v>` and other global flags. */
 function gitSubcommand(tokens: string[]): string {
   if (tokens[0] !== 'git') return ''
@@ -102,12 +120,14 @@ export function operationWarnings(command: string): string[] {
   for (const segment of command.split(/&&|\|\||[;|\n]/)) {
     const tokens = segment.trim().split(/\s+/).filter(token => token !== '')
     const sub = gitSubcommand(tokens)
-    const name = sub === 'merge' || sub === 'push' ? sub : GATE_SCRIPT.test(segment) && /\.sh\b|gitleaks/.test(segment) ? 'gate' : ''
+    const name = sub === 'merge' || sub === 'push' ? sub : runsGateScript(tokens) ? 'gate' : ''
     if (name === '') continue
     const details = found.get(name) ?? new Set<string>()
     for (const token of tokens) {
       if (name !== 'gate' && /^(--force(-with-lease)?(=.*)?|-f)$/.test(token)) details.add('FORCED')
-      for (const part of token.split(/[:/]/)) if (name !== 'gate' && STAGES.includes(part)) details.add(part)
+      // A push touches the DESTINATION of a `src:dst` refspec only: `push origin dev:prod` pushes prod.
+      const target = name === 'push' && token.includes(':') ? token.slice(token.lastIndexOf(':') + 1) : token
+      for (const part of target.split(/[:/]/)) if (name !== 'gate' && STAGES.includes(part)) details.add(part)
     }
     found.set(name, details)
   }

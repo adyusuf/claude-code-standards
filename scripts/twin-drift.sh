@@ -61,13 +61,13 @@ for candidate in "$search"/*; do
   # Skip this repository and any of its worktrees: it IS the canonical set.
   [ -f "$candidate/standards/README.md" ] && [ -d "$candidate/modes" ] && continue
   name="$(basename "$candidate")"
-  had_any=0 lines="" has_core=0
+  had_any=0 lines="" has_core=0 present=""
   for tool in $TWINS; do
     [ -f "$root/scripts/$tool" ] || continue            # not canonical here
     ours="$(git hash-object "$root/scripts/$tool")"
     theirs="$(git -C "$candidate" rev-parse "origin/dev:scripts/${tool}" 2>/dev/null)" || continue
     [ -n "$theirs" ] || continue
-    had_any=1; checked=$((checked + 1))
+    had_any=1; checked=$((checked + 1)); present="$present $tool"
     [ "$tool" = gate-core.sh ] && has_core=1
     if [ "$ours" != "$theirs" ]; then
       lines="$lines
@@ -84,6 +84,19 @@ for candidate in "$search"/*; do
       drifted=$((drifted + 1))
     done
   fi
+  # The same for any twin that loads a file from beside itself ("$here/guard-inspect.py"): a copy
+  # without that file is broken (guard-destructive.sh then blocks every command), and it used to be
+  # reported "aligned" because only the files a project HAS were compared (found 29/10/2026).
+  for tool in $present; do
+    for sib in $(grep -oE '\$\{?(here|HERE|GATE_DIR)\}?/[A-Za-z0-9_.-]+\.(sh|py|json|txt)' "$root/scripts/$tool" \
+                 | sed 's|.*/||' | sort -u); do
+      [ -f "$root/scripts/$sib" ] || continue
+      git -C "$candidate" rev-parse -q --verify "origin/dev:scripts/${sib}" >/dev/null 2>&1 && continue
+      lines="$lines
+    ✗ $sib (missing — $tool loads it)"
+      drifted=$((drifted + 1))
+    done
+  done
   [ "$had_any" = 1 ] || continue
   projects=$((projects + 1))
   if [ -n "$lines" ]; then

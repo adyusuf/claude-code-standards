@@ -43,10 +43,11 @@ and the port map are there. Deployment and servers: **`DEPLOY.md`**.
 ## Branch and deploy flow
 
 ```
-feature branch → dev → (approval) → test → (approval) → prod
+feature branch → dev → test → prod
 ```
 
-- **No** direct commit or PR to `test`/`prod`; only from the previous stage, **with the user's approval**.
+- **No** direct commit or PR to `test`/`prod`; only a promotion from the previous stage, made as the configuration
+  says (`/adyusuf:config`, `standards/13-pr-and-review.md` §8a), never asked. A deploy needs the user's approval.
 - The "merge" command means <what it means in this project, and which script runs>
 - No merge without passing the gate (build + tests + format + lint + backward-compatibility scan).
 

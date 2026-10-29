@@ -9,6 +9,7 @@ That the split changed no behaviour was checked once by running the old and the 
 projects (--list and real runs, serial and parallel, dev/test/prod): 48 runs, identical output.
 """
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -39,6 +40,28 @@ class TheSplit(unittest.TestCase):
     def test_every_listed_twin_exists_here(self):
         for name in twins():
             self.assertTrue(os.path.isfile(os.path.join(SCRIPTS, name)), f'twins.txt names {name}, which does not exist')
+
+
+class EveryTwinCarriesItsSiblings(unittest.TestCase):
+    """A twin that loads a file from its own directory needs that file copied with it. guard-inspect.py
+    was missing from twins.txt (found 29/10/2026), so a project copy of guard-destructive.sh could keep a
+    stale inspector, or none, which blocks every command once the hook is wired."""
+
+    SIBLING = re.compile(r'\$\{?(?:here|HERE|GATE_DIR)\}?/([A-Za-z0-9_.-]+\.(?:sh|py|json|txt))')
+
+    def test_a_file_a_twin_loads_from_beside_itself_is_a_twin_too(self):
+        listed = twins()
+        found = 0
+        for name in listed:
+            with open(os.path.join(SCRIPTS, name), encoding='utf-8') as handle:
+                for sibling in self.SIBLING.findall(handle.read()):
+                    found += 1
+                    self.assertIn(sibling, listed, f'{name} loads {sibling} from beside itself; add it to twins.txt')
+        self.assertGreater(found, 0, 'the pattern matched nothing: it no longer sees how twins load siblings')
+
+    def test_the_guard_and_its_inspector_are_both_twins(self):
+        self.assertIn('guard-destructive.sh', twins())
+        self.assertIn('guard-inspect.py', twins())
 
 
 class ACopyNeedsItsLibraries(unittest.TestCase):
@@ -83,6 +106,24 @@ class ACopyNeedsItsLibraries(unittest.TestCase):
         self.assertIn('merge gate', done.stdout)
         self.assertIn('── result ──', done.stdout)      # it got all the way to the verdict in gate-lib.sh
         self.assertNotIn('is missing next to it', done.stderr)
+
+    def test_a_stale_library_is_refused_not_run_without_its_steps(self):
+        # A gate-lib.sh from before gate_coverage existed: the core used to print "command not found",
+        # skip coverage and end GATE GREEN with a failing COVERAGE_CMD.
+        for name in FILES:
+            shutil.copy(os.path.join(SCRIPTS, name), os.path.join(self.project, 'scripts'))
+        lib = os.path.join(self.project, 'scripts', 'gate-lib.sh')
+        with open(lib, encoding='utf-8') as handle:
+            text = handle.read()
+        with open(lib, 'w', encoding='utf-8') as handle:
+            handle.write(text.replace('gate_coverage() {', 'gate_coverage_renamed() {'))
+        with open(os.path.join(self.project, 'scripts', 'merge-gate.conf'), 'w', encoding='utf-8') as handle:
+            handle.write('COVERAGE_CMD="exit 1"\n')
+        for args in (('dev', '--coverage-only'), ('dev',)):
+            done = self.run_gate(*args)
+            self.assertEqual(2, done.returncode, args)
+            self.assertIn('gate_coverage is not defined', done.stderr)
+            self.assertNotIn('GREEN', done.stdout)
 
     def test_the_core_finds_its_libraries_through_a_relative_path(self):
         for name in FILES:

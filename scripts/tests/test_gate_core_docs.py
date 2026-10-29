@@ -16,7 +16,7 @@ PRE_COMMIT = os.path.join(SCRIPTS, 'pre-commit.sh')
 
 def project(files):
     root = tempfile.mkdtemp()
-    subprocess.run(['git', 'init', '-q', root], check=True)
+    subprocess.run(['git', 'init', '-q', '-b', 'feature/x', root], check=True)
     os.makedirs(os.path.join(root, 'scripts'))
     for name, text in files.items():
         path = os.path.join(root, name)
@@ -84,7 +84,7 @@ class ProjectDocumentsStep(unittest.TestCase):
 class PreCommitDocCheck(unittest.TestCase):
     def setUp(self):
         self.root = tempfile.mkdtemp()
-        subprocess.run(['git', 'init', '-q', self.root], check=True)
+        subprocess.run(['git', 'init', '-q', '-b', 'feature/x', self.root], check=True)
         os.makedirs(os.path.join(self.root, 'scripts'))
         for name in ('pre-commit.sh', 'doc-check.py'):
             shutil.copy(os.path.join(SCRIPTS, name), os.path.join(self.root, 'scripts', name))
@@ -125,7 +125,7 @@ class LiveConfigExemption(unittest.TestCase):
 
     def repo(self, root):
         os.makedirs(root, exist_ok=True)
-        subprocess.run(['git', 'init', '-q', root], check=True)
+        subprocess.run(['git', 'init', '-q', '-b', 'feature/x', root], check=True)
         os.makedirs(os.path.join(root, 'scripts'), exist_ok=True)
         os.makedirs(os.path.join(root, 'docs'), exist_ok=True)
         for name in ('pre-commit.sh', 'doc-check.py', 'real-name-check.sh'):
