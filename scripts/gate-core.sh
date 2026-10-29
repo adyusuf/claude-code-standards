@@ -55,7 +55,8 @@
 #   E2E_WEB_CMD="npx playwright test"                   # default when e2e/ (root, tests/e2e or <web tier>/e2e) exists;
 #                                                       # it runs from the directory that holds the suite
 #   E2E_MOBILE_CMD="bash scripts/mobile-e2e.sh"         # default when .maestro/ exists
-#   COVERAGE_CMD="node scripts/coverage-budget.cjs"     # must exit non-zero below the threshold
+#   COVERAGE_CMD="bash scripts/coverage.sh"             # must MEASURE (run the tests), not read an old
+#                                                       # report, and exit non-zero below the threshold
 #   COVERAGE_MIN=80
 #   SAST_CMD="bash scripts/codeql-scan.sh"              # default: scripts/codeql-scan.sh
 #   BACKCOMPAT_CMD="bash scripts/api-compat.sh"         # default: scripts/backward-compat-scan.sh

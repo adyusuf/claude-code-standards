@@ -67,8 +67,9 @@ task's commit as soon as it exists (several: `<sha>, <sha>`).
 
 **Asking the user:** set `needs_decision`, ask the same question in the chat
 (`AskUserQuestion`), and move the row on when the answer comes. An answer never stands
-in for an approval that needs the user's explicit yes (promotion, deploy, deletion,
-sending outward) — that is asked for in the chat in its own words.
+in for an approval that needs the user's explicit yes (deploy, deletion, sending
+outward) — that is asked for in the chat in its own words. A promotion is not asked: it
+follows the configuration (#34).
 
 ## 5. The chat table still ships
 

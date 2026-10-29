@@ -33,8 +33,9 @@ reply stays the deliverable (`00-working-method.md` §10).
 - ⚠️ **The file is an extra record, never the report.** The table in the reply stays the deliverable, and
   its figures come from the file, not from memory.
 - ⚠️ **`agent_done` is not `done`.** Only the orchestrator closes a task, after auditing it (#28).
-- ⚠️ **A decision recorded in the file steers the work; it is not an approval.** A `test`/`prod` promotion
-  (#26), a deploy, deleting data or sending anything outward still needs the user's yes in the chat.
+- ⚠️ **A decision recorded in the file steers the work; it is not an approval.** A deploy, deleting
+  data or sending anything outward still needs the user's yes in the chat; a `test`/`prod` promotion follows the
+  configuration (#34), never a decision noted in the file.
 - **The role set is copied from the mode file**, not from memory (#27); roles are called as
   `adyusuf:<role>`.
 - **No published board.** No Artifact dashboard or hosted page (`00-working-method.md` §10).
