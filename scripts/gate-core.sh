@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Shared gate CORE — one definition of the step set for every project.
 #
-# Usage:  scripts/gate-core.sh <dev|test|prod> [--list]
+# Usage:  scripts/gate-core.sh <dev|test|prod> [--list | --coverage-only]
 #
 # Two layers, deliberately: this file owns the SHARED STEPS, while a project's own
 # scripts/merge-gate.sh stays the orchestrator (it pulls, merges, pushes and adds
@@ -11,6 +11,10 @@
 # and runs nothing — use it when rolling the gate into a project. It ends "LISTING
 # ONLY", never "GATE GREEN": a listing is not a verdict (a step it can already see
 # would be skipped or fail still ends INCOMPLETE / CLOSED, as the real run would).
+# `--coverage-only` runs the coverage step and nothing else: it is what still runs when
+# the configuration turns the gate off (gates_before_push.<t> = no), because rule #29 is
+# never waived (user decision 29/10/2026, standards/13 §8a). COVERAGE_CMD must then measure
+# on its own, not read a result an earlier step of the full gate left behind.
 #
 # ⚠️ The canonical copy lives in the configuration repository; every project takes
 # a COPY into its own scripts/ and commits it. A project's gate cannot depend on a
@@ -90,10 +94,16 @@ set -uo pipefail
 
 TARGET="${1:-}"
 LIST_ONLY=0
-[ "${2:-}" = "--list" ] && LIST_ONLY=1
+COVERAGE_ONLY=0
+case "${2:-}" in
+  "") ;;
+  --list) LIST_ONLY=1 ;;
+  --coverage-only) COVERAGE_ONLY=1 ;;
+  *) echo "usage: $0 <dev|test|prod> [--list | --coverage-only]"; exit 2 ;;
+esac
 case "$TARGET" in
   dev|test|prod) ;;
-  *) echo "usage: $0 <dev|test|prod> [--list]"; exit 2 ;;
+  *) echo "usage: $0 <dev|test|prod> [--list | --coverage-only]"; exit 2 ;;
 esac
 
 GATE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -113,6 +123,9 @@ for lib in gate-lib.sh gate-lib-node.sh gate-lib-prod.sh; do
   # shellcheck source=/dev/null  # the path is resolved at run time, beside this file
   . "$GATE_DIR/$lib"
 done
+
+# The gate is off by configuration, coverage is not (#29): run that one step and stop.
+if [ "$COVERAGE_ONLY" = 1 ]; then gate_coverage; gate_result; fi
 
 # ── Everything except e2e: dev and test ──────────────────────────────────────
 if [ "$TARGET" != "prod" ]; then
@@ -143,10 +156,7 @@ if [ "$TARGET" != "prod" ]; then
   [ "$NODE_PARALLEL_ACTIVE" = 1 ] || node_test
 
   node_join
-  say "coverage (>= ${COVERAGE_MIN}% lines, per codebase)"
-  if [ -n "${COVERAGE_CMD:-}" ]; then run "coverage" bash -c "$COVERAGE_CMD"
-  elif [ -x scripts/coverage.sh ]; then run "coverage" bash scripts/coverage.sh
-  else skip "coverage: set COVERAGE_CMD in scripts/merge-gate.conf — the threshold is NOT measured"; fi
+  gate_coverage
 
   say "secret scan"
   if [ -n "${SECRET_CMD:-}" ]; then run "secret scan" bash -c "$SECRET_CMD"

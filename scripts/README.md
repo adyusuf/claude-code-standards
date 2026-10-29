@@ -91,6 +91,10 @@ each resolves to, and runs nothing — use it when rolling the gate into a proje
 It ends `LISTING ONLY`, never `GATE GREEN`: a listing is not a verdict. A step it can
 already see would be skipped or fail still ends INCOMPLETE / CLOSED, as the real run would.
 
+`gate-core.sh <target> --coverage-only` runs the coverage step alone. It is what runs when
+`gates_before_push.<t>` is no: the gate is off, coverage is not (#29, standards/13 §8a). It ends
+`COVERAGE GREEN`, never `GATE GREEN`, and `COVERAGE_CMD` must measure on its own.
+
 | Target | What runs |
 |---|---|
 | `dev`, `test` | **Everything except running e2e:** formatter/linter, typecheck, build, unit tests, coverage (80% per codebase), secret scan, dependency CVE, SAST, backward-compatibility scan, the **project documents check** (`SETUP.md`, `.env.example`, the secret inventory heading — missing ones FAIL, rule #16), the CLAUDE.md size and rule gates, and a CHECK for missing e2e specs — a warning in BOTH directions, never blocking; the gaps are written at the `test → prod` gate (#33 step 2). |

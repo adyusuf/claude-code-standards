@@ -57,7 +57,7 @@ went to. Never edit the JSON files by hand when the tool can do it.
 | `write.e2e` | yes/no | Write e2e specs (optional to run, #33). |
 | `merge.dev` `merge.test` `merge.prod` | yes/no | Merge finished code into that branch (#26, #34). |
 | `push.dev` `push.test` `push.prod` | yes/no | Push that branch after its merge. |
-| `gates_before_push.<t>` | yes/no | Run the gates (unit tests, coverage, secret scan, SAST: `scripts/merge-gate.sh`) on the merged result before pushing `<t>` (defaults: dev no, test yes, prod yes). Not run = recorded as `Gate-Waived: gates` on the merge commit (#34). |
+| `gates_before_push.<t>` | yes/no | Run the gates (unit tests, coverage, secret scan, SAST: `scripts/merge-gate.sh`) on the merged result before pushing `<t>` (defaults: dev no, test yes, prod yes). Not run = recorded as `Gate-Waived: gates` on the merge commit (#34); coverage still runs alone (`gate-core.sh <t> --coverage-only`, #29). |
 | `ci_after_push.<t>` | yes/no | After pushing `<t>`, wait for the project's CI to be green on the pushed commit; red stops the later targets (defaults: dev no, test yes, prod yes). Not waited for = `Gate-Waived: ci` on the merge commit. A project with no CI reports "no CI". |
 | `e2e_before_deploy.<t>` (`test`, `prod`) | yes/no | Before `<t>` is deployed, run the e2e suite on the environment below it (`test`: on dev, `prod`: on test); red blocks the promotion (defaults: both no). Applies only where the project has an e2e suite and that environment; otherwise the report says so. |
 

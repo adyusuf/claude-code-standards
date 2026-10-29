@@ -181,7 +181,7 @@ the setting once, or for one session.
 | Setting | Effect |
 |---|---|
 | `merge.<t>` = yes | Merge the finished code into `<t>` (`--no-ff`, from the fresh remote tip, §8). `no` leaves it out, and the later targets with it. |
-| `gates_before_push.<t>` = yes | Run the gates (unit tests, coverage, secret scan, SAST) on the merged result before `<t>` is pushed, with the local gate (`scripts/merge-gate.sh`). Defaults: dev no, test yes, prod yes. |
+| `gates_before_push.<t>` = yes | Run the gates (unit tests, coverage, secret scan, SAST) on the merged result before `<t>` is pushed, with the local gate (`scripts/merge-gate.sh`). With `no` the coverage step still runs, alone: `scripts/gate-core.sh <t> --coverage-only` (#29, never waived), and a red or missing measurement blocks the push like the full gate. Defaults: dev no, test yes, prod yes. |
 | `push.<t>` = yes | Push `<t>` after its merge and its gates. `no` leaves the merge local and the report says so. |
 | `ci_after_push.<t>` = yes | After `<t>` is pushed, wait for the project's CI to finish on the pushed commit. A red run is reported with the failing job and stops every later target. A project with no CI says "no CI", which is not a failure. `no` does not wait and the merge commit carries `Gate-Waived: ci`. Defaults: dev no, test yes, prod yes. |
 | `e2e_before_deploy.<t>` = yes (`test`, `prod`) | Before `<t>` is deployed, run the e2e suite (Playwright / Maestro, `11`/`12`) against the environment below it: `e2e_before_deploy.test` runs on `dev` before `test` is deployed, `e2e_before_deploy.prod` runs on `test` before `prod` is deployed. It applies only where the project has an e2e suite and that environment; otherwise the report says "no e2e suite" or "no such environment", which is not a failure. A red run is reported with the failing specs and blocks the promotion to `<t>` (it was asked for, #33). The deploy itself still needs the user's approval (#20, #27). Defaults: both no. |
@@ -201,9 +201,11 @@ did not pass" (#25) stays true in the report.
 **The setting is the only switch** (user decision 29/10/2026): a project keeps no gate switch of its own (a file listing
 targets whose gate is off, a project rule saying "promote only on approval"). Its `merge-gate.sh` runs every gate by
 default and skips them only when Claude passes the waiver because `gates_before_push.<t>` is no; the trailer then reads
-`(neden: configuration)`.
+`(neden: configuration)`. Even then it runs `scripts/gate-core.sh <t> --coverage-only` (user decision 29/10/2026): coverage
+is never in a `Gate-Waived:` line.
 
-**What no setting changes:** coverage ≥ 80% per codebase (#29) is part of what the gate owner runs and is not a setting;
+**What no setting changes:** coverage ≥ 80% per codebase (#29) is part of what the gate owner runs and is not a setting
+(with the gate off it runs alone, `--coverage-only`);
 force pushes, `DROP`, deploys and anything on `main` need the user's approval in every mode (#20, #27) and are guarded by
 `guard-destructive.sh`; secrets stay out of the repository (#3). A push to `prod` is an ordinary push when `push.prod` is
 yes (the hook no longer judges it); a pending migration or other irreversible step in the change still needs approval.

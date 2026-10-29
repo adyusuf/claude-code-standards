@@ -17,7 +17,7 @@ export const RULES: Record<string, string> = {
   '#26': 'work off dev, one commit per task, merged through a gate',
   '#27': 'the operating mode is selectable and the selection is the approval',
   '#28': 'the auditor checks, sends work back and gets it fixed',
-  '#29': 'line coverage of at least 80% in every codebase, never waived',
+  '#29': 'line coverage of at least 80% in every codebase, never waived: with the gate off it runs alone',
   '#31': 'the run cycle: full run, fix, rerun what was fixed',
   '#32': 'all the code first, then the unit tests, then run them',
   '#33': 'e2e is optional and never blocks a promotion',
