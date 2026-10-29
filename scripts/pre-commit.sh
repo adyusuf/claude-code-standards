@@ -7,7 +7,10 @@
 # measuring first. A ceiling nobody measures is not a ceiling; the gate belongs
 # on the commit itself.
 #
-# Four steps, all in seconds, so the "merging into dev is fast" rule still holds:
+# Five steps, all in seconds, so the "merging into dev is fast" rule still holds:
+#   0. no commit made directly on dev, test, prod, main or master (rule #26: work on a branch off
+#      dev; branches reach dev through the gate). A merge in progress is allowed: that is how a
+#      branch reaches dev. Deliberate override: ALLOW_PROTECTED_COMMIT=1
 #   1. CLAUDE.md size budget   (scripts/md-size-gate.sh)
 #   2. gitleaks — secret scan over the staged content (pre-commit gitleaks is
 #      the one gate that stays on in the dev direction)
@@ -45,6 +48,21 @@ if [ "${1:-}" = "--install" ]; then
 fi
 
 failed=0
+
+# --- 0. a commit is never made directly on a protected branch ------------------
+# It stops at once: the other steps judge the content, and this commit should not exist at all.
+branch="$(git symbolic-ref --short -q HEAD 2>/dev/null || true)"
+case "$branch" in
+  dev | test | prod | main | master)
+    if [ "${ALLOW_PROTECTED_COMMIT:-}" != "1" ] &&
+      ! git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
+      echo "✗ commit STOPPED — '$branch' is a protected branch: commit on a branch off dev and merge it"
+      echo "  through the gate (rule #26). Check with: git branch --show-current"
+      exit 1
+    fi
+    ;;
+  *) ;;
+esac
 
 # The LIVE configuration repository (~/.claude, in the legacy symlinked install; the canonical
 # scripts are the adyusuf plugin's `scripts/` now) is exempt from steps 3 and 4. Its scripts/ is a
