@@ -119,7 +119,7 @@ Not everything here is meant to be copied, and some copied files must be edited.
 | `md-size-gate.sh`, `md-rule-gate.py`, `md-split.py`, `audit-triage.py` | **Copy as is** | `audit-triage.tsv` is yours and starts absent: no file, no waiver. |
 | `md-budget.tsv` | **Do not copy — run `md-size-gate.sh --init`** | It writes your own budget: one row per `CLAUDE.md`, ceiling = its size today. A copy of this one carries our ceilings and exclusions, and `--update` only lowers rows that already exist. |
 | `pre-commit.sh` | **Copy as is, then `--install` in every clone** | A git hook is per clone; it is not committed. |
-| `guard-destructive.sh` | **Copy as is; register it** | In `.claude/settings.json` (shared) with `"$CLAUDE_PROJECT_DIR/scripts/guard-destructive.sh"`, or in your user settings. See `standards/18-setup-and-environment.md` §11. |
+| `guard-destructive.sh` + `guard-inspect.py` | **Copy both as is; register the hook** | Without `guard-inspect.py` beside it the hook blocks every command (it fails closed). Register it in `.claude/settings.json` (shared) with `"$CLAUDE_PROJECT_DIR/scripts/guard-destructive.sh"`, or in your user settings. See `standards/18-setup-and-environment.md` §11. |
 | `real-name-check.sh` + `commit-msg.sh` | **Copy as is, if you keep a local nickname map** | Run `pre-commit.sh --install` after copying so the `commit-msg` hook is linked too. Without the map they only warn. |
 | `doc-check.py` | **Copy if you want it** | Runs from `pre-commit.sh` when present. Checks that do not apply (no `standards/`, no index) are no-ops. |
 | `evidence-check.py` + `evidence-block.schema.json` | **Copy both, only if you run agents (modes C/D/E)** | The script loads the schema from beside itself. |

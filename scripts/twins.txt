@@ -14,7 +14,10 @@ md-size-gate.sh
 md-rule-gate.py
 md-split.py
 pre-commit.sh
+# guard-destructive.sh hands its judgement to guard-inspect.py beside it; a copy without it blocks every
+# command once the hook is wired (it fails closed). Copy both together.
 guard-destructive.sh
+guard-inspect.py
 doc-check.py
 evidence-check.py
 evidence-block.schema.json

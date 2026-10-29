@@ -9,6 +9,7 @@ That the split changed no behaviour was checked once by running the old and the 
 projects (--list and real runs, serial and parallel, dev/test/prod): 48 runs, identical output.
 """
 import os
+import re
 import shutil
 import subprocess
 import tempfile
@@ -39,6 +40,28 @@ class TheSplit(unittest.TestCase):
     def test_every_listed_twin_exists_here(self):
         for name in twins():
             self.assertTrue(os.path.isfile(os.path.join(SCRIPTS, name)), f'twins.txt names {name}, which does not exist')
+
+
+class EveryTwinCarriesItsSiblings(unittest.TestCase):
+    """A twin that loads a file from its own directory needs that file copied with it. guard-inspect.py
+    was missing from twins.txt (found 29/10/2026), so a project copy of guard-destructive.sh could keep a
+    stale inspector, or none, which blocks every command once the hook is wired."""
+
+    SIBLING = re.compile(r'\$\{?(?:here|HERE|GATE_DIR)\}?/([A-Za-z0-9_.-]+\.(?:sh|py|json|txt))')
+
+    def test_a_file_a_twin_loads_from_beside_itself_is_a_twin_too(self):
+        listed = twins()
+        found = 0
+        for name in listed:
+            with open(os.path.join(SCRIPTS, name), encoding='utf-8') as handle:
+                for sibling in self.SIBLING.findall(handle.read()):
+                    found += 1
+                    self.assertIn(sibling, listed, f'{name} loads {sibling} from beside itself; add it to twins.txt')
+        self.assertGreater(found, 0, 'the pattern matched nothing: it no longer sees how twins load siblings')
+
+    def test_the_guard_and_its_inspector_are_both_twins(self):
+        self.assertIn('guard-destructive.sh', twins())
+        self.assertIn('guard-inspect.py', twins())
 
 
 class ACopyNeedsItsLibraries(unittest.TestCase):
