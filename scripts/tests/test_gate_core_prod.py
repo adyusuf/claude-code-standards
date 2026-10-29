@@ -33,8 +33,10 @@ RULE_16_DOCS = {'SETUP.md': '# Setup\n## Secret and token inventory\n', '.env.ex
 PWD_STUB = '#!/bin/sh\n{{ pwd -W 2>/dev/null || pwd; }} > "{marker}"\n'
 
 
-# Coverage runs at prod too (#29): a conf that is not about coverage measures "fine" (last assignment wins).
-COVERED = 'COVERAGE_CMD="true"\n'
+# prod runs the SAME step set as dev and test (29/10/2026): a conf that is not about one of those steps
+# makes each of them pass (the last assignment wins), so a test sees only the prod-specific behaviour.
+COVERED = ('COVERAGE_CMD="true"\nSAST_CMD="true"\nBACKCOMPAT_CMD="true"\n'
+           'ACCEPTED_GAPS="e2e spec check"\nACCEPTED_GAPS_REASON="fixture has no e2e suite"\n')
 
 
 class ProdGate(unittest.TestCase):
@@ -76,6 +78,10 @@ class ProdGate(unittest.TestCase):
         files.update(extra or {})
         for name, text in files.items():
             self.write(name, text)
+        # the CLAUDE.md gates the shared set runs at every target
+        self.write('scripts/md-size-gate.sh', '#!/bin/sh\nexit 0\n')
+        os.chmod(os.path.join(self.root, 'scripts', 'md-size-gate.sh'), 0o755)
+        self.write('scripts/md-rule-gate.py', '')
         return self.commit()
 
     def run_gate(self, *args, env_extra=None, target='prod'):
@@ -180,6 +186,38 @@ class ProdRunsCoverage(ProdGate):
         self.setup_project()
         out, _ = self.run_gate('--list')
         self.assertIn('coverage (>= 80% lines, per codebase)', out)
+
+
+class ProdRunsTheSharedStepSet(ProdGate):
+    """The gate is the same for dev, test and prod (29/10/2026). prod used to run only its own extras and
+    ended GATE GREEN with secret scan, SAST, backward compatibility and the CLAUDE.md gates never run."""
+
+    def steps(self, target):
+        out, _ = self.run_gate('--list', target=target)
+        return [line.strip() for line in out.splitlines() if line.strip().startswith('→')]
+
+    def test_prod_lists_every_step_dev_lists(self):
+        self.setup_project()
+        dev, prod = self.steps('dev'), self.steps('prod')
+        self.assertTrue(dev, 'the dev listing was empty')
+        missing = [step for step in dev if step not in prod]
+        self.assertEqual([], missing, f'steps dev runs and prod does not: {missing}')
+
+    def test_a_red_sast_closes_the_prod_gate(self):
+        self.setup_project(conf='SAST_CMD="exit 1"\n')
+        out, code = self.run_gate()
+        self.assertEqual(1, code, out)
+        self.assertIn('GATE CLOSED', out)
+
+    def test_an_unconfigured_sast_is_incomplete_at_prod_as_at_dev(self):
+        self.setup_project()
+        self.write('scripts/merge-gate.conf', 'COVERAGE_CMD="true"\nBACKCOMPAT_CMD="true"\n'
+                   'ACCEPTED_GAPS="e2e spec check"\nACCEPTED_GAPS_REASON="no suite"\n')
+        subprocess.run(['git', 'commit', '-qam', 'no sast'], cwd=self.root, check=True)
+        out, code = self.run_gate()
+        self.assertNotEqual(0, code, out)
+        self.assertIn('GATE INCOMPLETE', out)
+        self.assertIn('SAST', out)
 
 
 class TestEnvironmentIsNotCheckedByDefault(ProdGate):
