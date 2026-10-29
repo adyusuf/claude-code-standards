@@ -281,8 +281,8 @@ if [ "$TARGET" != "prod" ]; then
   fi
 fi
 
-# ── prod: the test deploy check and the full e2e suite, both only on request ──
-if [ "$TARGET" = "prod" ]; then gate_prod; fi
+# ── prod: coverage (#29: every promotion), then the test deploy check and the full e2e suite on request ──
+if [ "$TARGET" = "prod" ]; then gate_coverage; gate_prod; fi
 
 # ── Result ───────────────────────────────────────────────────────────────────
 gate_result

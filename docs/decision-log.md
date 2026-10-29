@@ -1902,3 +1902,5 @@ nothing in this repository's copy was changed for it.** The project below worked
   gate/scan script run (`gate-core`, `merge-gate`, `codeql-scan`, `coverage`, `gitleaks`) logs a warning in the chat before it
   runs: the operation, the stages it names (dev, test, prod), a forced push, and the rules in play (merge `#26 #34`, push
   `#34 #26`, gate `#25 #19 #29 #33`). `hooks/notices.ts` `operationWarnings`, hooked in `hooks/register.tsx` (`onShell`).
+
+**§29 amended again 29/10/2026 (user: "add coverage to the prod gate").** `gate-core.sh prod` ran only the prod-specific steps (deploy check, e2e on request) and ended GATE GREEN with coverage unmeasured, although #29 says "every promotion". It now runs `gate_coverage` first. Why only coverage: the other `dev`/`test` steps rest on "the code already passed them on `test`", which stops being true when `gates_before_push.test` is no; coverage is the one step #29 names as never waived. Secret scan / CVE / SAST are NOT added to prod (a separate decision). Projects take the change when the twin `gate-core.sh` is copied.
