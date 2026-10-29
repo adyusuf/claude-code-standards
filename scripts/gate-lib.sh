@@ -100,7 +100,8 @@ echo "stacks: dotnet=$HAS_DOTNET${SLN:+ (${SLN#./})} node=$HAS_NODE web=${WEB_DI
 # ── The verdict ──────────────────────────────────────────────────────────────
 gate_result() {
   printf '\n\033[1m── result ──\033[0m\n'
-  printf '  passed  : %d\n' "${#PASS[@]}"
+  # A listing runs nothing, so nothing "passed": the count is what WOULD run (--list).
+  if [ "$LIST_ONLY" = 1 ]; then printf '  would run: %d\n' "${#PASS[@]}"; else printf '  passed  : %d\n' "${#PASS[@]}"; fi
   printf '  warnings: %d\n' "${#WARN[@]}"
   printf '  n/a     : %d\n' "${#NA[@]}"
   printf '  accepted: %d\n' "${#ACCEPTED[@]}"
@@ -120,6 +121,13 @@ gate_result() {
     printf '\n\033[33mGATE INCOMPLETE\033[0m — %d step(s) did not run. A step that did not run did not pass;\n' "${#SKIP[@]}"
     printf 'the result is not green. Install the tool, or record the reason and get the user to accept it.\n'
     exit 1
+  fi
+  # ⚠️ A listing used to end "GATE GREEN — promotion is allowed" although nothing had run. What a
+  # listing CAN find (a check that would fail or be skipped) still blocks above, as the real run would;
+  # a clean listing is not a verdict.
+  if [ "$LIST_ONLY" = 1 ]; then
+    printf '\n\033[1mLISTING ONLY\033[0m — %d step(s) would run; nothing ran, so there is no verdict. Run without --list for the gate.\n' "${#PASS[@]}"
+    exit 0
   fi
   if [ "${#ACCEPTED[@]}" -gt 0 ]; then
     printf '\n\033[32mGATE GREEN\033[0m (with %d accepted gap(s)) — %s promotion is allowed.\n' "${#ACCEPTED[@]}" "$TARGET"

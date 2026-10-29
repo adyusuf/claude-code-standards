@@ -88,6 +88,8 @@ have the configuration checked out). The drift test in `md-hook.sh` covers it.
 
 `gate-core.sh <target> --list` prints the steps that WOULD run and the command
 each resolves to, and runs nothing — use it when rolling the gate into a project.
+It ends `LISTING ONLY`, never `GATE GREEN`: a listing is not a verdict. A step it can
+already see would be skipped or fail still ends INCOMPLETE / CLOSED, as the real run would.
 
 | Target | What runs |
 |---|---|

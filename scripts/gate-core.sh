@@ -8,7 +8,9 @@
 # whatever that project needs) and CALLS this file for the shared set. That way the
 # step definition lives in one place and a project can ADD steps without forking it.
 # `--list` prints the steps that WOULD run, with the command each one resolves to,
-# and runs nothing — use it when rolling the gate into a project.
+# and runs nothing — use it when rolling the gate into a project. It ends "LISTING
+# ONLY", never "GATE GREEN": a listing is not a verdict (a step it can already see
+# would be skipped or fail still ends INCOMPLETE / CLOSED, as the real run would).
 #
 # ⚠️ The canonical copy lives in the configuration repository; every project takes
 # a COPY into its own scripts/ and commits it. A project's gate cannot depend on a
