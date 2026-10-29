@@ -154,7 +154,8 @@ When writing a comment: **what** is wrong + **why** it matters + **a suggestion*
   `merge.test` setting (§8a, #26.4). Never read "batch" as "merged to `dev` ⇒ also merged to `test`".
 - `dev → test → prod`: a **promotion**, fast-forward/merge. Never a merge in the reverse direction.
 - **The `prod` gate runs on the ref being promoted** — normally a detached checkout of `origin/test`
-  (the usual source), never on a `test`-into-`prod` merge candidate. It does **not** check the `test`
+  (the usual source), never on a `test`-into-`prod` merge candidate. It runs the **coverage** step (#29: every
+  promotion, 29/10/2026) and does **not** check the `test`
   branch or the test environment (user decision 04/10/2026, general rule): a branch may go to `prod`
   without having been on `test`. The gate WARNS it did not look; `GATE_CHECK_TEST_DEPLOY=1` opts in to
   the deployed-SHA check, and that check compares `HEAD` with the SHA the test environment runs, so a
