@@ -107,6 +107,24 @@ class ACopyNeedsItsLibraries(unittest.TestCase):
         self.assertIn('── result ──', done.stdout)      # it got all the way to the verdict in gate-lib.sh
         self.assertNotIn('is missing next to it', done.stderr)
 
+    def test_a_stale_library_is_refused_not_run_without_its_steps(self):
+        # A gate-lib.sh from before gate_coverage existed: the core used to print "command not found",
+        # skip coverage and end GATE GREEN with a failing COVERAGE_CMD.
+        for name in FILES:
+            shutil.copy(os.path.join(SCRIPTS, name), os.path.join(self.project, 'scripts'))
+        lib = os.path.join(self.project, 'scripts', 'gate-lib.sh')
+        with open(lib, encoding='utf-8') as handle:
+            text = handle.read()
+        with open(lib, 'w', encoding='utf-8') as handle:
+            handle.write(text.replace('gate_coverage() {', 'gate_coverage_renamed() {'))
+        with open(os.path.join(self.project, 'scripts', 'merge-gate.conf'), 'w', encoding='utf-8') as handle:
+            handle.write('COVERAGE_CMD="exit 1"\n')
+        for args in (('dev', '--coverage-only'), ('dev',)):
+            done = self.run_gate(*args)
+            self.assertEqual(2, done.returncode, args)
+            self.assertIn('gate_coverage is not defined', done.stderr)
+            self.assertNotIn('GREEN', done.stdout)
+
     def test_the_core_finds_its_libraries_through_a_relative_path(self):
         for name in FILES:
             shutil.copy(os.path.join(SCRIPTS, name), os.path.join(self.project, 'scripts'))

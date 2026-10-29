@@ -10,7 +10,8 @@
 # Five steps, all in seconds, so the "merging into dev is fast" rule still holds:
 #   0. no commit made directly on dev, test, prod, main or master (rule #26: work on a branch off
 #      dev; branches reach dev through the gate). A merge in progress is allowed: that is how a
-#      branch reaches dev. Deliberate override: ALLOW_PROTECTED_COMMIT=1
+#      branch reaches dev. Deliberate override: ALLOW_PROTECTED_COMMIT=1. Not in the live
+#      configuration repository (below), whose own commits are made on its dev branch.
 #   1. CLAUDE.md size budget   (scripts/md-size-gate.sh)
 #   2. gitleaks — secret scan over the staged content (pre-commit gitleaks is
 #      the one gate that stays on in the dev direction)
@@ -49,12 +50,22 @@ fi
 
 failed=0
 
+# The LIVE configuration repository (~/.claude, in the legacy symlinked install; the canonical
+# scripts are the adyusuf plugin's `scripts/` now) is exempt from steps 3 and 4. Its scripts/ is a
+# symlink into the configuration repository, so it "has" doc-check.py and real-name-check.sh — but
+# its memory notes refer to OTHER projects' files (a broken link to this repo, a correct one to that
+# project), and real project names are what make those notes usable. Steps 1 and 2 still apply.
+# It is exempt from step 0 too: it is not a project with a branch flow, and its memory and settings
+# commits are made directly on its dev branch.
+live_config=0
+if [ -d "$HOME/.claude" ] && [ "$(cd -P "$HOME/.claude" && pwd)" = "$(cd -P "$root" && pwd)" ]; then live_config=1; fi
+
 # --- 0. a commit is never made directly on a protected branch ------------------
 # It stops at once: the other steps judge the content, and this commit should not exist at all.
 branch="$(git symbolic-ref --short -q HEAD 2>/dev/null || true)"
 case "$branch" in
   dev | test | prod | main | master)
-    if [ "${ALLOW_PROTECTED_COMMIT:-}" != "1" ] &&
+    if [ "$live_config" = 0 ] && [ "${ALLOW_PROTECTED_COMMIT:-}" != "1" ] &&
       ! git rev-parse -q --verify MERGE_HEAD >/dev/null 2>&1; then
       echo "✗ commit STOPPED — '$branch' is a protected branch: commit on a branch off dev and merge it"
       echo "  through the gate (rule #26). Check with: git branch --show-current"
@@ -63,14 +74,6 @@ case "$branch" in
     ;;
   *) ;;
 esac
-
-# The LIVE configuration repository (~/.claude, in the legacy symlinked install; the canonical
-# scripts are the adyusuf plugin's `scripts/` now) is exempt from steps 3 and 4. Its scripts/ is a
-# symlink into the configuration repository, so it "has" doc-check.py and real-name-check.sh — but
-# its memory notes refer to OTHER projects' files (a broken link to this repo, a correct one to that
-# project), and real project names are what make those notes usable. Steps 1 and 2 still apply.
-live_config=0
-if [ -d "$HOME/.claude" ] && [ "$(cd -P "$HOME/.claude" && pwd)" = "$(cd -P "$root" && pwd)" ]; then live_config=1; fi
 
 # --- 1. CLAUDE.md size budget ------------------------------------------------
 if [ -f "$root/scripts/md-size-gate.sh" ]; then

@@ -228,6 +228,19 @@ class TheLiveConfigExemption(Hook):
         out, code = self.run_hook()
         self.assertEqual(0, code, f'the exemption did not apply:\n{out}')
 
+    def test_step_0_does_not_stop_its_own_commits_on_dev(self):
+        # ~/.claude commits its memory and settings directly on dev; step 0 must not stop them there,
+        # while the same branch in any other repository is still stopped (ProtectedBranchStep).
+        self.on_path('gitleaks', '#!/bin/sh\nexit 0\n')
+        self.stage()
+        subprocess.run(['git', 'commit', '-q', '--no-verify', '-m', 'first'], cwd=self.root, check=True)
+        subprocess.run(['git', 'checkout', '-q', '-B', 'dev'], cwd=self.root, check=True)
+        out, code = self.run_hook()
+        self.assertEqual(1, code, 'precondition: dev is stopped outside the live config')
+        self.make_root_the_live_config()
+        out, code = self.run_hook()
+        self.assertEqual(0, code, out)
+
     def test_but_the_size_gate_STILL_applies_there(self):
         # An exemption that swallowed step 1 would be a hole, not an exemption.
         self.script('scripts/md-size-gate.sh',

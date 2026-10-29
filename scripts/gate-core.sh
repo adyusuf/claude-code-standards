@@ -123,6 +123,16 @@ for lib in gate-lib.sh gate-lib-node.sh gate-lib-prod.sh; do
   # shellcheck source=/dev/null  # the path is resolved at run time, beside this file
   . "$GATE_DIR/$lib"
 done
+# ...nor with a STALE one: a library from an older version may lack a function this file calls, and
+# bash would say "command not found" and carry on. With gate_coverage missing that dropped coverage
+# without a trace and ended GATE GREEN (found 29/10/2026). Every function the core calls must exist.
+for fn in say ok bad skip warn have run gate_coverage gate_result gate_prod node_start node_join \
+  node_lint node_typecheck node_build node_test node_audit; do
+  declare -F "$fn" >/dev/null || {
+    echo "gate-core.sh: $fn is not defined - a library beside it is older than this file; copy all four twins (scripts/twins.txt)" >&2
+    exit 2
+  }
+done
 
 # The gate is off by configuration, coverage is not (#29): run that one step and stop.
 if [ "$COVERAGE_ONLY" = 1 ]; then gate_coverage; gate_result; fi
