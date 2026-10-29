@@ -72,6 +72,10 @@ class Workflow(unittest.TestCase):
         self.assertIn('bash .sdlc-standards/scripts/gate-core.sh "$TARGET"', text)
         self.assertIn('REVIEW_BASE: origin/', text)
 
+    def test_no_job_uses_a_sparse_checkout(self):
+        """A self-hosted runner keeps its workspace between jobs: a sparse checkout in `plan` made the gate's checkout sparse (pilot run 1)."""
+        self.assertNotIn('sparse-checkout:', read(WORKFLOW))
+
     def test_code_review_is_not_a_ci_job(self):
         self.assertNotIn('ANTHROPIC_API_KEY', read(WORKFLOW))
 
