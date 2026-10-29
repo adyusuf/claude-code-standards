@@ -1,7 +1,7 @@
 # The shared SDLC workflow (user decision 29/10/2026): every project calls THIS file, so the checks CI runs are
 # defined in one place. The project holds a ~15-line caller (standards/templates/sdlc-caller.yml) and its own
 # scripts/merge-gate.conf (the commands of the steps); the step set is scripts/gate-core.sh of this repository,
-# checked out at `standards-ref` - no copy of it has to live in the project for CI.
+# fetched at `standards-ref` outside the workspace - no copy of it has to live in the project for CI.
 #
 # What the panel controls, read from the project's committed .claude/sdlc-settings.json (written at every merge,
 # scripts/sdlc_settings.py): ci_after_push.<branch> false -> no job runs; the gate in CI is the same step set as the
@@ -78,12 +78,6 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          repository: adyusuf/claude-code-standards
-          ref: ${{ inputs.standards-ref }}
-          path: .sdlc-standards
-          persist-credentials: false
       - name: Gate tools (gitleaks, shellcheck) - only the ones this runner lacks
         shell: bash
         run: |
@@ -112,6 +106,7 @@ jobs:
           COMPAT_BASE: ${{ github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000' && github.event.before || '' }}
           # The review step and the e2e spec check read the merge base.
           REVIEW_BASE: origin/${{ github.base_ref || github.ref_name }}
+          STANDARDS_REF: ${{ inputs.standards-ref }}
         run: |
           set -euo pipefail
           # The same step set at every target (dev, test, prod). A project that adds steps of its own (#25: a project
@@ -120,7 +115,13 @@ jobs:
           if [ -f scripts/merge-gate.sh ]; then
             bash scripts/merge-gate.sh "$TARGET"
           else
-            bash .sdlc-standards/scripts/gate-core.sh "$TARGET"
+            # Outside the workspace on purpose: inside it the project's own formatter, CodeQL and CLAUDE.md budget
+            # scanned the standards repository too (first pilot run, 29/10/2026).
+            std="$RUNNER_TEMP/sdlc-standards"
+            rm -rf "$std" && git init -q "$std"
+            git -C "$std" fetch -q --depth 1 https://github.com/adyusuf/claude-code-standards.git "$STANDARDS_REF"
+            git -C "$std" checkout -q FETCH_HEAD
+            bash "$std/scripts/gate-core.sh" "$TARGET"
           fi
 
   dast:

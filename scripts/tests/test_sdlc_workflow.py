@@ -69,7 +69,9 @@ class Workflow(unittest.TestCase):
         text = read(WORKFLOW)
         self.assertIn('if [ -f scripts/merge-gate.sh ]', text)
         self.assertIn('bash scripts/merge-gate.sh "$TARGET"', text)
-        self.assertIn('bash .sdlc-standards/scripts/gate-core.sh "$TARGET"', text)
+        self.assertIn('bash "$std/scripts/gate-core.sh" "$TARGET"', text)
+        self.assertIn('std="$RUNNER_TEMP/', text)
+        self.assertNotIn('path: .sdlc-standards', text)
         self.assertIn('REVIEW_BASE: origin/', text)
 
     def test_no_job_uses_a_sparse_checkout(self):
