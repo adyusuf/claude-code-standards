@@ -47,10 +47,9 @@ jobs:
       ci: ${{ steps.read.outputs.ci }}
       deploy: ${{ steps.read.outputs.deploy }}
     steps:
+      # A full checkout on purpose: a self-hosted runner keeps its workspace between jobs, and a sparse checkout here
+      # left the gate job's checkout sparse too (first pilot run, 29/10/2026: no pyproject.toml).
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          sparse-checkout: .claude
-          sparse-checkout-cone-mode: false
       - id: read
         shell: bash
         env:
