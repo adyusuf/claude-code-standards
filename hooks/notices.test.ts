@@ -100,6 +100,9 @@ test('a gate or scan script run names the gate rules, once however often it appe
   expect(operationWarnings('grep -n x scripts/gate-core.sh; ls scripts/merge-gate.sh')).toEqual([])
   expect(operationWarnings('GATE_RUN_E2E=1 bash -x scripts/merge-gate.sh test').length).toBe(1)
   expect(operationWarnings('./scripts/gate-core.sh dev --list').length).toBe(1)
+  for (const wrapped of ['timeout 600 bash scripts/merge-gate.sh dev', 'env X=1 bash scripts/coverage.sh', 'nohup gitleaks detect', 'time bash scripts/gate-core.sh dev']) {
+    expect(operationWarnings(wrapped).length).toBe(1)
+  }
 })
 
 test('a merge and a push in one command are two warnings, in the order they appear', () => {

@@ -84,10 +84,15 @@ const GATE_SCRIPT = /(gate-core|merge-gate|codeql-scan|coverage|gitleaks)/
 const STAGES = ['dev', 'test', 'prod']
 
 /** Whether one command segment RUNS a gate or scan script (`bash scripts/gate-core.sh dev`, `gitleaks detect`), past any
- * `VAR=value` prefixes and a `bash`/`sh`/`zsh` launcher; reading or listing one (`cat scripts/coverage.sh`) is not a run. */
+ * `VAR=value` prefixes, `env`/`nohup`/`time`/`timeout <n>` wrappers and a `bash`/`sh`/`zsh` launcher; reading or listing one
+ * (`cat scripts/coverage.sh`) is not a run. */
 function runsGateScript(tokens: string[]): boolean {
   let at = 0
-  while (at < tokens.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[at])) at += 1
+  for (;;) {
+    if (/^[A-Za-z_][A-Za-z0-9_]*=/.test(tokens[at] ?? '') || ['env', 'nohup', 'time'].includes(tokens[at])) at += 1
+    else if (tokens[at] === 'timeout') at += 2
+    else break
+  }
   if (['bash', 'sh', 'zsh'].includes(tokens[at])) {
     at += 1
     while (at < tokens.length && tokens[at].startsWith('-')) at += 1
