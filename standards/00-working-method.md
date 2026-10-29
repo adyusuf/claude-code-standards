@@ -157,6 +157,12 @@ carrying obligation or prohibition, backticked identifiers). The gate is verifie
 mutation: an attempt that deletes a known rule **must** break the gate. If it does not,
 the gate is decorative.
 
+**A project file never restates the global rule set** (user decision 29/10/2026, all projects): a project's
+`CLAUDE.md`, sub-`CLAUDE.md` and `docs/` rule files carry only what is specific to the project. A global rule
+restated there is deleted, or reduced to the project detail it adds; a pointer to the old install
+(`~/.claude/CLAUDE.md`, `~/.claude/standards/`, `~/.claude/scripts/`) is deleted, since the plugin loads the global
+rules itself. A file another tool reads without the plugin (Codex's `AGENTS.md`) keeps its own copy.
+
 ### 6b. The plugin/MCP surface counts against the token budget too
 
 The second most expensive item after `CLAUDE.md` is **the set of enabled plugins**:

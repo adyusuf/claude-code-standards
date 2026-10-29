@@ -196,6 +196,11 @@ promoted for those lines and put the result in the report - for example `git log
 grep '^Gate-Waived:'` (a project may ship a helper that lists commit, gate and reason). It is reported, not asked: the user has already said what runs. "A step that did not run
 did not pass" (#25) stays true in the report.
 
+**The setting is the only switch** (user decision 29/10/2026): a project keeps no gate switch of its own (a file listing
+targets whose gate is off, a project rule saying "promote only on approval"). Its `merge-gate.sh` runs every gate by
+default and skips them only when Claude passes the waiver because `gates_before_push.<t>` is no; the trailer then reads
+`(neden: configuration)`.
+
 **What no setting changes:** coverage ≥ 80% per codebase (#29) is part of what the gate owner runs and is not a setting;
 force pushes, `DROP`, deploys and anything on `main` need the user's approval in every mode (#20, #27) and are guarded by
 `guard-destructive.sh`; secrets stay out of the repository (#3). A push to `prod` is an ordinary push when `push.prod` is
