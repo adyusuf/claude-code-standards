@@ -154,7 +154,8 @@ When writing a comment: **what** is wrong + **why** it matters + **a suggestion*
   `merge.test` setting (§8a, #26.4). Never read "batch" as "merged to `dev` ⇒ also merged to `test`".
 - `dev → test → prod`: a **promotion**, fast-forward/merge. Never a merge in the reverse direction.
 - **The `prod` gate runs on the ref being promoted** — normally a detached checkout of `origin/test`
-  (the usual source), never on a `test`-into-`prod` merge candidate. It does **not** check the `test`
+  (the usual source), never on a `test`-into-`prod` merge candidate. It runs the **same shared step set as `dev` and `test`**
+  (29/10/2026: one gate for all three targets; coverage, #29, is part of it) and does **not** check the `test`
   branch or the test environment (user decision 04/10/2026, general rule): a branch may go to `prod`
   without having been on `test`. The gate WARNS it did not look; `GATE_CHECK_TEST_DEPLOY=1` opts in to
   the deployed-SHA check, and that check compares `HEAD` with the SHA the test environment runs, so a
@@ -184,6 +185,8 @@ the setting once, or for one session.
 | `gates_before_push.<t>` = yes | Run the gates (unit tests, coverage, secret scan, SAST) on the merged result before `<t>` is pushed, with the local gate (`scripts/merge-gate.sh`). With `no` the coverage step still runs, alone: `scripts/gate-core.sh <t> --coverage-only` (#29, never waived), and a red or missing measurement blocks the push like the full gate. Defaults: dev no, test yes, prod yes. |
 | `push.<t>` = yes | Push `<t>` after its merge and its gates. `no` leaves the merge local and the report says so. |
 | `ci_after_push.<t>` = yes | After `<t>` is pushed, wait for the project's CI to finish on the pushed commit. A red run is reported with the failing job and stops every later target. A project with no CI says "no CI", which is not a failure. `no` does not wait and the merge commit carries `Gate-Waived: ci`. Defaults: dev no, test yes, prod yes. |
+| `ci.runner` = hosted / self-hosted | Where the shared CI workflow (`.github/workflows/sdlc.yml` of the standards repository, called by a ~15-line caller in each project) runs: GitHub's runners, or the runners on this machine (at least two per project that has none of its own; a fork's pull request never reaches them). Written to the repo variable `SDLC_RUNNER_LABELS` by `scripts/sdlc_settings.py vars`. Default hosted. |
+| `deploy_after_push` = test / prod | "After pushing update: (•)test ( )prod": the environment a pushed update is deployed to; the plan job of the shared workflow reports it and a project's deploy workflow reads it from `.claude/sdlc-settings.json`. Default test. |
 | `e2e_before_deploy.<t>` = yes (`test`, `prod`) | Before `<t>` is deployed, run the e2e suite (Playwright / Maestro, `11`/`12`) against the environment below it: `e2e_before_deploy.test` runs on `dev` before `test` is deployed, `e2e_before_deploy.prod` runs on `test` before `prod` is deployed. It applies only where the project has an e2e suite and that environment; otherwise the report says "no e2e suite" or "no such environment", which is not a failure. A red run is reported with the failing specs and blocks the promotion to `<t>` (it was asked for, #33). The deploy itself still needs the user's approval (#20, #27). Defaults: both no. |
 
 **A red gate blocks** the push of that target and every later one; it is fixed, not waved through (§8, point 5). **A gate set

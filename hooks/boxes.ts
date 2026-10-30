@@ -42,6 +42,8 @@ const ROWS: Row[] = [
   { label: 'After merge push', items: targets('push') },
   { label: 'Run gates before pushing', items: targets('gates_before_push') },
   { label: 'Run CI after pushing', items: targets('ci_after_push') },
+  { label: 'CI runner:', key: 'ci.runner' },
+  { label: 'After pushing update:', key: 'deploy_after_push' },
   { label: 'Run e2e before deploying', items: targets('e2e_before_deploy', ['test', 'prod']) },
 ]
 

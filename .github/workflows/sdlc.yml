@@ -1,0 +1,136 @@
+# The shared SDLC workflow (user decision 29/10/2026): every project calls THIS file, so the checks CI runs are
+# defined in one place. The project holds a ~15-line caller (standards/templates/sdlc-caller.yml) and its own
+# scripts/merge-gate.conf (the commands of the steps); the step set is scripts/gate-core.sh of this repository,
+# fetched at `standards-ref` outside the workspace - no copy of it has to live in the project for CI.
+#
+# What the panel controls, read from the project's committed .claude/sdlc-settings.json (written at every merge,
+# scripts/sdlc_settings.py): ci_after_push.<branch> false -> no job runs; the gate in CI is the same step set as the
+# local gate (secret scan, dependency CVE, CodeQL SAST, backward compatibility, OWASP-relevant checks, coverage).
+# Not in CI, on purpose: code review (needs a paid key as a repo secret) stays in the local gate with the qa agent.
+name: sdlc
+
+on:
+  workflow_call:
+    inputs:
+      standards-ref:
+        description: The commit SHA or tag of claude-code-standards to take gate-core.sh from. Pin it; a branch name moves every project at once.
+        type: string
+        required: true
+      runner-labels:
+        description: JSON array for runs-on. Pass vars.SDLC_RUNNER_LABELS (the panel's "CI runner" choice) or a literal.
+        type: string
+        default: '["ubuntu-latest"]'
+      setup-command:
+        description: Shell command that installs the project's dependencies (for example pnpm install --frozen-lockfile).
+        type: string
+        default: ''
+      dast-command:
+        description: Optional command for the DAST (OWASP ZAP) job; it runs on test pushes only. Empty skips the job.
+        type: string
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sdlc-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    # A fork's pull request must not run on this machine's runners (it would run the fork's code there).
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ${{ fromJSON(inputs.runner-labels) }}
+    timeout-minutes: 5
+    outputs:
+      target: ${{ steps.read.outputs.target }}
+      ci: ${{ steps.read.outputs.ci }}
+      deploy: ${{ steps.read.outputs.deploy }}
+    steps:
+      # A full checkout on purpose: a self-hosted runner keeps its workspace between jobs, and a sparse checkout here
+      # left the gate job's checkout sparse too (first pilot run, 29/10/2026: no pyproject.toml).
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - id: read
+        shell: bash
+        env:
+          BASE: ${{ github.base_ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          target="$BASE"; case "$target" in dev|test|prod) ;; *) target=dev ;; esac
+          file=.claude/sdlc-settings.json
+          if [ ! -f "$file" ]; then
+            # Fail closed: no settings file means the panel was never written here, so the checks RUN.
+            echo "::warning::$file is missing - running the checks (the panel's settings were never written to this project)"
+            ci="true"; deploy="test"
+          else
+            ci="$(python3 -c "import json,sys; s=json.load(open('$file'))['settings']; print(str(s['ci_after_push']['$target']).lower())")"
+            deploy="$(python3 -c "import json; print(json.load(open('$file'))['settings']['deploy_after_push'])")"
+          fi
+          { echo "target=$target"; echo "ci=$ci"; echo "deploy=$deploy"; } >> "$GITHUB_OUTPUT"
+          { echo "### SDLC plan"; echo "target \`$target\` · CI \`$ci\` · deploy after push \`$deploy\`"; } >> "$GITHUB_STEP_SUMMARY"
+
+  gate:
+    needs: plan
+    if: needs.plan.outputs.ci == 'true'
+    runs-on: ${{ fromJSON(inputs.runner-labels) }}
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+      - name: Gate tools (gitleaks, shellcheck) - only the ones this runner lacks
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ "$RUNNER_OS" = Linux ]; then
+            if ! command -v shellcheck >/dev/null; then sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck; fi
+            if ! command -v gitleaks >/dev/null; then
+              GL=8.30.0
+              curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GL}/gitleaks_${GL}_linux_x64.tar.gz" | sudo tar -xz -C /usr/local/bin gitleaks
+            fi
+          else
+            # A local runner (scripts/runner-setup.sh) uses the machine's own tools; nothing is installed there.
+            for tool in shellcheck gitleaks; do
+              command -v "$tool" >/dev/null || { echo "::error::$tool is not installed on this runner"; exit 1; }
+            done
+          fi
+      - name: Install the project's dependencies
+        if: inputs.setup-command != ''
+        shell: bash
+        run: ${{ inputs.setup-command }}
+      - name: Gate
+        shell: bash
+        env:
+          TARGET: ${{ needs.plan.outputs.target }}
+          # On a push, compare the backward-compatibility scan with the commit before the push.
+          COMPAT_BASE: ${{ github.event_name == 'push' && github.event.before != '0000000000000000000000000000000000000000' && github.event.before || '' }}
+          # The review step and the e2e spec check read the merge base.
+          REVIEW_BASE: origin/${{ github.base_ref || github.ref_name }}
+          STANDARDS_REF: ${{ inputs.standards-ref }}
+        run: |
+          set -euo pipefail
+          # The same step set at every target (dev, test, prod). A project that adds steps of its own (#25: a project
+          # may add, never remove) keeps them in scripts/merge-gate.sh, which calls the core; CI runs that orchestrator
+          # so those steps are not lost. A project without one gets the core of the pinned standards checkout.
+          if [ -f scripts/merge-gate.sh ]; then
+            bash scripts/merge-gate.sh "$TARGET"
+          else
+            # Outside the workspace on purpose: inside it the project's own formatter, CodeQL and CLAUDE.md budget
+            # scanned the standards repository too (first pilot run, 29/10/2026).
+            std="$RUNNER_TEMP/sdlc-standards"
+            rm -rf "$std" && git init -q "$std"
+            git -C "$std" fetch -q --depth 1 https://github.com/adyusuf/claude-code-standards.git "$STANDARDS_REF"
+            git -C "$std" checkout -q FETCH_HEAD
+            bash "$std/scripts/gate-core.sh" "$TARGET"
+          fi
+
+  dast:
+    needs: plan
+    if: needs.plan.outputs.ci == 'true' && needs.plan.outputs.target == 'test' && inputs.dast-command != '' && github.event_name == 'push'
+    runs-on: ${{ fromJSON(inputs.runner-labels) }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: DAST (OWASP ZAP baseline against the test environment)
+        shell: bash
+        run: ${{ inputs.dast-command }}
