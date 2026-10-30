@@ -238,16 +238,16 @@ because something broke first.
 | What | Where | Count |
 |---|---|---|
 | Working rules (index loaded every session) | `CLAUDE.md` | 34 rules |
-| Engineering standards | `standards/` | 24 documents + 7 templates |
+| Engineering standards | `standards/` | 24 documents + 8 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate, measurement and install scripts | `scripts/` | 30 scripts + 715 tests |
+| Gate, measurement and install scripts | `scripts/` | 32 scripts + 715 tests |
 | Slash commands, skills and hooks — one plugin, `/adyusuf:<name>` | `.claude-plugin/`, `commands/`, `skills/`, `hooks/` | 9 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
 ```mermaid
 pie showData title Repository composition (files)
- "standards/ (24 docs + 7 templates)" : 32
+ "standards/ (24 docs + 8 templates)" : 32
  "agents/ (14 roles)" : 14
  "modes/ (5 modes + selection guide)" : 13
  "scripts/ (gates, hooks, measurement, tests)" : 36

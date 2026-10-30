@@ -1,0 +1,19 @@
+# .github/workflows/sdlc.yml in a project: the whole CI definition lives in claude-code-standards
+# (.github/workflows/sdlc.yml). Edit only the three values marked <...>; the checks themselves come from
+# scripts/merge-gate.conf in this project. Pin the SHA - a moving branch would change every project at once.
+name: sdlc
+on:
+  push:
+    branches: [dev, test, prod]
+  pull_request:
+    branches: [dev, test, prod]
+permissions:
+  contents: read
+jobs:
+  sdlc:
+    uses: adyusuf/claude-code-standards/.github/workflows/sdlc.yml@<standards-sha>
+    with:
+      standards-ref: <standards-sha>
+      # The panel's "CI runner" choice, written to the repo variable by scripts/sdlc_settings.py at every merge.
+      runner-labels: ${{ vars.SDLC_RUNNER_LABELS || '["ubuntu-latest"]' }}
+      setup-command: <e.g. pnpm install --frozen-lockfile, or empty>

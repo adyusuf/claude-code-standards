@@ -29,6 +29,10 @@
     "test": true,
     "prod": true
   },
+  "ci": {
+    "runner": "hosted"
+  },
+  "deploy_after_push": "test",
   "e2e_before_deploy": {
     "test": false,
     "prod": false
