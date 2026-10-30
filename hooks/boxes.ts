@@ -44,7 +44,7 @@ const ROWS: Row[] = [
   { label: 'Run coverage before pushing', items: targets('coverage_before_push') },
   { label: 'Run CI after pushing', items: targets('ci_after_push') },
   { label: 'CI runner:', key: 'ci.runner' },
-  { label: 'After pushing update:', key: 'deploy_after_push' },
+  { label: 'After pushing update:', items: targets('deploy_after_push', ['test', 'prod']) },
   { label: 'Run e2e before deploying', items: targets('e2e_before_deploy', ['test', 'prod']) },
 ]
 

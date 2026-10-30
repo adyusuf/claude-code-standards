@@ -1930,7 +1930,7 @@ nothing in this repository's copy was changed for it.** The project below worked
   session; a project's own `.claude/adyusuf.json` is ignored) and sets the repo variable `SDLC_RUNNER_LABELS` from
   "CI runner" (`sdlc_settings.py vars`). `ci_after_push.<branch>` = no makes the workflow's `plan` job output ci=false and
   no check runs; a missing settings file fails closed (the checks run). New panel settings start from the shipped defaults.
-- **New settings.** `deploy_after_push` (radio: test / prod, default test) and `ci.runner` (hosted / self-hosted, default hosted).
+- **New settings.** `deploy_after_push` (radio: test / prod, default test; replaced 30/10/2026, see below) and `ci.runner` (hosted / self-hosted, default hosted).
 - **Where each check lives.** In CI whenever it can run there: secret scan, dependency CVE, CodeQL SAST, backward
   compatibility, coverage, the OWASP-relevant scans (the gate), DAST only where a project gives `dast-command`. Code review
   stays in the LOCAL gate (the qa agent): in CI it needs a paid key as a repo secret (user chose local).
@@ -1944,3 +1944,9 @@ nothing in this repository's copy was changed for it.** The project below worked
   the same settings file. Verification of the workflow itself is blocked while hosted runners cannot start (the account's
   payments failed) and until a runner exists.
 
+**"After pushing update" is checkboxes, not a radio (user decision 30/10/2026).** `[x]test [ ]prod`: one or both
+environments can be ticked. `deploy_after_push` (one string) is replaced by `deploy_after_push.test` / `.prod` (yes/no;
+defaults test yes, prod no); the old key is in `RETIRED_KEYS`, so a user's file that still holds it loads without a
+problem (its choice is not carried over: the setting was one day old). The `plan` job of `sdlc.yml` outputs `deploy` as the
+ticked list (`test`, `prod`, `test,prod` or `none`) and still reads a project's older settings file that holds the single
+string, so a project is not broken until its next merge rewrites `.claude/sdlc-settings.json`.

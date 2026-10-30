@@ -204,9 +204,17 @@ test('Promotion waits, shows an error, and lists each stage with its waived gate
   ])
 })
 
-test('"After pushing update:" is a radio line of test and prod, the chosen one marked', () => {
-  const schema = [...SCHEMA, { key: 'deploy_after_push', type: 'enum' as const, label: 'After pushing update, deploy to', group: 'Deploy after push', options: ['test', 'prod'] }]
-  const body = settingsBody(ui, data({ schema, values: { mode: 'B', mode_model: 'sonnet', deploy_after_push: 'prod' } }), '', [], () => undefined)
+test('"After pushing update:" is a checkbox line of test and prod, each ticked on its own', () => {
+  const schema = [
+    ...SCHEMA,
+    { key: 'deploy_after_push.test', type: 'bool' as const, label: 'After pushing update, deploy to test', group: 'Deploy after push' },
+    { key: 'deploy_after_push.prod', type: 'bool' as const, label: 'After pushing update, deploy to prod', group: 'Deploy after push' },
+  ]
+  const calls: string[][] = []
+  const body = settingsBody(ui, data({ schema, values: { mode: 'B', mode_model: 'sonnet', 'deploy_after_push.test': true, 'deploy_after_push.prod': false } }), '', [], (key, value) => { calls.push([key, value]) })
   const lines = all(body, 'Box').filter(node => node.props.flexDirection === 'row').map(node => flat(node.children).map(words).join(' '))
-  expect(lines).toContain('After pushing update: ( )test (•)prod')
+  expect(lines).toContain('After pushing update: [x]test [ ]prod')
+  const buttons = all(body, 'Button').filter(node => String(node.props.key).includes('deploy_after_push.'))
+  buttons.forEach(node => node.props.onPress())
+  expect(calls).toEqual([['deploy_after_push.test', 'no'], ['deploy_after_push.prod', 'yes']])
 })
