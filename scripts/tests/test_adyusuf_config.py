@@ -26,6 +26,7 @@ EXPECTED = {
     'merge.dev': True, 'merge.test': True, 'merge.prod': True,
     'push.dev': True, 'push.test': True, 'push.prod': True,
     'gates_before_push.dev': False, 'gates_before_push.test': True, 'gates_before_push.prod': True,
+    'coverage_before_push.dev': False, 'coverage_before_push.test': True, 'coverage_before_push.prod': True,
     'ci_after_push.dev': False, 'ci_after_push.test': True, 'ci_after_push.prod': True,
     'ci.runner': 'hosted', 'deploy_after_push': 'test',
     'e2e_before_deploy.test': False, 'e2e_before_deploy.prod': False,
@@ -238,6 +239,25 @@ class RetiredKeys(Tool):
         self.assertNotIn('run_before_push.dev.e2e', data['values'])
         self.assertNotIn('run_before_push.dev.unit', data['values'])
 
+    def test_a_key_from_a_newer_plugin_does_not_throw_away_the_layer(self):
+        # Found by QA 30/10/2026: a user file holding a key this copy did not know was read as EMPTY, so push.prod
+        # = no came back as the default yes, with no warning. The unknown key is left out; the rest applies.
+        with open(self.user, 'w', encoding='utf-8') as handle:
+            json.dump({'push': {'prod': False}, 'from_a_newer_plugin': {'dev': True}}, handle)
+        data = self.values()
+        self.assertEqual([], data['problems'])
+        self.assertFalse(data['values']['push.prod'])
+        self.assertNotIn('from_a_newer_plugin.dev', data['values'])
+        self.assertEqual('no\n', self.run_tool('get', 'push.prod')[0])
+
+    def test_a_write_keeps_the_key_a_newer_plugin_wrote(self):
+        with open(self.user, 'w', encoding='utf-8') as handle:
+            json.dump({'from_a_newer_plugin': {'dev': True}}, handle)
+        _, _, code = self.run_tool('set', 'push.prod', 'no')
+        self.assertEqual(0, code)
+        with open(self.user, encoding='utf-8') as handle:
+            self.assertEqual({'from_a_newer_plugin': {'dev': True}, 'push': {'prod': False}}, json.load(handle))
+
     def test_the_deploy_and_runner_settings_are_radio_choices_with_defaults(self):
         # 29/10/2026: "After pushing update: (*) test ( ) prod" and where the shared SDLC workflow runs.
         self.assertEqual(['test', 'prod'], cfg.SPECS['deploy_after_push']['options'])
@@ -258,8 +278,8 @@ class RetiredKeys(Tool):
     def test_the_context_names_the_new_settings(self):
         out, _, code = self.run_tool('context')
         self.assertEqual(0, code)
-        self.assertIn('prod: merge yes, gates before push yes, push yes, CI after push yes', out)
-        self.assertIn('dev: merge yes, gates before push no, push yes, CI after push no', out)
+        self.assertIn('prod: merge yes, gates before push yes, coverage before push yes, push yes, CI after push yes', out)
+        self.assertIn('dev: merge yes, gates before push no, coverage before push no, push yes, CI after push no', out)
         self.assertIn('e2e before deploy: on dev before deploying test no, on test before deploying prod no', out)
 
     def test_the_old_ci_before_merge_and_e2e_after_deploy_keys_are_retired_and_skipped(self):

@@ -24,6 +24,11 @@
     "test": true,
     "prod": true
   },
+  "coverage_before_push": {
+    "dev": false,
+    "test": true,
+    "prod": true
+  },
   "ci_after_push": {
     "dev": false,
     "test": true,

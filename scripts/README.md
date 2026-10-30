@@ -94,8 +94,12 @@ It ends `LISTING ONLY`, never `GATE GREEN`: a listing is not a verdict. A step i
 already see would be skipped or fail still ends INCOMPLETE / CLOSED, as the real run would.
 
 `gate-core.sh <target> --coverage-only` runs the coverage step alone. It is what runs when
-`gates_before_push.<t>` is no: the gate is off, coverage is not (#29, standards/13 §8a). It ends
+`gates_before_push.<t>` is no and `coverage_before_push.<t>` is yes (#29, standards/13 §8a). It ends
 `COVERAGE GREEN`, never `GATE GREEN`, and `COVERAGE_CMD` must measure on its own.
+
+Whether the coverage step runs at all is the panel's `coverage_before_push.<target>`, which the gate reads from
+`.claude/sdlc-settings.json`: `false` prints `WAIVED coverage` (never counted as passed; `--coverage-only` then ends
+`COVERAGE WAIVED`), anything else - a missing file, key or `python3`, a file that does not parse - measures.
 
 | Target | What runs |
 |---|---|
@@ -104,7 +108,7 @@ already see would be skipped or fail still ends INCOMPLETE / CLOSED, as the real
 
 Stacks are auto-detected (.NET solution, `web/`, `mobile/`, `e2e/`, `.maestro/`).
 Per-project settings live in `scripts/merge-gate.conf` (sourced if present):
-`TEST_VERSION_URL`, `E2E_WEB_CMD`, `E2E_MOBILE_CMD`, `COVERAGE_CMD`, `COVERAGE_MIN`,
+`TEST_VERSION_URL`, `E2E_WEB_CMD`, `E2E_MOBILE_CMD`, `COVERAGE_CMD` (not `COVERAGE_MIN`: 80 is the default),
 `SAST_CMD`, `BACKCOMPAT_CMD`, `SECRET_CMD`, `SKIP_STACKS`. Point them at the scripts
 the project already has instead of renaming those scripts.
 

@@ -47,16 +47,17 @@ Types: `feat` `fix` `refactor` `perf` `test` `docs` `chore` `build` `ci` `revert
 > a copy of the canonical script committed in every project and called by that project's
 > own `scripts/merge-gate.sh` orchestrator. It is four twin files (`gate-core.sh` plus
 > `gate-lib.sh`, `gate-lib-node.sh`, `gate-lib-prod.sh`, listed in `scripts/twins.txt`): copy them
-> together, a core without its libraries refuses to run. Everything in it runs at **every**
-> promotion, `feature/* → dev` included; **the single deferred step is RUNNING e2e**, which belongs
-> to the `prod` gate (#33). On `dev` and `test` the gate also CHECKS whether an e2e spec is missing:
+> together, a core without its libraries refuses to run. Everything in it runs at every
+> promotion whose gate the configuration turns on (§8a, `gates_before_push.<t>`), `feature/* → dev` included;
+> **the deferred step is RUNNING e2e**, which belongs to the `prod` gate (#33), and coverage runs where
+> `coverage_before_push.<t>` is yes (#29). On `dev` and `test` the gate also CHECKS whether an e2e spec is missing:
 > a warning in BOTH directions, never blocking — the gaps are written at the `test → prod` gate
 > (#33 step 2). A step whose tool is missing is reported SKIPPED and the
 > result is INCOMPLETE, never green.
 
 - [ ] Build (backend + web + mobile)
 - [ ] Unit tests green
-- [ ] **Line coverage ≥ 80% in every codebase** — with an honest denominator; an unmeasured codebase blocks (global #29, `10-test-strategy.md` §7)
+- [ ] **Line coverage ≥ 80% in every codebase** where `coverage_before_push.<t>` is yes — with an honest denominator; an unmeasured codebase blocks (global #29, `10-test-strategy.md` §7)
 - [ ] `tsc --noEmit`, ESLint, `dotnet format --verify-no-changes`
 - [ ] Backward-compatibility scan (`08-backward-compatibility.md` §7)
 - [ ] The secret scanner (gitleaks or similar) is clean
@@ -182,12 +183,19 @@ the setting once, or for one session.
 | Setting | Effect |
 |---|---|
 | `merge.<t>` = yes | Merge the finished code into `<t>` (`--no-ff`, from the fresh remote tip, §8). `no` leaves it out, and the later targets with it. |
-| `gates_before_push.<t>` = yes | Run the gates (unit tests, coverage, secret scan, SAST) on the merged result before `<t>` is pushed, with the local gate (`scripts/merge-gate.sh`). With `no` the coverage step still runs, alone: `scripts/gate-core.sh <t> --coverage-only` (#29, never waived), and a red or missing measurement blocks the push like the full gate. Defaults: dev no, test yes, prod yes. |
+| `gates_before_push.<t>` = yes | Run the gates (unit tests, coverage, secret scan, SAST) on the merged result before `<t>` is pushed, with the local gate (`scripts/merge-gate.sh`). With `no` and `coverage_before_push.<t>` yes the coverage step still runs, alone: `scripts/gate-core.sh <t> --coverage-only`, and a red or missing measurement blocks the push like the full gate. Defaults: dev no, test yes, prod yes. |
+| `coverage_before_push.<t>` = yes | "Run coverage before pushing": measure line coverage (≥ 80% per codebase, #29) before `<t>` is pushed - inside the full gate, or alone (`--coverage-only`) when the gates are off. `no` waives the step: the gate prints `WAIVED coverage`, never counts it as passed, and the merge commit carries `Gate-Waived: coverage`. The gate reads it itself from `.claude/sdlc-settings.json` (the panel's settings written into the project, `scripts/sdlc_settings.py`); only an explicit `false` waives it, a missing or unreadable file measures (fail closed). Defaults: dev no, test yes, prod yes (user decision 30/10/2026). |
 | `push.<t>` = yes | Push `<t>` after its merge and its gates. `no` leaves the merge local and the report says so. |
 | `ci_after_push.<t>` = yes | After `<t>` is pushed, wait for the project's CI to finish on the pushed commit. A red run is reported with the failing job and stops every later target. A project with no CI says "no CI", which is not a failure. `no` does not wait and the merge commit carries `Gate-Waived: ci`. Defaults: dev no, test yes, prod yes. |
 | `ci.runner` = hosted / self-hosted | Where the shared CI workflow (`.github/workflows/sdlc.yml` of the standards repository, called by a ~15-line caller in each project) runs: GitHub's runners, or the runners on this machine (at least two per project that has none of its own; a fork's pull request never reaches them). Written to the repo variable `SDLC_RUNNER_LABELS` by `scripts/sdlc_settings.py vars`. Default hosted. |
 | `deploy_after_push` = test / prod | "After pushing update: (•)test ( )prod": the environment a pushed update is deployed to; the plan job of the shared workflow reports it and a project's deploy workflow reads it from `.claude/sdlc-settings.json`. Default test. |
 | `e2e_before_deploy.<t>` = yes (`test`, `prod`) | Before `<t>` is deployed, run the e2e suite (Playwright / Maestro, `11`/`12`) against the environment below it: `e2e_before_deploy.test` runs on `dev` before `test` is deployed, `e2e_before_deploy.prod` runs on `test` before `prod` is deployed. It applies only where the project has an e2e suite and that environment; otherwise the report says "no e2e suite" or "no such environment", which is not a failure. A red run is reported with the failing specs and blocks the promotion to `<t>` (it was asked for, #33). The deploy itself still needs the user's approval (#20, #27). Defaults: both no. |
+
+**The gate reads the settings from the project, so the project's copy is rewritten first.** Before the gate of `<t>`
+runs, `scripts/sdlc_settings.py write --session <id>` (the plugin's copy) writes the panel's settings - this session's
+layer included - into `.claude/sdlc-settings.json`, and a change is committed with the merge. A stale or hand-edited copy
+would otherwise decide `coverage_before_push.<t>` (and CI's `ci_after_push.<t>`) against the panel; `sdlc_settings.py
+check` exits 1 when the two differ.
 
 **A red gate blocks** the push of that target and every later one; it is fixed, not waved through (§8, point 5). **A gate set
 to no is not run and is recorded**: the merge commit message ends with one line naming only what was skipped,
@@ -204,11 +212,13 @@ did not pass" (#25) stays true in the report.
 **The setting is the only switch** (user decision 29/10/2026): a project keeps no gate switch of its own (a file listing
 targets whose gate is off, a project rule saying "promote only on approval"). Its `merge-gate.sh` runs every gate by
 default and skips them only when Claude passes the waiver because `gates_before_push.<t>` is no; the trailer then reads
-`(neden: configuration)`. Even then it runs `scripts/gate-core.sh <t> --coverage-only` (user decision 29/10/2026): coverage
-is never in a `Gate-Waived:` line.
+`(neden: configuration)`. Even then it runs `scripts/gate-core.sh <t> --coverage-only`, which measures unless
+`coverage_before_push.<t>` is no. The same holds for coverage (user decision 30/10/2026): a project keeps no coverage
+switch of its own (no per-target skip in its `merge-gate.sh`, no `COVERAGE_MIN` in its `merge-gate.conf` - the 80% is the
+gate's default); `coverage_before_push.<t>` is the only one.
 
-**What no setting changes:** coverage ≥ 80% per codebase (#29) is part of what the gate owner runs and is not a setting
-(with the gate off it runs alone, `--coverage-only`);
+**What no setting changes:** the coverage threshold - 80% per codebase (#29); `coverage_before_push.<t>` decides only
+where it is measured;
 force pushes, `DROP`, deploys and anything on `main` need the user's approval in every mode (#20, #27) and are guarded by
 `guard-destructive.sh`; secrets stay out of the repository (#3). A push to `prod` is an ordinary push when `push.prod` is
 yes (the hook no longer judges it); a pending migration or other irreversible step in the change still needs approval.

@@ -104,7 +104,7 @@ class SessionLayer(base.Tool):
         out, _, _ = self.run_tool('context', '--stdin', stdin=json.dumps({'session_id': 'sess-9'}))
         self.assertIn('this session is sess-9', out)
         self.assertIn('set --session sess-9', out)
-        self.assertIn('prod: merge yes, gates before push yes, push no', out)
+        self.assertIn('prod: merge yes, gates before push yes, coverage before push yes, push no', out)
         plain, _, _ = self.run_tool('context', '--stdin', stdin='')
         self.assertNotIn('this session is', plain)
         junk, _, code = self.run_tool('context', '--stdin', stdin='not json')
