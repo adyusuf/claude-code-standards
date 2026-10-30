@@ -50,19 +50,19 @@ class SdlcSettings(unittest.TestCase):
         self.assertEqual(0, code, out)
         settings = self.written()['settings']
         self.assertEqual('hosted', settings['ci']['runner'])
-        self.assertEqual('test', settings['deploy_after_push'])
+        self.assertEqual({'test': True, 'prod': False}, settings['deploy_after_push'])
         self.assertFalse(settings['gates_before_push']['dev'])
         self.assertTrue(settings['ci_after_push']['prod'])
         # The gate reads coverage_before_push from this file (gate-lib.sh coverage_setting), so it must be written.
         self.assertEqual({'dev': False, 'test': True, 'prod': True}, settings['coverage_before_push'])
 
     def test_the_users_choice_beats_the_default_and_the_session_beats_the_user(self):
-        self.run_tool('set', 'deploy_after_push', 'prod', tool=CONFIG)
+        self.run_tool('set', 'deploy_after_push.prod', 'yes', tool=CONFIG)
         self.run_tool('write', '--project', self.project)
-        self.assertEqual('prod', self.written()['settings']['deploy_after_push'])
-        self.run_tool('set', 'deploy_after_push', 'test', '--session', 'abc-1', tool=CONFIG)
+        self.assertEqual({'test': True, 'prod': True}, self.written()['settings']['deploy_after_push'])
+        self.run_tool('set', 'deploy_after_push.prod', 'no', '--session', 'abc-1', tool=CONFIG)
         self.run_tool('write', '--project', self.project, '--session', 'abc-1')
-        self.assertEqual('test', self.written()['settings']['deploy_after_push'])
+        self.assertEqual({'test': True, 'prod': False}, self.written()['settings']['deploy_after_push'])
 
     def test_a_projects_own_adyusuf_json_is_ignored(self):
         os.makedirs(os.path.join(self.project, '.claude'))
