@@ -129,7 +129,7 @@ Set them in your shell or on the command line. None has to be set; the same list
 | Variable | Default | Effect |
 |---|---|---|
 | `COVERAGE_VENV` | `~/.cache/claude-standards/venv` | Where `scripts/coverage.sh` looks for `coverage` |
-| `COVERAGE_MIN` | `80` (also set in `scripts/merge-gate.conf`) | Line-coverage threshold per codebase. #29 forbids lowering it; the gate does not enforce that, so a lowered value is caught in review |
+| `COVERAGE_MIN` | `80` (the gate's default; a project's `merge-gate.conf` does not set it, standards/13 §8a) | Line-coverage threshold per codebase. #29 forbids lowering it; the gate does not enforce that, so a lowered value is caught in review |
 | `REAL_NAMES_MAP` | `docs/project-nicknames.tsv` in this or the main worktree | Path of the real-name map |
 | `REAL_NAMES_STRICT` | `0` | `1` makes a missing map a failure instead of a warning |
 | `GATE_PARALLEL_NODE` | `0` | `1` runs the Node track in parallel (only meaningful for a project with a Node codebase) |

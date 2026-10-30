@@ -53,6 +53,8 @@ class SdlcSettings(unittest.TestCase):
         self.assertEqual('test', settings['deploy_after_push'])
         self.assertFalse(settings['gates_before_push']['dev'])
         self.assertTrue(settings['ci_after_push']['prod'])
+        # The gate reads coverage_before_push from this file (gate-lib.sh coverage_setting), so it must be written.
+        self.assertEqual({'dev': False, 'test': True, 'prod': True}, settings['coverage_before_push'])
 
     def test_the_users_choice_beats_the_default_and_the_session_beats_the_user(self):
         self.run_tool('set', 'deploy_after_push', 'prod', tool=CONFIG)

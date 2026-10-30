@@ -155,8 +155,8 @@ to decide whether backward compatibility matters this time.
 (`scripts/gate-core.sh`) runs the same step set in every repository: formatter,
 typecheck, build, unit tests, **coverage per codebase**, secret scan,
 dependency CVE, SAST, backward-compatibility scan, guidance-file budget, and a
-missing-e2e-spec check. One step cannot be waived at all — coverage — because a
-threshold with an exception is a suggestion.
+missing-e2e-spec check. The coverage threshold has no exception — a threshold
+with an exception is a suggestion; only where it is measured is a setting.
 
 **3. The cost is cut where the measurement says it is, not where it feels like
 it is.** A subagent's tokens run roughly **4x** an orchestrator turn, and the
@@ -561,7 +561,7 @@ that reads `$HOME/.claude` passes on your laptop and dies in the pipeline.
 your project:
 
 ```sh
-COVERAGE_MIN=80
+COVERAGE_CMD="bash scripts/coverage.sh"
 SAST_CMD="bash scripts/codeql-scan.sh"
 ACCEPTED_GAPS="dependency CVE"
 ACCEPTED_GAPS_REASON="no lockfile in this repository yet; tracked in docs/gates.md"

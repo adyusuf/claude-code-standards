@@ -468,6 +468,20 @@ runs even with the gate off). The user chose #29: with the gate off, `gate-core.
 --coverage-only` runs the coverage step alone and blocks below the threshold; coverage never
 appears in a `Gate-Waived:` line. The cost is the coverage run's time on every such merge.
 
+**Amended 30/10/2026 (user decision: "Run coverage before pushing: [ ]dev [x]test [x]prod", settings taken
+from the panel).** Where coverage runs is now a setting, `coverage_before_push.<t>` (defaults dev no, test
+yes, prod yes), beside `gates_before_push.<t>` in the panel. It supersedes the 29/10 "coverage always
+runs": with it off the step is WAIVED and the merge commit carries `Gate-Waived: coverage`. The threshold
+itself (80% per codebase, the honest denominator) is unchanged and is still not a setting.
+- **The gate reads it itself**, from the panel's settings written into the project
+  (`.claude/sdlc-settings.json`, `scripts/sdlc_settings.py`), so the local gate, `--coverage-only` and CI
+  take the same answer. Only an explicit `false` waives it; a missing or unreadable file, key or `python3`
+  measures (fail closed). A waived step prints `WAIVED`, is counted apart and never as passed (`gate-lib.sh`
+  `coverage_setting`, `gate_coverage`; tests `scripts/tests/test_gate_core_coverage_only.py` › `CoverageSetting`).
+- **Projects keep no coverage switch of their own**: no per-target skip in a project's `merge-gate.sh` and
+  no `COVERAGE_MIN` in its `merge-gate.conf` (the gate's default is the 80%). A project takes the setting by
+  copying the twins `gate-core.sh` + `gate-lib.sh` and rewriting its `.claude/sdlc-settings.json`.
+
 ## §30 — Email in test data goes to a real mailbox
 
 - **Scope:** EVERY test address the system might send a message to — e2e (web and

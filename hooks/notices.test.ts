@@ -19,6 +19,7 @@ test('a setting names the rules it steers, and a setting no rule reads names non
   expect(rulesFor('merge.test')).toEqual(['#34', '#26'])
   expect(rulesFor('push.prod')).toEqual(['#34', '#26'])
   expect(rulesFor('gates_before_push.dev')).toEqual(['#34', '#25', '#29'])
+  expect(rulesFor('coverage_before_push.test')).toEqual(['#34', '#29'])
   expect(rulesFor('ci_after_push.prod')).toEqual(['#34', '#19'])
   expect(rulesFor('e2e_before_deploy.test')).toEqual(['#33', '#34', '#31'])
   expect(rulesFor('mode_model')).toEqual(['#27'])
@@ -27,7 +28,7 @@ test('a setting names the rules it steers, and a setting no rule reads names non
 })
 
 test('every rule a setting points at has its few words', () => {
-  for (const key of ['mode', 'mode_model', 'agents.x.model', 'write.unit_tests', 'write.e2e', 'merge.dev', 'push.dev', 'gates_before_push.dev', 'ci_after_push.dev', 'e2e_before_deploy.test']) {
+  for (const key of ['mode', 'mode_model', 'agents.x.model', 'write.unit_tests', 'write.e2e', 'merge.dev', 'push.dev', 'gates_before_push.dev', 'coverage_before_push.dev', 'ci_after_push.dev', 'e2e_before_deploy.test']) {
     for (const rule of rulesFor(key)) expect(RULES[rule] === undefined).toBe(false)
   }
 })
