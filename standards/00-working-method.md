@@ -36,10 +36,12 @@ message until it is done. A one-question/one-answer exchange gets no list.
   (#33); the review is the one the active mode has (the `qa` agent in C/D/E, my own pass
   in A/B).
 - **Merge, gate and push items come from the configuration (#34, `/adyusuf:config`):**
-  per target, in order dev → test → prod — the target only if
+  per target, in order dev → test → prod (first `sdlc_settings.py write --session <id>` into the project, committed
+  with the merge: the gate reads the coverage setting from that file, standards/13 §8a) — the target only if
   `merge.<t>` is yes (a no drops it and every later target); its gates only if
   `gates_before_push.<t>` is yes, else the item says "no gate: config" and only coverage runs
-  (`gate-core.sh <t> --coverage-only`, #29); its push
+  (`gate-core.sh <t> --coverage-only`) - coverage itself only if `coverage_before_push.<t>` is yes, else
+  "no coverage: config" (#29); its push
   only if `push.<t>` is yes; a CI wait after the push only if `ci_after_push.<t>` is yes; an e2e item before the deploy of
   `test`/`prod` only if `e2e_before_deploy.<t>` is yes and the project has both a suite and that environment. **A setting changed mid-session** (the config's `notify`
   hook says so) is re-read at the next task and the list is resent with the new items.

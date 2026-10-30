@@ -88,6 +88,8 @@ SCHEMA = (
     + [dict(_bool('merge.' + t, 'Merge into ' + t), group='Merge') for t in TARGETS]
     + [dict(_bool('push.' + t, 'Push ' + t), group='Push') for t in TARGETS]
     + [dict(_bool('gates_before_push.' + t, 'Run gates before pushing %s' % t), group='Gates before a push') for t in TARGETS]
+    + [dict(_bool('coverage_before_push.' + t, 'Run coverage before pushing %s' % t), group='Coverage before a push')
+       for t in TARGETS]
     + [dict(_bool('ci_after_push.' + t, 'Run CI after pushing %s' % t), group='CI after push') for t in TARGETS]
     + [dict(_enum('deploy_after_push', 'After pushing update, deploy to', DEPLOY_ENVS), group='Deploy after push'),
        dict(_enum('ci.runner', 'CI runner', CI_RUNNERS), group='CI after push')]
@@ -198,8 +200,13 @@ def check(key, value):
     raise ConfigError("'%s' must be one of %s, got %r" % (key, '/'.join(spec['options']), value))
 
 
-def read_layer(path):
-    """(flat values, problem). A missing file is an empty layer; an unreadable or invalid one is reported."""
+def read_layer(path, keep_unknown=False):
+    """(flat values, problem). A missing file is an empty layer; an unreadable or invalid one is reported.
+
+    A key this schema does not know was written by a NEWER plugin (forward compatibility, rule #11): it is left out of
+    the values, never a problem, so one new key does not throw away the whole layer - an older copy once read a user's
+    file holding `coverage_before_push.dev` as empty and answered push.prod = yes against the user's no (found by QA
+    30/10/2026). `keep_unknown` hands such keys back unchecked, so a write keeps what the newer plugin wrote."""
     if not os.path.exists(path):
         return {}, None
     try:
@@ -211,6 +218,10 @@ def read_layer(path):
         values = {}
         for key, value in flat.items():
             if key in RETIRED_KEYS:
+                continue
+            if key not in SPECS:
+                if keep_unknown:
+                    values[key] = value
                 continue
             values[key] = check(key, value)
         return values, None
@@ -254,7 +265,7 @@ def write_layer(path, changes, removals=()):
     change and the write happen under a lock, and the file is replaced atomically: a reader never sees it half-written."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with locked(path):
-        current, problem = read_layer(path)
+        current, problem = read_layer(path, keep_unknown=True)
         if problem:
             raise ConfigError('refusing to overwrite an unreadable configuration file - ' + problem, 1)
         current.update(changes)
@@ -293,9 +304,10 @@ def context(effective, problems, session=None):
     value = lambda key: effective[key][0]  # noqa: E731
     steps = []
     for target in TARGETS:
-        steps.append('%s: merge %s, gates before push %s, push %s, CI after push %s' % (
+        steps.append('%s: merge %s, gates before push %s, coverage before push %s, push %s, CI after push %s' % (
             target, shown(value('merge.' + target)), shown(value('gates_before_push.' + target)),
-            shown(value('push.' + target)), shown(value('ci_after_push.' + target))))
+            shown(value('coverage_before_push.' + target)), shown(value('push.' + target)),
+            shown(value('ci_after_push.' + target))))
     steps.append('e2e before deploy: ' + ', '.join(
         'on %s before deploying %s %s' % (on, after, shown(value('e2e_before_deploy.' + after))) for on, after in E2E_STAGES))
     lines = ['adyusuf configuration (effective; global rule #34 - follow it, do not ask what it answers):',
