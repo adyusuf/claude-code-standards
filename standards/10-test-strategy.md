@@ -122,8 +122,8 @@ coverage (`claude plugin test` prints pass/fail only). So, in `scripts/coverage.
 
 ### 7.3 The gate
 
-- A step in the shared gate core (`scripts/gate-core.sh`), running at **every** promotion including `dev`; below the threshold the exit code is ≠ 0. CI calls the same script (#19, #25).
-- A codebase that cannot be measured is reported as **"not measured"** and **still blocks** the promotion — a gate that did not run did not pass.
+- A step in the shared gate core (`scripts/gate-core.sh`), running before every push where the panel's `coverage_before_push.<t>` is yes (defaults: dev no, test and prod yes; read from `.claude/sdlc-settings.json`, `13-pr-and-review.md` §8a); below the threshold the exit code is ≠ 0. With it off the step is WAIVED, never counted as passed, and the merge commit carries `Gate-Waived: coverage`. CI calls the same script (#19, #25).
+- A codebase that cannot be measured is reported as **"not measured"** and **still blocks** the push where coverage runs — a gate that did not run did not pass.
 - The threshold is never lowered in a project; a project's `CLAUDE.md` cannot override it.
 
 ### 7.4 Commands per stack

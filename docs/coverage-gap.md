@@ -11,7 +11,7 @@ script; only `scripts/tests/` is omitted (`.coveragerc`). Nothing else is exclud
 ## Where it stands
 
 ⚠️ **These figures are a snapshot, not a gate.** The gate is `scripts/coverage.sh`,
-which measures on every promotion; this file is a written record and it goes stale the
+which measures before every push the coverage setting turns on; this file is a written record and it goes stale the
 moment a test lands. It has gone stale twice already. Refresh it with the command at
 the top and correct the numbers in the same commit as the tests that moved them.
 

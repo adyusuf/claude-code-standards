@@ -155,7 +155,7 @@ class DeployVerification(ProdGate):
 
 
 class ProdRunsCoverage(ProdGate):
-    """CLAUDE.md #29: the coverage step runs at EVERY promotion. The prod target used to run only the
+    """CLAUDE.md #29: the coverage step runs at every promotion coverage_before_push turns on (prod by default). The prod target used to run only the
     prod-specific steps and ended GATE GREEN with the threshold unmeasured (found 29/10/2026)."""
 
     def test_it_runs_the_coverage_command(self):
