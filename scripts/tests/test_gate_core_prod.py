@@ -80,7 +80,7 @@ class ProdGate(unittest.TestCase):
             self.write(name, text)
         # the CLAUDE.md gates the shared set runs at every target
         self.write('scripts/md-size-gate.sh', '#!/bin/sh\nexit 0\n')
-        os.chmod(os.path.join(self.root, 'scripts', 'md-size-gate.sh'), 0o755)
+        os.chmod(os.path.join(self.root, 'scripts', 'md-size-gate.sh'), 0o700)
         self.write('scripts/md-rule-gate.py', '')
         return self.commit()
 
