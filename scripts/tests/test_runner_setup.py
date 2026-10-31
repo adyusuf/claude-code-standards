@@ -56,7 +56,7 @@ class RunnerSetup(unittest.TestCase):
             path = os.path.join(self.bin, name)
             with open(path, 'w', encoding='utf-8') as handle:
                 handle.write(body)
-            os.chmod(path, 0o755)
+            os.chmod(path, 0o700)
         self.tarball = os.path.join(self.tmp, 'runner.tar.gz')
         self.sha = make_tarball(self.tarball)
         self.log = os.path.join(self.tmp, 'log')

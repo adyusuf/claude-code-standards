@@ -28,7 +28,7 @@ EXPECTED = {
     'gates_before_push.dev': False, 'gates_before_push.test': True, 'gates_before_push.prod': True,
     'coverage_before_push.dev': False, 'coverage_before_push.test': True, 'coverage_before_push.prod': True,
     'ci_after_push.dev': False, 'ci_after_push.test': True, 'ci_after_push.prod': True,
-    'ci.runner': 'hosted', 'deploy_after_push': 'test',
+    'ci.runner': 'hosted', 'deploy_after_push.test': True, 'deploy_after_push.prod': False,
     'e2e_before_deploy.test': False, 'e2e_before_deploy.prod': False,
 }
 
@@ -258,12 +258,26 @@ class RetiredKeys(Tool):
         with open(self.user, encoding='utf-8') as handle:
             self.assertEqual({'from_a_newer_plugin': {'dev': True}, 'push': {'prod': False}}, json.load(handle))
 
-    def test_the_deploy_and_runner_settings_are_radio_choices_with_defaults(self):
-        # 29/10/2026: "After pushing update: (*) test ( ) prod" and where the shared SDLC workflow runs.
-        self.assertEqual(['test', 'prod'], cfg.SPECS['deploy_after_push']['options'])
+    def test_the_deploy_settings_are_checkboxes_and_the_runner_a_radio_choice_with_defaults(self):
+        # 30/10/2026: "After pushing update: [x]test [ ]prod" (was a radio on 29/10) and where the shared SDLC workflow runs.
+        self.assertEqual(['ci.runner'], [k for k, s in cfg.SPECS.items() if s['type'] == 'enum' and k.startswith('ci.')])
         self.assertEqual(['hosted', 'self-hosted'], cfg.SPECS['ci.runner']['options'])
-        self.assertEqual('enum', cfg.SPECS['deploy_after_push']['type'])
-        self.assertEqual('Deploy after push', cfg.SPECS['deploy_after_push']['group'])
+        self.assertNotIn('deploy_after_push', cfg.SPECS)
+        for env in ('test', 'prod'):
+            self.assertEqual('bool', cfg.SPECS['deploy_after_push.' + env]['type'])
+            self.assertEqual('Deploy after push', cfg.SPECS['deploy_after_push.' + env]['group'])
+        values = self.values()['values']
+        self.assertIs(values['deploy_after_push.test'], True)
+        self.assertIs(values['deploy_after_push.prod'], False)
+
+    def test_the_old_single_choice_deploy_key_is_retired_and_skipped(self):
+        self.assertIn('deploy_after_push', cfg.RETIRED_KEYS)
+        with open(self.user, 'w', encoding='utf-8') as handle:
+            json.dump({'deploy_after_push': 'prod', 'mode': 'B'}, handle)
+        data = self.values()
+        self.assertEqual([], data['problems'])
+        self.assertEqual('B', data['values']['mode'])
+        self.assertIs(data['values']['deploy_after_push.prod'], False)
 
     def test_ci_after_push_exists_for_every_target_and_e2e_before_deploy_for_test_and_prod(self):
         for target in ('dev', 'test', 'prod'):
