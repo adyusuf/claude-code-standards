@@ -25,8 +25,8 @@ import adyusuf_config as cfg  # noqa: E402
 
 FILE = os.path.join('.claude', 'sdlc-settings.json')
 # What the pipeline reads. The session's own choices (mode, agents) and the pod are not part of the SDLC.
-SDLC_PREFIXES = ('merge.', 'push.', 'gates_before_push.', 'coverage_before_push.', 'ci_after_push.', 'e2e_before_deploy.')
-SDLC_KEYS = ('ci.runner', 'deploy_after_push')
+SDLC_PREFIXES = ('merge.', 'push.', 'gates_before_push.', 'coverage_before_push.', 'ci_after_push.', 'deploy_after_push.', 'e2e_before_deploy.')
+SDLC_KEYS = ('ci.runner',)
 VERSION = 1
 RUNNER_VARIABLE = 'SDLC_RUNNER_LABELS'
 # "CI runner" in the panel -> the JSON array the shared workflow gives runs-on. The labels of this machine's runners

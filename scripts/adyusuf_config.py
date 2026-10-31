@@ -50,7 +50,8 @@ MODELS = ('keep', 'sonnet', 'haiku', 'fable')
 # on read, so one stale key never makes the whole layer invalid (and the next write drops them).
 RETIRED_KEYS = (('monitor.connect', 'monitor.message_format')
                 + tuple('run_before_push.%s.%s' % (t, gate) for t in TARGETS for gate in ('unit', 'e2e'))
-                + tuple('%s.%s' % (group, t) for group in ('ci_before_merge', 'e2e_after_deploy') for t in TARGETS))
+                + tuple('%s.%s' % (group, t) for group in ('ci_before_merge', 'e2e_after_deploy') for t in TARGETS)
+                + ('deploy_after_push',))      # one radio choice until 30/10/2026; now deploy_after_push.<test|prod> checkboxes
 
 
 def _bool(key, label):
@@ -91,8 +92,8 @@ SCHEMA = (
     + [dict(_bool('coverage_before_push.' + t, 'Run coverage before pushing %s' % t), group='Coverage before a push')
        for t in TARGETS]
     + [dict(_bool('ci_after_push.' + t, 'Run CI after pushing %s' % t), group='CI after push') for t in TARGETS]
-    + [dict(_enum('deploy_after_push', 'After pushing update, deploy to', DEPLOY_ENVS), group='Deploy after push'),
-       dict(_enum('ci.runner', 'CI runner', CI_RUNNERS), group='CI after push')]
+    + [dict(_bool('deploy_after_push.' + env, 'After pushing update, deploy to ' + env), group='Deploy after push') for env in DEPLOY_ENVS]
+    + [dict(_enum('ci.runner', 'CI runner', CI_RUNNERS), group='CI after push')]
     + [dict(_bool('e2e_before_deploy.' + after, 'Run e2e on %s before deploying %s' % (on, after)), group='E2E before deploy')
        for on, after in E2E_STAGES]
     + [dict(_enum('agents.%s.%s' % (role, field), '%s: %s' % (role, field), options), group='Agents')

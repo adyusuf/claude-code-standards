@@ -94,8 +94,8 @@ class PlanStep(unittest.TestCase):
         self.addCleanup(shutil.rmtree, self.project, ignore_errors=True)
         os.makedirs(os.path.join(self.project, '.claude'))
 
-    def settings(self, ci, deploy='test'):
-        text = '{"version": 1, "settings": {"ci_after_push": %s, "deploy_after_push": "%s"}}' % (ci, deploy)
+    def settings(self, ci, deploy='{"test": true, "prod": false}'):
+        text = '{"version": 1, "settings": {"ci_after_push": %s, "deploy_after_push": %s}}' % (ci, deploy)
         with open(os.path.join(self.project, '.claude', 'sdlc-settings.json'), 'w', encoding='utf-8') as handle:
             handle.write(text)
 
@@ -112,11 +112,21 @@ class PlanStep(unittest.TestCase):
         self.assertEqual('false', self.plan('dev')[0]['ci'])
 
     def test_ci_on_for_a_branch_plans_ci_and_names_the_deploy_target(self):
-        self.settings('{"dev": false, "test": true, "prod": true}', deploy='prod')
+        self.settings('{"dev": false, "test": true, "prod": true}', deploy='{"test": true, "prod": true}')
         plan, _ = self.plan('test')
         self.assertEqual('true', plan['ci'])
-        self.assertEqual('prod', plan['deploy'])
+        self.assertEqual('test,prod', plan['deploy'])
         self.assertEqual('test', plan['target'])
+
+    def test_the_deploy_checkboxes_plan_one_environment_or_none(self):
+        self.settings('{"dev": true, "test": true, "prod": true}', deploy='{"test": false, "prod": true}')
+        self.assertEqual('prod', self.plan('test')[0]['deploy'])
+        self.settings('{"dev": true, "test": true, "prod": true}', deploy='{"test": false, "prod": false}')
+        self.assertEqual('none', self.plan('test')[0]['deploy'])
+
+    def test_a_settings_file_written_before_the_checkboxes_still_plans_its_single_choice(self):
+        self.settings('{"dev": true, "test": true, "prod": true}', deploy='"prod"')
+        self.assertEqual('prod', self.plan('test')[0]['deploy'])
 
     def test_a_branch_that_is_not_dev_test_or_prod_is_planned_as_dev(self):
         self.settings('{"dev": true, "test": false, "prod": false}')

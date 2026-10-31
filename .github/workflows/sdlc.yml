@@ -64,7 +64,12 @@ jobs:
             ci="true"; deploy="test"
           else
             ci="$(python3 -c "import json,sys; s=json.load(open('$file'))['settings']; print(str(s['ci_after_push']['$target']).lower())")"
-            deploy="$(python3 -c "import json; print(json.load(open('$file'))['settings']['deploy_after_push'])")"
+            # deploy_after_push is {"test": bool, "prod": bool} (checkboxes); a file written before 30/10/2026 holds one string.
+            deploy="$(python3 -c "
+          import json
+          d = json.load(open('$file'))['settings']['deploy_after_push']
+          on = [d] if isinstance(d, str) else [k for k in ('test', 'prod') if d.get(k) is True]
+          print(','.join(on) or 'none')")"
           fi
           { echo "target=$target"; echo "ci=$ci"; echo "deploy=$deploy"; } >> "$GITHUB_OUTPUT"
           { echo "### SDLC plan"; echo "target \`$target\` · CI \`$ci\` · deploy after push \`$deploy\`"; } >> "$GITHUB_STEP_SUMMARY"
