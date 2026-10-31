@@ -113,7 +113,7 @@ class SdlcSettings(unittest.TestCase):
         path = os.path.join(bin_dir, 'gh')
         with open(path, 'w') as handle:
             handle.write('#!/bin/sh\necho "$*" >> "%s"\nexit %d\n' % (log, exit_code))
-        os.chmod(path, 0o755)
+        os.chmod(path, 0o700)
         self.env['PATH'] = bin_dir + os.pathsep + self.env['PATH']
         return log
 
