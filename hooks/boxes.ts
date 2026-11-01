@@ -224,34 +224,29 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
   if (!data) return h(ui.Text, { dimColor: true }, 'Reading the configuration…')
   const mode = String(data.values.mode)
   const name = (agent: AgentRow) => `${ROLE_NAMES[agent.role] ?? agent.role}${!agent.in_mode && agent.active ? ' (added)' : ''}${agent.in_mode && !agent.active && mode !== 'A' ? ' (off)' : ''}`
-  // The role column is as wide as the longest name, its checkbox and the gaps, so the model options line up.
-  const width = Math.max(0, ...data.agents.map(agent => name(agent).length)) + 3
-  // The head is a one-glyph checkbox Button and the name as bold Text beside it: a Button draws its text unstyled on the
-  // desktop, so a pressable name could not be bold (user decision 01/11/2026).
-  const head = (agent: AgentRow) => h(ui.Box, { flexDirection: 'row' },
-    h(ui.Button, {
-      // No `label`: the desktop draws a Button's label in place of its children, which showed the name twice.
-      key: `on-${agent.role}`, plain: true, dimColor: !agent.active,
-      onPress: () => {
-        if (mode === 'A') return
-        press(`agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
-      },
-    // ▣/□ from one Unicode block (Geometric Shapes): the font draws ☐ visibly larger than ☑ (user report 01/11/2026).
-    }, agent.active ? '▣' : '□'),
-    h(ui.Text, { bold: true, dimColor: !agent.active }, name(agent)))
+  // The role column is as wide as the longest name and a gap, so the on column and the model options line up.
+  const width = Math.max(0, ...data.agents.map(agent => name(agent).length)) + 2
+  // A row reads like a settings row (user decision 01/11/2026): the name as a bold label, an `on` checkbox (the same icon or
+  // brackets as Settings), then the model radios. The name cannot itself be the pressable part: a Button's text is drawn
+  // unstyled on the desktop, so it could not be bold.
+  const on = (agent: AgentRow) => option(ui, `on-${agent.role}`, 'on', 'check', agent.active, () => {
+    if (mode === 'A') return
+    press(`agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
+  })
   return h(
     ui.Box,
     { flexDirection: 'column' },
     data.agents.map(agent =>
       line(ui,
-        head(agent),
-        // `default` is the choice; the model it resolves to is at full strength too, so the model the role runs on stays visible.
-        [agent.active
-          ? AGENT_MODELS.map(model =>
-            option(ui, `agents.${agent.role}.model=${model}`, model, 'radio', model === agent.model, () => press(`agents.${agent.role}.model`, model),
-              model === agent.model || (agent.model === 'default' && model === agent.runs_on)))
-          : null],
-        width)),
+        h(ui.Text, { bold: true, dimColor: !agent.active }, name(agent)),
+        [[on(agent)],
+          // `default` is the choice; the model it resolves to is at full strength too, so the model the role runs on stays visible.
+          agent.active
+            ? AGENT_MODELS.map(model =>
+              option(ui, `agents.${agent.role}.model=${model}`, model, 'radio', model === agent.model, () => press(`agents.${agent.role}.model`, model),
+                model === agent.model || (agent.model === 'default' && model === agent.runs_on)))
+            : null],
+        width, cells(['on']) + 1)),
   )
 }
 
