@@ -1986,3 +1986,6 @@ string, so a project is not broken until its next merge rewrites `.claude/sdlc-s
   e2e (e2e-writer): display only, the agent files, the modes and the `agents.<role>.*` keys keep the full names.
 - **Orange instead of yellow** for the two warnings (an unreadable settings file, a waived gate): hex `#E07B00`, because
   the terminal's colour names do not include orange.
+- **Pod and agent names (same day).** The Pod option reads `on` (was `connected`). An agent row's head is a one-glyph
+  checkbox Button (`☑`/`☐`, its `label` the role name for a reader) and the role name as bold `Text` beside it: the desktop
+  draws a Button's text unstyled, so a pressable name could not be bold. The role column keeps one width.

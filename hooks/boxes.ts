@@ -62,7 +62,7 @@ const targets = (prefix: string, names = TARGETS): Item[] => names.map(name => (
 const ROWS: Row[] = [
   { label: 'Mode', key: 'mode' },
   { label: 'Model', key: 'mode_model', names: { keep: 'opus' } },
-  { label: 'Pod', items: [{ key: 'pod.connect', name: 'connected' }] },
+  { label: 'Pod', items: [{ key: 'pod.connect', name: 'on' }] },
   { label: 'Format', key: 'pod.message_format' },
   { label: 'Tests', items: [{ key: 'write.unit_tests', name: 'unit' }, { key: 'write.e2e', name: 'e2e' }] },
   { label: 'Merge', items: targets('merge') },
@@ -195,17 +195,25 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
   if (!data) return h(ui.Text, { dimColor: true }, 'Reading the configuration…')
   const mode = String(data.values.mode)
   const name = (agent: AgentRow) => `${ROLE_NAMES[agent.role] ?? agent.role}${!agent.in_mode && agent.active ? ' (added)' : ''}${agent.in_mode && !agent.active && mode !== 'A' ? ' (off)' : ''}`
-  // The role column is as wide as the longest name, its brackets or icon, and a gap, so the model options line up.
+  // The role column is as wide as the longest name, its checkbox and the gaps, so the model options line up.
   const width = Math.max(0, ...data.agents.map(agent => name(agent).length)) + 3
+  // The head is a one-glyph checkbox Button and the name as bold Text beside it: a Button draws its text unstyled on the
+  // desktop, so a pressable name could not be bold (user decision 01/11/2026).
+  const head = (agent: AgentRow) => h(ui.Box, { flexDirection: 'row', columnGap: 1 },
+    h(ui.Button, {
+      key: `on-${agent.role}`, plain: true, dimColor: !agent.active, label: name(agent),
+      onPress: () => {
+        if (mode === 'A') return
+        press(`agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
+      },
+    }, agent.active ? '☑' : '☐'),
+    h(ui.Text, { bold: true, dimColor: !agent.active }, name(agent)))
   return h(
     ui.Box,
     { flexDirection: 'column' },
     data.agents.map(agent =>
       line(ui,
-        option(ui, `on-${agent.role}`, name(agent), 'check', agent.active, () => {
-          if (mode === 'A') return
-          press(`agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
-        }),
+        head(agent),
         // `default` is the choice; the model it resolves to is at full strength too, so the model the role runs on stays visible.
         agent.active
           ? AGENT_MODELS.map(model =>
