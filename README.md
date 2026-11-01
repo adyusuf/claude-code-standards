@@ -548,33 +548,38 @@ load mods, the command falls back to printing the same settings as a table and p
 - **Settings — "2 changed in this session".** Two blocks with the same rows. **Session settings** is what this session
   runs on; a click there changes this session only. **Claude settings** are the saved defaults in
   `~/.claude/adyusuf.json`, which every new session starts from; a click there changes the defaults. The summary
-  counts the settings this session has changed away from its defaults. Each row is one setting: `(•)`/`( )` is a choice
-  among values, `[x]`/`[ ]` a yes/no.
-  - *Working mode* A–E (here C, the full team; rule #27) and *Main model*, the model that replaces Opus in the Opus
-    agents (here sonnet).
-  - *Pod* and *Message format* are stored only; nothing acts on them yet.
-  - *Write* says whether Claude writes unit tests and e2e specs. *Merge into*, *After merge push*, *Run gates before
-    pushing* and *Run CI after pushing* are set per target (dev, test, prod) and are what rule #34 follows instead of
-    asking. Here Claude merges and pushes all three and runs no gate or CI wait. A gate set to no is recorded as
-    `Gate-Waived` on the merge commit.
-  - *CI runner*, *After pushing update* (which environment is deployed after a push) and *Run e2e before deploying*
-    (rule #33).
+  counts the settings this session has changed away from its defaults. Each row is one setting: its label, then its
+  options. The chosen option, or a yes/no that is on, is **underlined**; pressing another option chooses it, pressing
+  a yes/no turns it the other way.
+  - *Mode* A–E (here C, the full team; rule #27) and *Model*, the model that replaces Opus in the Opus agents (here
+    sonnet).
+  - *Pod* (`connected`) and *Format* are stored only; nothing acts on them yet.
+  - *Tests* (`unit`, `e2e`) says whether Claude writes unit tests and e2e specs. *Merge*, *Push*, *Gates*, *Coverage*
+    and *CI* (wait for CI after the push) are set per target (dev, test, prod). Rule #34 follows them instead of
+    asking: when a piece of work is done Claude reads them afresh and merges and pushes at once
+    ([`standards/13-pr-and-review.md`](standards/13-pr-and-review.md) §8a). Here Claude merges and pushes all three
+    and runs no gate or CI wait. A gate set to no is recorded as `Gate-Waived` on the merge commit.
+  - *Runner* (`cloud` = GitHub's runners, `local` = this machine's), *Deploy* (which environment a pushed update is
+    deployed to) and *E2E* (run e2e before that deploy; rule #33).
 - **The chat lines `⚠ adyusuf setting changed …`.** Every change, made in a box, through `/adyusuf:config` or by hand,
   is also written into the conversation. Each line says which layer changed (*this session* or *saved defaults*), the
-  key with its old → new value, and the rules it touches. The screenshot shows *Main model* (`mode_model`) switched back
+  key with its old → new value, and the rules it touches. The screenshot shows *Model* (`mode_model`) switched back
   and forth between `keep` and `sonnet`.
-- **Agents — "mode C".** One line per role. `[x]` means the role is on in the active mode; the nine ticked ones are
-  mode C's team. The five unticked ones (`data`, `observability`, `security`, `coverage-auditor`, `e2e-writer`) belong
-  to mode D; ticking one adds it to this session and marks it `(added)`. The radios after a role pick its model. The
-  first one means "the role's default" and is labelled with the model the role runs on now, so `doc-writer` reads
-  `(•)haiku`. The others pin a model. In the screenshot `qa` is pinned to `opus`, so its default label also reads opus.
+- **Agents — "mode C".** One line per role. An underlined role is on; the nine on in the screenshot are mode C's team.
+  The five that are off (`data`, `observability`, `security`, `coverage-auditor`, `e2e-writer`) belong to mode D;
+  pressing one adds it to this session and marks it `(added)`. The options after a role pick its model: `default`
+  (the model its file and *Model* give it), or a pinned `opus`, `sonnet`, `haiku` or `fable`. The choice is
+  underlined; with `default` the model it resolves to is underlined as well, so `doc-writer` shows `default` and
+  `haiku` underlined. In the screenshot `qa` is pinned to `opus`.
 - **Promotion — "dev e024c91c · test e980afdf · prod 465a022b".** One block per `dev`/`test`/`prod` branch of the
   repository the session is in: the commit `origin` holds, then `pushed` or `N not pushed`. Below it, any
   `Gate-Waived` line on the commits waiting to come in from the stage before it (for `test`, what `origin/dev` has and
   `origin/test` does not yet). *No waived gate on the way in* means nothing waiting carries a waived gate.
 
-The screenshot predates two changes from 30/10/2026: *After pushing update* is now two checkboxes (test, prod) instead
-of a radio, and Settings has a *Run coverage before pushing* row per target (rule #29).
+The screenshot shows the pane before three changes. On 30/10/2026 *Deploy* became two checkboxes (test, prod) instead
+of a radio, and Settings gained a *Coverage* row per target (rule #29). On 01/11/2026 the `(•)`/`[x]` markers gave way
+to underlining, the labels were shortened (*Working mode* → *Mode*, *Run gates before pushing* → *Gates*, *CI runner*
+→ *Runner* with `cloud`/`local`, …), and an agent's first option reads `default` instead of a model name.
 
 ### Level 4 — run it live, the way I do
 

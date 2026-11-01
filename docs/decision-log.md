@@ -1950,3 +1950,19 @@ defaults test yes, prod no); the old key is in `RETIRED_KEYS`, so a user's file 
 problem (its choice is not carried over: the setting was one day old). The `plan` job of `sdlc.yml` outputs `deploy` as the
 ticked list (`test`, `prod`, `test,prod` or `none`) and still reads a project's older settings file that holds the single
 string, so a project is not broken until its next merge rewrites `.claude/sdlc-settings.json`.
+
+## The boxes underline what is chosen, with short labels; finished work is promoted at once (01/11/2026, user decision)
+
+- **Markers (`hooks/boxes.ts`):** the `(•)`/`( )` and `[x]`/`[ ]` prefixes are gone. Every pressable part is the bare
+  name in a `Text`, `underline` on the chosen option or on a yes/no that is on. Supersedes the marking of the radio-list
+  (24/10/2026) and one-line (28/10/2026) entries; the layout and keys are unchanged.
+- **Agents:** the first model option reads `default` instead of the model it resolves to. With `default` chosen, both
+  `default` and the resolved model (`runs_on`) are underlined, so the model a role runs on stays visible; a pinned model is
+  the only one underlined. A role that is on has its name underlined.
+- **Labels:** Mode, Model, Pod (`connected`), Format, Tests (`unit`, `e2e`), Merge, Push, Gates, Coverage, CI, Runner
+  (`cloud`, `local`), Deploy, E2E; no label ends in `:`, the fallback line for a setting no row names included. `cloud`
+  and `local` are display names; the stored `ci.runner` values stay `hosted` / `self-hosted`. Only the pane changed:
+  setting keys, `/adyusuf:config` questions and the chat warnings keep their wording.
+- **Promotion without a question:** when a piece of work is done Claude re-reads the panel (session layer included) and
+  merges, gates and pushes as it says, straight away; it stops only when the user stops it, on a red gate, or on a step
+  that needs approval in every mode. Written in `standards/13-pr-and-review.md` §8a (rule #34).
