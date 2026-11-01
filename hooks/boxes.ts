@@ -78,6 +78,24 @@ const ROWS: Row[] = [
 /** The width of the label column of a settings block, in cells: the longest label and a gap. */
 const LABEL_WIDTH = Math.max(...ROWS.map(row => row.label.length)) + 2
 
+/** The name an Agents row shows: the short name and a star for an opus role (Model* replaces exactly those roles). */
+const agentName = (agent: AgentRow) => `${ROLE_NAMES[agent.role] ?? agent.role}${agent.defined === 'opus' ? '*' : ''}`
+
+/** Whether a role was added to the mode or taken out of it; drawn at the end of its row, so it never widens the names. */
+function agentMark(agent: AgentRow, mode: string) {
+  if (!agent.in_mode && agent.active) return '(added)'
+  return agent.in_mode && !agent.active && mode !== 'A' ? '(off)' : ''
+}
+
+/**
+ * The head column of Settings and Agents, one width for both, so their options start at the same place (user decision
+ * 01/11/2026): the longest label, or the longest name of a role that is on (its checkbox and a gap counted). A role
+ * that is off has no radios after it, so its name does not widen the column.
+ */
+export function headWidth(data: SettingsData) {
+  return Math.max(LABEL_WIDTH, ...data.agents.filter(agent => agent.active).map(agent => agentName(agent).length + 3))
+}
+
 /** The options of one setting, the chosen one marked. */
 function choices(ui: Ui, scope: Scope, key: string, options: Item[], value: string, press: Press) {
   return options.map(one =>
@@ -175,6 +193,7 @@ function table(ui: Ui, data: SettingsData, press: Press, claude: ColumnFold) {
   const { h } = ui
   const lines = settingLines(ui, data.schema, press)
   const width = Math.max(0, ...lines.map(one => cells(one.names))) + 2
+  const head = headWidth(data)
   const saved = data.saved && !claude.folded ? [['saved', data.saved] as [Scope, Layer]] : []
   const layers: [Scope, Layer][] = [['session', data], ...saved]
   const heads = [
@@ -186,8 +205,8 @@ function table(ui: Ui, data: SettingsData, press: Press, claude: ColumnFold) {
       : null,
   ].filter(head => head !== null)
   return h(ui.Box, { flexDirection: 'column' },
-    line(ui, null, heads, LABEL_WIDTH, claude.folded ? 0 : width),
-    lines.map(one => line(ui, label(ui, one.label), layers.map(([scope, layer]) => one.draw(scope, layer)), LABEL_WIDTH, width)))
+    line(ui, null, heads, head, claude.folded ? 0 : width),
+    lines.map(one => line(ui, label(ui, one.label), layers.map(([scope, layer]) => one.draw(scope, layer)), head, width)))
 }
 
 const OPEN: ColumnFold = { folded: false, toggle: () => undefined }
@@ -208,27 +227,25 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
   const { h } = ui
   if (!data) return h(ui.Text, { dimColor: true }, 'Reading the configuration…')
   const mode = String(data.values.mode)
-  // A star marks a role whose file says opus, exactly the roles Model* replaces (effective_model in adyusuf_config.py).
-  const name = (agent: AgentRow) => `${ROLE_NAMES[agent.role] ?? agent.role}${agent.defined === 'opus' ? '*' : ''}${!agent.in_mode && agent.active ? ' (added)' : ''}${agent.in_mode && !agent.active && mode !== 'A' ? ' (off)' : ''}`
-  // The role column is as wide as the longest name with its checkbox (icon or brackets) and a gap, so the next columns line up.
-  const width = Math.max(0, ...data.agents.map(agent => name(agent).length)) + 3
+  const width = headWidth(data)
   // User decisions 01/11/2026: a row is the role's checkbox with its name (pressing the name toggles it, as in Settings),
   // then the model as one radio group; the `default` checkbox that sat between them is gone. The radio of the model the
   // role runs on is chosen; choosing the model `default` gives writes `default`, any other pins that model.
-  const role = (agent: AgentRow) => option(ui, `on-${agent.role}`, name(agent), 'check', agent.active, () => {
+  const role = (agent: AgentRow) => option(ui, `on-${agent.role}`, agentName(agent), 'check', agent.active, () => {
     if (mode === 'A') return
     press(`agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
   })
   const key = (agent: AgentRow) => `agents.${agent.role}.model`
   // The model `default` gives; from an older script without `default_model`, known only while the role is on `default`.
   const givenByDefault = (agent: AgentRow) => agent.default_model ?? (agent.model === 'default' ? agent.runs_on : undefined)
+  const mark = (agent: AgentRow) => (agentMark(agent, mode) === '' ? null : h(ui.Text, { dimColor: true }, agentMark(agent, mode)))
   const models = (agent: AgentRow) => AGENT_MODELS.map(model => option(ui, `${key(agent)}=${model}`, model, 'radio', model === agent.runs_on,
     () => press(key(agent), model === givenByDefault(agent) ? 'default' : model)))
   return h(
     ui.Box,
     { flexDirection: 'column' },
     data.agents.map(agent =>
-      line(ui, role(agent), agent.active ? [models(agent)] : [null], width)),
+      line(ui, role(agent), [[...(agent.active ? models(agent) : []), mark(agent)]], width)),
   )
 }
 
