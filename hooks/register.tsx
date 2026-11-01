@@ -2,7 +2,7 @@ import type { EngineInterface, Hook, Register } from 'claude-code'
 
 import type { AgentRow, Promotion, Settings, Stage } from '../types'
 import {
-  agentsBody, FOLDED_AT_START, isFolded, nextFold, promotionBody, section, settingsBody,
+  agentsBody, FOLDED_AT_START, isFolded, nextFold, outsideRepository, paneFor, promotionBody, section, settingsBody,
 } from './boxes'
 import type { FoldId, Scope, SectionId } from './boxes'
 import {
@@ -94,9 +94,14 @@ async function refreshSettings($: EngineInterface) {
 
 async function refreshPromotion($: EngineInterface) {
   const git = (args: string[]) => $.process.run(['git', ...args])
+  // The engine says whether the folder is in a repository; any other git failure is only an error, never "outside".
+  if (outsideRepository(await $.session.repo().catch(() => undefined))) {
+    await $.state.set(promotion, ({ stages: [], error: 'Not inside a git repository', outside: true }) as Promotion)
+    return
+  }
   const refs = await git(['for-each-ref', '--format=%(refname:short)', 'refs/heads', 'refs/remotes/origin'])
   if (refs.exitCode !== 0) {
-    await $.state.set(promotion, ({ stages: [], error: 'Not inside a git repository' }) as Promotion)
+    await $.state.set(promotion, ({ stages: [], error: `git failed: ${refs.stderr.trim().slice(0, 160)}` }) as Promotion)
     return
   }
   const stages: Stage[] = []
@@ -265,15 +270,16 @@ const onRender: Hook<'ui.render'> = async ($, e) => {
   const toggle = (id: FoldId) => () => void flip($, id)
   const shut = (id: SectionId) => isFolded(fold, id)
   const claude = { folded: isFolded(fold, 'claude'), toggle: toggle('claude') }
+  const pane = paneFor(stages)
   return (
     <Box flexDirection="column">
       {section(ui, 'status', 'Status', shut('status'), toggle('status'), statusBody(ui, now))}
       {section(ui, 'settings', 'Settings', shut('settings'), toggle('settings'),
-        settingsBody(ui, data, problem, problems, press, claude))}
-      {section(ui, 'agents', 'Agents', shut('agents'), toggle('agents'),
-        agentsBody(ui, data, press))}
-      {section(ui, 'promotion', 'Promotion', shut('promotion'), toggle('promotion'),
-        promotionBody(ui, stages))}
+        settingsBody(ui, data, problem, problems, press, claude, pane.codeWork))}
+      {pane.sections.includes('agents') ? section(ui, 'agents', 'Agents', shut('agents'), toggle('agents'),
+        agentsBody(ui, data, press)) : null}
+      {pane.sections.includes('promotion') ? section(ui, 'promotion', 'Promotion', shut('promotion'), toggle('promotion'),
+        promotionBody(ui, stages)) : null}
     </Box>
   )
 }
