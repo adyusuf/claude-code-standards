@@ -5,7 +5,7 @@
 /** The boxes, by section id. */
 export const SECTION_HELP: Record<string, string> = {
   status: 'What this session is doing now, what comes next, and one row per piece with its measured figure.',
-  settings: 'The settings Claude follows instead of asking. Session: this session only. System: the saved defaults.',
+  settings: 'What Claude follows instead of asking, for code in a project. A task with no code uses only Replies and Status.',
   agents: 'Every role, ticked when it runs, with the model it runs on. Tick or untick one for this session.',
   promotion: 'Where dev, test and prod stand on origin, and any gate waived on the commits waiting to come in.',
 }
