@@ -79,12 +79,17 @@ const ROWS: Row[] = [
 /** The width of the label column of a settings block, in cells: the longest label and a gap. */
 const LABEL_WIDTH = Math.max(...ROWS.map(row => row.label.length)) + 2
 
-/** One line: its head (a label, a role) in a column of `width` cells, then its parts side by side (they wrap when narrow). */
-function line(ui: Ui, head: unknown, parts: unknown, width = LABEL_WIDTH) {
+/**
+ * One line: its head (a label, a role) in a column of `width` cells, then one column of parts per layer, side by side.
+ * Every column but the last is `columnWidth` cells at least, so the next one starts at the same place on every line.
+ */
+function line(ui: Ui, head: unknown, columns: unknown[], width = LABEL_WIDTH, columnWidth = 0) {
   const { h } = ui
   return h(ui.Box, { flexDirection: 'row', columnGap: 1 },
     h(ui.Box, { minWidth: width, flexShrink: 0 }, head),
-    h(ui.Box, { flexDirection: 'row', flexWrap: 'wrap', columnGap: 1 }, parts))
+    columns.map((parts, at) => h(ui.Box, {
+      flexDirection: 'row', flexWrap: 'wrap', columnGap: 1, ...(at < columns.length - 1 ? { minWidth: columnWidth, flexShrink: 0 } : {}),
+    }, parts)))
 }
 
 const label = (ui: Ui, text: string) => (text === '' ? null : ui.h(ui.Text, { bold: true }, text))
@@ -115,36 +120,45 @@ function checks(ui: Ui, scope: Scope, items: Item[], values: Layer['values'], pr
   })
 }
 
-/** One block of settings (the session's, or the saved defaults) as one line per row. */
-function block(ui: Ui, title: string, scope: Scope, schema: Spec[], layer: Layer, press: Press) {
-  const { h } = ui
+/** One settings row: its label, the names it draws (to size the column) and how it draws its options for one layer. */
+type SettingLine = { label: string; names: string[]; draw: (scope: Scope, layer: Layer) => unknown[] }
+
+/** The rows of the settings table, in order. */
+function settingLines(ui: Ui, schema: Spec[], press: Press): SettingLine[] {
   const { shown } = settingGroups(schema)
   const has = new Set(shown.map(spec => spec.key))
   const covered = new Set<string>()
-  const lines: unknown[] = []
+  const lines: SettingLine[] = []
+  const radios = (text: string, key: string, options: Item[]): SettingLine => ({
+    label: text, names: options.map(one => one.name),
+    draw: (scope, layer) => choices(ui, scope, key, options, String(layer.values[key]), press),
+  })
   for (const row of ROWS) {
     if ('items' in row) {
       const items = row.items.filter(item => has.has(item.key))
       items.forEach(item => covered.add(item.key))
-      if (items.length > 0) lines.push(line(ui, label(ui, row.label), checks(ui, scope, items, layer.values, press)))
+      if (items.length > 0) {
+        lines.push({ label: row.label, names: items.map(item => item.name), draw: (scope, layer) => checks(ui, scope, items, layer.values, press) })
+      }
       continue
     }
     const spec = shown.find(one => one.key === row.key)
     if (!spec) continue
     covered.add(row.key)
-    const options = (spec.options ?? []).map(option => ({ key: option, name: row.names?.[option] ?? option }))
-    lines.push(line(ui, label(ui, row.label), choices(ui, scope, row.key, options, String(layer.values[row.key]), press)))
+    lines.push(radios(row.label, row.key, (spec.options ?? []).map(option => ({ key: option, name: row.names?.[option] ?? option }))))
   }
   // A setting no row names (a newer plugin than this pane) must not vanish from view.
   for (const spec of shown.filter(one => !covered.has(one.key))) {
+    const items = [{ key: spec.key, name: spec.label }]
     lines.push(spec.type === 'bool'
-      ? line(ui, null, checks(ui, scope, [{ key: spec.key, name: spec.label }], layer.values, press))
-      : line(ui, label(ui, spec.label), choices(ui, scope, spec.key, (spec.options ?? []).map(option => ({ key: option, name: option })),
-        String(layer.values[spec.key]), press)))
+      ? { label: '', names: [spec.label], draw: (scope, layer) => checks(ui, scope, items, layer.values, press) }
+      : radios(spec.label, spec.key, (spec.options ?? []).map(option => ({ key: option, name: option }))))
   }
-  return h(ui.Box, { flexDirection: 'column', marginBottom: 1 }, h(ui.Text, { bold: true }, title),
-    h(ui.Box, { flexDirection: 'column', marginLeft: INDENT }, lines))
+  return lines
 }
+
+/** The cells one row's options take: each name with its brackets or icon, a gap between them. */
+const cells = (names: string[]) => names.reduce((sum, name) => sum + name.length + 2, 0) + Math.max(0, names.length - 1)
 
 /** One bordered box with a header that folds it; the summary stays visible while it is folded. */
 export function section(ui: Ui, id: SectionId, title: string, summary: string, folded: boolean, toggle: () => void, body: unknown) {
@@ -177,6 +191,21 @@ export function promotionSummary(data: PromotionData | null): string {
   return data.stages.map(stage => `${stage.branch} ${stage.origin}`).join(' · ')
 }
 
+/**
+ * The settings as one table (user decision 01/11/2026): a label, this session's options (a press changes this session
+ * only), then the saved defaults' options (a press changes `~/.claude/adyusuf.json`, which new sessions start from).
+ */
+function table(ui: Ui, data: SettingsData, press: Press) {
+  const { h } = ui
+  const lines = settingLines(ui, data.schema, press)
+  const width = Math.max(0, ...lines.map(one => cells(one.names))) + 2
+  const layers: [Scope, Layer][] = [['session', data], ...(data.saved ? [['saved', data.saved] as [Scope, Layer]] : [])]
+  const heads = layers.map(([scope]) => h(ui.Text, { bold: true }, scope === 'session' ? 'Session' : 'Claude'))
+  return h(ui.Box, { flexDirection: 'column' },
+    line(ui, null, heads, LABEL_WIDTH, width),
+    lines.map(one => line(ui, label(ui, one.label), layers.map(([scope, layer]) => one.draw(scope, layer)), LABEL_WIDTH, width)))
+}
+
 export function settingsBody(ui: Ui, data: SettingsData | null, problem: string, problems: string[], press: Press) {
   const { h } = ui
   if (!data) return h(ui.Text, { dimColor: true }, problem || 'Reading the configuration…')
@@ -185,8 +214,7 @@ export function settingsBody(ui: Ui, data: SettingsData | null, problem: string,
     { flexDirection: 'column' },
     problem !== '' ? h(ui.Text, { color: 'red' }, problem) : null,
     problems.map(line => h(ui.Text, { color: WARN }, `! ${line}`)),
-    block(ui, 'Session settings', 'session', data.schema, data, press),
-    data.saved ? block(ui, 'Claude settings', 'saved', data.schema, data.saved, press) : null,
+    table(ui, data, press),
   )
 }
 
@@ -215,11 +243,11 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
       line(ui,
         head(agent),
         // `default` is the choice; the model it resolves to is at full strength too, so the model the role runs on stays visible.
-        agent.active
+        [agent.active
           ? AGENT_MODELS.map(model =>
             option(ui, `agents.${agent.role}.model=${model}`, model, 'radio', model === agent.model, () => press(`agents.${agent.role}.model`, model),
               model === agent.model || (agent.model === 'default' && model === agent.runs_on)))
-          : null,
+          : null],
         width)),
   )
 }

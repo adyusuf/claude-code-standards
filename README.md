@@ -545,16 +545,16 @@ load mods, the command falls back to printing the same settings as a table and p
 *What the screenshot shows.* The left two-thirds are the app's session list and the conversation, blurred on purpose
 (see [Anonymization](#anonymization)). The right-hand column is the `adyusuf` pane:
 
-- **Settings — "2 changed in this session".** Two blocks with the same rows. **Session settings** is what this session
-  runs on; a click there changes this session only. **Claude settings** are the saved defaults in
-  `~/.claude/adyusuf.json`, which every new session starts from; a click there changes the defaults. The summary
-  counts the settings this session has changed away from its defaults. Each row is one setting: its label in bold in a
-  column of one width, so every row's options start at the same place, then its options. The engine has no native
+- **Settings — "2 changed in this session".** One table, one row per setting: the label in bold, then the
+  **Session** column, then the **Claude** column. *Session* is what this session runs on; a press there changes this
+  session only. *Claude* holds the saved defaults in `~/.claude/adyusuf.json`, which every new session starts from; a
+  press there changes the defaults. (The screenshot still shows the older layout: two blocks, *Session settings* and
+  *Claude settings*, one under the other.) The summary counts the settings this session has changed away from its
+  defaults. Each column has one width, so every row's options start at the same place. The engine has no native
   radio or checkbox, so the boxes build them. On the desktop each option has a radio (one of several) or checkbox
   (yes/no) icon, filled when chosen. In the terminal, which cannot draw SVG, the chosen option reads `[C]`, `[dev]`. On
   both, what is chosen is at full strength and the rest are faded. Pressing another option chooses it; pressing a
-  yes/no turns it the other way. A box's body starts one step in from its header, and a block's rows one step in from
-  the block title.
+  yes/no turns it the other way. A box's body starts one step in from its header.
   - *Mode* A–E (here C, the full team; rule #27) and *Model*, the model that replaces Opus in the Opus agents (here
     sonnet).
   - *Pod* (`on`) and *Format* are stored only; nothing acts on them yet.
