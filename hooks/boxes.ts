@@ -236,7 +236,8 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
         if (mode === 'A') return
         press(`agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
       },
-    }, agent.active ? '☑' : '☐'),
+    // ▣/□ from one Unicode block (Geometric Shapes): the font draws ☐ visibly larger than ☑ (user report 01/11/2026).
+    }, agent.active ? '▣' : '□'),
     h(ui.Text, { bold: true, dimColor: !agent.active }, name(agent)))
   return h(
     ui.Box,
