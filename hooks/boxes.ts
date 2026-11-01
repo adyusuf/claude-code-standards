@@ -23,7 +23,7 @@ type SettingsData = Layer & { schema: Spec[]; saved?: Layer; agents: AgentRow[] 
 type Stage = { branch: string; origin: string; unpushed: number; waived: string[] }
 type PromotionData = { stages: Stage[]; error?: string }
 
-export const SECTIONS = ['settings', 'agents', 'promotion'] as const
+export const SECTIONS = ['status', 'settings', 'agents', 'promotion'] as const
 export type SectionId = (typeof SECTIONS)[number]
 
 /** Sections that start folded, so the pane opens as a short card and not as one long list. */
@@ -96,12 +96,12 @@ function line(ui: Ui, head: unknown, columns: unknown[], width = LABEL_WIDTH, co
 const label = (ui: Ui, text: string) => (text === '' ? null : ui.h(ui.Text, { bold: true }, text))
 
 /**
- * One pressable part. `chosen` fills its icon (desktop) or puts it in brackets (terminal); `lit` (chosen, or the model a
- * `default` resolves to) draws it at full strength, the rest dimmed. The icon sits beside the Button: a Button holds text only.
+ * One pressable part. `chosen` fills its icon (desktop) or puts it in brackets (terminal) and draws it at full strength,
+ * the rest dimmed. The icon sits beside the Button: a Button holds text only.
  */
-function option(ui: Ui, key: string, text: string, kind: Kind, chosen: boolean, onPress: () => void, lit = chosen) {
+function option(ui: Ui, key: string, text: string, kind: Kind, chosen: boolean, onPress: () => void) {
   const { h } = ui
-  const button = h(ui.Button, { key, plain: true, dimColor: !lit, onPress }, ui.Svg || !chosen ? text : `[${text}]`)
+  const button = h(ui.Button, { key, plain: true, dimColor: !chosen, onPress }, ui.Svg || !chosen ? text : `[${text}]`)
   if (!ui.Svg) return button
   return h(ui.Box, { flexDirection: 'row', alignItems: 'center' },
     h(ui.Svg, { source: ICONS[kind][chosen ? 'on' : 'off'], alt: chosen ? `${text}, chosen` : text, width: 12, height: 12 }), button)
@@ -240,11 +240,13 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
       line(ui,
         h(ui.Text, { bold: true, dimColor: !agent.active }, name(agent)),
         [[on(agent)],
-          // `default` is the choice; the model it resolves to is at full strength too, so the model the role runs on stays visible.
+          // With `default` chosen, the model it resolves to is marked too (filled icon or brackets), so the model the role
+          // runs on is visible at a glance (user decision 01/11/2026).
           agent.active
-            ? AGENT_MODELS.map(model =>
-              option(ui, `agents.${agent.role}.model=${model}`, model, 'radio', model === agent.model, () => press(`agents.${agent.role}.model`, model),
-                model === agent.model || (agent.model === 'default' && model === agent.runs_on)))
+            ? AGENT_MODELS.map(model => {
+              const marked = model === agent.model || (agent.model === 'default' && model === agent.runs_on)
+              return option(ui, `agents.${agent.role}.model=${model}`, model, 'radio', marked, () => press(`agents.${agent.role}.model`, model))
+            })
             : null],
         width, cells(['on']) + 1)),
   )
