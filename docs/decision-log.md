@@ -2001,3 +2001,32 @@ string, so a project is not broken until its next merge rewrites `.claude/sdlc-s
 - **Agent rows read like settings rows (same day).** The bold role name is the row label, then an `on` checkbox (the same
   blue/grey 12 px icon, or `[on]`, as Settings), then the model radios; the `▣`/`□` characters are gone. The `on` column has
   one width, so the model radios line up.
+- **The resolved model is marked (same day).** With `default` chosen, the model it resolves to gets the filled radio (or
+  brackets) too, not only full strength: the model a role runs on is visible at a glance. Supersedes "lit but not marked".
+
+## The pane's Status box: the status table, kept current by a trigger and a poll (01/11/2026, user decision)
+
+- **Why:** the status table of a long run lived only in the replies; the user asked to see it in the pane, current while
+  work runs ("now running this, next that").
+- **Decision:** a fourth box, *Status*, first in the pane. Its source is a per-session file
+  (`~/.claude/adyusuf-status/<session id>.json`) that `scripts/adyusuf_status.py` writes atomically: `now`, `next`, rows of
+  item · state · measured figure · waiting on. Claude writes it at every state change; background runs write their steps.
+  The reply table stays the deliverable (`standards/00-working-method.md` §10d).
+- **Trigger or polling? Both.** The engine has no file watcher. A `tool.call` hook refreshes after every tool call
+  (instant for Claude's own updates; not awaited, so it never delays or fails a call); `$.clock.every(2000)` stats the file
+  and re-reads only on a new modification time, which covers a background run writing while nothing else happens. The
+  poll alone would lag up to 2 s; the trigger alone would miss background progress.
+- **Structure:** the drawing and the parser are engine-free in `hooks/status.ts` (measured, tested in `status.test.ts`);
+  `boxes.ts` stayed under 300 lines (#9). Type check: no gate step type-checks `register.tsx` in this repository (the
+  typecheck step is Node-only); checked by hand with deno against the engine's types, the change adds no new error class.
+- **QA pass 1 (same day), sent back and fixed.** The prune removed any old `*.json` in the folder: it now removes only a
+  file named like a session's that holds a status table (with `updated`). The box took `HOME`, the script `expanduser`: the
+  box now takes USERPROFILE, then HOME, and a relative `ADYUSUF_STATUS_DIR` is refused on both sides. Rows that are not
+  objects crashed the script: rows are normalised. `clear` could not replace a corrupt file: it no longer reads it first.
+  Concurrent writers lost rows (12 parallel writes kept 5-6): writes take an `flock`. A read error blanked the box: it now
+  keeps the last table, resets the stamp and logs once. The refresh decision moved into `status.ts` (`statusStep`) and is
+  tested; refreshes are serialised, so an older read cannot land after a newer one; a second `session.start` cancels the
+  previous poll. Control characters are stripped and rows capped at 50 on both sides; session ids are ASCII only.
+  **Rejected with evidence:** "the trigger fires before the tool runs". The engine's `ToolCallResult` carries the tool's
+  own output (`result`, "from core the tool's record"), so `await next(e)` in a `tool.call` hook resolves after the tool
+  ran; the validator's "gating hook without .catch" warning is about a rejected `next()`, which the hook passes through.

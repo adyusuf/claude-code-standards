@@ -1,8 +1,8 @@
 ---
-description: Open the adyusuf settings, agents and promotion boxes in the right-hand rail
+description: Open the adyusuf status, settings, agents and promotion boxes in the right-hand rail
 ---
 
-Open the three right-hand rail boxes (*Settings*, *Agents*, *Promotion*) of this plugin.
+Open the four right-hand rail boxes (*Status*, *Settings*, *Agents*, *Promotion*) of this plugin.
 
 The boxes are drawn by the plugin's mod (`${CLAUDE_PLUGIN_ROOT}/hooks/register.tsx`), which answers this command itself
 when mods are loaded. If you are reading this text, the mod did not answer: this session does not load mods or draw

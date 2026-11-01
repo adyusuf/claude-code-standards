@@ -20,6 +20,10 @@ export type Settings = {
 }
 export type Stage = { branch: string; origin: string; unpushed: number; waived: string[] }
 export type Promotion = { stages: Stage[]; error?: string }
+/** One row of the session's status table: what it is, where it stands, the measured figure with its signal, what it waits on. */
+export type StatusRow = { item: string; state: string; figure: string; waiting: string }
+/** The session's status table (scripts/adyusuf_status.py writes it): what runs now, what runs next, the rows. */
+export type StatusData = { now: string; next: string; rows: StatusRow[]; updated: string }
 
 declare module 'claude-code' {
   interface PluginState {
@@ -31,6 +35,8 @@ declare module 'claude-code' {
       /** Problems the script reports about the configuration files (an unreadable or invalid layer); empty when none. */
       settingsProblems: string[]
       promotion: Promotion | null
+      /** The session's status table from ~/.claude/adyusuf-status/<session>.json; null when there is none. */
+      status: StatusData | null
       /** Which of the pane's boxes are folded, by id (settings, agents, promotion); the pane starts with agents and promotion folded. */
       folded: Record<string, boolean>
     }
