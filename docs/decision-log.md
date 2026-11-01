@@ -2125,3 +2125,6 @@ longer pressable (the user had no preference between this and a pressable name t
 choosing `short`: Claude must write at the panel's length before every reply. Unlike the other settings, a change of
 reply length applies from the next reply, not the next task, since it splits no work; the change notice and §5a of
 `standards/00-working-method.md` say so.
+
+**Reverted the same day (user decision, 02/11/2026): the Agents labels stay as they were.** The blue checkbox icon and
+the pressable name are back; a running role's name is not bold on the desktop, which cannot draw bold inside a Button.
