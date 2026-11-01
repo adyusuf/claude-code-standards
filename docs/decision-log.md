@@ -2061,3 +2061,9 @@ missing for a role file with no `model:` line, or with a pane newer than an inst
 `default_model`. Neither occurs; `/adyusuf:config` (`agents.<role>.model default`) still resets such a role.
 The arrow sits close to *System* (user decision, 01/11/2026): no gap is added on the desktop, whose native button pads
 the arrow already; the terminal keeps one cell.
+Settings and Agents share one head column (user decision, 01/11/2026): its width is the longest Settings label or the
+longest name of a role that is on, so the Agents radios start where the Settings options do. A role that is off (no
+radios after it, such as `observability` in mode C) no longer widens the column, which had left the radios far from
+the names. The `(added)` / `(off)` mark moves from the name to the end of the row (qa, same day): inside the name, one
+added role would have widened both boxes again. The drawing parts shared by the boxes moved to `hooks/controls.ts` first, since `boxes.ts` had reached 299
+lines (rule #9).

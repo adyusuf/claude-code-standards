@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { agentsBody, agentsSummary, FOLDED_AT_START, isFolded, nextFold, promotionBody, promotionSummary, SECTIONS, section, settingsBody, settingsSummary } from './boxes'
+import { agentsBody, agentsSummary, FOLDED_AT_START, headWidth, isFolded, nextFold, promotionBody, promotionSummary, SECTIONS, section, settingsBody, settingsSummary } from './boxes'
 
 // A recording factory: an element is { type, props, children }, so the tests read what the boxes would draw.
 type Node = { type: unknown; props: Record<string, any>; children: unknown[] }
@@ -101,10 +101,10 @@ test('the System column folds by its arrow: folded, only the heading is left bes
   // Folded, the heading follows Session at once; open, it sits over its own column.
   const head = (body: unknown) => all(body, 'Box').find(node => node.props.flexDirection === 'row')!
   const widths = (body: unknown) => flat(head(body).children).map(child => (child as Node).props.minWidth)
-  expect(widths(shut)).toEqual(['Coverage'.length + 2, 0, undefined])
+  expect(widths(shut)).toEqual(['security'.length + 3, 0, undefined])
   const open = settingsBody(ui, data(), '', [], () => undefined, fold(false))
   expect(rows(open)).toEqual(['Session System ◂', 'Mode A [B] C A B [C]', 'Model* opus [sonnet] [opus] sonnet', 'Push test [prod] test prod'])
-  expect(widths(open)).toEqual(['Coverage'.length + 2, 'opus'.length + 'sonnet'.length + 4 + 1 + 2, undefined])
+  expect(widths(open)).toEqual(['security'.length + 3, 'opus'.length + 'sonnet'.length + 4 + 1 + 2, undefined])
   // Without saved defaults there is no System heading to fold.
   expect(all(settingsBody(ui, data({ saved: undefined }), '', [], () => undefined, fold(true)), 'Button').some(node => node.props.key === 'fold-claude')).toBe(false)
 })
@@ -221,7 +221,7 @@ test('Agents puts each role on one line: its checkbox and name, then the model r
   expect(rows(body)).toEqual([
     '[analyst] opus [sonnet] haiku fable',
     'qa',
-    '[security (added)] opus [sonnet] haiku fable',
+    '[security] opus [sonnet] haiku fable (added)',
   ])
   expect(all(body, 'Button').some(node => String(node.props.key).endsWith('=default'))).toBe(false)
 })
@@ -238,8 +238,9 @@ test('a role whose file says opus carries a star, the same as Model*, which repl
   // The star counts in the role column's width, so the radios of a starred longest name line up with the rest.
   const widths = (one: unknown) => all(one, 'Box').filter(node => node.props.minWidth !== undefined).map(node => node.props.minWidth)
   const longest = agentsBody(ui, data({ agents: [agent('security', { active: true, defined: 'opus' }), agent('qa', { active: true, in_mode: true })] }), () => undefined)
-  expect(rows(longest)[0]).toBe('[security* (added)] opus [sonnet] haiku fable')
-  expect(widths(longest)).toEqual(['security* (added)'.length + 3, 'security* (added)'.length + 3])
+  expect(rows(longest)[0]).toBe('[security*] opus [sonnet] haiku fable (added)')
+  // The (added) mark sits after the radios, so it does not widen the column.
+  expect(widths(longest)).toEqual(['security*'.length + 3, 'security*'.length + 3])
 })
 
 test('the radio of the model the role runs on is chosen, pinned or not', () => {
@@ -290,10 +291,10 @@ test('the role checkbox sits left of the role name, and pressing the name toggle
   expect(all(body, 'Text').filter(node => node.props.bold).length).toBe(0)
   const toggles = all(body, 'Button').filter(node => String(node.props.key).startsWith('on-'))
   expect(toggles.map(node => [words(node), node.props.label, node.props.dimColor])).toEqual([
-    ['[analyst]', undefined, false], ['qa', undefined, true], ['[security (added)]', undefined, false],
+    ['[analyst]', undefined, false], ['qa', undefined, true], ['[security]', undefined, false],
   ])
   const icons = all(agentsBody(desktop, data(), () => undefined), 'Svg').filter(node => String(node.props.source).includes('<rect'))
-  expect(icons.map(node => node.props.alt)).toEqual(['analyst, chosen', 'qa', 'security (added), chosen'])
+  expect(icons.map(node => node.props.alt)).toEqual(['analyst, chosen', 'qa', 'security, chosen'])
 })
 
 test('the Agents box shows the short role names and keeps the role in the key it writes', () => {
@@ -305,18 +306,36 @@ test('the Agents box shows the short role names and keeps the role in the key it
   expect(calls).toEqual([['agents.product-manager.enabled', 'on']])
 })
 
-test('options line up: every head column of a block, and of the Agents box, is one width', () => {
+test('options line up: Settings and Agents share one head column, so their options start at the same place', () => {
   const widths = (body: unknown) => all(body, 'Box').filter(node => node.props.minWidth !== undefined).map(node => node.props.minWidth)
   const body = settingsBody(ui, data(), '', [], () => undefined)
   const lines = all(body, 'Box').filter(node => node.props.flexDirection === 'row' && (flat(node.children)[0] as Node).props?.minWidth !== undefined)
-  // Each line: the label column, then the Session column (sized to the widest row's options), then System.
+  // Each line: the head column (shared with Agents), then the Session column (sized to the widest row's options), then System.
   expect(lines.map(node => flat(node.children).map(child => (child as Node).props.minWidth))).toEqual(
-    lines.map(() => ['Coverage'.length + 2, 'opus'.length + 'sonnet'.length + 4 + 1 + 2, undefined]))
+    lines.map(() => [headWidth(data()), 'opus'.length + 'sonnet'.length + 4 + 1 + 2, undefined]))
   expect(widths(body).length).toBe(lines.length * 2)
-  // Agents: the role column (name, checkbox, gap), one width on every row; the model radios follow it.
+  // Agents: the same head column on every row; the model radios follow it.
   const agents = widths(agentsBody(ui, data(), () => undefined))
-  expect(agents).toEqual([16 + 3, 16 + 3, 16 + 3])
-  expect('security (added)'.length).toBe(16)
+  expect(agents).toEqual([headWidth(data()), headWidth(data()), headWidth(data())])
+  expect(headWidth(data())).toBe('security'.length + 3)
+})
+
+test('the shared head column is the longest label, or the longest name of a role that is on; an off role does not widen it', () => {
+  const on = (role: string, extra: Record<string, unknown> = {}) => agent(role, { active: true, in_mode: true, ...extra })
+  // Short names that are on: the Settings labels decide ("Coverage" and a gap).
+  expect(headWidth(data({ agents: [on('qa'), on('analyst')] }))).toBe('Coverage'.length + 2)
+  // A longer name that is on, star counted: it decides, for Settings too.
+  expect(headWidth(data({ agents: [on('architect', { defined: 'opus' }), on('qa')] }))).toBe('architect*'.length + 3)
+  // A long name that is off has no radios after it, so it does not count.
+  expect(headWidth(data({ agents: [on('qa'), agent('observability', { in_mode: true })] }))).toBe('Coverage'.length + 2)
+  // An added role: its (added) mark is drawn after the radios and does not count.
+  expect(headWidth(data({ agents: [on('qa'), agent('observability', { active: true })] }))).toBe('observability'.length + 3)
+  // Mode A runs no role: the labels decide.
+  expect(headWidth(data({ values: { mode: 'A', mode_model: 'keep' }, agents: [agent('observability')] }))).toBe('Coverage'.length + 2)
+  // Settings uses it: its label column moves with the Agents column.
+  const wide = data({ agents: [on('architect', { defined: 'opus' })] })
+  const first = all(settingsBody(ui, wide, '', [], () => undefined), 'Box').find(node => node.props.minWidth !== undefined)!
+  expect(first.props.minWidth).toBe('architect*'.length + 3)
 })
 
 test('on a surface with Svg each option has a radio or checkbox icon and no brackets', () => {
@@ -340,7 +359,9 @@ test('a box body and the lines of a promotion stage start one step in', () => {
 
 test('an agent of the mode that is switched off says so', () => {
   const body = agentsBody(ui, data({ values: { mode: 'B', mode_model: 'keep' }, agents: [agent('analyst', { in_mode: true })] }), () => undefined)
-  expect(words(all(body, 'Button').find(node => String(node.props.key).startsWith('on-')))).toBe('analyst (off)')
+  expect(words(all(body, 'Button').find(node => String(node.props.key).startsWith('on-')))).toBe('analyst')
+  expect(rows(body)).toEqual(['analyst (off)'])
+  expect(all(body, 'Text').find(node => words(node) === '(off)')!.props.dimColor).toBe(true)
 })
 
 test('pressing an agent writes what makes it the other way round, and mode A ignores the press', () => {
