@@ -38,26 +38,26 @@ What the mod runs and reads:
 
 It opens no network connection. The code is split so the drawing can be tested without the engine: `boxes.ts` (Settings,
 Agents, Promotion), `controls.ts` (the shared icons, options and aligned lines), `status.ts` (Status), `choose.ts` (pure decisions), `notices.ts` (chat lines); `register.tsx` is the
-engine glue. Tests: `deno test --sloppy-imports --import-map=scripts/ts-shim/import_map.json hooks/*.test.ts` (68 tests).
+engine glue. Tests: `deno test --sloppy-imports --import-map=scripts/ts-shim/import_map.json hooks/*.test.ts` (66 tests).
 
 ## The four boxes
 
 ![The adyusuf pane in the right-hand rail: Status, Settings, Agents and Promotion boxes, with an operation notice in the chat on the left](../docs/images/adyusuf-panels.webp)
 
 The screenshot is of 01/11/2026. The left two-thirds are the app's session list and the conversation, blurred on purpose.
-Each box folds by the arrow before its bold title (`▾` open, `▸` folded); Agents and Promotion start folded, and a folded header keeps a
-one-line summary. The boxes refresh after every turn, so a merge, a push or a `/adyusuf:config` change shows without
+Each box folds by the arrow before its bold title (`▾` open, `▸` folded); Agents and Promotion start folded. The header
+is the arrow and the title alone, with nothing beside it (the screenshot is older and still shows a summary there). The
+boxes refresh after every turn, so a merge, a push or a `/adyusuf:config` change shows without
 reopening them.
 
-- **Status — "nothing running".** The status table of a long run: what runs now, what runs next, then item · state ·
+- **Status.** The status table of a long run: what runs now, what runs next, then item · state ·
   measured figure (with its signal) · waiting on. Claude writes it at every step with `scripts/adyusuf_status.py`, and so
   does a background gate or promotion ([`standards/00-working-method.md`](../standards/00-working-method.md) §10d).
-- **Settings — "3 changed in this session".** One row per setting: the label, then the **Session** column (what this
+- **Settings.** One row per setting: the label, then the **Session** column (what this
   session runs on) and the **System** column (the saved defaults in `~/.claude/adyusuf.json`, which every new session
   starts from). The System column folds by the arrow after its heading and starts folded, so the defaults are changed
   only when you open it: folded, **System** ▸ sits right beside *Session*; open, **System** ◂ sits over its column. (The
-  screenshot is older: there the heading still reads *Claude*, with no arrow.) The summary counts the settings this session has
-  changed away from its defaults.
+  screenshot is older: there the heading still reads *Claude*, with no arrow.)
   - *Mode* A–E (rule #27) and *Model\**, the model that replaces Opus in the roles marked `*` in Agents.
   - *Pod* and *Format* are stored only; nothing acts on them yet.
   - *Tests* (`unit`, `e2e`): whether Claude writes unit tests and e2e specs.
@@ -67,18 +67,18 @@ reopening them.
     `Gate-Waived` on the merge commit.
   - *Runner* (`cloud` = GitHub's runners, `local` = this machine's), *Deploy* (which environments a pushed update is
     deployed to) and *E2E* (run e2e before that deploy; rule #33).
-- **Agents — "mode C".** One line per role: the role's checkbox and name (pressing either switches the role on or off),
+- **Agents.** One line per role: the role's checkbox and name (pressing either switches the role on or off),
   then the model as one radio group (`opus`, `sonnet`, `haiku`, `fable`). The chosen radio is always the model the role
   runs on. Choosing the model its file and *Model\** give it writes `default`; choosing any other pins it. A `*` after
   the name marks a role whose file says opus, the roles *Model\** acts on. The name column has the same width as the
   Settings label column, so the radios start where the Settings options do; only roles that are on count for it. (The screenshot is older: it still shows a
   `default` checkbox between the name and the radios, since removed.) Five roles show a short name: `product`, `tester`, `doc`, `coverage`, `e2e`. The roles that are off belong to
-  mode D; ticking one adds it to this session and marks it `(added)` at the end of its row.
-- **Promotion — "dev 15538900 · test 6657f48d · prod 41d8d4d3".** One block per `dev`/`test`/`prod` branch: the commit
+  mode D; ticking one adds it to this session and marks it `(added)` at the end of its row. In mode A the box says it runs no agents.
+- **Promotion.** One block per `dev`/`test`/`prod` branch: the commit
   `origin` holds, then `pushed` or `N not pushed`, and below it any `Gate-Waived` line on the commits waiting to come in
   from the stage before it; *no waived gate on the way in* means none.
 - **Colours.** Red: the configuration could not be read. Orange: a settings file that could not be read, or a waived
-  gate. Faded: summaries, waiting lines and options that are not chosen. Bold: titles and row labels. On the desktop a
+  gate. Faded: waiting lines and options that are not chosen. Bold: titles and row labels. On the desktop a
   chosen option has a filled radio or checkbox icon; the terminal, which cannot draw SVG, shows it as `[C]`, `[dev]`.
 
 ## What runs only when you call it

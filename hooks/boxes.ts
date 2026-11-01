@@ -148,37 +148,20 @@ function settingLines(ui: Ui, schema: Spec[], press: Press): SettingLine[] {
 }
 
 /**
- * One bordered box with a header that folds it; the summary stays visible while it is folded. The title is a bold Text and
- * only the arrow is pressable: inside a Button the desktop drops the bold (user decision 01/11/2026).
+ * One bordered box with a header that folds it. The header is the arrow and the title alone, nothing beside it (user
+ * decision 01/11/2026: a summary there made the pane cluttered). The title is a bold Text and only the arrow is pressable:
+ * inside a Button the desktop drops the bold.
  */
-export function section(ui: Ui, id: SectionId, title: string, summary: string, folded: boolean, toggle: () => void, body: unknown) {
+export function section(ui: Ui, id: SectionId, title: string, folded: boolean, toggle: () => void, body: unknown) {
   const { h } = ui
   return h(
     ui.Box,
     { flexDirection: 'column', borderStyle: 'round', paddingX: 1, marginBottom: 1 },
     h(ui.Box, { flexDirection: 'row', columnGap: 1 },
       h(ui.Button, { key: `fold-${id}`, plain: true, onPress: toggle }, folded ? '▸' : '▾'),
-      h(ui.Text, { bold: true }, title),
-      summary ? h(ui.Text, { dimColor: true }, summary) : null),
+      h(ui.Text, { bold: true }, title)),
     folded ? null : h(ui.Box, { flexDirection: 'column', marginLeft: INDENT }, body),
   )
-}
-
-export function settingsSummary(data: SettingsData | null): string {
-  if (!data) return ''
-  const changed = Object.values(data.sources).filter(source => source === 'session').length
-  return changed > 0 ? `${changed} changed in this session` : ''
-}
-
-export function agentsSummary(data: SettingsData | null): string {
-  if (!data) return ''
-  const mode = String(data.values.mode)
-  return mode === 'A' ? 'mode A: no agents' : `mode ${mode}`
-}
-
-export function promotionSummary(data: PromotionData | null): string {
-  if (!data || data.error) return ''
-  return data.stages.map(stage => `${stage.branch} ${stage.origin}`).join(' · ')
 }
 
 /**
@@ -244,6 +227,8 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
   return h(
     ui.Box,
     { flexDirection: 'column' },
+    // The header says nothing beside its title, so mode A, where no press takes effect, says so here.
+    mode === 'A' ? h(ui.Text, { dimColor: true }, 'mode A runs no agents') : null,
     data.agents.map(agent =>
       line(ui, role(agent), [[...(agent.active ? models(agent) : []), mark(agent)]], width)),
   )

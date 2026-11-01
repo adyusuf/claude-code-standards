@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { agentsBody, agentsSummary, FOLDED_AT_START, headWidth, isFolded, nextFold, promotionBody, promotionSummary, SECTIONS, section, settingsBody, settingsSummary } from './boxes'
+import { agentsBody, FOLDED_AT_START, headWidth, isFolded, nextFold, promotionBody, SECTIONS, section, settingsBody } from './boxes'
 
 // A recording factory: an element is { type, props, children }, so the tests read what the boxes would draw.
 type Node = { type: unknown; props: Record<string, any>; children: unknown[] }
@@ -109,42 +109,30 @@ test('the System column folds by its arrow: folded, only the heading is left bes
   expect(all(settingsBody(ui, data({ saved: undefined }), '', [], () => undefined, fold(true)), 'Button').some(node => node.props.key === 'fold-claude')).toBe(false)
 })
 
-test('an unfolded section shows its body under a header that names it and says what it holds', () => {
-  const box = section(ui, 'settings', 'Settings', '2 changed', false, () => undefined, 'BODY') as Node
+test('an unfolded section shows its body under a header that is the arrow and the title alone', () => {
+  const box = section(ui, 'settings', 'Settings', false, () => undefined, 'BODY') as Node
   expect(box.props.borderStyle).toBe('round')
   const header = all(box, 'Button')[0]
   expect(header.props.key).toBe('fold-settings')
   // The title is a bold Text beside the arrow, not inside the Button, where the desktop would drop the bold.
   expect(words(header)).toBe('▾')
-  expect(reads(all(box, 'Box').find(node => node.props.flexDirection === 'row'))).toEqual(['▾', 'Settings', '2 changed'])
+  expect(reads(all(box, 'Box').find(node => node.props.flexDirection === 'row'))).toEqual(['▾', 'Settings'])
   expect(all(box, 'Text').find(node => words(node) === 'Settings')!.props.bold).toBe(true)
   expect([box, ...all(box, 'Box')].some(node => flat(node.children).includes('BODY'))).toBe(true)
 })
 
-test('a folded section keeps its header and its summary and hides the body', () => {
-  const box = section(ui, 'agents', 'Agents', 'mode B', true, () => undefined, 'BODY') as Node
-  expect(reads(all(box, 'Box').find(node => node.props.flexDirection === 'row'))).toEqual(['▸', 'Agents', 'mode B'])
+test('a folded section keeps only its header: nothing beside the title, no body', () => {
+  const box = section(ui, 'agents', 'Agents', true, () => undefined, 'BODY') as Node
+  expect(reads(box)).toEqual(['▸', 'Agents'])
+  expect(all(box, 'Text').length).toBe(1)
   expect([box, ...all(box, 'Box')].some(node => flat(node.children).includes('BODY'))).toBe(false)
 })
 
-test('a header without a summary draws no empty summary text, and pressing it folds or unfolds', () => {
+test('pressing the arrow folds or unfolds', () => {
   let pressed = 0
-  const box = section(ui, 'promotion', 'Promotion', '', false, () => { pressed += 1 }, 'BODY') as Node
-  expect(all(box, 'Text').length).toBe(1)
+  const box = section(ui, 'promotion', 'Promotion', false, () => { pressed += 1 }, 'BODY') as Node
   all(box, 'Button')[0].props.onPress()
   expect(pressed).toBe(1)
-})
-
-test('the summaries say what a folded box holds', () => {
-  expect(settingsSummary(null)).toBe('')
-  expect(settingsSummary(data())).toBe('1 changed in this session')
-  expect(settingsSummary(data({ sources: { mode: 'user' } }))).toBe('')
-  expect(agentsSummary(null)).toBe('')
-  expect(agentsSummary(data())).toBe('mode B')
-  expect(agentsSummary(data({ values: { mode: 'A' } }))).toBe('mode A: no agents')
-  expect(promotionSummary(null)).toBe('')
-  expect(promotionSummary({ stages: [], error: 'Not inside a git repository' })).toBe('')
-  expect(promotionSummary({ stages: [{ branch: 'dev', origin: 'aaa', unpushed: 0, waived: [] }, { branch: 'prod', origin: 'bbb', unpushed: 0, waived: [] }] })).toBe('dev aaa · prod bbb')
 })
 
 test('Settings waits, and says why when the script could not be read', () => {
@@ -350,7 +338,7 @@ test('on a surface with Svg each option has a radio or checkbox icon and no brac
 })
 
 test('a box body and the lines of a promotion stage start one step in', () => {
-  const box = section(ui, 'settings', 'Settings', '', false, () => undefined, 'BODY') as Node
+  const box = section(ui, 'settings', 'Settings', false, () => undefined, 'BODY') as Node
   expect(all(box, 'Box').find(node => flat(node.children).includes('BODY'))!.props.marginLeft).toBe(2)
   const promo = promotionBody(ui, { stages: [{ branch: 'dev', origin: 'aaa', unpushed: 0, waived: ['x'] }] })
   expect(words(all(promo, 'Box').find(node => node.props.marginLeft === 2))).toBe('waived x')
@@ -377,6 +365,8 @@ test('pressing an agent writes what makes it the other way round, and mode A ign
   ])
   const quiet: string[][] = []
   const modeA = agentsBody(ui, data({ values: { mode: 'A', mode_model: 'sonnet' } }), (key, value) => { quiet.push([key, value]) })
+  expect(words(all(modeA, 'Text').find(node => node.props.dimColor)!)).toBe('mode A runs no agents')
+  expect(all(agentsBody(ui, data(), () => undefined), 'Text').some(node => words(node) === 'mode A runs no agents')).toBe(false)
   all(modeA, 'Button').filter(node => String(node.props.key).startsWith('on-'))[1].props.onPress()
   expect(quiet).toEqual([])
 })
