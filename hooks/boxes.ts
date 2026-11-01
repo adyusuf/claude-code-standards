@@ -8,7 +8,8 @@
 // where it does not (terminal) the chosen one is drawn `[in brackets]` (underline was tried first: the desktop draws a Button
 // as a native button and drops a Text's underline inside it); a box's body and a block's lines start one step in.
 import { enabledFor, settingGroups } from './choose'
-import { cells, INDENT, label, line, option, WARN } from './controls'
+import { cells, helpCard, hoverable, INDENT, label, line, option, WARN } from './controls'
+import { COLUMN_HELP, ROW_HELP, SECTION_HELP } from './help'
 import type { Ui } from './controls'
 
 export type { Factory, Ui } from './controls'
@@ -20,6 +21,7 @@ export type Press = (key: string, value: string, scope?: Scope) => void
 type Spec = { key: string; type: 'bool' | 'enum'; label: string; group: string; options?: string[] }
 type AgentRow = {
   role: string; defined: string; runs_on: string; default_model?: string; active: boolean; in_mode: boolean; enabled: string; model: string
+  description?: string
 }
 type Layer = { values: Record<string, boolean | string>; sources: Record<string, string> }
 type SettingsData = Layer & { schema: Spec[]; saved?: Layer; agents: AgentRow[] }
@@ -57,7 +59,7 @@ type Row = { label: string; items: Item[] } | { label: string; key: string; name
 const targets = (prefix: string, names = TARGETS): Item[] => names.map(name => ({ key: `${prefix}.${name}`, name }))
 
 /** The lines of a settings block, in order. A setting the schema has and no row names is still drawn (see `block`). */
-const ROWS: Row[] = [
+export const ROWS: Row[] = [
   { label: 'Mode', key: 'mode' },
   // The star ties it to the Agents rows it acts on: the roles whose file says opus carry the same star.
   { label: 'Model*', key: 'mode_model', names: { keep: 'opus' } },
@@ -75,6 +77,9 @@ const ROWS: Row[] = [
   { label: 'Deploy', items: targets('deploy_after_push', ['test', 'prod']) },
   { label: 'E2E', items: targets('e2e_before_deploy', ['test', 'prod']) },
 ]
+
+/** The labels of the Settings rows, in order; every one has a hover card text in help.ts. */
+export const ROW_LABELS = ROWS.map(row => row.label)
 
 /** The width of the label column of a settings block, in cells: the longest label and a gap. */
 const LABEL_WIDTH = Math.max(...ROWS.map(row => row.label.length)) + 2
@@ -160,7 +165,8 @@ export function section(ui: Ui, id: SectionId, title: string, folded: boolean, t
     { flexDirection: 'column', borderStyle: 'round', paddingX: 1, marginBottom: 1 },
     h(ui.Box, { flexDirection: 'row', columnGap: 1 },
       h(ui.Button, { key: `fold-${id}`, plain: true, onPress: toggle }, folded ? '▸' : '▾'),
-      h(ui.Text, { bold: true }, title)),
+      hoverable(ui, `section-${id}`, h(ui.Text, { bold: true }, title))),
+    helpCard(ui, `section-${id}`, SECTION_HELP[id]),
     folded ? null : h(ui.Box, { flexDirection: 'column', marginLeft: INDENT }, body),
   )
 }
@@ -181,16 +187,21 @@ function table(ui: Ui, data: SettingsData, press: Press, claude: ColumnFold) {
   const saved = data.saved && !claude.folded ? [['saved', data.saved] as [Scope, Layer]] : []
   const layers: [Scope, Layer][] = [['session', data], ...saved]
   const heads = [
-    h(ui.Text, { bold: true }, 'Session'),
+    hoverable(ui, 'column-Session', h(ui.Text, { bold: true }, 'Session')),
     data.saved
       // The desktop's native button pads the arrow already, so a gap there would leave it far from the name.
-      ? h(ui.Box, { flexDirection: 'row', columnGap: ui.Svg ? 0 : 1 }, h(ui.Text, { bold: true }, 'System'),
+      ? h(ui.Box, { flexDirection: 'row', columnGap: ui.Svg ? 0 : 1 }, hoverable(ui, 'column-System', h(ui.Text, { bold: true }, 'System')),
         h(ui.Button, { key: 'fold-claude', plain: true, onPress: claude.toggle }, claude.folded ? '▸' : '◂'))
       : null,
   ].filter(head => head !== null)
+  // Each card is a hidden row right after its label's line.
   return h(ui.Box, { flexDirection: 'column' },
     line(ui, null, heads, head, claude.folded ? 0 : width),
-    lines.map(one => line(ui, label(ui, one.label), layers.map(([scope, layer]) => one.draw(scope, layer)), head, width)))
+    helpCard(ui, 'column-Session', COLUMN_HELP.Session),
+    data.saved ? helpCard(ui, 'column-System', COLUMN_HELP.System) : null,
+    lines.flatMap(one => [
+      line(ui, hoverable(ui, `row-${one.label}`, label(ui, one.label)), layers.map(([scope, layer]) => one.draw(scope, layer)), head, width),
+      helpCard(ui, `row-${one.label}`, ROW_HELP[one.label])]))
 }
 
 const OPEN: ColumnFold = { folded: false, toggle: () => undefined }
@@ -230,8 +241,10 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
     { flexDirection: 'column' },
     // The header says nothing beside its title, so mode A, where no press takes effect, says so here.
     mode === 'A' ? h(ui.Text, { dimColor: true }, 'mode A runs no agents') : null,
-    data.agents.map(agent =>
-      line(ui, role(agent), [[...(agent.active ? models(agent) : []), mark(agent)]], width)),
+    // A role's card is its agent file's description, a hidden row right after its line.
+    data.agents.flatMap(agent => [
+      line(ui, hoverable(ui, `agent-${agent.role}`, role(agent)), [[...(agent.active ? models(agent) : []), mark(agent)]], width),
+      helpCard(ui, `agent-${agent.role}`, agent.description)]),
   )
 }
 

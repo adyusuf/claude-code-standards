@@ -103,16 +103,21 @@ SCHEMA = (
 SPECS = {spec['key']: spec for spec in SCHEMA}
 
 
-def defined_model(role):
-    """The model an agent file names (its `model:` front-matter line), or 'inherit'."""
+def front_matter(role, field, missing):
+    """One front-matter line of an agent file (`model:`, `description:`), or `missing` when the file or line is absent."""
     try:
         with open(os.path.join(AGENTS_DIR, role + '.md'), encoding='utf-8') as handle:
             for line in handle:
-                if line.startswith('model:'):
+                if line.startswith(field + ':'):
                     return line.split(':', 1)[1].strip()
     except OSError:
         pass
-    return 'inherit'
+    return missing
+
+
+def defined_model(role):
+    """The model an agent file names (its `model:` front-matter line), or 'inherit'."""
+    return front_matter(role, 'model', 'inherit')
 
 
 def effective_model(defined, override):
@@ -138,7 +143,8 @@ def agents(values, include_inactive=False):
         runs_on = chosen if chosen != 'default' else default_model
         if active or include_inactive:
             rows.append({'role': role, 'defined': defined, 'runs_on': runs_on, 'default_model': default_model, 'active': active,
-                         'in_mode': in_mode, 'enabled': enabled, 'model': chosen})
+                         'in_mode': in_mode, 'enabled': enabled, 'model': chosen,
+                         'description': front_matter(role, 'description', '')})   # the pane's hover card (01/11/2026)
     return rows
 
 

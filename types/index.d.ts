@@ -11,6 +11,8 @@ export type AgentRow = {
   model: string
   /** The model `default` gives this role (the mode's override applied), also while another model is pinned. */
   default_model?: string
+  /** The agent file's `description:` line; the pane shows it when the pointer is on the role (additive, 01/11/2026). */
+  description?: string
 }
 export type Settings = {
   schema: Spec[]
