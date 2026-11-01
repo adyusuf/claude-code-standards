@@ -9,8 +9,10 @@ import {
   countOf, DISCOVER_PY, IS_FILE_PY, overrideNote, parseDiscovery, plannedStages, refSet, scriptDir, waivedLines, waivedRange,
 } from './choose'
 import { operationWarnings, warnings } from './notices'
+import { parseStatus, statusBody, statusDir, statusStep, statusSummary } from './status'
+import type { StatusProbe } from './status'
 
-/** One pane, three bordered boxes in it (Settings, Agents, Promotion), each folded by its header. */
+/** One pane, four bordered boxes in it (Status, Settings, Agents, Promotion), each folded by its header. */
 const BOXES = 'adyusuf-boxes'
 const TITLE = 'adyusuf'
 
@@ -20,6 +22,10 @@ const settingsError = { plugin: 'adyusuf', key: 'settingsError' } as const
 const settingsProblems = { plugin: 'adyusuf', key: 'settingsProblems' } as const
 const promotion = { plugin: 'adyusuf', key: 'promotion' } as const
 const folded = { plugin: 'adyusuf', key: 'folded' } as const
+const status = { plugin: 'adyusuf', key: 'status' } as const
+
+/** How often the Status box looks at its file while nothing else wakes it (a background run writing its steps). */
+const STATUS_POLL_MS = 2000
 
 const PLUGIN = 'adyusuf'
 const MARKETPLACE = 'adyusuf-marketplace'
@@ -134,6 +140,52 @@ async function setSetting($: EngineInterface, key: string, value: string, scope:
   }
 }
 
+/** This session's status file ('' when the engine will not say which session this is, or no folder is usable). */
+async function statusPath($: EngineInterface): Promise<string> {
+  const id = await sessionId($)
+  const dir = statusDir(await $.env.get('ADYUSUF_STATUS_DIR'), await $.env.get('USERPROFILE'), await $.env.get('HOME'))
+  return id && dir ? `${dir}/${id}.json` : ''
+}
+
+// The file's modification time at the last read; status.ts's statusStep decides from it whether to read, clear or keep.
+let statusStamp = -1
+let statusWarned = false
+/** One refresh: look at the file, then read, clear or keep as statusStep says. A read error keeps the last table. */
+async function readStatus($: EngineInterface) {
+  const path = await statusPath($)
+  if (!path) return
+  let probe: StatusProbe
+  try {
+    probe = (await $.fs.exists(path)) ? { kind: 'file', mtimeMs: (await $.fs.stat(path)).mtimeMs } : { kind: 'missing' }
+  } catch {
+    probe = { kind: 'error' }
+  }
+  let step = statusStep(statusStamp, probe)
+  if (step.action === 'read') {
+    try {
+      await $.state.set(status, parseStatus(await $.fs.read(path)))
+    } catch {
+      step = statusStep(step.stamp, { kind: 'error' })
+    }
+  } else if (step.action === 'clear') {
+    await $.state.set(status, null)
+  }
+  statusStamp = step.stamp
+  if (step.stamp === -1 && !statusWarned) {
+    statusWarned = true
+    $.ui.log(`adyusuf: the Status box cannot read ${path}; it keeps its last table and tries again`)
+  }
+}
+
+// Refreshes run one after another (trigger, poll and turn end may overlap): an older read must not land after a newer one.
+let statusQueue: Promise<void> = Promise.resolve()
+function refreshStatus($: EngineInterface): Promise<void> {
+  statusQueue = statusQueue.then(() => readStatus($)).catch(() => undefined)
+  return statusQueue
+}
+// The one poll of this process: a second session.start (a resume, a reload) replaces it instead of stacking another.
+let statusPoll: { cancel: () => void } | undefined
+
 /** A failing read must never stop the session from starting; the Settings box says what failed instead of waiting forever. */
 async function safely($: EngineInterface, work: Promise<void>) {
   try {
@@ -156,10 +208,14 @@ function click($: EngineInterface, key: string, value: string, scope: Scope) {
 }
 
 const onStart: Hook<'session.start'> = async ($, e, next) => {
-  await $.command.register({ name: 'adyusuf:panels', description: 'Open the adyusuf settings, agents and promotion boxes' })
+  await $.command.register({ name: 'adyusuf:panels', description: 'Open the adyusuf status, settings, agents and promotion boxes' })
   void $.ui.open({ id: BOXES, title: TITLE })
   await safely($, refreshSettings($))
   await safely($, refreshPromotion($))
+  await refreshStatus($)
+  // Polling covers what changes while no tool runs (a background gate writing its steps); it reads only on a new mtime.
+  statusPoll?.cancel()
+  statusPoll = $.clock.every(STATUS_POLL_MS, () => void refreshStatus($))
   return next(e)
 }
 
@@ -167,6 +223,8 @@ const onPanels: Hook<'command.run'> = async $ => {
   await $.ui.open({ id: BOXES, title: TITLE })
   await safely($, refreshSettings($))
   await safely($, refreshPromotion($))
+  statusStamp = -1
+  await refreshStatus($)
   return { text: 'adyusuf boxes opened.' }
 }
 
@@ -174,7 +232,17 @@ const onPanels: Hook<'command.run'> = async $ => {
 const onTurnComplete: Hook<'turn.complete'> = async ($, e, next) => {
   await safely($, refreshSettings($))
   await safely($, refreshPromotion($))
+  await refreshStatus($)
   return next(e)
+}
+
+// The trigger: when a tool call returns (Claude's own status update is one), the Status box is current at once.
+const onAnyTool: Hook<'tool.call'> = async ($, e, next) => {
+  const result = await next(e)
+  // `next(e)` resolves with the tool's own result (ToolCallResult), so this runs after the tool. Not awaited: the refresh
+  // must never delay or fail the tool call it follows; refreshStatus never rejects.
+  void refreshStatus($)
+  return result
 }
 
 // A merge, a push or a gate run in a shell command is a warning in the chat before it runs, with the rules it falls under.
@@ -192,10 +260,12 @@ const onRender: Hook<'ui.render'> = async ($, e) => {
   const { value: problems = [] } = await $.state.get(settingsProblems)
   const { value: stages = null } = await $.state.get(promotion)
   const { value: fold = FOLDED_AT_START } = await $.state.get(folded)
+  const { value: now = null } = await $.state.get(status)
   const press = (key: string, value: string, scope: Scope = 'session') => click($, key, value, scope)
   const toggle = (id: SectionId) => () => void flip($, id)
   return (
     <Box flexDirection="column">
+      {section(ui, 'status', 'Status', statusSummary(now), fold.status === true, toggle('status'), statusBody(ui, now))}
       {section(ui, 'settings', 'Settings', settingsSummary(data), fold.settings === true, toggle('settings'),
         settingsBody(ui, data, problem, problems, press))}
       {section(ui, 'agents', 'Agents', agentsSummary(data), fold.agents === true, toggle('agents'),
@@ -212,5 +282,6 @@ export const register: Register = on => {
   on('turn.complete', onTurnComplete)
   on('tool.call', { tool: 'Bash' }, onShell)
   on('tool.call', { tool: 'PowerShell' }, onShell)
+  on('tool.call', onAnyTool)
   on('ui.render', { component: 'Pane', requestId: BOXES }, onRender)
 }
