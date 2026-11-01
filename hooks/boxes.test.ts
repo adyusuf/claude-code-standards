@@ -95,6 +95,9 @@ test('the System column folds by its arrow: folded, only the heading is left bes
   expect(words(heading)).toBe('▸')
   expect(all(shut, 'Text').find(node => words(node) === 'System')!.props.bold).toBe(true)
   expect(all(shut, 'Button').some(node => words(node).includes('System'))).toBe(false)
+  // The arrow sits close to the name: one cell in the terminal, none added on the desktop, whose button pads it already.
+  const gap = (body: unknown) => all(body, 'Box').find(node => flat(node.children).some(child => words(child) === 'System'))!.props.columnGap
+  expect([gap(shut), gap(settingsBody(desktop, data(), '', [], () => undefined, fold(true)))]).toEqual([1, 0])
   // Folded, the heading follows Session at once; open, it sits over its own column.
   const head = (body: unknown) => all(body, 'Box').find(node => node.props.flexDirection === 'row')!
   const widths = (body: unknown) => flat(head(body).children).map(child => (child as Node).props.minWidth)
