@@ -1998,3 +1998,6 @@ string, so a project is not broken until its next merge rewrites `.claude/sdlc-s
 - **Agent checkbox glyphs (same day).** `▣`/`□` (one Unicode block) instead of `☑`/`☐`: the font drew `☐` visibly larger, so
   the roles that were off looked oversized. The gap left between an icon and its label is the native button's own padding,
   which a Button offers no prop for.
+- **Agent rows read like settings rows (same day).** The bold role name is the row label, then an `on` checkbox (the same
+  blue/grey 12 px icon, or `[on]`, as Settings), then the model radios; the `▣`/`□` characters are gone. The `on` column has
+  one width, so the model radios line up.
