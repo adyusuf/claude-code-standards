@@ -9,6 +9,8 @@ export type AgentRow = {
   enabled: string
   /** agents.<role>.model: default or a model name */
   model: string
+  /** The model `default` gives this role (the mode's override applied), also while another model is pinned. */
+  default_model?: string
 }
 export type Settings = {
   schema: Spec[]
