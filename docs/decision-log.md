@@ -2038,3 +2038,9 @@ model the role runs on. The radios (opus, sonnet, haiku, fable) mark the model t
 additive field `default_model` (what `default` gives, also while a model is pinned) for that. The role's checkbox sits
 left of its name, and the name is the pressable label, as in Settings; it is no longer bold, which a pressable text
 cannot be on the desktop. Supersedes the `on` column of the same day.
+
+**Settings: the Claude column folds and starts folded (01/11/2026, user decision).** The saved defaults are changed less
+often than the session's settings, and a press there changes every new session, so the column is out of the way until
+it is wanted: its heading is a fold button (`▸ Claude` / `▾ Claude`) like a box header, folded at start, and the fold is
+kept with the boxes' folds. A fold state saved before the column could fold counts as folded. While folded, the Session
+column keeps its open width so the heading does not move when the column opens.
