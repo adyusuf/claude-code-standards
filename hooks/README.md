@@ -38,7 +38,7 @@ What the mod runs and reads:
 
 It opens no network connection. The code is split so the drawing can be tested without the engine: `boxes.ts` (Settings,
 Agents, Promotion), `status.ts` (Status), `choose.ts` (pure decisions), `notices.ts` (chat lines); `register.tsx` is the
-engine glue. Tests: `deno test --sloppy-imports --import-map=scripts/ts-shim/import_map.json hooks/*.test.ts` (63 tests).
+engine glue. Tests: `deno test --sloppy-imports --import-map=scripts/ts-shim/import_map.json hooks/*.test.ts` (66 tests).
 
 ## The four boxes
 
@@ -54,7 +54,9 @@ reopening them.
   does a background gate or promotion ([`standards/00-working-method.md`](../standards/00-working-method.md) §10d).
 - **Settings — "3 changed in this session".** One row per setting: the label, then the **Session** column (what this
   session runs on) and the **Claude** column (the saved defaults in `~/.claude/adyusuf.json`, which every new session
-  starts from). The summary counts the settings this session has changed away from its defaults.
+  starts from). The Claude column folds by its heading (`▸ Claude` / `▾ Claude`) and starts folded, so the defaults
+  are changed only when you open it; the screenshot shows it open. The summary counts the settings this session has
+  changed away from its defaults.
   - *Mode* A–E (rule #27) and *Model*, the model that replaces Opus in the Opus agents.
   - *Pod* and *Format* are stored only; nothing acts on them yet.
   - *Tests* (`unit`, `e2e`): whether Claude writes unit tests and e2e specs.
