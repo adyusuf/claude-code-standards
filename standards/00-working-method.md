@@ -127,8 +127,9 @@ in a row — and every time something real was.
 ### 5a. Reply length is a setting: short, normal, long (user decision 01/11/2026)
 
 How much Claude writes follows `reply.length` (`/adyusuf:config`, the *Replies* row in the pane; default **short**). The
-session-start context names the effective value, and a change applies from the next task (the step in progress
-finishes as it was started, as for every setting).
+session-start context names the effective value. Before every reply Claude writes at the effective length: the value
+in the session-start block, or in the latest change notice. A change applies from the next reply, not the next task
+(user decision 02/11/2026): it splits no work, so unlike the other settings it does not wait for the task to end.
 
 | Length | A reply holds |
 |---|---|
