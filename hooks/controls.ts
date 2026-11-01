@@ -54,3 +54,21 @@ export function option(ui: Ui, key: string, text: string, kind: Kind, chosen: bo
 
 /** The cells one row's options take: each name with its brackets or icon, a gap between them. */
 export const cells = (names: string[]) => names.reduce((sum, name) => sum + name.length + 2, 0) + Math.max(0, names.length - 1)
+
+/** The hover group that ties a label to its card (the engine's `hover.scope`: 1 to 64 characters). */
+const helpScope = (id: string) => `adyusuf-help-${id}`.slice(0, 64)
+
+/** A label the pointer can rest on: while it does, the card of the same `id` shows (user decision 01/11/2026). */
+export const hoverable = (ui: Ui, id: string, child: unknown) => ui.h(ui.Box, { hover: { scope: helpScope(id) } }, child)
+
+/**
+ * The card a label opens while the pointer rests on it: a hidden row drawn right after the label's line, so it opens in
+ * place and pushes the rows below down. Nothing drawn later can cover it and no row needs counting, as a placed card
+ * would. The card is in the label's hover group too, so the pointer may move onto it. The theme's text colour behind
+ * the inverse text keeps it readable in either theme. No text, no card.
+ */
+export function helpCard(ui: Ui, id: string, text: string | undefined) {
+  if (!text) return null
+  return ui.h(ui.Box, { display: 'none', hover: { scope: helpScope(id), display: 'flex' }, paddingX: 1, backgroundColor: 'text' },
+    ui.h(ui.Text, { color: 'inverseText' }, text))
+}

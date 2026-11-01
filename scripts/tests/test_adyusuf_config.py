@@ -396,6 +396,17 @@ class Agents(Tool):
         self.assertEqual(('sonnet', 'opus'), (rows['qa']['default_model'], rows['qa']['defined']))
         self.assertEqual('sonnet', rows['architect']['default_model'])
 
+    def test_each_agent_row_carries_its_files_description_for_the_panes_hover_card(self):
+        rows = {r['role']: r for r in json.loads(self.run_tool('agents', '--json', '--all')[0])}
+        self.assertEqual(14, len(rows))
+        for role, row in rows.items():
+            with open(os.path.join(cfg.AGENTS_DIR, role + '.md'), encoding='utf-8') as handle:
+                line = next(text for text in handle if text.startswith('description:'))
+            self.assertEqual(line.split(':', 1)[1].strip(), row['description'])
+            self.assertNotEqual('', row['description'])
+        self.assertEqual('', cfg.front_matter('no-such-role', 'description', ''))
+        self.assertEqual('inherit', cfg.defined_model('no-such-role'))
+
     def test_mode_a_runs_no_agent_whatever_the_agent_settings_say(self):
         self.run_tool('set', 'mode', 'A')
         self.run_tool('set', 'agents.qa.enabled', 'on')
