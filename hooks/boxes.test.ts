@@ -191,13 +191,13 @@ test('a pinned model is the only one lit; with default, the model it resolves to
   expect(lit).toEqual(['on-qa', 'agents.qa.model=opus', 'on-doc-writer', 'agents.doc-writer.model=default', 'agents.doc-writer.model=haiku'])
 })
 
-test('an agent name is bold text beside a pressable checkbox that names the role', () => {
+test('an agent name is bold text beside a pressable checkbox that carries no label of its own', () => {
   const body = agentsBody(ui, data(), () => undefined)
   const names = all(body, 'Text').filter(node => node.props.bold).map(words)
   expect(names).toEqual(['analyst', 'qa', 'security (added)'])
   const toggles = all(body, 'Button').filter(node => String(node.props.key).startsWith('on-'))
   expect(toggles.map(node => [words(node), node.props.label, node.props.dimColor])).toEqual([
-    ['☑', 'analyst', false], ['☐', 'qa', true], ['☑', 'security (added)', false],
+    ['☑', undefined, false], ['☐', undefined, true], ['☑', undefined, false],
   ])
 })
 
