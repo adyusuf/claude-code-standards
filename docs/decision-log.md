@@ -2041,6 +2041,8 @@ cannot be on the desktop. Supersedes the `on` column of the same day.
 
 **Settings: the Claude column folds and starts folded (01/11/2026, user decision).** The saved defaults are changed less
 often than the session's settings, and a press there changes every new session, so the column is out of the way until
-it is wanted: its heading is a fold button (`▸ Claude` / `▾ Claude`) like a box header, folded at start, and the fold is
-kept with the boxes' folds. A fold state saved before the column could fold counts as folded. While folded, the Session
-column keeps its open width so the heading does not move when the column opens.
+it is wanted: its heading is a fold button, folded at start, and the fold is
+kept with the boxes' folds. A fold state saved before the column could fold counts as folded. **Amended the same day
+(user decision):** folded, the heading sits right beside *Session* and the arrow follows the name, pointing right
+(`Claude ▸`); open, it sits over its column and points back (`Claude ◂`). Keeping the Session column at its open width
+while folded, so the heading would not move, is dropped: it put the heading far from *Session*.

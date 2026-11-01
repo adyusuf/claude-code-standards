@@ -210,7 +210,8 @@ export function promotionSummary(data: PromotionData | null): string {
 /**
  * The settings as one table (user decision 01/11/2026): a label, this session's options (a press changes this session
  * only), then the saved defaults' options (a press changes `~/.claude/adyusuf.json`, which new sessions start from). The
- * Claude heading folds that column like a box header; folded, only the heading is left.
+ * Claude heading folds that column; folded, only the heading is left, right beside Session and pointing right (`Claude ▸`),
+ * and open it sits over its column pointing back (`Claude ◂`) (user decision 01/11/2026).
  */
 function table(ui: Ui, data: SettingsData, press: Press, claude: ColumnFold) {
   const { h } = ui
@@ -221,12 +222,11 @@ function table(ui: Ui, data: SettingsData, press: Press, claude: ColumnFold) {
   const heads = [
     h(ui.Text, { bold: true }, 'Session'),
     data.saved
-      ? h(ui.Button, { key: 'fold-claude', plain: true, onPress: claude.toggle }, claude.folded ? '▸ ' : '▾ ', h(ui.Text, { bold: true }, 'Claude'))
+      ? h(ui.Button, { key: 'fold-claude', plain: true, onPress: claude.toggle }, h(ui.Text, { bold: true }, 'Claude'), claude.folded ? ' ▸' : ' ◂')
       : null,
   ].filter(head => head !== null)
-  // While the column is folded the Session column is still sized as if it were open, so the heading stays where it was.
   return h(ui.Box, { flexDirection: 'column' },
-    line(ui, null, heads, LABEL_WIDTH, width),
+    line(ui, null, heads, LABEL_WIDTH, claude.folded ? 0 : width),
     lines.map(one => line(ui, label(ui, one.label), layers.map(([scope, layer]) => one.draw(scope, layer)), LABEL_WIDTH, width)))
 }
 
