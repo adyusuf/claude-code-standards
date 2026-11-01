@@ -7,8 +7,9 @@ it at each step, and a background run (a gate, a promotion) may write its own st
 tool call and when its modification time changes. Every figure is MEASURED: the script stores what it is given and
 invents nothing.
 
-The file is `<session id>.json` in ADYUSUF_STATUS_DIR (default `~/.claude/adyusuf-status`). Files nobody has written to
-for KEEP_DAYS are removed whenever one is written.
+The file is `<session id>.json` in ADYUSUF_STATUS_DIR (an absolute path; default `~/.claude/adyusuf-status`). Writers take
+a lock around read-modify-write, so Claude and a background run never lose each other's rows. Status files nobody has
+written to for KEEP_DAYS are removed whenever one is written; a file that is not a status table is never touched.
 
 Usage:
     adyusuf_status.py --session ID now TEXT                  what runs now ('' clears it)
@@ -16,42 +17,72 @@ Usage:
     adyusuf_status.py --session ID row ITEM STATE FIGURE WAITING
                                                              add the row named ITEM, or replace it in place
     adyusuf_status.py --session ID drop ITEM                 remove the row named ITEM
-    adyusuf_status.py --session ID clear                     empty the table
+    adyusuf_status.py --session ID clear                     empty the table (also replaces a corrupt file)
     adyusuf_status.py --session ID show [--json]             print it
-Exit codes: 0 done, 2 refused (an unusable session id, a missing argument, an unreadable file).
+Exit codes: 0 done, 2 refused (an unusable session id or folder, an unreadable file, a failed write).
 """
 import argparse
+import contextlib
 import json
 import os
+import re
 import sys
 import tempfile
 import time
 
+try:
+    import fcntl
+except ImportError:  # Windows: no advisory lock; one writer at a time is then the caller's duty (documented in §10d).
+    fcntl = None
+
 KEEP_DAYS = 14
 MAX_ID = 100
 MAX_TEXT = 300
+MAX_ROWS = 50
+FIELDS = ('item', 'state', 'figure', 'waiting')
 EMPTY = {'now': '', 'next': '', 'rows': [], 'updated': ''}
+SESSION_ID = re.compile(r'^[A-Za-z0-9_-]{1,%d}$' % MAX_ID)
+STATUS_NAME = re.compile(r'^[A-Za-z0-9_-]{1,%d}\.json$' % MAX_ID)
+CONTROL = re.compile('[\x00-\x1f\x7f-\x9f]')
+
+
+class StatusError(Exception):
+    """A refusal the command line reports with exit code 2."""
 
 
 def status_dir():
-    return os.environ.get('ADYUSUF_STATUS_DIR') or os.path.join(os.path.expanduser('~'), '.claude', 'adyusuf-status')
+    chosen = os.environ.get('ADYUSUF_STATUS_DIR')
+    if chosen and not os.path.isabs(chosen):
+        raise StatusError('ADYUSUF_STATUS_DIR must be an absolute path (the pane reads it from another directory): %r' % chosen)
+    return chosen or os.path.join(os.path.expanduser('~'), '.claude', 'adyusuf-status')
 
 
 def valid(session):
-    """A session id becomes a file name, so it may hold only letters, digits, '-' and '_'."""
-    return isinstance(session, str) and 0 < len(session) <= MAX_ID and all(ch.isalnum() or ch in '-_' for ch in session)
+    """A session id becomes a file name, so it may hold only ASCII letters, digits, '-' and '_'."""
+    return isinstance(session, str) and SESSION_ID.match(session) is not None
 
 
 def status_file(session):
     if not valid(session):
-        raise ValueError('not a usable session id: %r' % (session,))
+        raise StatusError('not a usable session id: %r' % (session,))
     return os.path.join(status_dir(), session + '.json')
 
 
 def clip(text):
-    """One line of at most MAX_TEXT characters: the box draws one line per field."""
-    flat = ' '.join(str(text).split())
+    """One line of at most MAX_TEXT characters with no control characters: the box draws one line per field."""
+    flat = ' '.join(CONTROL.sub(' ', '' if text is None else str(text)).split())
     return flat if len(flat) <= MAX_TEXT else flat[:MAX_TEXT - 1] + '…'
+
+
+def is_table(data):
+    return isinstance(data, dict) and isinstance(data.get('rows', []), list)
+
+
+def normalise(data):
+    """Keep only what a status table holds: string fields, rows that are objects, at most MAX_ROWS of them."""
+    rows = [{key: clip(row.get(key)) for key in FIELDS} for row in data.get('rows', []) if isinstance(row, dict)]
+    return {'now': clip(data.get('now')), 'next': clip(data.get('next')), 'rows': rows[-MAX_ROWS:],
+            'updated': clip(data.get('updated'))}
 
 
 def load(session):
@@ -61,40 +92,73 @@ def load(session):
             data = json.load(handle)
     except FileNotFoundError:
         return dict(EMPTY, rows=[])
-    if not isinstance(data, dict) or not isinstance(data.get('rows', []), list):
-        raise ValueError('%s: not a status table' % path)
-    return {'now': str(data.get('now', '')), 'next': str(data.get('next', '')), 'rows': list(data.get('rows', [])),
-            'updated': str(data.get('updated', ''))}
+    except (OSError, ValueError) as error:
+        raise StatusError('%s: unreadable (%s); `clear` replaces it' % (path, error))
+    if not is_table(data):
+        raise StatusError('%s: not a status table; `clear` replaces it' % path)
+    return normalise(data)
+
+
+@contextlib.contextmanager
+def locked(session):
+    """Holds an exclusive lock on `<session>.lock` for one read-modify-write, so concurrent writers keep each other's rows."""
+    path = status_file(session)
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    if fcntl is None:
+        yield
+        return
+    with open(path[:-len('.json')] + '.lock', 'a') as handle:
+        fcntl.flock(handle, fcntl.LOCK_EX)
+        try:
+            yield
+        finally:
+            fcntl.flock(handle, fcntl.LOCK_UN)
 
 
 def save(session, data, now=None):
     """Write atomically (a temporary file renamed over the old one), so the box never reads half a file."""
     path = status_file(session)
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-    data = dict(data, updated=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(time.time() if now is None else now)))
-    fd, temp = tempfile.mkstemp(dir=os.path.dirname(path), prefix='.status-', suffix='.json')
-    with os.fdopen(fd, 'w', encoding='utf-8') as handle:
-        json.dump(data, handle, ensure_ascii=False, indent=1)
-    os.replace(temp, path)
+    data = dict(normalise(data), updated=time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime(time.time() if now is None else now)))
+    fd, temp = tempfile.mkstemp(dir=os.path.dirname(path), prefix='.status-', suffix='.tmp')
+    try:
+        with os.fdopen(fd, 'w', encoding='utf-8') as handle:
+            json.dump(data, handle, ensure_ascii=False, indent=1)
+        os.replace(temp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.remove(temp)
+        raise
     prune()
     return data
 
 
 def prune(now=None, keep_days=KEEP_DAYS):
-    """Remove status files nobody has written to for `keep_days`. Never raises: a leftover file costs nothing."""
+    """Remove status files (and their locks) nobody has written to for `keep_days`. Never raises.
+
+    Only a file named like a session's and holding a status table goes: the folder may be one the user chose
+    (ADYUSUF_STATUS_DIR), where other JSON files must survive.
+    """
     limit = (time.time() if now is None else now) - keep_days * 86400
     try:
-        names = os.listdir(status_dir())
-    except OSError:
+        folder = status_dir()
+        names = os.listdir(folder)
+    except (OSError, StatusError):
         return 0
     removed = 0
     for name in names:
-        path = os.path.join(status_dir(), name)
+        path = os.path.join(folder, name)
         try:
-            if name.endswith('.json') and os.path.getmtime(path) < limit:
-                os.remove(path)
-                removed += 1
-        except OSError:
+            if not STATUS_NAME.match(name) or os.path.getmtime(path) >= limit:
+                continue
+            with open(path, encoding='utf-8') as handle:
+                data = json.load(handle)
+            if not (is_table(data) and 'updated' in data):
+                continue
+            os.remove(path)
+            with contextlib.suppress(OSError):
+                os.remove(path[:-len('.json')] + '.lock')
+            removed += 1
+        except (OSError, ValueError):
             continue
     return removed
 
@@ -121,8 +185,21 @@ def render(data):
     if data['next']:
         lines.append('next: ' + data['next'])
     for row in data['rows']:
-        lines.append(' | '.join(row.get(key, '') for key in ('item', 'state', 'figure', 'waiting')))
+        lines.append(' | '.join(row.get(key, '') for key in FIELDS))
     return '\n'.join(lines) if lines else 'nothing running'
+
+
+def change(args):
+    """One write under the lock. `clear` does not read the old file, so it also replaces a corrupt one."""
+    with locked(args.session):
+        data = dict(EMPTY, rows=[]) if args.action == 'clear' else load(args.session)
+        if args.action in ('now', 'next'):
+            data = dict(data, **{args.action: clip(args.text)})
+        elif args.action == 'row':
+            data = put_row(data, args.item, args.state, args.figure, args.waiting)
+        elif args.action == 'drop':
+            data = drop_row(data, args.item)
+        save(args.session, data)
 
 
 def main(argv=None):
@@ -132,31 +209,19 @@ def main(argv=None):
     for name in ('now', 'next'):
         sub.add_parser(name).add_argument('text')
     row = sub.add_parser('row')
-    for name in ('item', 'state', 'figure', 'waiting'):
+    for name in FIELDS:
         row.add_argument(name)
     sub.add_parser('drop').add_argument('item')
     sub.add_parser('clear')
     sub.add_parser('show').add_argument('--json', action='store_true')
     args = parser.parse_args(argv)
     try:
-        data = load(args.session)
-    except (ValueError, OSError) as error:
-        print('adyusuf_status: %s' % error, file=sys.stderr)
-        return 2
-    if args.action == 'show':
-        print(json.dumps(data, ensure_ascii=False) if args.json else render(data))
-        return 0
-    if args.action in ('now', 'next'):
-        data = dict(data, **{args.action: clip(args.text)})
-    elif args.action == 'row':
-        data = put_row(data, args.item, args.state, args.figure, args.waiting)
-    elif args.action == 'drop':
-        data = drop_row(data, args.item)
-    else:
-        data = dict(EMPTY, rows=[])
-    try:
-        save(args.session, data)
-    except OSError as error:
+        if args.action == 'show':
+            data = load(args.session)
+            print(json.dumps(data, ensure_ascii=False) if args.json else render(data))
+        else:
+            change(args)
+    except (StatusError, OSError) as error:
         print('adyusuf_status: %s' % error, file=sys.stderr)
         return 2
     return 0

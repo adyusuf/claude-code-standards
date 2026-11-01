@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { parseStatus, statusBody, statusSummary } from './status'
+import { parseStatus, statusBody, statusDir, statusStep, statusSummary } from './status'
 
 // A recording factory: an element is { type, props, children }, so the tests read what the box would draw.
 type Node = { type: unknown; props: Record<string, any>; children: unknown[] }
@@ -59,6 +59,10 @@ test('the body shows now and next, then the table under its four headings', () =
   ])
   expect(all(body, 'Text').filter(node => node.props.bold).map(words)).toEqual(['Now', 'Next', 'Item', 'State', 'Measured figure (signal)', 'Waiting on'])
   expect(all(body, 'Text').find(node => words(node) === '—')!.props.dimColor).toBe(true)
+  // A placeholder of either kind is dimmed; a value, and the item column, are not.
+  const plain = statusBody(ui, parseStatus(JSON.stringify({ rows: [{ item: '-', state: '-', figure: '12 tests', waiting: 'x' }] })))
+  const cells = all(plain, 'Text').filter(node => !node.props.bold)
+  expect(cells.map(node => [words(node), node.props.dimColor])).toEqual([['-', undefined], ['-', true], ['12 tests', false], ['x', false]])
 })
 
 test('the columns have one width on every row, capped so a long text wraps inside its column', () => {
@@ -74,4 +78,38 @@ test('an empty table, or none, says nothing running', () => {
   expect(words(statusBody(ui, parseStatus('{"now": "", "rows": []}')))).toBe('nothing running')
   const onlyNow = statusBody(ui, parseStatus('{"now": "tests"}'))
   expect(all(onlyNow, 'Text').map(words)).toEqual(['Now', 'tests'])
+})
+
+test('the file is untrusted text: control characters go, each field is one capped line, rows are capped at 50', () => {
+  const data = parseStatus(JSON.stringify({ now: 'a\u001b[2Jb\u0007c\u009bd', next: 'x'.repeat(400),
+    rows: Array.from({ length: 55 }, (_, at) => ({ item: `i${at}` })).concat([[1, 2] as never]) }))!
+  expect(data.now).toBe('a [2Jb c d')
+  expect(data.next.length).toBe(300)
+  expect(data.next.endsWith('…')).toBe(true)
+  expect([data.rows.length, data.rows[0]!.item, data.rows[49]!.item]).toEqual([50, 'i5', 'i54'])
+})
+
+test('a refresh reads on a new modification time, keeps on the same one, clears once when the file goes', () => {
+  expect(statusStep(-1, { kind: 'file', mtimeMs: 5 })).toEqual({ action: 'read', stamp: 5 })
+  expect(statusStep(5, { kind: 'file', mtimeMs: 5 })).toEqual({ action: 'keep', stamp: 5 })
+  expect(statusStep(5, { kind: 'file', mtimeMs: 6 })).toEqual({ action: 'read', stamp: 6 })
+  expect(statusStep(5, { kind: 'missing' })).toEqual({ action: 'clear', stamp: 0 })
+  expect(statusStep(-1, { kind: 'missing' })).toEqual({ action: 'clear', stamp: 0 })
+  expect(statusStep(0, { kind: 'missing' })).toEqual({ action: 'keep', stamp: 0 })
+})
+
+test('an error keeps the table and resets the stamp, so the next look reads again', () => {
+  expect(statusStep(5, { kind: 'error' })).toEqual({ action: 'keep', stamp: -1 })
+  expect(statusStep(0, { kind: 'error' })).toEqual({ action: 'keep', stamp: -1 })
+  expect(statusStep(-1, { kind: 'file', mtimeMs: 5 }).action).toBe('read')
+})
+
+test('the folder: an absolute ADYUSUF_STATUS_DIR, else USERPROFILE, else HOME; nothing usable gives none', () => {
+  expect(statusDir('/tmp/st/', 'C:\\Users\\u', '/home/u')).toBe('/tmp/st')
+  expect(statusDir('D:\\st', undefined, '/home/u')).toBe('D:\\st')
+  expect(statusDir('relative/dir', undefined, '/home/u')).toBe('')
+  expect(statusDir(undefined, 'C:\\Users\\u', '/home/u')).toBe('C:\\Users\\u/.claude/adyusuf-status')
+  expect(statusDir(undefined, undefined, '/home/u/')).toBe('/home/u/.claude/adyusuf-status')
+  expect(statusDir('', '', '')).toBe('')
+  expect(statusDir(undefined, undefined, undefined)).toBe('')
 })

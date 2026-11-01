@@ -3,6 +3,7 @@
 Each test runs the script as a command, with ADYUSUF_STATUS_DIR pointed at a temporary directory, so no real status file
 is read or written.
 """
+import importlib.util
 import json
 import os
 import subprocess
@@ -10,7 +11,6 @@ import sys
 import tempfile
 import time
 import unittest
-import importlib.util
 
 SCRIPTS = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SCRIPT = os.path.join(SCRIPTS, 'adyusuf_status.py')
@@ -31,6 +31,10 @@ class StatusTable(unittest.TestCase):
         done = subprocess.run([sys.executable, SCRIPT, '--session', session, *args], env=self.env,
                               capture_output=True, text=True)
         return done.stdout, done.stderr, done.returncode
+
+    def write_raw(self, text, name=SESSION + '.json'):
+        with open(os.path.join(self.dir, name), 'w', encoding='utf-8') as handle:
+            handle.write(text)
 
     def table(self):
         out, _, code = self.run_tool('show', '--json')
@@ -73,7 +77,7 @@ class StatusTable(unittest.TestCase):
         self.assertTrue(self.table()['next'].endswith('…'))
 
     def test_an_unusable_session_id_is_refused_and_nothing_is_written(self):
-        for bad in ('../escape', 'a/b', '', 'x' * 101):
+        for bad in ('../escape', 'a/b', '', 'x' * 101, 'é١', 'a b'):
             _, err, code = self.run_tool('now', 'x', session=bad)
             self.assertEqual(2, code, bad)
             self.assertIn('not a usable session id', err)
@@ -86,22 +90,70 @@ class StatusTable(unittest.TestCase):
         _, err, code = self.run_tool('now', 'x')
         self.assertEqual(2, code)
         self.assertIn('not a status table', err)
+        self.assertIn('`clear` replaces it', err)
         with open(path) as handle:
             self.assertEqual('[1, 2]', handle.read())
 
     def test_the_write_is_atomic_and_leaves_no_temporary_file(self):
         self.run_tool('row', 'a', 's', 'f', 'w')
-        self.assertEqual([SESSION + '.json'], os.listdir(self.dir))
+        self.assertEqual([SESSION + '.json', SESSION + '.lock'], sorted(os.listdir(self.dir)))
 
-    def test_files_nobody_wrote_to_for_keep_days_are_pruned_on_a_write(self):
-        old = os.path.join(self.dir, 'old.json')
-        with open(old, 'w') as handle:
-            handle.write('{}')
+    def test_old_status_files_are_pruned_on_a_write_and_no_other_file_is(self):
         stale = time.time() - (status.KEEP_DAYS + 1) * 86400
-        os.utime(old, (stale, stale))
+        files = {
+            'old.json': '{"now": "", "rows": [], "updated": "2020-01-01T00:00:00Z"}',  # an old status table: removed
+            'old.lock': '',                                                              # its lock: removed with it
+            'package.json': '{"name": "x"}',                                             # a foreign JSON file: kept
+            'notes.json': '{"rows": []}',                                                # no `updated`: not ours, kept
+            'list.json': '[1, 2]',                                                       # not a table: kept
+            'a.b.json': '{"rows": [], "updated": "x"}',                                  # not a session's name: kept
+        }
+        for name, text in files.items():
+            self.write_raw(text, name)
+            os.utime(os.path.join(self.dir, name), (stale, stale))
         self.run_tool('now', 'x')
-        self.assertFalse(os.path.exists(old))
-        self.assertTrue(os.path.exists(os.path.join(self.dir, SESSION + '.json')))
+        self.assertEqual(sorted(['a.b.json', 'list.json', 'notes.json', 'package.json', SESSION + '.json', SESSION + '.lock']),
+                         sorted(os.listdir(self.dir)))
+
+    def test_rows_that_are_not_objects_are_dropped_and_odd_fields_read_as_text(self):
+        self.write_raw('{"now": 5, "rows": [1, "x", null, {"item": null, "state": 2}]}')
+        out, _, code = self.run_tool('show')
+        self.assertEqual((0, 'now:  5\n | 2 |  | \n'), (code, out))
+        _, _, code = self.run_tool('row', 'b', 's', 'f', 'w')
+        self.assertEqual(0, code)
+        self.assertEqual(['', 'b'], [row['item'] for row in self.table()['rows']])
+
+    def test_clear_replaces_a_corrupt_file(self):
+        self.write_raw('{bad')
+        _, err, code = self.run_tool('now', 'x')
+        self.assertEqual(2, code)
+        self.assertIn('`clear` replaces it', err)
+        _, _, code = self.run_tool('clear')
+        self.assertEqual(0, code)
+        self.assertEqual([], self.table()['rows'])
+
+    def test_concurrent_writers_keep_every_row(self):
+        procs = [subprocess.Popen([sys.executable, SCRIPT, '--session', SESSION, 'row', 'item%d' % i, 's', 'f', 'w'],
+                                  env=self.env) for i in range(12)]
+        self.assertEqual([0] * 12, [proc.wait() for proc in procs])
+        self.assertEqual(sorted('item%d' % i for i in range(12)), sorted(row['item'] for row in self.table()['rows']))
+
+    def test_control_characters_are_removed(self):
+        self.run_tool('now', 'a\x1b[2Jb\x07c\x9bd')
+        self.assertEqual('a [2Jb c d', self.table()['now'])
+
+    def test_the_table_keeps_the_last_max_rows(self):
+        rows = [{'item': 'i%d' % i} for i in range(status.MAX_ROWS + 5)]
+        self.write_raw(json.dumps({'rows': rows, 'updated': ''}))
+        self.run_tool('now', 'x')
+        items = [row['item'] for row in self.table()['rows']]
+        self.assertEqual((status.MAX_ROWS, 'i5', 'i%d' % (status.MAX_ROWS + 4)), (len(items), items[0], items[-1]))
+
+    def test_a_relative_status_folder_is_refused(self):
+        self.env['ADYUSUF_STATUS_DIR'] = 'relative/dir'
+        _, err, code = self.run_tool('now', 'x')
+        self.assertEqual(2, code)
+        self.assertIn('absolute path', err)
 
 
 if __name__ == '__main__':

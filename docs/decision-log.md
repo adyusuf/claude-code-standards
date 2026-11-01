@@ -2019,3 +2019,14 @@ string, so a project is not broken until its next merge rewrites `.claude/sdlc-s
 - **Structure:** the drawing and the parser are engine-free in `hooks/status.ts` (measured, tested in `status.test.ts`);
   `boxes.ts` stayed under 300 lines (#9). Type check: no gate step type-checks `register.tsx` in this repository (the
   typecheck step is Node-only); checked by hand with deno against the engine's types, the change adds no new error class.
+- **QA pass 1 (same day), sent back and fixed.** The prune removed any old `*.json` in the folder: it now removes only a
+  file named like a session's that holds a status table (with `updated`). The box took `HOME`, the script `expanduser`: the
+  box now takes USERPROFILE, then HOME, and a relative `ADYUSUF_STATUS_DIR` is refused on both sides. Rows that are not
+  objects crashed the script: rows are normalised. `clear` could not replace a corrupt file: it no longer reads it first.
+  Concurrent writers lost rows (12 parallel writes kept 5-6): writes take an `flock`. A read error blanked the box: it now
+  keeps the last table, resets the stamp and logs once. The refresh decision moved into `status.ts` (`statusStep`) and is
+  tested; refreshes are serialised, so an older read cannot land after a newer one; a second `session.start` cancels the
+  previous poll. Control characters are stripped and rows capped at 50 on both sides; session ids are ASCII only.
+  **Rejected with evidence:** "the trigger fires before the tool runs". The engine's `ToolCallResult` carries the tool's
+  own output (`result`, "from core the tool's record"), so `await next(e)` in a `tool.call` hook resolves after the tool
+  ran; the validator's "gating hook without .catch" warning is about a rejected `next()`, which the hook passes through.

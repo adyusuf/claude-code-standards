@@ -9,7 +9,8 @@ import {
   countOf, DISCOVER_PY, IS_FILE_PY, overrideNote, parseDiscovery, plannedStages, refSet, scriptDir, waivedLines, waivedRange,
 } from './choose'
 import { operationWarnings, warnings } from './notices'
-import { parseStatus, statusBody, statusSummary } from './status'
+import { parseStatus, statusBody, statusDir, statusStep, statusSummary } from './status'
+import type { StatusProbe } from './status'
 
 /** One pane, four bordered boxes in it (Status, Settings, Agents, Promotion), each folded by its header. */
 const BOXES = 'adyusuf-boxes'
@@ -139,32 +140,51 @@ async function setSetting($: EngineInterface, key: string, value: string, scope:
   }
 }
 
-/** This session's status file ('' when the engine will not say which session this is). */
+/** This session's status file ('' when the engine will not say which session this is, or no folder is usable). */
 async function statusPath($: EngineInterface): Promise<string> {
   const id = await sessionId($)
-  if (!id) return ''
-  const dir = (await $.env.get('ADYUSUF_STATUS_DIR')) || `${(await $.env.get('HOME')) ?? ''}/.claude/adyusuf-status`
-  return `${dir}/${id}.json`
+  const dir = statusDir(await $.env.get('ADYUSUF_STATUS_DIR'), await $.env.get('USERPROFILE'), await $.env.get('HOME'))
+  return id && dir ? `${dir}/${id}.json` : ''
 }
 
-// The file's modification time at the last read: the poll and the tool trigger re-read only when it moved.
+// The file's modification time at the last read; status.ts's statusStep decides from it whether to read, clear or keep.
 let statusStamp = -1
-/** Re-reads the status file when it changed (both a trigger after every tool call and the poll land here); never throws. */
-async function refreshStatus($: EngineInterface) {
+let statusWarned = false
+/** One refresh: look at the file, then read, clear or keep as statusStep says. A read error keeps the last table. */
+async function readStatus($: EngineInterface) {
+  const path = await statusPath($)
+  if (!path) return
+  let probe: StatusProbe
   try {
-    const path = await statusPath($)
-    if (!path) return
-    const stat = await $.fs.stat(path).catch(() => undefined)
-    const stamp = stat ? stat.mtimeMs : 0
-    if (stamp === statusStamp) return
-    statusStamp = stamp
-    const text = stat ? await $.fs.read(path).catch(() => '') : ''
-    await $.state.set(status, parseStatus(text))
+    probe = (await $.fs.exists(path)) ? { kind: 'file', mtimeMs: (await $.fs.stat(path)).mtimeMs } : { kind: 'missing' }
   } catch {
-    // A status file that cannot be read leaves the box as it was; the next change of the file is read again.
-    statusStamp = -1
+    probe = { kind: 'error' }
+  }
+  let step = statusStep(statusStamp, probe)
+  if (step.action === 'read') {
+    try {
+      await $.state.set(status, parseStatus(await $.fs.read(path)))
+    } catch {
+      step = statusStep(step.stamp, { kind: 'error' })
+    }
+  } else if (step.action === 'clear') {
+    await $.state.set(status, null)
+  }
+  statusStamp = step.stamp
+  if (step.stamp === -1 && !statusWarned) {
+    statusWarned = true
+    $.ui.log(`adyusuf: the Status box cannot read ${path}; it keeps its last table and tries again`)
   }
 }
+
+// Refreshes run one after another (trigger, poll and turn end may overlap): an older read must not land after a newer one.
+let statusQueue: Promise<void> = Promise.resolve()
+function refreshStatus($: EngineInterface): Promise<void> {
+  statusQueue = statusQueue.then(() => readStatus($)).catch(() => undefined)
+  return statusQueue
+}
+// The one poll of this process: a second session.start (a resume, a reload) replaces it instead of stacking another.
+let statusPoll: { cancel: () => void } | undefined
 
 /** A failing read must never stop the session from starting; the Settings box says what failed instead of waiting forever. */
 async function safely($: EngineInterface, work: Promise<void>) {
@@ -194,7 +214,8 @@ const onStart: Hook<'session.start'> = async ($, e, next) => {
   await safely($, refreshPromotion($))
   await refreshStatus($)
   // Polling covers what changes while no tool runs (a background gate writing its steps); it reads only on a new mtime.
-  $.clock.every(STATUS_POLL_MS, () => void refreshStatus($))
+  statusPoll?.cancel()
+  statusPoll = $.clock.every(STATUS_POLL_MS, () => void refreshStatus($))
   return next(e)
 }
 
@@ -218,8 +239,9 @@ const onTurnComplete: Hook<'turn.complete'> = async ($, e, next) => {
 // The trigger: when a tool call returns (Claude's own status update is one), the Status box is current at once.
 const onAnyTool: Hook<'tool.call'> = async ($, e, next) => {
   const result = await next(e)
-  // Not awaited: the refresh must never delay or fail the tool call it follows.
-  void refreshStatus($).catch(() => undefined)
+  // `next(e)` resolves with the tool's own result (ToolCallResult), so this runs after the tool. Not awaited: the refresh
+  // must never delay or fail the tool call it follows; refreshStatus never rejects.
+  void refreshStatus($)
   return result
 }
 
