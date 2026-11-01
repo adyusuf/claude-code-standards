@@ -1,7 +1,7 @@
 # scripts — the gate, the hook scripts, measurement and install
 
 33 scripts (`.sh`/`.py`) and their tests in `tests/`:
-`python3 -m unittest discover -s scripts/tests -p 'test_*.py'` (820 tests on 01/11/2026). The sections:
+`python3 -m unittest discover -s scripts/tests -p 'test_*.py'` (821 tests on 01/11/2026). The sections:
 [CLAUDE.md maintenance](#claudemd-maintenance-tools) ·
 [measurement and commit gate](#measurement-and-commit-gate-scripts) · [the shared gate](#gate-coresh--the-shared-gate-in-two-layers) ·
 [the gate in your own project](#putting-the-gate-in-a-project-of-your-own).

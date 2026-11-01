@@ -72,6 +72,7 @@ AGENTS_DIR = os.path.join(ROOT, 'agents')
 
 
 POD_FORMATS = ('short', 'full')
+REPLY_LENGTHS = ('short', 'normal', 'long')       # how much Claude writes in a reply (standards/00 §5a)
 DEPLOY_ENVS = ('test', 'prod')                    # which environment a push is deployed to
 CI_RUNNERS = ('hosted', 'self-hosted')            # where the shared SDLC workflow runs (self-hosted: this Mac's runners)
 AGENT_STATES = ('auto', 'on', 'off')
@@ -82,6 +83,7 @@ AGENT_MODELS = ('default', 'opus', 'sonnet', 'haiku', 'fable')
 SCHEMA = (
     [dict(_enum('mode', 'Working mode', MODES), group='Session'),
      dict(_enum('mode_model', 'Model that replaces Opus in the agents', MODELS), group='Session'),
+     dict(_enum('reply.length', 'Reply length', REPLY_LENGTHS), group='Session'),
      dict(_bool('pod.connect', 'Connect to pod'), group='Pod'),
      dict(_enum('pod.message_format', 'Message format', POD_FORMATS), group='Pod'),
      dict(_bool('write.unit_tests', 'Write unit tests'), group='Writing'),
@@ -302,6 +304,18 @@ def render(effective, problems):
     return '\n'.join(lines)
 
 
+# What each reply length asks of Claude, printed at session start (standards/00-working-method.md §5a). Whatever the
+# length, a red test, a skipped step, an open finding and what waits on the user are said: shorter, never left out.
+REPLY_MEANING = {
+    'short': 'write a few sentences: what changed, what is not done or not verified, what waits on the user; no extra '
+             'tables, recaps or lists of checks unless asked. Still said at every length: a red test, a skipped step, an '
+             'open finding, the long-run table, the #28 handoff line and end-of-turn block, the #24 deferred list, the '
+             '#27 agent count and cost (standards/00 §5a)',
+    'normal': 'the result and the reasoning that matters, short lists where they help (standards/00 §5a)',
+    'long': 'a full report: every step with its evidence and figures, tables where they help (standards/00 §5a)',
+}
+
+
 def context(effective, problems, session=None):
     """The compact block a session starts with: the effective values, what they mean, how to change them."""
     value = lambda key: effective[key][0]  # noqa: E731
@@ -315,6 +329,7 @@ def context(effective, problems, session=None):
         'on %s before deploying %s %s' % (on, after, shown(value('e2e_before_deploy.' + after))) for on, after in E2E_STAGES))
     lines = ['adyusuf configuration (effective; global rule #34 - follow it, do not ask what it answers):',
              '  mode %s, model for the Opus agents: %s' % (value('mode'), value('mode_model')),
+             '  replies: %s - %s' % (value('reply.length'), REPLY_MEANING.get(value('reply.length'), REPLY_MEANING['short'])),
              '  pod: connect %s, message format %s (stored only; nothing acts on it)' % (
                  shown(value('pod.connect')), value('pod.message_format')),
              '  write unit tests: %s, write e2e: %s' % (shown(value('write.unit_tests')), shown(value('write.e2e')))]

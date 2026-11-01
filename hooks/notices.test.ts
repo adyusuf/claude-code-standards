@@ -23,6 +23,8 @@ test('a setting names the rules it steers, and a setting no rule reads names non
   expect(rulesFor('ci_after_push.prod')).toEqual(['#34', '#19'])
   expect(rulesFor('e2e_before_deploy.test')).toEqual(['#33', '#34', '#31'])
   expect(rulesFor('mode_model')).toEqual(['#27'])
+  expect(rulesFor('reply.length')).toEqual(['#15', '#24'])
+  expect(RULES['#15']).toContain('every reply length')
   expect(rulesFor('pod.connect')).toEqual([])
   expect(rulesFor('something.new')).toEqual([])
 })

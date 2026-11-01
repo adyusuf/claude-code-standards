@@ -124,6 +124,24 @@ in a row — and every time something real was.
 - If tests are red, show the output. Do not hide an error.
 - No long prose; bullet points, with file paths as clickable links.
 
+### 5a. Reply length is a setting: short, normal, long (user decision 01/11/2026)
+
+How much Claude writes follows `reply.length` (`/adyusuf:config`, the *Replies* row in the pane; default **short**). The
+session-start context names the effective value, and a change applies from the next task (the step in progress
+finishes as it was started, as for every setting).
+
+| Length | A reply holds |
+|---|---|
+| `short` (default) | A few sentences: what changed, what is not done or not verified, what waits on the user. No extra tables, recaps, lists of checks run or agent narratives unless the user asks. |
+| `normal` | The result and the reasoning that matters; short lists where they help. |
+| `long` | A full report: every step with its evidence and figures, tables where they help. |
+
+⚠️ **Length never hides a fact, and never drops what a rule requires.** At every length a red test, a skipped step, an
+unverified claim, an open finding and what waits on the user are said (#15), at `short` in one line each. What the
+global rules put in a reply stays at every length: the long-run table (`CLAUDE.md` STATUS REPORTING, §10), the
+per-handoff line and the end-of-turn completeness block (#28), the list of what was knowingly deferred (#24), and the
+agent count and cost (#27). `short` shortens the prose around them, not them.
+
 ## 6. Context and token discipline
 
 - Read the relevant section rather than the whole file (`offset`/`limit`, `grep`).
@@ -333,7 +351,8 @@ finished into one row and give the remaining work its own rows.
 ### 10d. The pane's Status box shows the same table (user decision 01/11/2026)
 
 Where the `adyusuf` pane runs, the table is ALSO kept in the session's status file, and the pane's **Status** box (the
-first box) shows it. It does not replace the table in the reply; the reply table stays the deliverable.
+first box) shows it. It does not replace the table in the reply, at any reply length (§5a); the reply table stays the
+deliverable.
 
 - **Every task, not only a long run (user decision 01/11/2026):** from the first step of any task with more than one step
   to its end, the box shows what runs now, what runs next and one row per piece; it is never left empty or stale while
