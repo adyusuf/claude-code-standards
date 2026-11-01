@@ -1,20 +1,23 @@
 # claude-code-standards
 
+My live Claude Code configuration, packaged as one plugin, `adyusuf`: 34 rules loaded into every session, the standards
+behind them, 14 role agents in 5 modes, a shared gate with an exit code, and the measurements that produced each rule.
+It is not a sample: every session I open installs it from this repository's `prod` branch, so when a rule here is
+wrong, it is wrong in my own working day first. Why it exists and what it changed: [`docs/README.md`](docs/README.md).
+
 ## Install
 
-One script installs the `adyusuf` plugin, or updates it. It asks GitHub for the newest commit of `prod`; if an
-older version is installed it asks **"Remove the old one and install the new one? [y/N]"** and, on yes, replaces it
-while your settings and the marketplace link carry on unchanged. Without the plugin it links the marketplace and
-installs from scratch. It needs `python3`, `git` and `claude` on `PATH`; read the file before you run it (about 270
-lines, standard library only).
+One standard-library script installs the plugin or updates it. It asks GitHub for the newest commit of `prod`, and
+when an older version is installed it asks **"Remove the old one and install the new one? [y/N]"**; your settings and
+the marketplace link carry on unchanged. It needs `python3`, `git` and `claude` on `PATH`; read it before you run it.
 
-**macOS / Linux** (Terminal):
+**macOS / Linux:**
 
 ```bash
 d=$(mktemp -d) && curl -fsSL https://raw.githubusercontent.com/adyusuf/claude-code-standards/prod/scripts/plugin-setup.py -o "$d/plugin-setup.py" && python3 "$d/plugin-setup.py"
 ```
 
-**Windows** (PowerShell):
+**Windows (PowerShell):**
 
 ```powershell
 $d = New-Item -ItemType Directory -Path (Join-Path $env:TEMP ([guid]::NewGuid()))
@@ -22,97 +25,38 @@ Invoke-WebRequest https://raw.githubusercontent.com/adyusuf/claude-code-standard
 python "$d\plugin-setup.py"
 ```
 
-Add `--check` to only report (exit 1 when work is due), `--yes` to answer the question for yourself, `--ref <branch>` to
-link another branch on a first install. Afterwards open a new Claude Code session (or `/reload-plugins`). Windows also
-needs a `python3` on `PATH` for the plugin's own hooks: [`SETUP.md`](SETUP.md) §1.
+Or, inside a Claude Code session (the desktop app's **Code** tab too):
 
-**"claude is not on PATH"?** The script looks in the installers' usual folders and in the copy the **Claude desktop
-app** keeps for its Code tab, whichever way the app was installed (Windows: `%APPDATA%\Claude`, the Microsoft Store
-package's `%LOCALAPPDATA%\Claude-Data\claude_…`, `%LOCALAPPDATA%\Claude-3p`; macOS: `~/Library/Application Support/Claude`
-or `Claude-3p`; then `claude-code/<version>/…`), and uses what it finds for that run — only a program that answers
-`--version` as Claude Code counts, so the desktop app's own `claude.exe` launcher on PATH is skipped. If you have only
-the desktop app and it finds nothing, do the same two
-steps inside the app's **Code** tab: `/plugin marketplace add adyusuf/claude-code-standards#prod`, then
-`/plugin install adyusuf@adyusuf-marketplace`. Or pass the program yourself: `--claude <full path>` (PowerShell:
-`Get-Command claude`; macOS/Linux: `command -v claude`). What the script does, step by step:
-[Level 3](#level-3--install-it-as-a-plugin).
+```
+/plugin marketplace add adyusuf/claude-code-standards#prod
+/plugin install adyusuf@adyusuf-marketplace
+```
 
-**AI changed our lives — at least the lives of those of us who write software.**
+Then open a new session (or `/reload-plugins`). The script's flags (`--check`, `--yes`, `--ref`, `--claude`) and how it
+finds `claude` when it is not on `PATH`: [`scripts/README.md`](scripts/README.md) (`plugin-setup.py`). Prerequisites,
+Windows included: [`SETUP.md`](SETUP.md) §1 and §6.
 
-The coding world will not be what it was. But the real question is not whether
-the tools got better. It is this: in a world this vast, **how do we get the most
-out of it without losing our way in it?**
+## What is in here
 
-My answer turned out to be boring, and it is this repository. Not a prompt
-collection and not a framework — a rule set, a gate, and an audit protocol that
-together do the things I always knew I should do and mostly could not:
+| What | Where | Count | Read more |
+|---|---|---|---|
+| Working rules, loaded into every session | [`CLAUDE.md`](CLAUDE.md) | 34 rules | why each exists: [`docs/decision-log.md`](docs/decision-log.md) |
+| Engineering standards | `standards/` | 24 documents + 8 templates | [`standards/README.md`](standards/README.md) |
+| Operating modes and the role agents | `modes/`, `agents/` | 5 modes, 14 roles | [`modes/README.md`](modes/README.md) |
+| Gate, hook scripts, measurement, install | `scripts/` | 33 scripts, 820 tests | [`scripts/README.md`](scripts/README.md) |
+| Hooks and the `adyusuf` pane (`/adyusuf:panels`) | `hooks/` | 63 tests | [`hooks/README.md`](hooks/README.md) |
+| Slash commands | `commands/` | `apply-project-standards`, `panels`, `prod-readiness`, `standards-check` | each file |
+| Skills | `skills/` | `board-plan`, `config`, `software-standards`, `test-inventory`, `working-mode` | each `SKILL.md` |
+| The record: motivation, measurements, case studies | `docs/` | 4 case studies | [`docs/README.md`](docs/README.md) |
+| Working on this repository | [`SETUP.md`](SETUP.md) | | |
 
-- **Apply the SDLC / SSDLC practices we could never really do by hand.** A real
-  coverage threshold per codebase. A secret scan on every push. Schema changes
-  that stay backward compatible. A setup document a stranger can follow. An e2e
-  suite before production. Not once a quarter — on every change.
-- **Enforce them when a rule is not enough.** Some of it cannot be left to good
-  intentions, so it is a gate with an exit code.
-- **Keep the cost as low as it can be.** Agent teams get expensive fast, and
-  most of the spend is not where it looks like it is.
-- **Still scale to agent teams when I want them.** One file in the project
-  switches between no agents and fourteen roles.
-- **Run fast, and repeat as little as possible.** The heavy checks belong where
-  code leaves for the outside world, not on every commit.
-- **Shape the flows around SDLC roles** — analyst, architect, developer, qa,
-  devops, security, data, e2e — rather than one agent doing everything.
-- **Not let the role agents get away with mistakes.** The auditors assume the
-  agents will be wrong, and assume the person supervising them will be too.
-
-**Agentic coding, not just an AI coding tool** — that was a choice, and here is
-the reasoning: a tool that answers questions cannot run a gate, and rules nobody
-executes are documentation. The discipline only becomes real when something
-*acts* on it per change. That said, the lowest mode (`A`) uses no agents at all,
-so a plain coding assistant gets the same rules and the same gate; the agents
-are how it scales, not how it works.
-
-There is one thing behind all of it. An agent will happily apply every practice
-on that list. **An agent will just as happily tell you that it did.** Everything
-here is built for that gap: rules loaded before the work starts, gates that fail
-loudly when a step did not run, and reports that are not accepted without
-evidence.
-
-Concretely, this is what that gap looks like. One project reported **95.0% test
-coverage** — in CI, on a dashboard, undisputed. 85% of the denominator was EF
-Core migrations: generated code that executes by itself whenever the tests run,
-so it counts as covered without anyone ever asserting anything about it. The
-honest figure was **83.0%**. And because that single number averaged four
-codebases into one, it was also hiding a web client at **~14%**, where **107 of
-136 files had no test touching them at all**. Nobody lied. The number was just
-never asked the right question, and nothing was gating on the answer.
-→ [Case 01](docs/case-01-coverage-illusion.md)
-
-**This is my live configuration, running as-is.** It is not a sample, a
-write-up, or a tidied copy of something I keep privately: it is installed as a
-Claude Code plugin from this repository's `prod` branch, so every session I open —
-across nine repositories, .NET and TypeScript, web and mobile — loads exactly the
-files you are reading. When a rule here is wrong, it is wrong in my own working day first.
-That is also why it changes so often: `prod` is the live branch, work happens on
-`dev`, and promoting between them is a decision I have to make about my own
-tooling.
-
-## Who this is for
-
-- You build production software with an AI coding agent, and "it looks fine"
-  is not a standard you can ship on.
-- You want SDLC / SSDLC practice applied per change, not per quarter.
-- You have felt the agent-team bill and want the discipline without it.
-- You want the flows shaped by **SDLC roles** — analyst, architect, developer,
-  qa, devops, security, data, e2e — rather than one agent doing everything.
-
-Not for you if you want a prompt pack. There are no clever prompts here. There
-are rules, gates, measurements, and the record of what each one cost.
+Everything is invoked as `/adyusuf:<name>`. Counts are of 01/11/2026; `scripts/doc-check.py` fails when the rule, standards,
+template, mode, role or script count stops matching the disk.
 
 ## If you take only five things
 
-These paste straight into your own `CLAUDE.md`. They are stack-agnostic, they
-do not depend on anything else in this repository, and every one of them exists
-because work was reported as finished when it was not.
+These paste straight into your own `CLAUDE.md`. They are stack-agnostic and depend on nothing else here; every one
+exists because work was reported as finished when it was not.
 
 ```markdown
 1. Report the truth. If tests are red, say so with the output; name any step
@@ -130,596 +74,42 @@ because work was reported as finished when it was not.
    entry.
 ```
 
-In this repository these are rules **#15, #24, #19 + #25, #14 and #29** — the
-numbering is kept stable so the decision log can be read alongside them.
-
-Why these five and not the other twenty-eight: each one closes a gap that an
-agent cannot be trusted to close on its own. An agent summarising your request
-back to itself will drop an item; an agent whose linter was not installed will
-still say the lint passed; an agent told a rule in conversation will forget it
-by the next session. Rules 1-4 are about **the report being true**, and rule 5
-is the measurement most often false in a way nobody notices.
-
-Full set: [`CLAUDE.md`](CLAUDE.md) (34 rules) · why each exists:
-[`docs/decision-log.md`](docs/decision-log.md).
-
-## How each of those is actually done
-
-The list above is the promise. This is the mechanism, in the same order.
-
-**1. The practices become rules, not intentions.** 34 invariant rules load into
-every session; 24 standards documents carry the detail. The agent does not get
-to decide whether backward compatibility matters this time.
-
-**2. Where a rule is not enough, a gate has an exit code.** A shared gate
-(`scripts/gate-core.sh`) runs the same step set in every repository: formatter,
-typecheck, build, unit tests, **coverage per codebase**, secret scan,
-dependency CVE, SAST, backward-compatibility scan, guidance-file budget, and a
-missing-e2e-spec check. The coverage threshold has no exception — a threshold
-with an exception is a suggestion; only where it is measured is a setting.
-
-**3. The cost is cut where the measurement says it is, not where it feels like
-it is.** A subagent's tokens run roughly **4x** an orchestrator turn, and the
-fixed prompt prefix is re-read on every single request — across the records here
-that is **~11.1 billion tokens**. So the default mode uses almost no agents, the
-expensive modes are opt-in, and the audit protocol buys its rigour from the
-*shape of the output* rather than from another agent: a role returns the
-**command that produced its finding**, and re-running that command costs about
-nothing.
-
-**4. Scales up to agent teams when you want them.** Five operating modes, A to
-E: no agents, three agents, nine roles, fourteen roles, fan-out. The mode is one
-file in the project; choosing it *is* the approval, so there is no per-call
-friction. Nothing else in the rule set changes with the mode.
-
-The roles are **subagents**, not personas in a prompt. Each one is spawned by
-the orchestrator with its own context window, its own tool allow-list and **its
-own model** — and that is exactly why the bill behaves the way it does: a
-subagent starts by reading the whole fixed prefix again, which is what makes its
-tokens run about **4x** an orchestrator turn. So the model is assigned per role
-by what the role actually has to do, not uniformly:
-
-| Role | Model | Why that tier | Tools it may use |
-|---|---|---|---|
-| `architect` | opus | designs a change across many files; a wrong plan costs more than the model does | read-only + shell |
-| `developer` | opus | writes product code against a fixed contract | read/write + shell |
-| `qa` | opus | the first review pass — correctness, security, backward compatibility | read-only + shell |
-| `security` | opus | OWASP, secret leakage, authorization, gate integrity | read-only + shell |
-| `data` | opus | schema, migrations, data loss risk — the least reversible work there is | read-only + shell |
-| `analyst` | sonnet | reads a lot, returns little; must also return the command that produced the finding | read-only + shell |
-| `test-writer` | sonnet | tests for a stated behaviour, scope already decided | read/write + shell |
-| `e2e-writer` | sonnet | Playwright/Maestro specs against the test environment only | read/write + shell |
-| `devops` | sonnet | CI, deploy, gate and backup configuration — its output still goes through `qa` | read/write + shell |
-| `coverage-auditor` | sonnet | measures the per-codebase threshold; writes no tests | read-only + shell |
-| `observability` | sonnet | logging, metrics, tracing, alerting gaps | read-only + shell |
-| `designer` | sonnet | flow, states, accessibility, empty and error states | read-only |
-| `product-manager` | sonnet | scope and acceptance criteria; output goes to human approval | read-only |
-| `doc-writer` | haiku | writes a decided rule into the right file | read/write, no shell |
-
-⚠️ **The orchestrator has no `model:` field** — it is whatever `/model` selected
-for the session, and it is the most expensive seat at the table, because its
-context is re-read on every single request. Across the records in this
-repository that is where the money went: **73%** of total spend was orchestrator
-cache reads and **7.7%** was agent turns. Choosing cheaper agents while leaving
-the orchestrator unexamined optimises the small half.
-
-Every model here is a Claude model on purpose, and the reason is written down
-rather than assumed: a subagent's `model:` field only accepts Anthropic models,
-so a third-party comparison would answer a question this system cannot act on.
-
-**5. Speed comes from where the checks sit, not from skipping them.** Merging to `dev` is
-deliberately fast — build and unit tests only. The heavy gates run where code
-leaves for the outside world. The formatter runs once at the end of a task list,
-not per commit. E2E belongs to the pre-production gate alone, not to every
-branch.
-
-**6. The auditors assume the agents are wrong.** Every role whose output someone relies on
-closes its report with an evidence block: the command it ran, each requested
-item mapped to `file:line`, and what it could not verify. A report with no
-evidence is not accepted. **What cannot be verified does not count as fine.** If
-something is missing, the work goes *back* to the producer — it is not escalated
-to the human as a question.
-
-```mermaid
-flowchart LR
-    R["Rules<br/>34 invariants + 24 standards"] --> G["Gates<br/>one shared step set<br/>per promotion"]
-    G --> A["Audit<br/>evidence block<br/>at every handoff"]
-    A --> M["Measurement<br/>ledger + decision log"]
-    M -->|"a rule that cost more<br/>than it returned is retired"| R
-```
-
----
-
-## What is in here
-
-The live configuration, not a showcase written for display — most rules exist
-because something broke first.
-
-| What | Where | Count |
-|---|---|---|
-| Working rules (index loaded every session) | `CLAUDE.md` | 34 rules |
-| Engineering standards | `standards/` | 24 documents + 8 templates |
-| Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
-| Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate, measurement and install scripts | `scripts/` | 33 scripts + 715 tests |
-| Slash commands, skills and hooks — one plugin, `/adyusuf:<name>` | `.claude-plugin/`, `commands/`, `skills/`, `hooks/` | 9 |
-| Decision log (rationale and measurement per rule) | `docs/` | — |
-
-```mermaid
-pie showData title Repository composition (files)
- "standards/ (24 docs + 8 templates)" : 32
- "agents/ (14 roles)" : 14
- "modes/ (5 modes + selection guide)" : 13
- "scripts/ (gates, hooks, measurement, tests)" : 36
- "docs/ (decision log + case studies + method)" : 9
- "commands/ + skills/" : 9
- "root (CLAUDE.md, settings, license)" : 5
-```
-
-## Why it is measurement-driven
-
-There are numbers behind these rules, not opinions. The decision log records how
-each rule was discovered, which measurement produced it, and the text of rules
-that have since been retired.
-
-**Test coverage: what was reported vs. what was true**
-
-| | | |
-|---|---|---|
-| Reported (raw) | `████████████████████` | **95.0%** |
-| Honest (generated code excluded) | `█████████████████░░░` | **83.0%** |
-| Same project, web codebase | `███░░░░░░░░░░░░░░░░░` | **~14%** |
-
-EF Core migrations made up **85% of the denominator**. A single averaged number
-hid the fact that 107 of 136 web files had no test touching them at all.
-
-**Where the cost actually was**
-
-| | | |
-|---|---|---|
-| Orchestrator cache reads | `███████████████░░░░░` | **73%** of total |
-| Agent turns | `██░░░░░░░░░░░░░░░░░░` | **7.7%** of total |
-
-Every agent call required approval, and the stated reason was cost. The
-measurement showed the approval friction was guarding 7.7% of the bill while
-slowing down every turn.
-
-**Estimate vs. measurement for one agent role (`qa`, opus)**
-
-| | | |
-|---|---|---|
-| Estimated (before) | `████████████████████` | $8 – $20 / turn |
-| Measured (3 records, script) | `████░░░░░░░░░░░░░░░░` | **$4.10** / turn |
-
-The estimate was 2–5x too high. The table was corrected; the estimate was not
-defended.
-
-## What it changed: before and after
-
-One working day, nine repositories, one shared gate. Every number below was read
-from the run that produced it — each codebase measured separately, never
-averaged (#29).
-
-**Coverage: from "accepted as a gap" to a number**
-
-Five repositories listed `coverage` in their gate's accepted-gaps line. Their
-gates printed GREEN while **nothing measured coverage at all**.
-
-| | | |
-|---|---|---|
-| Codebases with a measured number, before | `░░░░░░░░░░░░░░░░░░░░` | **4** |
-| After | `████████████████████` | **20** |
-| Of those, at or above the 80% threshold | `█████████░░░░░░░░░░░` | **9** |
-
-**The rule-#16 setup document (fail-closed)**
-
-The gate's document step only fired when a stack sat at the repository root, so
-it looked at three repositories and failed all three. Fixing the detection made
-it look at nine.
-
-| | | |
-|---|---|---|
-| Repositories the step examined, before | `██████░░░░░░░░░░░░░░` | **3 of 9** |
-| Passing, before | `░░░░░░░░░░░░░░░░░░░░` | **0 of 3** |
-| Examined, after | `████████████████████` | **9 of 9** |
-| Passing, after | `████████████████████` | **9 of 9** |
-
-**One web codebase, taken over the line**
-
-| | | |
-|---|---|---|
-| Before — 141 tests | `██████████████░░░░░░` | **57.2%** |
-| After — 221 tests | `████████████████████` | **81.4%** |
-
-Eighty tests, and not one of them written for the percentage: a cancelled prompt
-must not be read as a quota of zero, a failed delete must not navigate away as
-if it had succeeded, a missing invitation token must render no form at all. The
-repository's other codebase was already at 87.7%, so **both** are now above the
-threshold and coverage stopped being its promotion blocker.
-
-**Security findings, cleared**
-
-| | | |
-|---|---|---|
-| High/critical dependency advisories | `████████████████████` **26** &rarr; `░░░░░░░░░░░░░░░░░░░░` **0** | four repositories |
-| Secret-scan findings, read | `████████████████████` **17** | across two repositories |
-| Of those, actual credentials | `░░░░░░░░░░░░░░░░░░░░` **0** | expired tokens, a model id, an interface name, a placeholder that says "enter a secret here" |
-
-The scans had been failing for a while and nobody had read them. Reading them
-mattered more than fixing them: a wrong escalation ("rotate the payment key")
-was corrected by looking at the value the rule actually matched.
-
-**Four bugs in the gate itself**
-
-The gate is the thing that is supposed to catch everything else, so its own
-defects are the most expensive kind. All four were found by reading failures
-instead of trusting them, all four are covered by a test that fails without its
-fix, and all four were propagated to nine repositories.
-
-| Bug | What it did |
-|---|---|
-| `.slnx` and nested `.csproj` invisible | **Skipped an entire .NET backend** — 673 tests, a red build, two high-severity advisories — and printed GATE GREEN |
-| `coverage` waivable via accepted gaps | Turned rule #29's "no exceptions" into a suggestion in five repositories |
-| jest handed vitest's `--run` | Reported a passing suite of 10 tests as failing |
-| Node detected only at the root | Skipped the setup-document check in any repository whose JS lives one level down |
-
-⚠️ The first one is the one to remember. A gate that fails is annoying; a gate
-that reports success for work it never looked at is worse than no gate, because
-it ends an argument that should have continued.
-
-**What turned out not to be broken**
-
-Three failures that looked like product bugs were not: a frontend build and its
-812 tests failing on an incomplete `node_modules`; a mobile tier reporting 0%
-coverage because all 57 suites died on a missing module and no test ran at all;
-an API-contract check failing without the environment variable its own
-documentation prescribes. Each coverage script now checks its install first and names which
-problem it is, because an environment problem that reads as a coverage problem
-sends the next person hunting in the wrong file.
-
-```mermaid
-flowchart TD
-    subgraph before["Before"]
-        B1["5 repos: coverage accepted as a gap<br/>nothing measured"]
-        B2["3 of 9 repos: setup document checked"]
-        B3["4 latent gate bugs<br/>one skipped a whole tier"]
-        B4["26 high/critical advisories"]
-        B5["17 secret findings, unread"]
-    end
-    subgraph after["After"]
-        A1["20 codebases measured<br/>9 over the threshold"]
-        A2["9 of 9 repos: checked and passing"]
-        A3["4 fixed + 12 tests<br/>propagated to 9 repos"]
-        A4["0 high/critical"]
-        A5["17 read · 0 credentials<br/>triaged by value, with evidence"]
-    end
-    B1 --> A1
-    B2 --> A2
-    B3 --> A3
-    B4 --> A4
-    B5 --> A5
-```
-
-## Case studies
-
-Each one ends with an **Honest limits** section: which numbers were measured,
-which are estimates, and what is still open.
-
-- [01 — The coverage illusion: how 95% turned out to be 83%](docs/case-01-coverage-illusion.md)
-- [02 — 48 false failures: mistaking an environment limit for a product bug](docs/case-02-false-e2e-failures.md)
-- [03 — Saving in the wrong place: measuring what agents actually cost](docs/case-03-agent-cost-measurement.md)
-- [04 — Nine roles, one of them audited](docs/case-04-the-audit-gap.md)
-
-## Progress
-
-**Cost-table calibration** — how much of the cost model is measured rather than
-estimated. This is the honest state, not a target:
-
-| Role class | Status |
-|---|---|
-| `qa` (opus, auditing) | `████████████████████` measured — 3 records, ~$4.10/turn |
-| Turn average across 33 sessions | `████████████████████` measured — ~$6.9/turn |
-| `architect` / `developer` (writing roles) | `░░░░░░░░░░░░░░░░░░░░` estimated only |
-| sonnet roles (`analyst`, `test-writer`, `devops`, …) | `░░░░░░░░░░░░░░░░░░░░` estimated only |
-| `doc-writer` (haiku) | `░░░░░░░░░░░░░░░░░░░░` estimated only |
-| Team modes (X / Y / Z) | `░░░░░░░░░░░░░░░░░░░░` never measured |
-
-Thresholds have deliberately **not** been adjusted on this data: all three
-calibration records came from the same kind of work, and a real end-to-end
-feature turn has not been measured yet.
-
-```mermaid
-flowchart LR
-    subgraph P1["Phase 1 · Foundations"]
-        A1[Standards extracted<br/>from one project]
-        A2[Agent bans and<br/>autonomy limits]
-    end
-    subgraph P2["Phase 2 · Measurement"]
-        B1[Cost measured<br/>across 33 sessions]
-        B2[Operating modes<br/>A-E introduced]
-        B3[Audit protocol:<br/>evidence blocks]
-    end
-    subgraph P3["Phase 3 · Gates"]
-        C1[Coverage honesty<br/>+ 80% gate]
-        C2[E2E run cycle<br/>and classification]
-        C3[E2E moved to<br/>the pre-prod gate]
-    end
-    A1 --> A2 --> B1 --> B2 --> B3 --> C1 --> C2 --> C3
-```
-
-## Selected rules
-
-- **Backward compatibility is mandatory** — APIs and databases evolve additively only; fields and endpoints are never deleted, renamed or retyped (#4)
-- **Line coverage ≥ 80% per codebase, never averaged** — an unmeasured codebase does not count as passing (#29)
-- **Merging to `dev` is fast; heavy gates run on promotion** — the quality gate belongs where code leaves for the outside world (#25)
-- **Authorization is fail-closed** — default denied; "I forgot to configure it" must never mean "open to everyone" (#6)
-- **Search is always case- and accent-insensitive** — raw `LIKE` / `ToLower.Contains` is banned; one central normalizer (#13)
-- **A gate that did not run did not pass** — a skipped step is reported as skipped and the result is not green (#19)
-- **A new rule is never left verbal** — a permanent decision is written to the file in the same turn (#14)
-
-## How to use this
-
-Take the smallest amount that is useful to you. Each level works on its own, and
-nothing later is required to make an earlier one pay off.
-
-To work on this repository itself (hooks, tests, the gate), or to see every tool
-and setting in one place, follow [`SETUP.md`](SETUP.md).
-
-### Level 0 — read it, install nothing
-
-`CLAUDE.md` is the whole rule set in one file, and
-[`docs/decision-log.md`](docs/decision-log.md) says why each rule exists and what
-was measured. Those two answer most of what a configuration repository can teach
-you. If you stop here you still got the useful part.
-
-### Level 1 — take the five rules
-
-Paste the block from **If you take only five things** above into your own
-`~/.claude/CLAUDE.md`. No files, no scripts, no gate. This is the level I would
-pick if I were reading someone else's config.
-
-### Level 2 — take the standards that match your stack
-
-The `standards/` documents read independently: nothing in `05-react.md` needs
-`04-dotnet.md` to be present.
-
-```bash
-git clone https://github.com/adyusuf/claude-code-standards
-cp claude-code-standards/standards/{05-react,10-test-strategy}.md ~/.claude/standards/
-```
-
-⚠️ Keep the rule numbers if you edit. `CLAUDE.md`, the standards and the decision
-log all cross-reference by number, so renumbering breaks every reference at once
-and breaks it silently.
-
-### Level 3 — install it as a plugin
-
-The whole rule set — the global rules, the standards, the modes, the 14 role agents, every
-`/adyusuf:*` skill and command and the two safety hooks — is one Claude Code plugin. In a
-Claude Code session:
-
-```
-/plugin marketplace add adyusuf/claude-code-standards#prod
-/plugin install adyusuf@adyusuf-marketplace
-```
-
-Claude Code copies it into its plugin cache like any other plugin: no links, nothing
-written into your `~/.claude` by hand. A new session shows
-`[Global working rules, part 1/…` in its context (the plugin's hooks print `CLAUDE.md`).
-`/plugin update adyusuf` brings a new version; `/plugin` disables or removes it.
-Details and prerequisites (`python3` and `bash` on `PATH`): [`SETUP.md`](SETUP.md) §6.
-
-**Or with one script that also keeps it up to date.** `scripts/plugin-setup.py` is a single standard-library
-file; the macOS/Linux and Windows commands that download and run it are at [the top of this README](#install). It asks
-GitHub which commit the `prod` branch is on and compares that with the commit Claude Code has installed:
-
-| What it finds | What it does |
-|---|---|
-| The plugin is not installed | Links the marketplace (`adyusuf/claude-code-standards#prod`, the connection to GitHub) and installs the plugin. |
-| Installed, and it is the newest | Says so and changes nothing. If the marketplace link is missing it adds it. |
-| Installed, and GitHub has a newer commit | Asks **"Remove the old one and install the new one? [y/N]"**. On yes it refreshes the marketplace, removes the old version **keeping the plugin's data** (`--keep-data`), installs the new one in the same scope, and checks that your settings, the enabled state and the marketplace link are as they were. On no it leaves everything as it is. |
-
-Your settings are not in the plugin, so they carry on unchanged: `~/.claude/adyusuf.json`, a project's
-`.claude/adyusuf.json` and the marketplace link in Claude Code's own settings. `~/.claude/adyusuf.json` is copied to
-`~/.claude-standards/backups/` first and put back if the replacement disturbed it. `--check` only reports (exit 1
-when work is due), `--yes` answers the question for you (needed without a terminal), `--ref test` picks another
-branch while no marketplace is linked yet. A failed step stops the run and prints the command to retry. Open a new
-Claude Code session afterwards (or `/reload-plugins`).
-
-⚠️ **`settings.example.json` is mine, not a template.** It carries my plugin selection
-and a marketplace pointing at a directory in my home folder. Decide the rest yourself;
-the hooks now come with the plugin.
-
-#### The `/adyusuf:panels` boxes
-
-`/adyusuf:panels` opens one pane, titled `adyusuf`, in the right-hand rail of the Claude Code desktop app. It holds three
-bordered boxes: **Settings**, **Agents** and **Promotion**. The pane also opens by itself when a session starts. Each
-box folds by its header (`▾` open, `▸` folded). Agents and Promotion start folded, and the header keeps a one-line summary
-while the box is folded. The boxes refresh after every turn, so a merge, a push or a `/adyusuf:config` change shows up
-without reopening them. The plugin's mod draws them (`hooks/register.tsx`, `hooks/boxes.ts`). In a client that does not
-load mods, the command falls back to printing the same settings as a table and points you to `/adyusuf:config`
-([`commands/panels.md`](commands/panels.md)).
-
-![The adyusuf pane in the right-hand rail: Status, Settings, Agents and Promotion boxes, with an operation notice in the chat on the left](docs/images/adyusuf-panels.webp)
-
-*What the screenshot shows.* The left two-thirds are the app's session list and the conversation, blurred on purpose
-(see [Anonymization](#anonymization)). The right-hand column is the `adyusuf` pane:
-
-- **Status — "nothing running".** The status table of a long run: what runs now, what runs next, then
-  item · state · measured figure (with its signal) · waiting on. Claude writes it at every step with
-  `scripts/adyusuf_status.py`, and so does a background gate or promotion; the box re-reads it when a tool call returns
-  and every 2 s when the file changed. It shows *nothing running* when the table is empty
-  ([`standards/00-working-method.md`](standards/00-working-method.md) §10d).
-- **Settings — "3 changed in this session".** One table, one row per setting: the label in bold, then the
-  **Session** column, then the **Claude** column. *Session* is what this session runs on; a press there changes this
-  session only. *Claude* holds the saved defaults in `~/.claude/adyusuf.json`, which every new session starts from; a
-  press there changes the defaults. The summary counts the settings this session has changed away from its
-  defaults. Each column has one width, so every row's options start at the same place. The engine has no native
-  radio or checkbox, so the boxes build them. On the desktop each option has a radio (one of several) or checkbox
-  (yes/no) icon, filled when chosen. In the terminal, which cannot draw SVG, the chosen option reads `[C]`, `[dev]`. On
-  both, what is chosen is at full strength and the rest are faded. Pressing another option chooses it; pressing a
-  yes/no turns it the other way. A box's body starts one step in from its header.
-  - *Mode* A–E (here C, the full team; rule #27) and *Model*, the model that replaces Opus in the Opus agents (here
-    sonnet).
-  - *Pod* (`on`) and *Format* are stored only; nothing acts on them yet.
-  - *Tests* (`unit`, `e2e`) says whether Claude writes unit tests and e2e specs. *Merge*, *Push*, *Gates*, *Coverage*
-    and *CI* (wait for CI after the push) are set per target (dev, test, prod). Rule #34 follows them instead of
-    asking: when a piece of work is done Claude reads them afresh and merges and pushes at once
-    ([`standards/13-pr-and-review.md`](standards/13-pr-and-review.md) §8a). Here Claude merges and pushes all three
-    and runs no gate or CI wait. A gate set to no is recorded as `Gate-Waived` on the merge commit.
-  - *Runner* (`cloud` = GitHub's runners, `local` = this machine's), *Deploy* (which environment a pushed update is
-    deployed to) and *E2E* (run e2e before that deploy; rule #33).
-- **The chat lines `⚠ adyusuf …`.** Every settings change, made in a box, through `/adyusuf:config` or by hand, is
-  also written into the conversation as `⚠ adyusuf setting changed …`: which layer changed (*this session* or *saved
-  defaults*), the key with its old → new value, and the rules it touches. An operation that rules govern gets a line
-  too: the screenshot shows `⚠ adyusuf operation: git push` with the two rules in play, #34 and #26.
-- **Agents — "mode C".** One line per role: a checkbox with the role name (pressing the name switches the role on or
-  off, as in Settings), a `default` checkbox, then the model as one radio group: `opus`, `sonnet`, `haiku`, `fable`. The
-  nine on in the screenshot are mode C's team. Five roles show a short name: `product` (product-manager), `tester`
-  (test-writer), `doc` (doc-writer), `coverage` (coverage-auditor) and `e2e` (e2e-writer); the agents and their settings
-  keys keep the full name. The five that are off (`data`, `observability`, `security`, `coverage`, `e2e`) belong to mode
-  D; ticking one adds it to this session and marks it `(added)`. The chosen radio is always the model the role runs on.
-  `default` ticked means it runs on the model its file and *Model* give it; ticking `default` selects that model's
-  radio, and choosing that model's radio ticks `default`. Choosing any other model unticks `default` and pins that
-  model; unticking `default` pins the model it was running on. In the screenshot `qa` is pinned to `opus`.
-- **Promotion — "dev 15538900 · test 6657f48d · prod 41d8d4d3".** One block per `dev`/`test`/`prod` branch of the
-  repository the session is in: the commit `origin` holds, then `pushed` or `N not pushed`. Below it, any
-  `Gate-Waived` line on the commits waiting to come in from the stage before it (for `test`, what `origin/dev` has and
-  `origin/test` does not yet), in orange. *No waived gate on the way in* means nothing waiting carries a waived gate.
-- **Colours.** Red at the top of Settings: the configuration could not be read. Orange: a settings file that could not
-  be read (`! …`, in Settings) or a waived gate (`waived …`, in Promotion). Dim: summaries, waiting and "nothing to
-  report" lines, and the options that are not chosen. Bold: titles and row labels.
-
-The screenshot is of 01/11/2026 and shows the pane as it is now.
-
-### Level 4 — run it live, the way I do
-
-The installed plugin is a copy of the `prod` branch. Nothing is edited in place: work
-happens in a `dev` worktree (tried with `claude --plugin-dir <worktree>`), passes the
-gate, and reaches my sessions only by promotion to `prod` and `/plugin update`
-(`standards/00-working-method.md` §7a). The upside is exactly one copy of every rule and
-an explicit update step; the guidance files still have their own size and rule-loss
-gates (`scripts/md-size-gate.sh`, `scripts/md-rule-gate.py`), because a bad rule
-reaches every session once it is updated.
-
-I would not start here. Start at Level 1 and come back once a rule has earned its
-place in your own week.
-
-## Putting the gate in a project of your own
-
-This is the part that does the work — a rule nothing executes is documentation.
-
-**1. Copy the core into the project.** A committed copy, not a symlink and not a
-path into your home folder:
-
-```bash
-cp <this repository>/scripts/gate-core.sh your-project/scripts/
-```
-
-The reason is CI. A runner checks out your project and nothing else, so a gate
-that reads `$HOME/.claude` passes on your laptop and dies in the pipeline.
-
-**2. Write `scripts/merge-gate.conf` beside it** — this is where the gate learns
-your project:
-
-```sh
-COVERAGE_CMD="bash scripts/coverage.sh"
-SAST_CMD="bash scripts/codeql-scan.sh"
-ACCEPTED_GAPS="dependency CVE"
-ACCEPTED_GAPS_REASON="no lockfile in this repository yet; tracked in docs/gates.md"
-```
-
-`ACCEPTED_GAPS` is the **only** way a missing step stops failing the gate, and it
-is ignored unless a reason string is set with it. `coverage` cannot be accepted at
-all — the core refuses it by name (#29).
-
-**3. Dry-run it before you trust it.**
-
-```bash
-bash scripts/gate-core.sh dev --list    # prints every step, runs none of them
-bash scripts/gate-core.sh dev           # the real thing; the exit code is the gate
-```
-
-**4. Install the commit hooks** — the `CLAUDE.md` size gate plus a secret scan
-over staged content:
-
-```bash
-bash scripts/pre-commit.sh --install
-```
-
-**5. Prove the gate is real.** Break something on purpose: add two hundred lines
-to a budgeted `CLAUDE.md`, or stage a fake-looking key, and confirm the commit is
-*refused*. A gate you have never watched fail is a gate you do not yet know is
-wired up. That check is the whole reason #19 is worded the way it is.
-
-## What this does to your machine
-
-Installing someone else's plugin means running their code in your sessions, so here is everything it
-runs, reads, writes and sends.
-
-**What runs by itself (the plugin's hooks, `hooks/hooks.json`).** All of them run locally, and none of
-them opens a network connection.
-
-| When | Script | What it does |
-|---|---|---|
-| `SessionStart`, `SubagentStart` | `rules-context.py` | prints this repository's `CLAUDE.md` (in parts of < 10,000 characters) into the session and every subagent; reads only that file |
-| `PreToolUse` (Bash) | `guard-destructive.sh` | reads the command Claude is about to run and refuses the never-do ones (`rm -rf`, force push, `DROP`) |
-| `PostToolUse` (Edit/Write), `Stop` | `md-hook.sh` | checks a touched `CLAUDE.md` against its size budget and for dropped rules; prints a warning |
-
-**The mod (`hooks/register.tsx`, listed in `hooks/hooks.json` under `modules`)** opens one pane beside the conversation at session start, with four bordered boxes in it (Status, Settings, Agents, Promotion; each folds by its header)
-and answers `/adyusuf:panels`. It reads `~/.claude/plugins/installed_plugins.json` (through `sh`/`cat`/`test`) to find the installed
-`adyusuf` plugin, runs `python3 scripts/adyusuf_config.py show/agents/schema/set` (with `--session <id>`: a click changes that session only, never the saved defaults) from that copy and read-only `git` commands
-(`for-each-ref`, `rev-parse`, `rev-list`, `log`) in the current repository. For the Status box it reads
-`~/.claude/adyusuf-status/<session id>.json` after every tool call and checks its modification time every 2 s. It opens no network connection.
-
-**What runs only when you call it.**
-- **`/adyusuf:*` skills and commands** tell Claude what to do. They run nothing on their own and send
-  nothing anywhere: `/adyusuf:board-plan` writes only the local plan file.
-- **The gate** (`scripts/gate-core.sh` and its libraries, which you run in your own project) runs your
-  project's tools on your machine: formatter, tests, coverage, `gitleaks`, `codeql`. Four of its steps
-  reach the network:
-  - when `node_modules` is missing, it installs your project's dependencies from its lockfile before the first
-    Node step (`npm ci` / `pnpm install --frozen-lockfile`), from your registry;
-  - the dependency audits (`npm audit`, `dotnet list package --vulnerable`) fetch advisories from their
-    registries;
-  - an optional `curl` goes to a test-deploy URL that *you* set (`TEST_VERSION_URL`), and only when you set it;
-  - `require-private-remote.sh` (a pre-push hook you install yourself) asks GitHub, through `gh api`, whether
-    a repository is private.
-- **`scripts/plugin-setup.py`** (only when you run it) contacts GitHub: `git ls-remote` for the commit of the
-  plugin's branch, and the `claude plugin` commands it starts fetch the marketplace from GitHub. It sends no
-  data of yours and changes only the plugin install; its log goes to `~/.claude-standards/logs/`.
-- **`scripts/step-stats.py`** reads Claude Code's local transcripts (`~/.claude/projects`) to count steps and
-  tokens. It writes a sanitised report into this repository's `docs/` and refuses when a project name or path
-  would leak.
-
-**No telemetry.** The plugin itself sends nothing anywhere. The only data that leaves your machine is what
-you start: the gate's advisory lookups, and `plugin-setup.py` asking GitHub for the newest commit. Turn the plugin off or remove it with `/plugin`.
-
-## Anonymization
-
-These rules were measured on real client projects. Project names are replaced
-with **Project A / B / C**; **the measurements are unchanged** — the numbers are
-the rationale, the names are not.
-
-## Deliberately NOT in this repository
-
-- Client or project memory, business logic, data schemas, prompts
-- Secrets, tokens, connection strings, hostnames, IP addresses
-- Session transcripts, conversation history, generated artifacts
-- Personal data and real email addresses (placeholders such as
- `<account>+<label>@gmail.com` are used instead)
-
-That split is not arbitrary: the rules governing what must never be published
-are part of the set itself, in `standards/15-security.md` (security) and
-`standards/18-setup-and-environment.md` (setup and secret inventory).
-
-## Language
-
-English throughout — prose, headings, file names, identifiers, commit messages
-and comments. The rule set used to be Turkish and the portfolio documents
-English; keeping two languages meant every rule had two possible homes and the
-translation drifted. One language, one home.
+Here they are rules #15, #24, #19 + #25, #14 and #29. Why the fifth: one project reported **95.0%** coverage; with
+generated migrations out of the denominator it was **83.0%**, and the average hid a web client at **~14%**
+([case 01](docs/case-01-coverage-illusion.md)).
+
+## How to use it
+
+Take the smallest amount that is useful; each step works on its own.
+
+1. **Read only:** [`CLAUDE.md`](CLAUDE.md) and [`docs/decision-log.md`](docs/decision-log.md).
+2. **Take the five rules** above.
+3. **Take the standards for your stack:** the files in `standards/` read independently. Keep the rule numbers if you
+   edit; everything cross-references by number.
+4. **Install the plugin** (above). `/adyusuf:config` and the `adyusuf` pane set the mode, the models and what Claude
+   merges and pushes without asking ([`hooks/README.md`](hooks/README.md)).
+5. **Put the gate in a project:** [`scripts/README.md`](scripts/README.md#putting-the-gate-in-a-project-of-your-own).
+
+How I run it myself: the installed plugin is a copy of `prod`, never edited in place. Work happens on a `dev` worktree
+(tried with `claude --plugin-dir <worktree>`), passes the gate, is promoted to `test` and `prod`, and reaches my sessions
+through `plugin-setup.py` ([`standards/00-working-method.md`](standards/00-working-method.md) §7a). ⚠️ A wrong rule
+reaches every session once the plugin is updated, which is why the guidance files have their own size and rule-loss
+gates (`scripts/md-size-gate.sh`, `scripts/md-rule-gate.py`). Start with the five rules, not here.
+`settings.example.json` is my own selection, not a template.
+
+## What it does to your machine
+
+The hooks and the pane run locally, open no network connection and send no telemetry. The gate reaches the network
+only for dependency installs and advisory lookups in your own project, and `plugin-setup.py` only to ask GitHub for the
+newest commit. Everything it runs, reads and writes: [`hooks/README.md`](hooks/README.md).
+
+## Not in this repository
+
+Client or project memory, business logic, data schemas, secrets, hostnames, session transcripts and personal data.
+Project names in the measurements are replaced with *Project A / B / C*; the numbers are unchanged. The rules that keep
+it that way are in [`standards/15-security.md`](standards/15-security.md) and
+[`standards/18-setup-and-environment.md`](standards/18-setup-and-environment.md). Everything is in English.
 
 ## License
 
-MIT — see `LICENSE`.
+MIT — see [`LICENSE`](LICENSE).

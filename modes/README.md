@@ -2,9 +2,9 @@
 
 **Five** modes determine how a task is carried out: **A-E, subagent-based.**
 (The Agent Teams modes X-Z are archived → [`archive/README.md`](archive/README.md).)
-Reading order: **a session-scoped selection** (`/adyusuf:working-mode <letter> --tek`, not
-written to the project file) → the project's `.claude/mode` → **B**. If neither
-exists, **B** applies.
+Reading order: **a session-scoped selection** (`/adyusuf:working-mode <letter> --once`, not
+written to the project file) → the project's `.claude/mode` → the configuration's `mode`
+(`/adyusuf:config`, default **C**).
 A second word downgrades only the Opus agents (`C sonnet`) → the **Model override** section at the end of this file.
 
 ⚠️ **A role is the `adyusuf` plugin's agent:** role `qa` is called with `subagent_type: "adyusuf:qa"`
@@ -14,7 +14,7 @@ A second word downgrades only the Opus agents (`C sonnet`) → the **Model overr
 | Mode | Name | Agents | Review | Approval policy | Cost multiplier |
 |---|---|---|---|---|---|
 | [**A**](A-skill.md) | Skill | **none** | me | chosen explicitly | 1.0x (baseline) |
-| [**B**](B-selective.md) | Selective | `analyst`, `test-writer`, `doc-writer` | me | the default = approval | 1.15–1.35x ⚠ estimated |
+| [**B**](B-selective.md) | Selective | `analyst`, `test-writer`, `doc-writer` | me | choosing the mode = approval | 1.15–1.35x ⚠ estimated |
 | [**C**](C-full-team.md) | Full team **(DEFAULT)** | 9 role agents (B ⊂ C) | the `qa` agent + me | choosing the mode = approval | 2.5–4x ⚠ estimated |
 | [**D**](D-wide-team.md) | Wide team | 14 role agents (C ⊂ D) | `qa` + `security`/`coverage-auditor` directly to me + me | choosing the mode = approval | 4.5–7x ⚠ estimated |
 | [**E**](E-fanout.md) | Fan-out | D + parallel `Workflow` (the 14 roles only) | the `qa` agent + me | choosing the mode = approval | 7–14x ⚠ estimated |
@@ -88,7 +88,6 @@ the decision is the user's.
 own by matching its `description`; in A that is **not followed**, and in B/C/D it is
 followed only if the agent is within that mode's set.
 
-
 ## One review, one test run, one gate — on the combined work (PERMANENT, every mode; user decision 05/10/2026)
 
 Whoever produces a piece — an agent, a subagent, a `Workflow` agent, a background task, or
@@ -123,14 +122,15 @@ is the producer's own confidence, **never** a substitute for the combined run.
 
 - Irreversible work (deploy, `DROP`, force push, sending anything outward) →
   **requires approval in every mode**. Choosing a mode does not cover it.
-- The `test`/`prod` promotion → the user says so explicitly **in every mode**.
+- Merging and pushing `dev`/`test`/`prod` → follows the configuration in every mode (global #34); a red gate
+  blocks every later target.
 - The completeness check before "done" (global #24) → the same in every mode.
 
 ## Session start — no question: the configuration answers (user decision 17/10/2026)
 
 A session does **not** ask the mode or the Opus replacement. The read order decides, silently:
 
-1. the session's own choice (`$S/mode`, `$S/mode-model`, written by `/adyusuf:working-mode <letter> [<model>] --tek`);
+1. the session's own choice (`$S/mode`, `$S/mode-model`, written by `/adyusuf:working-mode <letter> [<model>] --once`);
 2. the project's `.claude/mode` and `.claude/mode-model`;
 3. the configuration (`/adyusuf:config`): `mode` (default **C**) and `mode_model` (default `sonnet`).
 
@@ -142,26 +142,24 @@ with `/adyusuf:config`. Subagents, `Workflow` agents and non-interactive runs us
 
 ## If no mode is given — PROPOSE the cheapest and fastest
 
-> Since 05/10/2026 the session-start question above comes first. This section is what
-> shapes its **recommended** option, and it applies as-is wherever the question is not
-> asked (non-interactive runs). In a project with no mode file the configuration's mode applies (default C); a role outside the active mode's set is not invoked.
+> The read order above always yields a mode (no question is asked since 17/10/2026). This section is how to
+> **propose** a different one; a role outside the active mode's set is not invoked.
 
 If the project carries no `.claude/mode` **and** the user has not named a mode:
 
-1. **Start in B** (the default) — `analyst`, `test-writer` and `doc-writer` are
-   enabled, code and review stay with me. No separate question for those three
-   agents; the default itself is the approval.
+1. **Work in the configuration's mode** (default C). No separate question before an
+   agent call; the mode itself is the approval.
 2. If the work **genuinely** deserves a higher mode (a 15+ file end-to-end feature →
    C; work with a security/data/coverage/e2e dimension → D; 5+ independent pieces →
    E), **do not switch on your own** — **propose it in one line** at the start of the
    turn: which mode, why, and roughly how many times the cost (the multipliers in
-   this README). The decision is the user's; if no answer comes, continue in B.
+   this README). The decision is the user's; if no answer comes, continue in the current mode.
 3. The proposal is always **the lowest sufficient** mode: if B is enough, C is not
    proposed.
 4. ⚠️ **It also goes downward:** if the work does not even deserve B's three agents
    (one file, one command, pure thinking work) it is carried out without calling any
    agent — that is not switching to A, it is the "I do it myself" branch of §0 within
-   B. Not using an agent is not a violation of B; **calling an unnecessary agent** is.
+   the mode. Not using an agent is not a violation; **calling an unnecessary agent** is.
 
 If `.claude/mode` exists, this section does not apply — that file is an explicit
 decision.
@@ -175,8 +173,8 @@ decision.
 In every mode, on every turn that uses agents:
 
 1. **The auditor does not ask — it checks, and sends work back if something is
-   missing.** Every role whose output will be relied upon (`qa`, `analyst`, `devops`,
-   `test-writer`, `product-manager`), and the orchestrator at every handoff, closes
+   missing.** Every role whose output will be relied upon (the table in *Who audits
+   whom* above), and the orchestrator at every handoff, closes
    its report with an **evidence block** (verification command · item mapping · not
    covered → serious gap NO/YES). If something is missing or wrong the work
    **returns to its producer and is fixed**; it is not escalated to the user, and for
@@ -220,6 +218,40 @@ on disk, and the second named three while four carry the exemption. 10 + 4 = the
 No second auditor **agent** was added behind `qa`: subagent tokens cost ~4x more than
 the main conversation, and the gain does not cover the cost.
 
+## The 14 roles
+
+Each role is a subagent in `agents/<role>.md`, with its own context window, tool allow-list and model. The model below is
+the one its file defines; with the default configuration (`mode_model: sonnet`) the Opus roles run on Sonnet, and each
+role can be set on its own in the Agents box or with `/adyusuf:config` (`agents.<role>.model`, `agents.<role>.enabled`).
+
+| Role | Model | Why that tier | Tools it may use |
+|---|---|---|---|
+| `architect` | opus | designs a change across many files; a wrong plan costs more than the model does | read-only + shell |
+| `developer` | opus | writes product code against a fixed contract | read/write + shell |
+| `qa` | opus | the first review pass — correctness, security, backward compatibility | read-only + shell |
+| `security` | opus | OWASP, secret leakage, authorization, gate integrity | read-only + shell |
+| `data` | opus | schema, migrations, data loss risk — the least reversible work there is | read-only + shell |
+| `analyst` | sonnet | reads a lot, returns little; must also return the command that produced the finding | read-only + shell |
+| `test-writer` | sonnet | tests for a stated behaviour, scope already decided | read/write + shell |
+| `e2e-writer` | sonnet | Playwright/Maestro specs against the test environment only | read/write + shell |
+| `devops` | sonnet | CI, deploy, gate and backup configuration — its output still goes through `qa` | read/write + shell |
+| `coverage-auditor` | sonnet | measures the per-codebase threshold; writes no tests | read-only + shell |
+| `observability` | sonnet | logging, metrics, tracing, alerting gaps | read-only + shell |
+| `designer` | sonnet | flow, states, accessibility, empty and error states | read-only |
+| `product-manager` | sonnet | scope and acceptance criteria; output goes to human approval | read-only |
+| `doc-writer` | haiku | writes a decided rule into the right file | read/write, no shell |
+
+⚠️ **The orchestrator has no `model:` field** — it is whatever `/model` selected
+for the session, and it is the most expensive seat at the table, because its
+context is re-read on every single request. Across the records in this
+repository that is where the money went: **73%** of total spend was orchestrator
+cache reads and **7.7%** was agent turns. Choosing cheaper agents while leaving
+the orchestrator unexamined optimises the small half.
+
+Every model here is a Claude model on purpose, and the reason is written down
+rather than assumed: a subagent's `model:` field only accepts Anthropic models,
+so a third-party comparison would answer a question this system cannot act on.
+
 ## Role selection (C · D · E)
 
 **The orchestrator** decides who does what — agents never call each other. The
@@ -235,9 +267,9 @@ budget ceiling, stall brake, stopping on any irreversible action.
 
     /adyusuf:working-mode               # show the current mode
     /adyusuf:working-mode B             # switch this project to B (persistent)
-    /adyusuf:working-mode B --tek       # this session only, do not write the file
+    /adyusuf:working-mode B --once      # this session only, do not write the file
     /adyusuf:working-mode C sonnet      # C, and every Opus agent runs on Sonnet
-    /adyusuf:working-mode D sonnet --tek
+    /adyusuf:working-mode D sonnet --once
 
 ## Model override — `<letter> <model>` (PERMANENT, all projects; user decision 05/10/2026)
 
@@ -266,7 +298,7 @@ these say. The effective list is `scripts/adyusuf_config.py agents`:
   call path cannot carry it, say so **before** starting that agent — never let it run on
   Opus silently.
 - **Where it lives:** next to the letter, in the same layer — `.claude/mode-model` beside
-  `.claude/mode` (persistent, committed), `$S/mode-model` beside `$S/mode` (`--tek`).
+  `.claude/mode` (persistent, committed), `$S/mode-model` beside `$S/mode` (`--once`).
   `.claude/mode` stays a single letter, so every existing reader keeps working. **The
   letter alone removes that layer's `mode-model`** — that is how "back to the defined
   models" is expressed. The override is read from the layer that supplied the letter.

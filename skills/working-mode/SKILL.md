@@ -52,7 +52,7 @@ configuration has an override. Rules: `${CLAUDE_PLUGIN_ROOT}/modes/README.md` �
 
 If none of them exists the configuration's mode applies (default **C**, `adyusuf:config`); its agents are approved
 by the default itself. Propose a lower or higher mode in one line only if the work clearly deserves it - never switch on
-your own (README › "When no mode is given").
+your own (README › "If no mode is given").
 
 ⚠️ A mode chosen with `--once` is written **to the scratchpad** (`$S/mode`), not
 to `.claude/mode`. Reason: if "apply this for this session only" relies on

@@ -33,7 +33,7 @@ token cost stays low.
 | `22-live-board.md` | The **plan file**: one Markdown file per session with mode, roles, tasks, status and commits (`/adyusuf:board-plan`); what replaced the retired live board |
 | `23-delivery-flow-tuning.md` | Tuning a project's delivery flow for cost · quality · speed, and the **mandatory recurring flow-research task** (§13a) |
 | `../docs/decision-log.md` | **The decision log** — rationale, measurements and retired rule text moved out of `CLAUDE.md` |
-| `templates/` | Project CLAUDE.md, **module CLAUDE.md**, **SETUP.md**, **human-actions.md**, PR, ADR and user-story templates |
+| `templates/` | Project CLAUDE.md, **module CLAUDE.md**, **SETUP.md**, **human-actions.md**, PR, ADR and user-story templates, and `sdlc-caller.yml` (a project's CI workflow that calls this repository's shared one) |
 
 ## Order of precedence (when things conflict)
 
