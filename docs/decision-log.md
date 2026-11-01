@@ -2095,3 +2095,15 @@ next box painted over a card's last lines and that a wrapped row put cards on th
 in the flow. The card is in its label's group, so the pointer may move onto it; the theme's text colour behind inverse
 text keeps it readable in either theme. Not verified on screen at the time of writing. Not given cards: the Promotion
 branch lines and the `(added)`/`(off)` marks (data, not labels).
+
+## The settings steer code work only (01/11/2026, user decision)
+
+The merge, push, gate, coverage, CI, deploy, e2e, test-writing and agent settings exist for code in a project
+repository. A no-code task (a question, research, reading code to answer, a document outside a project repository, and
+Claude's own bookkeeping in `~/.claude`, which is itself a git repository) makes no branch or commit, runs none of them
+and calls no agent, whatever the mode; *Replies*, the Status box and the rules that are not settings (#14, #15, #24)
+still apply. A question that turns into code follows every setting from that point; code written outside a repository
+still gets tests (#8) and the mode's review (qa, same day: a boundary of "a file in a repository" would have counted
+memory and Status writes in `~/.claude` as repository work). The rule is in
+`standards/13-pr-and-review.md` §8a, the modes' "rules outside the mode", the Settings box's hover card, and the
+session-start settings block, which Claude reads every session.

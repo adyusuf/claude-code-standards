@@ -334,6 +334,9 @@ def context(effective, problems, session=None):
     steps.append('e2e before deploy: ' + ', '.join(
         'on %s before deploying %s %s' % (on, after, shown(value('e2e_before_deploy.' + after))) for on, after in E2E_STAGES))
     lines = ['adyusuf configuration (effective; global rule #34 - follow it, do not ask what it answers):',
+             '  for code work: changing a project repository\'s files. A no-code task (a question, research, Claude\'s own '
+             'bookkeeping in ~/.claude) makes no branch or commit and runs no merge, push, gate, coverage, CI, deploy, e2e, '
+             'test writing or agent; replies, the Status box and #14/#15/#24 still apply (standards/13 §8a).',
              '  mode %s, model for the Opus agents: %s' % (value('mode'), value('mode_model')),
              '  replies: %s - %s' % (value('reply.length'), REPLY_MEANING.get(value('reply.length'), REPLY_MEANING['short'])),
              '  pod: connect %s, message format %s (stored only; nothing acts on it)' % (
