@@ -243,14 +243,10 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
   // User decisions 01/11/2026: a row is the role's checkbox with its name (pressing the name toggles it, as in Settings),
   // then the model as one radio group; the `default` checkbox that sat between them is gone. The radio of the model the
   // role runs on is chosen; choosing the model `default` gives writes `default`, any other pins that model.
-  // A role that runs is named in bold (user decision 02/11/2026). Bold cannot sit inside a Button on the desktop, so the
-  // name is a Text and only the checkbox before it, a glyph Button, toggles the role.
-  const role = (agent: AgentRow) => h(ui.Box, { flexDirection: 'row', columnGap: 1 },
-    h(ui.Button, { key: `on-${agent.role}`, plain: true, dimColor: !agent.active, onPress: () => {
-      if (mode === 'A') return
-      press(`agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
-    } }, agent.active ? '☑' : '☐'),
-    h(ui.Text, agent.active ? { bold: true } : { dimColor: true }, agentName(agent)))
+  const role = (agent: AgentRow) => option(ui, `on-${agent.role}`, agentName(agent), 'check', agent.active, () => {
+    if (mode === 'A') return
+    press(`agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
+  })
   const key = (agent: AgentRow) => `agents.${agent.role}.model`
   // The model `default` gives; from an older script without `default_model`, known only while the role is on `default`.
   const givenByDefault = (agent: AgentRow) => agent.default_model ?? (agent.model === 'default' ? agent.runs_on : undefined)

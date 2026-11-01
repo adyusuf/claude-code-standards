@@ -210,9 +210,9 @@ test('Agents waits until the configuration is read', () => {
 test('Agents puts each role on one line: its checkbox and name, then the model radios; there is no default checkbox', () => {
   const body = agentsBody(ui, data(), () => undefined)
   expect(rows(body)).toEqual([
-    '☑ analyst opus [sonnet] haiku fable',
-    '☐ qa',
-    '☑ security opus [sonnet] haiku fable (added)',
+    '[analyst] opus [sonnet] haiku fable',
+    'qa',
+    '[security] opus [sonnet] haiku fable (added)',
   ])
   expect(all(body, 'Button').some(node => String(node.props.key).endsWith('=default'))).toBe(false)
 })
@@ -225,11 +225,11 @@ test('a role whose file says opus carries a star, the same as Model*, which repl
     agent('developer', { active: true, in_mode: true, defined: 'claude-opus-5-5', runs_on: 'claude-opus-5-5' }),
     agent('doc-writer', { active: true, in_mode: true, defined: 'haiku', runs_on: 'haiku', default_model: 'haiku' }),
   ] }), () => undefined)
-  expect(rows(body)).toEqual(['☑ qa* opus [sonnet] haiku fable', '☐ architect* (off)', '☑ developer opus sonnet haiku fable', '☑ doc opus sonnet [haiku] fable'])
+  expect(rows(body)).toEqual(['[qa*] opus [sonnet] haiku fable', 'architect* (off)', '[developer] opus sonnet haiku fable', '[doc] opus sonnet [haiku] fable'])
   // The star counts in the role column's width, so the radios of a starred longest name line up with the rest.
   const widths = (one: unknown) => all(one, 'Box').filter(node => node.props.minWidth !== undefined).map(node => node.props.minWidth)
   const longest = agentsBody(ui, data({ agents: [agent('security', { active: true, defined: 'opus' }), agent('qa', { active: true, in_mode: true })] }), () => undefined)
-  expect(rows(longest)[0]).toBe('☑ security* opus [sonnet] haiku fable (added)')
+  expect(rows(longest)[0]).toBe('[security*] opus [sonnet] haiku fable (added)')
   // The (added) mark sits after the radios, so it does not widen the column.
   expect(widths(longest)).toEqual(['security*'.length + 3, 'security*'.length + 3])
 })
@@ -239,7 +239,7 @@ test('the radio of the model the role runs on is chosen, pinned or not', () => {
     agent('qa', { active: true, in_mode: true, model: 'opus', runs_on: 'opus' }),
     agent('doc-writer', { active: true, in_mode: true, runs_on: 'haiku', default_model: 'haiku' }),
   ] }), () => undefined)
-  expect(rows(body)).toEqual(['☑ qa [opus] sonnet haiku fable', '☑ doc opus sonnet [haiku] fable'])
+  expect(rows(body)).toEqual(['[qa] [opus] sonnet haiku fable', '[doc] opus sonnet [haiku] fable'])
   const lit = all(body, 'Button').filter(node => node.props.dimColor === false).map(node => String(node.props.key))
   expect(lit).toEqual(['on-qa', 'agents.qa.model=opus', 'on-doc-writer', 'agents.doc-writer.model=haiku'])
 })
@@ -277,24 +277,22 @@ test('from an older script without default_model, the radio of the running model
   expect(calls).toEqual([['agents.analyst.model', 'default'], ['agents.qa.model', 'sonnet']])
 })
 
-test('the role checkbox is a glyph button left of the name; a role that runs is named in bold', () => {
+test('the role checkbox sits left of the role name, and pressing the name toggles the role', () => {
   const body = agentsBody(ui, data(), () => undefined)
-  // Bold cannot sit inside a Button on the desktop, so the name is a Text beside it.
-  expect(all(body, 'Text').filter(node => node.props.bold).map(words)).toEqual(['analyst', 'security'])
-  expect(all(body, 'Text').find(node => words(node) === 'qa')!.props.dimColor).toBe(true)
+  expect(all(body, 'Text').filter(node => node.props.bold).length).toBe(0)
   const toggles = all(body, 'Button').filter(node => String(node.props.key).startsWith('on-'))
-  expect(toggles.map(node => [words(node), node.props.dimColor])).toEqual([['☑', false], ['☐', true], ['☑', false]])
-  // One cell between the checkbox and the name.
-  expect(all(body, 'Box').filter(node => flat(node.children).some(child => toggles.includes(child as Node))).map(node => node.props.columnGap)).toEqual([1, 1, 1])
-  // The same on the desktop: no Svg icon for a role, only for the model radios.
-  expect(all(agentsBody(desktop, data(), () => undefined), 'Svg').every(node => String(node.props.source).includes('<circle'))).toBe(true)
+  expect(toggles.map(node => [words(node), node.props.label, node.props.dimColor])).toEqual([
+    ['[analyst]', undefined, false], ['qa', undefined, true], ['[security]', undefined, false],
+  ])
+  const icons = all(agentsBody(desktop, data(), () => undefined), 'Svg').filter(node => String(node.props.source).includes('<rect'))
+  expect(icons.map(node => node.props.alt)).toEqual(['analyst, chosen', 'qa', 'security, chosen'])
 })
 
 test('the Agents box shows the short role names and keeps the role in the key it writes', () => {
   const roles = ['product-manager', 'test-writer', 'doc-writer', 'coverage-auditor', 'e2e-writer', 'analyst']
   const calls: string[][] = []
   const body = agentsBody(ui, data({ agents: roles.map(role => agent(role)) }), (key, value) => { calls.push([key, value]) })
-  expect(rows(body)).toEqual(['☐ product', '☐ tester', '☐ doc', '☐ coverage', '☐ e2e', '☐ analyst'])
+  expect(rows(body)).toEqual(['product', 'tester', 'doc', 'coverage', 'e2e', 'analyst'])
   all(body, 'Button')[0].props.onPress()
   expect(calls).toEqual([['agents.product-manager.enabled', 'on']])
 })
@@ -339,7 +337,7 @@ test('on a surface with Svg each option has a radio or checkbox icon and no brac
   expect(icons.every(node => String(node.props.source).startsWith('<svg') && node.props.width === 12 && node.props.height === 12)).toBe(true)
   expect(icons.every(node => String(node.props.source).includes('width="12" height="12" viewBox="0 0 12 12"'))).toBe(true)
   expect(rows(agentsBody(desktop, data(), () => undefined))[0]).toBe('☑ analyst ○ opus ● sonnet ○ haiku ○ fable')
-  expect(all(agentsBody(desktop, data(), () => undefined), 'Svg').length).toBe(8)
+  expect(all(agentsBody(desktop, data(), () => undefined), 'Svg').length).toBe(11)
 })
 
 test('a box body and the lines of a promotion stage start one step in', () => {
@@ -352,8 +350,8 @@ test('a box body and the lines of a promotion stage start one step in', () => {
 
 test('an agent of the mode that is switched off says so', () => {
   const body = agentsBody(ui, data({ values: { mode: 'B', mode_model: 'keep' }, agents: [agent('analyst', { in_mode: true })] }), () => undefined)
-  expect(words(all(body, 'Button').find(node => String(node.props.key).startsWith('on-')))).toBe('☐')
-  expect(rows(body)).toEqual(['☐ analyst (off)'])
+  expect(words(all(body, 'Button').find(node => String(node.props.key).startsWith('on-')))).toBe('analyst')
+  expect(rows(body)).toEqual(['analyst (off)'])
   expect(all(body, 'Text').find(node => words(node) === '(off)')!.props.dimColor).toBe(true)
 })
 
