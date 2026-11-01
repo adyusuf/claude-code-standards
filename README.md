@@ -575,15 +575,15 @@ load mods, the command falls back to printing the same settings as a table and p
   is also written into the conversation. Each line says which layer changed (*this session* or *saved defaults*), the
   key with its old → new value, and the rules it touches. The screenshot shows *Model* (`mode_model`) switched back
   and forth between `keep` and `sonnet`.
-- **Agents — "mode C".** One line per role, read like a Settings row: the role name in bold, an `on` checkbox you press
-  to switch it on or off (the same blue icon, or `[on]` in the terminal), then the model radios; the nine on in the
-  screenshot are mode C's team. Five roles show a short name: `product` (product-manager), `tester` (test-writer), `doc`
-  (doc-writer), `coverage` (coverage-auditor) and `e2e` (e2e-writer); the agents and their settings keys keep the full
-  name. The five that are off (`data`, `observability`, `security`, `coverage`, `e2e`) belong to mode D; ticking its
-  `on` adds it to this session and marks it `(added)`. The radio options after a role pick its model: `default` (the model
-  its file and *Model* give it), or a pinned `opus`, `sonnet`, `haiku` or `fable`. With `default` chosen, the model it
-  resolves to is marked too, so `doc` shows both `default` and `haiku` selected. In the screenshot `qa` is
-  pinned to `opus`.
+- **Agents — "mode C".** One line per role: a checkbox with the role name (pressing the name switches the role on or
+  off, as in Settings), a `default` checkbox, then the model as one radio group: `opus`, `sonnet`, `haiku`, `fable`. The
+  nine on in the screenshot are mode C's team. Five roles show a short name: `product` (product-manager), `tester`
+  (test-writer), `doc` (doc-writer), `coverage` (coverage-auditor) and `e2e` (e2e-writer); the agents and their settings
+  keys keep the full name. The five that are off (`data`, `observability`, `security`, `coverage`, `e2e`) belong to mode
+  D; ticking one adds it to this session and marks it `(added)`. The chosen radio is always the model the role runs on.
+  `default` ticked means it runs on the model its file and *Model* give it; ticking `default` selects that model's
+  radio, and choosing that model's radio ticks `default`. Choosing any other model unticks `default` and pins that
+  model; unticking `default` pins the model it was running on. In the screenshot `qa` is pinned to `opus`.
 - **Promotion — "dev e024c91c · test e980afdf · prod 465a022b".** One block per `dev`/`test`/`prod` branch of the
   repository the session is in: the commit `origin` holds, then `pushed` or `N not pushed`. Below it, any
   `Gate-Waived` line on the commits waiting to come in from the stage before it (for `test`, what `origin/dev` has and

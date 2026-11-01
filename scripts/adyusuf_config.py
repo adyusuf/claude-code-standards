@@ -119,7 +119,8 @@ def effective_model(defined, override):
 
 
 def agents(values, include_inactive=False):
-    """One dict per role: defined model, the model it runs on, whether it is active, and the settings behind that.
+    """One dict per role: defined model, the model it runs on, the model `default` gives it (`default_model`, also while
+    another is pinned: the pane's default checkbox and radios need it), whether it is active, and the settings behind that.
 
     A role is active when `agents.<role>.enabled` is `on`, or `auto` and the mode's set holds it; mode A runs none
     whatever the settings say. `agents.<role>.model` other than `default` beats the mode's Opus override."""
@@ -131,10 +132,11 @@ def agents(values, include_inactive=False):
         active = False if mode == 'A' else (in_mode if enabled == 'auto' else enabled == 'on')
         defined = defined_model(role)
         chosen = values.get('agents.%s.model' % role, 'default')
-        runs_on = chosen if chosen != 'default' else effective_model(defined, override)
+        default_model = effective_model(defined, override)
+        runs_on = chosen if chosen != 'default' else default_model
         if active or include_inactive:
-            rows.append({'role': role, 'defined': defined, 'runs_on': runs_on, 'active': active, 'in_mode': in_mode,
-                         'enabled': enabled, 'model': chosen})
+            rows.append({'role': role, 'defined': defined, 'runs_on': runs_on, 'default_model': default_model, 'active': active,
+                         'in_mode': in_mode, 'enabled': enabled, 'model': chosen})
     return rows
 
 

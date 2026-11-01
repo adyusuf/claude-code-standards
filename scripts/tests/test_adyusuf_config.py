@@ -374,6 +374,10 @@ class Agents(Tool):
         self.assertEqual('haiku', rows['developer']['runs_on'])
         self.assertEqual('opus', rows['qa']['runs_on'])
         self.assertEqual('sonnet', rows['architect']['runs_on'])             # untouched agents still follow the mode
+        # `default_model` is what `default` would give, also while another model is pinned
+        self.assertEqual(('sonnet', 'opus'), (rows['developer']['default_model'], rows['developer']['defined']))
+        self.assertEqual(('sonnet', 'opus'), (rows['qa']['default_model'], rows['qa']['defined']))
+        self.assertEqual('sonnet', rows['architect']['default_model'])
 
     def test_mode_a_runs_no_agent_whatever_the_agent_settings_say(self):
         self.run_tool('set', 'mode', 'A')
