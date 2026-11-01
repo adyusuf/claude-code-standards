@@ -178,6 +178,12 @@ Since 17/10/2026 Claude **does not ask** whether to merge, run a gate or push: t
 time was too much work for the user, so the defaults say what normally happens and whoever wants something else changes
 the setting once, or for one session.
 
+**Read the panel, then act at once (user decision 01/11/2026).** When a piece of work is done, Claude reads the settings
+afresh (`adyusuf_config.py show --session <id>`, this session's layer included; the panel may have changed since the
+session started) and carries out the merges, gates and pushes below **straight away**: no question, no waiting for a
+"go". Re-read them before each target, since a press in the panel during a long gate counts. The chain stops only when
+the user stops it (interrupts or says stop), on a red gate, or on a step that needs approval in every mode (below).
+
 **When the code is done**, for each target `<t>` in `dev`, `test`, `prod` (in that order; a batch merge, §8, is one merge):
 
 | Setting | Effect |
@@ -188,7 +194,7 @@ the setting once, or for one session.
 | `push.<t>` = yes | Push `<t>` after its merge and its gates. `no` leaves the merge local and the report says so. |
 | `ci_after_push.<t>` = yes | After `<t>` is pushed, wait for the project's CI to finish on the pushed commit. A red run is reported with the failing job and stops every later target. A project with no CI says "no CI", which is not a failure. `no` does not wait and the merge commit carries `Gate-Waived: ci`. Defaults: dev no, test yes, prod yes. |
 | `ci.runner` = hosted / self-hosted | Where the shared CI workflow (`.github/workflows/sdlc.yml` of the standards repository, called by a ~15-line caller in each project) runs: GitHub's runners, or the runners on this machine (at least two per project that has none of its own; a fork's pull request never reaches them). Written to the repo variable `SDLC_RUNNER_LABELS` by `scripts/sdlc_settings.py vars`. Default hosted. |
-| `deploy_after_push.<t>` = yes (`test`, `prod`) | "After pushing update: [x]test [ ]prod": checkboxes, one or both: the environments a pushed update is deployed to; the plan job of the shared workflow reports the ticked ones (`test,prod`, or `none`) and a project's deploy workflow reads them from `.claude/sdlc-settings.json`. Defaults: test yes, prod no. |
+| `deploy_after_push.<t>` = yes (`test`, `prod`) | "Deploy test prod" in the panel (until 01/11/2026 "After pushing update"): checkboxes, one or both: the environments a pushed update is deployed to; the plan job of the shared workflow reports the ticked ones (`test,prod`, or `none`) and a project's deploy workflow reads them from `.claude/sdlc-settings.json`. Defaults: test yes, prod no. |
 | `e2e_before_deploy.<t>` = yes (`test`, `prod`) | Before `<t>` is deployed, run the e2e suite (Playwright / Maestro, `11`/`12`) against the environment below it: `e2e_before_deploy.test` runs on `dev` before `test` is deployed, `e2e_before_deploy.prod` runs on `test` before `prod` is deployed. It applies only where the project has an e2e suite and that environment; otherwise the report says "no e2e suite" or "no such environment", which is not a failure. A red run is reported with the failing specs and blocks the promotion to `<t>` (it was asked for, #33). The deploy itself still needs the user's approval (#20, #27). Defaults: both no. |
 
 **The gate reads the settings from the project, so the project's copy is rewritten first.** Before the gate of `<t>`
