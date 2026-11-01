@@ -67,11 +67,6 @@ export function parseStatus(text: string): StatusData | null {
 const busy = (data: StatusData | null): data is StatusData =>
   data !== null && (data.now !== '' || data.next !== '' || data.rows.length > 0)
 
-export function statusSummary(data: StatusData | null): string {
-  if (!busy(data)) return 'nothing running'
-  return data.now !== '' ? data.now : `${data.rows.length} item${data.rows.length === 1 ? '' : 's'}`
-}
-
 /** A cap on one table column, in cells: a longer text wraps inside its column instead of pushing the next one away. */
 const STATUS_COLUMN = 36
 

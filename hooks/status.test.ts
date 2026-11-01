@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { parseStatus, statusBody, statusDir, statusStep, statusSummary } from './status'
+import { parseStatus, statusBody, statusDir, statusStep } from './status'
 
 // A recording factory: an element is { type, props, children }, so the tests read what the box would draw.
 type Node = { type: unknown; props: Record<string, any>; children: unknown[] }
@@ -37,14 +37,6 @@ test('the status file is read as text: only strings are kept, anything else is n
   expect(parseStatus('null')).toBe(null)
   const odd = parseStatus(JSON.stringify({ now: 5, rows: [{ item: 'a', state: 1 }, 'x', null] }))
   expect(odd).toEqual({ now: '', next: '', updated: '', rows: [{ item: 'a', state: '', figure: '', waiting: '' }] })
-})
-
-test('the summary says what runs now, else how many items, else nothing running', () => {
-  expect(statusSummary(null)).toBe('nothing running')
-  expect(statusSummary(parseStatus('{}'))).toBe('nothing running')
-  expect(statusSummary(parseStatus(FILE))).toBe('prod gate')
-  expect(statusSummary(parseStatus(JSON.stringify({ rows: [{ item: 'a' }] })))).toBe('1 item')
-  expect(statusSummary(parseStatus(JSON.stringify({ rows: [{ item: 'a' }, { item: 'b' }] })))).toBe('2 items')
 })
 
 test('the body shows now and next, then the table under its four headings', () => {
