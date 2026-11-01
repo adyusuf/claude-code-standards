@@ -120,7 +120,7 @@ def effective_model(defined, override):
 
 def agents(values, include_inactive=False):
     """One dict per role: defined model, the model it runs on, the model `default` gives it (`default_model`, also while
-    another is pinned: the pane's default checkbox and radios need it), whether it is active, and the settings behind that.
+    another is pinned: the pane's model radios need it), whether it is active, and the settings behind that.
 
     A role is active when `agents.<role>.enabled` is `on`, or `auto` and the mode's set holds it; mode A runs none
     whatever the settings say. `agents.<role>.model` other than `default` beats the mode's Opus override."""
