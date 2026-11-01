@@ -2,14 +2,14 @@ import type { EngineInterface, Hook, Register } from 'claude-code'
 
 import type { AgentRow, Promotion, Settings, Stage } from '../types'
 import {
-  agentsBody, agentsSummary, FOLDED_AT_START, isFolded, nextFold, promotionBody, promotionSummary, section, settingsBody, settingsSummary,
+  agentsBody, FOLDED_AT_START, isFolded, nextFold, promotionBody, section, settingsBody,
 } from './boxes'
 import type { FoldId, Scope, SectionId } from './boxes'
 import {
   countOf, DISCOVER_PY, IS_FILE_PY, overrideNote, parseDiscovery, plannedStages, refSet, scriptDir, waivedLines, waivedRange,
 } from './choose'
 import { operationWarnings, warnings } from './notices'
-import { parseStatus, statusBody, statusDir, statusStep, statusSummary } from './status'
+import { parseStatus, statusBody, statusDir, statusStep } from './status'
 import type { StatusProbe } from './status'
 
 /** One pane, four bordered boxes in it (Status, Settings, Agents, Promotion), each folded by its header. */
@@ -267,12 +267,12 @@ const onRender: Hook<'ui.render'> = async ($, e) => {
   const claude = { folded: isFolded(fold, 'claude'), toggle: toggle('claude') }
   return (
     <Box flexDirection="column">
-      {section(ui, 'status', 'Status', statusSummary(now), shut('status'), toggle('status'), statusBody(ui, now))}
-      {section(ui, 'settings', 'Settings', settingsSummary(data), shut('settings'), toggle('settings'),
+      {section(ui, 'status', 'Status', shut('status'), toggle('status'), statusBody(ui, now))}
+      {section(ui, 'settings', 'Settings', shut('settings'), toggle('settings'),
         settingsBody(ui, data, problem, problems, press, claude))}
-      {section(ui, 'agents', 'Agents', agentsSummary(data), shut('agents'), toggle('agents'),
+      {section(ui, 'agents', 'Agents', shut('agents'), toggle('agents'),
         agentsBody(ui, data, press))}
-      {section(ui, 'promotion', 'Promotion', promotionSummary(stages), shut('promotion'), toggle('promotion'),
+      {section(ui, 'promotion', 'Promotion', shut('promotion'), toggle('promotion'),
         promotionBody(ui, stages))}
     </Box>
   )

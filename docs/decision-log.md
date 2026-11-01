@@ -2067,3 +2067,7 @@ radios after it, such as `observability` in mode C) no longer widens the column,
 the names. The `(added)` / `(off)` mark moves from the name to the end of the row (qa, same day): inside the name, one
 added role would have widened both boxes again. The drawing parts shared by the boxes moved to `hooks/controls.ts` first, since `boxes.ts` had reached 299
 lines (rule #9).
+The box headers are the arrow and the title alone: Status, Settings, Agents, Promotion (user decision, 01/11/2026). The
+summaries beside them (what runs now, how many settings changed, the mode, the branch commits) made the pane cluttered
+and are removed, folded or open. What runs now, the mode and the commits are in the boxes' bodies; in mode A the Agents
+body says it runs no agents (qa, same day). The count of settings this session changed is no longer shown anywhere.

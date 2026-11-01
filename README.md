@@ -44,7 +44,7 @@ Windows included: [`SETUP.md`](SETUP.md) §1 and §6.
 | Engineering standards | `standards/` | 24 documents + 8 templates | [`standards/README.md`](standards/README.md) |
 | Operating modes and the role agents | `modes/`, `agents/` | 5 modes, 14 roles | [`modes/README.md`](modes/README.md) |
 | Gate, hook scripts, measurement, install | `scripts/` | 33 scripts, 820 tests | [`scripts/README.md`](scripts/README.md) |
-| Hooks and the `adyusuf` pane (`/adyusuf:panels`) | `hooks/` | 68 tests | [`hooks/README.md`](hooks/README.md) |
+| Hooks and the `adyusuf` pane (`/adyusuf:panels`) | `hooks/` | 66 tests | [`hooks/README.md`](hooks/README.md) |
 | Slash commands | `commands/` | `apply-project-standards`, `panels`, `prod-readiness`, `standards-check` | each file |
 | Skills | `skills/` | `board-plan`, `config`, `software-standards`, `test-inventory`, `working-mode` | each `SKILL.md` |
 | The record: motivation, measurements, case studies | `docs/` | 4 case studies | [`docs/README.md`](docs/README.md) |
