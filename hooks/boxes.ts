@@ -228,7 +228,8 @@ function table(ui: Ui, data: SettingsData, press: Press, claude: ColumnFold) {
   const heads = [
     h(ui.Text, { bold: true }, 'Session'),
     data.saved
-      ? h(ui.Box, { flexDirection: 'row', columnGap: 1 }, h(ui.Text, { bold: true }, 'System'),
+      // The desktop's native button pads the arrow already, so a gap there would leave it far from the name.
+      ? h(ui.Box, { flexDirection: 'row', columnGap: ui.Svg ? 0 : 1 }, h(ui.Text, { bold: true }, 'System'),
         h(ui.Button, { key: 'fold-claude', plain: true, onPress: claude.toggle }, claude.folded ? '▸' : '◂'))
       : null,
   ].filter(head => head !== null)

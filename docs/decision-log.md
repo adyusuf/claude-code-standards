@@ -2059,3 +2059,5 @@ Accepted limit (qa, 01/11/2026): without the checkbox a pinned role goes back to
 the model `default` gives. That radio exists for every role file today (each says opus, sonnet or haiku); it would be
 missing for a role file with no `model:` line, or with a pane newer than an installed `adyusuf_config.py` lacking
 `default_model`. Neither occurs; `/adyusuf:config` (`agents.<role>.model default`) still resets such a role.
+The arrow sits close to *System* (user decision, 01/11/2026): no gap is added on the desktop, whose native button pads
+the arrow already; the terminal keeps one cell.
