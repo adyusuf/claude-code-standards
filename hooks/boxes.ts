@@ -229,7 +229,8 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
   // desktop, so a pressable name could not be bold (user decision 01/11/2026).
   const head = (agent: AgentRow) => h(ui.Box, { flexDirection: 'row', columnGap: 1 },
     h(ui.Button, {
-      key: `on-${agent.role}`, plain: true, dimColor: !agent.active, label: name(agent),
+      // No `label`: the desktop draws a Button's label in place of its children, which showed the name twice.
+      key: `on-${agent.role}`, plain: true, dimColor: !agent.active,
       onPress: () => {
         if (mode === 'A') return
         press(`agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
