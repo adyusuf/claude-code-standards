@@ -195,10 +195,12 @@ the 14 role agents as `adyusuf:<role>`, the destructive-command guard and the `C
 written into `~/.claude` by hand; read the warning in
 [`README.md` Level 4](README.md#level-4--run-it-live-the-way-i-do) first.
 
-- **The right-hand boxes (part of the plugin):** one pane with the Settings, Agents and Promotion boxes (each folds by its header) opens at session start
+- **The right-hand boxes (part of the plugin):** one pane with the Status, Settings, Agents and Promotion boxes (each folds by its header) opens at session start
   and with `/adyusuf:panels`. They run `git` and `python3` locally (no shell: on Windows both must be on the desktop app's `PATH`) and contact no server. They show the settings of the
   installed copy, so `/plugin update adyusuf` brings new settings into them. A click changes **this session only**; a new
-  session starts from your saved defaults (`~/.claude/adyusuf.json`, changed with `/adyusuf:config`).
+  session starts from your saved defaults (`~/.claude/adyusuf.json`, changed with `/adyusuf:config`). The Status box reads
+  this session's status table from `~/.claude/adyusuf-status/<session id>.json` (written by `scripts/adyusuf_status.py`;
+  `ADYUSUF_STATUS_DIR` moves the folder), after every tool call and every 2 s when the file changed.
   **The Claude desktop app** does not load an installed plugin's mod by itself. Name the plugin's folder in the `env` block
   of `~/.claude/settings.json` and start a new session: `"env": {"CLAUDE_CODE_PLUGIN_DIRS": "<home>/.claude/plugins/marketplaces/adyusuf-marketplace"}`
   (a session the app starts loads each folder like `--plugin-dir`, and that copy then takes precedence over the installed

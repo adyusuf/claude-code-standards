@@ -241,7 +241,7 @@ because something broke first.
 | Engineering standards | `standards/` | 24 documents + 8 templates |
 | Agent roles (each with explicit scope and prohibitions) | `agents/` | 14 roles |
 | Operating modes (agent use + review + approval policy) | `modes/` | 5 modes |
-| Gate, measurement and install scripts | `scripts/` | 32 scripts + 715 tests |
+| Gate, measurement and install scripts | `scripts/` | 33 scripts + 715 tests |
 | Slash commands, skills and hooks — one plugin, `/adyusuf:<name>` | `.claude-plugin/`, `commands/`, `skills/`, `hooks/` | 9 |
 | Decision log (rationale and measurement per rule) | `docs/` | — |
 
@@ -545,6 +545,12 @@ load mods, the command falls back to printing the same settings as a table and p
 *What the screenshot shows.* The left two-thirds are the app's session list and the conversation, blurred on purpose
 (see [Anonymization](#anonymization)). The right-hand column is the `adyusuf` pane:
 
+- **Status** (added after the screenshot, the first box). The status table of a long run: what runs now, what runs
+  next, then item · state · measured figure (with its signal) · waiting on. Claude writes it at every step with
+  `scripts/adyusuf_status.py`, and so does a background gate or promotion; the box re-reads it when a tool call returns
+  and every 2 s when the file changed. It shows *nothing running* when the table is empty
+  ([`standards/00-working-method.md`](standards/00-working-method.md) §10d).
+
 - **Settings — "2 changed in this session".** One table, one row per setting: the label in bold, then the
   **Session** column, then the **Claude** column. *Session* is what this session runs on; a press there changes this
   session only. *Claude* holds the saved defaults in `~/.claude/adyusuf.json`, which every new session starts from; a
@@ -667,10 +673,11 @@ them opens a network connection.
 | `PreToolUse` (Bash) | `guard-destructive.sh` | reads the command Claude is about to run and refuses the never-do ones (`rm -rf`, force push, `DROP`) |
 | `PostToolUse` (Edit/Write), `Stop` | `md-hook.sh` | checks a touched `CLAUDE.md` against its size budget and for dropped rules; prints a warning |
 
-**The mod (`hooks/register.tsx`, listed in `hooks/hooks.json` under `modules`)** opens one pane beside the conversation at session start, with three bordered boxes in it (Settings, Agents, Promotion; each folds by its header)
+**The mod (`hooks/register.tsx`, listed in `hooks/hooks.json` under `modules`)** opens one pane beside the conversation at session start, with four bordered boxes in it (Status, Settings, Agents, Promotion; each folds by its header)
 and answers `/adyusuf:panels`. It reads `~/.claude/plugins/installed_plugins.json` (through `sh`/`cat`/`test`) to find the installed
 `adyusuf` plugin, runs `python3 scripts/adyusuf_config.py show/agents/schema/set` (with `--session <id>`: a click changes that session only, never the saved defaults) from that copy and read-only `git` commands
-(`for-each-ref`, `rev-parse`, `rev-list`, `log`) in the current repository. It opens no network connection.
+(`for-each-ref`, `rev-parse`, `rev-list`, `log`) in the current repository. For the Status box it reads
+`~/.claude/adyusuf-status/<session id>.json` after every tool call and checks its modification time every 2 s. It opens no network connection.
 
 **What runs only when you call it.**
 - **`/adyusuf:*` skills and commands** tell Claude what to do. They run nothing on their own and send

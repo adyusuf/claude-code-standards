@@ -330,6 +330,21 @@ finished into one row and give the remaining work its own rows.
   file for its final line. **Before reporting "still running", verify with `ps` that a
   REAL process is there and not just the waiter.**
 
+### 10d. The pane's Status box shows the same table (user decision 01/11/2026)
+
+Where the `adyusuf` pane runs, the table is ALSO kept in the session's status file, and the pane's **Status** box (the
+first box) shows it. It does not replace the table in the reply; the reply table stays the deliverable.
+
+- **Claude writes it at every state change**, with `scripts/adyusuf_status.py --session <id>` (the installed plugin's
+  copy): `now` (what runs now), `next` (what runs next), `row ITEM STATE FIGURE WAITING` (one row, replaced by its item),
+  `drop`, `clear` when the work is done. A background run (a gate, a promotion) writes its own steps the same way, so
+  the box moves while Claude waits. The 10b rules hold for every field: measured figures with their signal, "did not
+  run" for a step that did not run.
+- **How the box stays current:** a trigger (it re-reads the file when any tool call returns) and a poll every 2 s that
+  stats the file and re-reads it only when its modification time changed. The file is
+  `~/.claude/adyusuf-status/<session id>.json` (`ADYUSUF_STATUS_DIR` overrides the folder); files untouched for 14 days are
+  removed on the next write. It is local: nothing is published, so this is not the removed dashboard.
+
 ### 10c. Background task names show what they cost (PERMANENT, all projects)
 
 Every background task and every delegated agent is named so the reader can tell at a

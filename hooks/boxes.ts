@@ -23,7 +23,7 @@ type SettingsData = Layer & { schema: Spec[]; saved?: Layer; agents: AgentRow[] 
 type Stage = { branch: string; origin: string; unpushed: number; waived: string[] }
 type PromotionData = { stages: Stage[]; error?: string }
 
-export const SECTIONS = ['settings', 'agents', 'promotion'] as const
+export const SECTIONS = ['status', 'settings', 'agents', 'promotion'] as const
 export type SectionId = (typeof SECTIONS)[number]
 
 /** Sections that start folded, so the pane opens as a short card and not as one long list. */
