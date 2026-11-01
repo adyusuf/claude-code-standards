@@ -38,7 +38,7 @@ What the mod runs and reads:
 
 It opens no network connection. The code is split so the drawing can be tested without the engine: `boxes.ts` (Settings,
 Agents, Promotion), `controls.ts` (the shared icons, options and aligned lines), `status.ts` (Status), `choose.ts` (pure decisions), `notices.ts` (chat lines); `register.tsx` is the
-engine glue. Tests: `deno test --sloppy-imports --import-map=scripts/ts-shim/import_map.json hooks/*.test.ts` (66 tests).
+engine glue. Tests: `deno test --sloppy-imports --import-map=scripts/ts-shim/import_map.json hooks/*.test.ts` (67 tests).
 
 ## The four boxes
 
@@ -59,6 +59,8 @@ reopening them.
   only when you open it: folded, **System** ▸ sits right beside *Session*; open, **System** ◂ sits over its column. (The
   screenshot is older: there the heading still reads *Claude*, with no arrow.)
   - *Mode* A–E (rule #27) and *Model\**, the model that replaces Opus in the roles marked `*` in Agents.
+  - *Replies* (`short`, `normal`, `long`; default `short`): how much Claude writes in a reply
+    ([`standards/00-working-method.md`](../standards/00-working-method.md) §5a).
   - *Pod* and *Format* are stored only; nothing acts on them yet.
   - *Tests* (`unit`, `e2e`): whether Claude writes unit tests and e2e specs.
   - *Merge*, *Push*, *Gates*, *Coverage* and *CI* (wait for CI after the push), per target. Rule #34 follows them
