@@ -125,6 +125,9 @@ is the producer's own confidence, **never** a substitute for the combined run.
 - Merging and pushing `dev`/`test`/`prod` → follows the configuration in every mode (global #34); a red gate
   blocks every later target.
 - The completeness check before "done" (global #24) → the same in every mode.
+- A no-code task (it changes no project repository file: a question, research, a document outside a repository,
+  Claude's own bookkeeping) → **no agent**, whatever the mode; the session does it alone
+  (`standards/13-pr-and-review.md` §8a). Code written outside a repository still gets the mode's review.
 
 ## Session start — no question: the configuration answers (user decision 17/10/2026)
 

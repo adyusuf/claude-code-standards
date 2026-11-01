@@ -62,6 +62,8 @@ test('a card is a hidden row of its label hover group, readable in either theme,
   expect([card.props.position, card.props.top, card.props.width]).toEqual([undefined, undefined, undefined])
   expect([card.props.backgroundColor, all(card, 'Text')[0]!.props.color]).toEqual(['text', 'inverseText'])
   expect(words(card)).toBe(SECTION_HELP.settings)
+  // The Settings card says the settings are for code work, and what a task with no code still uses.
+  expect(['for code in a project', 'no code uses only Replies and Status'].every(part => SECTION_HELP.settings.includes(part))).toBe(true)
 })
 
 test('a box title card sits right after the header, before the body, folded or open', () => {
