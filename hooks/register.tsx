@@ -2,9 +2,9 @@ import type { EngineInterface, Hook, Register } from 'claude-code'
 
 import type { AgentRow, Promotion, Settings, Stage } from '../types'
 import {
-  agentsBody, agentsSummary, FOLDED_AT_START, promotionBody, promotionSummary, section, settingsBody, settingsSummary,
+  agentsBody, agentsSummary, FOLDED_AT_START, isFolded, nextFold, promotionBody, promotionSummary, section, settingsBody, settingsSummary,
 } from './boxes'
-import type { Scope, SectionId } from './boxes'
+import type { FoldId, Scope, SectionId } from './boxes'
 import {
   countOf, DISCOVER_PY, IS_FILE_PY, overrideNote, parseDiscovery, plannedStages, refSet, scriptDir, waivedLines, waivedRange,
 } from './choose'
@@ -195,10 +195,10 @@ async function safely($: EngineInterface, work: Promise<void>) {
   }
 }
 
-/** Folds or unfolds one box of the pane; called from a press, never while drawing. */
-async function flip($: EngineInterface, id: SectionId) {
+/** Folds or unfolds one box of the pane, or the Claude column; called from a press, never while drawing. */
+async function flip($: EngineInterface, id: FoldId) {
   const { value: now = FOLDED_AT_START } = await $.state.get(folded)
-  await $.state.set(folded, { ...now, [id]: !now[id] })
+  await $.state.set(folded, nextFold(now, id))
 }
 
 // Clicks run one after another: two settings changed quickly must not race each other's read-modify-write.
@@ -262,15 +262,17 @@ const onRender: Hook<'ui.render'> = async ($, e) => {
   const { value: fold = FOLDED_AT_START } = await $.state.get(folded)
   const { value: now = null } = await $.state.get(status)
   const press = (key: string, value: string, scope: Scope = 'session') => click($, key, value, scope)
-  const toggle = (id: SectionId) => () => void flip($, id)
+  const toggle = (id: FoldId) => () => void flip($, id)
+  const shut = (id: SectionId) => isFolded(fold, id)
+  const claude = { folded: isFolded(fold, 'claude'), toggle: toggle('claude') }
   return (
     <Box flexDirection="column">
-      {section(ui, 'status', 'Status', statusSummary(now), fold.status === true, toggle('status'), statusBody(ui, now))}
-      {section(ui, 'settings', 'Settings', settingsSummary(data), fold.settings === true, toggle('settings'),
-        settingsBody(ui, data, problem, problems, press))}
-      {section(ui, 'agents', 'Agents', agentsSummary(data), fold.agents === true, toggle('agents'),
+      {section(ui, 'status', 'Status', statusSummary(now), shut('status'), toggle('status'), statusBody(ui, now))}
+      {section(ui, 'settings', 'Settings', settingsSummary(data), shut('settings'), toggle('settings'),
+        settingsBody(ui, data, problem, problems, press, claude))}
+      {section(ui, 'agents', 'Agents', agentsSummary(data), shut('agents'), toggle('agents'),
         agentsBody(ui, data, press))}
-      {section(ui, 'promotion', 'Promotion', promotionSummary(stages), fold.promotion === true, toggle('promotion'),
+      {section(ui, 'promotion', 'Promotion', promotionSummary(stages), shut('promotion'), toggle('promotion'),
         promotionBody(ui, stages))}
     </Box>
   )
