@@ -1995,3 +1995,6 @@ string, so a project is not broken until its next merge rewrites `.claude/sdlc-s
   between), so the Claude column starts at the same place on every row. Keys, presses and layers are unchanged.
 - **No space after an icon (same day).** The radio/checkbox images are exactly 12 × 12 px (were 16 wide with 4 px of empty
   margin, which read as a space), and the agent head draws `☑` and the bold name with no gap between them.
+- **Agent checkbox glyphs (same day).** `▣`/`□` (one Unicode block) instead of `☑`/`☐`: the font drew `☐` visibly larger, so
+  the roles that were off looked oversized. The gap left between an icon and its label is the native button's own padding,
+  which a Button offers no prop for.
