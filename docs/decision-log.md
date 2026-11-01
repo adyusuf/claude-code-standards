@@ -2030,3 +2030,11 @@ string, so a project is not broken until its next merge rewrites `.claude/sdlc-s
   **Rejected with evidence:** "the trigger fires before the tool runs". The engine's `ToolCallResult` carries the tool's
   own output (`result`, "from core the tool's record"), so `await next(e)` in a `tool.call` hook resolves after the tool
   ran; the validator's "gating hook without .catch" warning is about a rejected `next()`, which the hook passes through.
+
+**Agents: a `default` checkbox beside one model radio group; the role checkbox left of a pressable name (01/11/2026, user
+decision).** `default` is a checkbox, no longer one of the radios: ticking it writes `default`; unticking it pins the
+model the role runs on. The radios (opus, sonnet, haiku, fable) mark the model the role runs on; choosing the one
+`default` gives writes `default` (so the checkbox ticks), any other pins it. `adyusuf_config.py agents --json` gains the
+additive field `default_model` (what `default` gives, also while a model is pinned) for that. The role's checkbox sits
+left of its name, and the name is the pressable label, as in Settings; it is no longer bold, which a pressable text
+cannot be on the desktop. Supersedes the `on` column of the same day.
