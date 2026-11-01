@@ -28,8 +28,20 @@ type PromotionData = { stages: Stage[]; error?: string }
 export const SECTIONS = ['status', 'settings', 'agents', 'promotion'] as const
 export type SectionId = (typeof SECTIONS)[number]
 
-/** Sections that start folded, so the pane opens as a short card and not as one long list. */
-export const FOLDED_AT_START: Record<string, boolean> = { agents: true, promotion: true }
+/**
+ * What starts folded, so the pane opens as a short card and not as one long list: two boxes, and the Claude column of
+ * Settings (the saved defaults, opened when wanted; user decision 01/11/2026).
+ */
+export const FOLDED_AT_START: Record<string, boolean> = { agents: true, promotion: true, claude: true }
+/** What can fold: a box, or the Claude column of Settings. */
+export type FoldId = SectionId | 'claude'
+
+/** Whether `id` is folded; a state saved before `id` could fold falls back to how it starts. */
+export const isFolded = (fold: Record<string, boolean>, id: FoldId) => fold[id] ?? FOLDED_AT_START[id] ?? false
+/** The fold state after a press on `id`'s header: what it reads as now, turned over. */
+export const nextFold = (fold: Record<string, boolean>, id: FoldId) => ({ ...fold, [id]: !isFolded(fold, id) })
+/** The Claude column's fold: whether it is folded, and what a press on its heading does. */
+export type ColumnFold = { folded: boolean; toggle: () => void }
 
 /** The radio group of an agent's model; `default` is a checkbox beside it, not one of the radios. */
 const AGENT_MODELS = ['opus', 'sonnet', 'haiku', 'fable']
@@ -197,20 +209,30 @@ export function promotionSummary(data: PromotionData | null): string {
 
 /**
  * The settings as one table (user decision 01/11/2026): a label, this session's options (a press changes this session
- * only), then the saved defaults' options (a press changes `~/.claude/adyusuf.json`, which new sessions start from).
+ * only), then the saved defaults' options (a press changes `~/.claude/adyusuf.json`, which new sessions start from). The
+ * Claude heading folds that column like a box header; folded, only the heading is left.
  */
-function table(ui: Ui, data: SettingsData, press: Press) {
+function table(ui: Ui, data: SettingsData, press: Press, claude: ColumnFold) {
   const { h } = ui
   const lines = settingLines(ui, data.schema, press)
   const width = Math.max(0, ...lines.map(one => cells(one.names))) + 2
-  const layers: [Scope, Layer][] = [['session', data], ...(data.saved ? [['saved', data.saved] as [Scope, Layer]] : [])]
-  const heads = layers.map(([scope]) => h(ui.Text, { bold: true }, scope === 'session' ? 'Session' : 'Claude'))
+  const saved = data.saved && !claude.folded ? [['saved', data.saved] as [Scope, Layer]] : []
+  const layers: [Scope, Layer][] = [['session', data], ...saved]
+  const heads = [
+    h(ui.Text, { bold: true }, 'Session'),
+    data.saved
+      ? h(ui.Button, { key: 'fold-claude', plain: true, onPress: claude.toggle }, claude.folded ? '▸ ' : '▾ ', h(ui.Text, { bold: true }, 'Claude'))
+      : null,
+  ].filter(head => head !== null)
+  // While the column is folded the Session column is still sized as if it were open, so the heading stays where it was.
   return h(ui.Box, { flexDirection: 'column' },
     line(ui, null, heads, LABEL_WIDTH, width),
     lines.map(one => line(ui, label(ui, one.label), layers.map(([scope, layer]) => one.draw(scope, layer)), LABEL_WIDTH, width)))
 }
 
-export function settingsBody(ui: Ui, data: SettingsData | null, problem: string, problems: string[], press: Press) {
+const OPEN: ColumnFold = { folded: false, toggle: () => undefined }
+
+export function settingsBody(ui: Ui, data: SettingsData | null, problem: string, problems: string[], press: Press, claude = OPEN) {
   const { h } = ui
   if (!data) return h(ui.Text, { dimColor: true }, problem || 'Reading the configuration…')
   return h(
@@ -218,7 +240,7 @@ export function settingsBody(ui: Ui, data: SettingsData | null, problem: string,
     { flexDirection: 'column' },
     problem !== '' ? h(ui.Text, { color: 'red' }, problem) : null,
     problems.map(line => h(ui.Text, { color: WARN }, `! ${line}`)),
-    table(ui, data, press),
+    table(ui, data, press, claude),
   )
 }
 

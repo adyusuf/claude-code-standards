@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { agentsBody, agentsSummary, FOLDED_AT_START, promotionBody, promotionSummary, SECTIONS, section, settingsBody, settingsSummary } from './boxes'
+import { agentsBody, agentsSummary, FOLDED_AT_START, isFolded, nextFold, promotionBody, promotionSummary, SECTIONS, section, settingsBody, settingsSummary } from './boxes'
 
 // A recording factory: an element is { type, props, children }, so the tests read what the boxes would draw.
 type Node = { type: unknown; props: Record<string, any>; children: unknown[] }
@@ -61,9 +61,43 @@ function data(over: Record<string, unknown> = {}) {
   }
 }
 
-test('the pane has four sections, Status first, and starts with Agents and Promotion folded', () => {
+test('the pane has four sections, Status first, and starts with Agents, Promotion and the Claude column folded', () => {
   expect([...SECTIONS]).toEqual(['status', 'settings', 'agents', 'promotion'])
-  expect(FOLDED_AT_START).toEqual({ agents: true, promotion: true })
+  expect(FOLDED_AT_START).toEqual({ agents: true, promotion: true, claude: true })
+})
+
+test('a fold state saved before something could fold falls back to how it starts; a saved one wins', () => {
+  expect(isFolded({ agents: false, promotion: true }, 'claude')).toBe(true)
+  expect(isFolded({ agents: false, promotion: true }, 'status')).toBe(false)
+  expect(isFolded({ claude: false }, 'claude')).toBe(false)
+  expect(isFolded({ status: true }, 'status')).toBe(true)
+  expect(isFolded({}, 'agents')).toBe(true)
+})
+
+test('a press turns over what the header reads as now, also for a state saved before the Claude column could fold', () => {
+  const older = { agents: true, promotion: true }
+  const once = nextFold(older, 'claude')
+  expect(once).toEqual({ agents: true, promotion: true, claude: false })
+  expect(nextFold(once, 'claude').claude).toBe(true)
+  expect(nextFold(FOLDED_AT_START, 'status').status).toBe(true)
+})
+
+test('the Claude column folds by its heading: folded, only the heading is left, and a press asks to unfold', () => {
+  let pressed = 0
+  const fold = (folded: boolean) => ({ folded, toggle: () => { pressed += 1 } })
+  const shut = settingsBody(ui, data(), '', [], () => undefined, fold(true))
+  expect(rows(shut)).toEqual(['Session ▸ Claude', 'Mode A [B] C', 'Model opus [sonnet]', 'Push test [prod]'])
+  expect(all(shut, 'Button').some(node => String(node.props.key).startsWith('saved/'))).toBe(false)
+  const heading = all(shut, 'Button').find(node => node.props.key === 'fold-claude')!
+  heading.props.onPress()
+  expect(pressed).toBe(1)
+  // The Session column keeps its open width, so the heading does not jump when the column opens.
+  const head = all(shut, 'Box').find(node => node.props.flexDirection === 'row')!
+  expect(flat(head.children).map(child => (child as Node).props.minWidth)).toEqual(['Coverage'.length + 2, 'opus'.length + 'sonnet'.length + 4 + 1 + 2, undefined])
+  const open = settingsBody(ui, data(), '', [], () => undefined, fold(false))
+  expect(rows(open)).toEqual(['Session ▾ Claude', 'Mode A [B] C A B [C]', 'Model opus [sonnet] [opus] sonnet', 'Push test [prod] test prod'])
+  // Without saved defaults there is no Claude heading to fold.
+  expect(all(settingsBody(ui, data({ saved: undefined }), '', [], () => undefined, fold(true)), 'Button').some(node => node.props.key === 'fold-claude')).toBe(false)
 })
 
 test('an unfolded section shows its body under a header that names it and says what it holds', () => {
@@ -111,7 +145,7 @@ test('Settings is one table: a label, the options of this session, then those of
   const heads = all(body, 'Text').filter(node => node.props.bold).map(words)
   expect(heads).toEqual(['Session', 'Claude', 'Mode', 'Model', 'Push'])
   expect(rows(body)).toEqual([
-    'Session Claude', 'Mode A [B] C A B [C]', 'Model opus [sonnet] [opus] sonnet', 'Push test [prod] test prod',
+    'Session ▾ Claude', 'Mode A [B] C A B [C]', 'Model opus [sonnet] [opus] sonnet', 'Push test [prod] test prod',
   ])
   expect(words(all(body, 'Text').find(node => node.props.color === '#E07B00'))).toBe('! a layer is unreadable')
 })
