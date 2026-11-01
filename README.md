@@ -569,12 +569,12 @@ load mods, the command falls back to printing the same settings as a table and p
   is also written into the conversation. Each line says which layer changed (*this session* or *saved defaults*), the
   key with its old → new value, and the rules it touches. The screenshot shows *Model* (`mode_model`) switched back
   and forth between `keep` and `sonnet`.
-- **Agents — "mode C".** One line per role: a `▣`/`□` checkbox you press to switch it on or off, then its name in bold
-  (a pressable name could not be bold: the desktop draws a button's text unstyled); the nine on in the screenshot are
-  mode C's team. Five roles show a short name: `product` (product-manager), `tester` (test-writer), `doc`
+- **Agents — "mode C".** One line per role, read like a Settings row: the role name in bold, an `on` checkbox you press
+  to switch it on or off (the same blue icon, or `[on]` in the terminal), then the model radios; the nine on in the
+  screenshot are mode C's team. Five roles show a short name: `product` (product-manager), `tester` (test-writer), `doc`
   (doc-writer), `coverage` (coverage-auditor) and `e2e` (e2e-writer); the agents and their settings keys keep the full
-  name. The five that are off (`data`, `observability`, `security`, `coverage`, `e2e`) belong to mode D; pressing one
-  adds it to this session and marks it `(added)`. The radio options after a role pick its model: `default` (the model
+  name. The five that are off (`data`, `observability`, `security`, `coverage`, `e2e`) belong to mode D; ticking its
+  `on` adds it to this session and marks it `(added)`. The radio options after a role pick its model: `default` (the model
   its file and *Model* give it), or a pinned `opus`, `sonnet`, `haiku` or `fable`. With `default` chosen, the model it
   resolves to is at full strength too, so `doc` shows `[default]` and a bright `haiku`. In the screenshot `qa` is
   pinned to `opus`.

@@ -173,9 +173,9 @@ test('Agents waits until the configuration is read', () => {
 test('Agents puts each role on one line with its state and, for the active ones, the model choice', () => {
   const body = agentsBody(ui, data(), () => undefined)
   expect(rows(body)).toEqual([
-    '▣ analyst [default] opus sonnet haiku fable',
-    '□ qa',
-    '▣ security (added) [default] opus sonnet haiku fable',
+    'analyst [on] [default] opus sonnet haiku fable',
+    'qa on',
+    'security (added) [on] [default] opus sonnet haiku fable',
   ])
   const models = all(body, 'Button').filter(node => String(node.props.key).includes('.model='))
   expect(models.map(node => node.props.key).filter(key => String(key).endsWith('=default'))).toEqual(['agents.analyst.model=default', 'agents.security.model=default'])
@@ -186,28 +186,28 @@ test('a pinned model is the only one lit; with default, the model it resolves to
     agent('qa', { active: true, in_mode: true, model: 'opus', runs_on: 'opus' }),
     agent('doc-writer', { active: true, in_mode: true, runs_on: 'haiku' }),
   ] }), () => undefined)
-  expect(rows(body)).toEqual(['▣ qa default [opus] sonnet haiku fable', '▣ doc [default] opus sonnet haiku fable'])
+  expect(rows(body)).toEqual(['qa [on] default [opus] sonnet haiku fable', 'doc [on] [default] opus sonnet haiku fable'])
   const lit = all(body, 'Button').filter(node => node.props.dimColor === false).map(node => String(node.props.key))
   expect(lit).toEqual(['on-qa', 'agents.qa.model=opus', 'on-doc-writer', 'agents.doc-writer.model=default', 'agents.doc-writer.model=haiku'])
 })
 
-test('an agent name is bold text beside a pressable checkbox that carries no label of its own', () => {
+test('an agent row reads like a settings row: the name as a bold label, an on checkbox, then the models', () => {
   const body = agentsBody(ui, data(), () => undefined)
-  const heads = all(body, 'Box').filter(node => flat(node.children).some(child => (child as Node).type === 'Text' && (child as Node).props.bold))
-  expect(heads.map(node => node.props.columnGap)).toEqual([undefined, undefined, undefined])
-  const names = all(body, 'Text').filter(node => node.props.bold).map(words)
-  expect(names).toEqual(['analyst', 'qa', 'security (added)'])
+  const names = all(body, 'Text').filter(node => node.props.bold)
+  expect(names.map(node => [words(node), node.props.dimColor])).toEqual([['analyst', false], ['qa', true], ['security (added)', false]])
   const toggles = all(body, 'Button').filter(node => String(node.props.key).startsWith('on-'))
   expect(toggles.map(node => [words(node), node.props.label, node.props.dimColor])).toEqual([
-    ['▣', undefined, false], ['□', undefined, true], ['▣', undefined, false],
+    ['[on]', undefined, false], ['on', undefined, true], ['[on]', undefined, false],
   ])
+  const icons = all(agentsBody(desktop, data(), () => undefined), 'Svg').filter(node => String(node.props.source).includes('<rect'))
+  expect(icons.map(node => node.props.alt)).toEqual(['on, chosen', 'on', 'on, chosen'])
 })
 
 test('the Agents box shows the short role names and keeps the role in the key it writes', () => {
   const roles = ['product-manager', 'test-writer', 'doc-writer', 'coverage-auditor', 'e2e-writer', 'analyst']
   const calls: string[][] = []
   const body = agentsBody(ui, data({ agents: roles.map(role => agent(role)) }), (key, value) => { calls.push([key, value]) })
-  expect(rows(body)).toEqual(['□ product', '□ tester', '□ doc', '□ coverage', '□ e2e', '□ analyst'])
+  expect(rows(body)).toEqual(['product on', 'tester on', 'doc on', 'coverage on', 'e2e on', 'analyst on'])
   all(body, 'Button')[0].props.onPress()
   expect(calls).toEqual([['agents.product-manager.enabled', 'on']])
 })
@@ -220,9 +220,10 @@ test('options line up: every head column of a block, and of the Agents box, is o
   expect(lines.map(node => flat(node.children).map(child => (child as Node).props.minWidth))).toEqual(
     lines.map(() => ['Coverage'.length + 2, 'opus'.length + 'sonnet'.length + 4 + 1 + 2, undefined]))
   expect(widths(body).length).toBe(lines.length * 2)
+  // Agents: the name column, then the on column (its checkbox and a gap), each one width on every row.
   const agents = widths(agentsBody(ui, data(), () => undefined))
-  expect(new Set(agents).size).toBe(1)
-  expect(agents[0]).toBe('security (added)'.length + 3)
+  expect(agents).toEqual([16 + 2, 5, 16 + 2, 5, 16 + 2, 5])
+  expect('security (added)'.length).toBe(16)
 })
 
 test('on a surface with Svg each option has a radio or checkbox icon and no brackets', () => {
@@ -232,8 +233,8 @@ test('on a surface with Svg each option has a radio or checkbox icon and no brac
   const icons = all(settingsBody(desktop, data({ saved: undefined }), '', [], () => undefined), 'Svg')
   expect(icons.every(node => String(node.props.source).startsWith('<svg') && node.props.width === 12 && node.props.height === 12)).toBe(true)
   expect(icons.every(node => String(node.props.source).includes('width="12" height="12" viewBox="0 0 12 12"'))).toBe(true)
-  expect(rows(agentsBody(desktop, data(), () => undefined))[0]).toBe('▣ analyst ● default ○ opus ○ sonnet ○ haiku ○ fable')
-  expect(all(agentsBody(desktop, data(), () => undefined), 'Svg').length).toBe(10)
+  expect(rows(agentsBody(desktop, data(), () => undefined))[0]).toBe('analyst ☑ on ● default ○ opus ○ sonnet ○ haiku ○ fable')
+  expect(all(agentsBody(desktop, data(), () => undefined), 'Svg').length).toBe(13)
 })
 
 test('a box body and the lines of a promotion stage start one step in', () => {
@@ -246,7 +247,7 @@ test('a box body and the lines of a promotion stage start one step in', () => {
 
 test('an agent of the mode that is switched off says so', () => {
   const body = agentsBody(ui, data({ values: { mode: 'B', mode_model: 'keep' }, agents: [agent('analyst', { in_mode: true })] }), () => undefined)
-  expect(words(all(body, 'Button').find(node => String(node.props.key).startsWith('on-')))).toBe('□')
+  expect(words(all(body, 'Button').find(node => String(node.props.key).startsWith('on-')))).toBe('on')
   expect(all(body, 'Text').map(words)).toContain('analyst (off)')
 })
 
