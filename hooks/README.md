@@ -25,7 +25,7 @@ What the mod runs and reads:
 
 - `python3` to find the installed `adyusuf` plugin in `~/.claude/plugins/installed_plugins.json`, then
   `python3 scripts/adyusuf_config.py show/agents/schema/set` from that copy. A press in the pane runs `set --session <id>`:
-  it changes this session only, never the saved defaults, unless the press is in the *Claude* column.
+  it changes this session only, never the saved defaults, unless the press is in the *System* column.
 - read-only `git` (`for-each-ref`, `rev-parse`, `rev-list`, `log`) in the session's repository, for Promotion.
 - `~/.claude/adyusuf-status/<session id>.json` (or `ADYUSUF_STATUS_DIR`) for Status: after every tool call, and every
   2 s when its modification time changed.
@@ -33,7 +33,7 @@ What the mod runs and reads:
   is one the rules govern (a push, a merge, a gate run), naming the rules in play.
 - When a setting changes — in a box, through `/adyusuf:config` or by hand in a settings file — it writes
   `⚠ adyusuf setting changed (<layer>): <label> (<key>) old → new` into the chat, with the rules the setting steers.
-- A press writes `~/.claude/adyusuf-session/<session id>.json` (this session's layer) or, in the *Claude* column,
+- A press writes `~/.claude/adyusuf-session/<session id>.json` (this session's layer) or, in the *System* column,
   `~/.claude/adyusuf.json`.
 
 It opens no network connection. The code is split so the drawing can be tested without the engine: `boxes.ts` (Settings,
@@ -45,7 +45,7 @@ engine glue. Tests: `deno test --sloppy-imports --import-map=scripts/ts-shim/imp
 ![The adyusuf pane in the right-hand rail: Status, Settings, Agents and Promotion boxes, with an operation notice in the chat on the left](../docs/images/adyusuf-panels.webp)
 
 The screenshot is of 01/11/2026. The left two-thirds are the app's session list and the conversation, blurred on purpose.
-Each box folds by its header (`▾` open, `▸` folded); Agents and Promotion start folded, and a folded header keeps a
+Each box folds by the arrow before its bold title (`▾` open, `▸` folded); Agents and Promotion start folded, and a folded header keeps a
 one-line summary. The boxes refresh after every turn, so a merge, a push or a `/adyusuf:config` change shows without
 reopening them.
 
@@ -53,12 +53,12 @@ reopening them.
   measured figure (with its signal) · waiting on. Claude writes it at every step with `scripts/adyusuf_status.py`, and so
   does a background gate or promotion ([`standards/00-working-method.md`](../standards/00-working-method.md) §10d).
 - **Settings — "3 changed in this session".** One row per setting: the label, then the **Session** column (what this
-  session runs on) and the **Claude** column (the saved defaults in `~/.claude/adyusuf.json`, which every new session
-  starts from). The Claude column folds by its heading and starts folded, so the defaults are changed only when you
-  open it: folded, `Claude ▸` sits right beside *Session*; open, `Claude ◂` sits over its column (the screenshot shows
-  it open, before the arrow). The summary counts the settings this session has
+  session runs on) and the **System** column (the saved defaults in `~/.claude/adyusuf.json`, which every new session
+  starts from). The System column folds by the arrow after its heading and starts folded, so the defaults are changed
+  only when you open it: folded, **System** ▸ sits right beside *Session*; open, **System** ◂ sits over its column. (The
+  screenshot is older: there the heading still reads *Claude*, with no arrow.) The summary counts the settings this session has
   changed away from its defaults.
-  - *Mode* A–E (rule #27) and *Model*, the model that replaces Opus in the Opus agents.
+  - *Mode* A–E (rule #27) and *Model\**, the model that replaces Opus in the roles marked `*` in Agents.
   - *Pod* and *Format* are stored only; nothing acts on them yet.
   - *Tests* (`unit`, `e2e`): whether Claude writes unit tests and e2e specs.
   - *Merge*, *Push*, *Gates*, *Coverage* and *CI* (wait for CI after the push), per target. Rule #34 follows them
@@ -68,10 +68,10 @@ reopening them.
   - *Runner* (`cloud` = GitHub's runners, `local` = this machine's), *Deploy* (which environments a pushed update is
     deployed to) and *E2E* (run e2e before that deploy; rule #33).
 - **Agents — "mode C".** One line per role: the role's checkbox and name (pressing either switches the role on or off),
-  a `default` checkbox, then the model as one radio group (`opus`, `sonnet`, `haiku`, `fable`). The chosen radio is
-  always the model the role runs on. `default` ticked means the model its file and *Model* give it; ticking `default`
-  selects that model, choosing that model ticks `default`, and choosing any other pins it (here `qa` is pinned to
-  `opus`). Five roles show a short name: `product`, `tester`, `doc`, `coverage`, `e2e`. The roles that are off belong to
+  then the model as one radio group (`opus`, `sonnet`, `haiku`, `fable`). The chosen radio is always the model the role
+  runs on. Choosing the model its file and *Model\** give it writes `default`; choosing any other pins it. A `*` after
+  the name marks a role whose file says opus, the roles *Model\** acts on. (The screenshot is older: it still shows a
+  `default` checkbox between the name and the radios, since removed.) Five roles show a short name: `product`, `tester`, `doc`, `coverage`, `e2e`. The roles that are off belong to
   mode D; ticking one adds it to this session and marks it `(added)`.
 - **Promotion — "dev 15538900 · test 6657f48d · prod 41d8d4d3".** One block per `dev`/`test`/`prod` branch: the commit
   `origin` holds, then `pushed` or `N not pushed`, and below it any `Gate-Waived` line on the commits waiting to come in

@@ -2046,3 +2046,16 @@ kept with the boxes' folds. A fold state saved before the column could fold coun
 (user decision):** folded, the heading sits right beside *Session* and the arrow follows the name, pointing right
 (`Claude ▸`); open, it sits over its column and points back (`Claude ◂`). Keeping the Session column at its open width
 while folded, so the heading would not move, is dropped: it put the heading far from *Session*.
+
+**Amended again the same day (user decisions, 01/11/2026): System, a bold heading, no `default` checkbox, stars.** The
+column is called *System* instead of *Claude*. The heading is a bold Text with only the arrow pressable: inside a
+Button the desktop dropped the bold and padded the name out of line with the column when open. The fold keeps its id
+`claude`, so a saved fold state still applies. In Agents the `default` checkbox is removed: the model radios alone set
+the model, and choosing the one `default` gives still writes `default`. *Model* reads *Model\**, and every role whose
+file says opus carries the same `*` after its name, so the box shows which roles that setting replaces. The box titles
+(Status, Settings, Agents, Promotion) follow the same rule as *System*: a bold Text, with only the arrow before it
+pressable.
+Accepted limit (qa, 01/11/2026): without the checkbox a pinned role goes back to `default` only through the radio of
+the model `default` gives. That radio exists for every role file today (each says opus, sonnet or haiku); it would be
+missing for a role file with no `model:` line, or with a pane newer than an installed `adyusuf_config.py` lacking
+`default_model`. Neither occurs; `/adyusuf:config` (`agents.<role>.model default`) still resets such a role.

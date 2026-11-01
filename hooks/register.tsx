@@ -195,7 +195,7 @@ async function safely($: EngineInterface, work: Promise<void>) {
   }
 }
 
-/** Folds or unfolds one box of the pane, or the Claude column; called from a press, never while drawing. */
+/** Folds or unfolds one box of the pane, or the System column; called from a press, never while drawing. */
 async function flip($: EngineInterface, id: FoldId) {
   const { value: now = FOLDED_AT_START } = await $.state.get(folded)
   await $.state.set(folded, nextFold(now, id))

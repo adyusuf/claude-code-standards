@@ -61,7 +61,7 @@ function data(over: Record<string, unknown> = {}) {
   }
 }
 
-test('the pane has four sections, Status first, and starts with Agents, Promotion and the Claude column folded', () => {
+test('the pane has four sections, Status first, and starts with Agents, Promotion and the System column folded', () => {
   expect([...SECTIONS]).toEqual(['status', 'settings', 'agents', 'promotion'])
   expect(FOLDED_AT_START).toEqual({ agents: true, promotion: true, claude: true })
 })
@@ -74,7 +74,7 @@ test('a fold state saved before something could fold falls back to how it starts
   expect(isFolded({}, 'agents')).toBe(true)
 })
 
-test('a press turns over what the header reads as now, also for a state saved before the Claude column could fold', () => {
+test('a press turns over what the header reads as now, also for a state saved before the System column could fold', () => {
   const older = { agents: true, promotion: true }
   const once = nextFold(older, 'claude')
   expect(once).toEqual({ agents: true, promotion: true, claude: false })
@@ -82,23 +82,27 @@ test('a press turns over what the header reads as now, also for a state saved be
   expect(nextFold(FOLDED_AT_START, 'status').status).toBe(true)
 })
 
-test('the Claude column folds by its heading: folded, only the heading is left beside Session, and a press asks to unfold', () => {
+test('the System column folds by its arrow: folded, only the heading is left beside Session, and a press asks to unfold', () => {
   let pressed = 0
   const fold = (folded: boolean) => ({ folded, toggle: () => { pressed += 1 } })
   const shut = settingsBody(ui, data(), '', [], () => undefined, fold(true))
-  expect(rows(shut)).toEqual(['Session Claude ▸', 'Mode A [B] C', 'Model opus [sonnet]', 'Push test [prod]'])
+  expect(rows(shut)).toEqual(['Session System ▸', 'Mode A [B] C', 'Model* opus [sonnet]', 'Push test [prod]'])
   expect(all(shut, 'Button').some(node => String(node.props.key).startsWith('saved/'))).toBe(false)
   const heading = all(shut, 'Button').find(node => node.props.key === 'fold-claude')!
   heading.props.onPress()
   expect(pressed).toBe(1)
+  // Only the arrow is a Button: the desktop drops bold inside one and pads it out of line with the column.
+  expect(words(heading)).toBe('▸')
+  expect(all(shut, 'Text').find(node => words(node) === 'System')!.props.bold).toBe(true)
+  expect(all(shut, 'Button').some(node => words(node).includes('System'))).toBe(false)
   // Folded, the heading follows Session at once; open, it sits over its own column.
   const head = (body: unknown) => all(body, 'Box').find(node => node.props.flexDirection === 'row')!
   const widths = (body: unknown) => flat(head(body).children).map(child => (child as Node).props.minWidth)
   expect(widths(shut)).toEqual(['Coverage'.length + 2, 0, undefined])
   const open = settingsBody(ui, data(), '', [], () => undefined, fold(false))
-  expect(rows(open)).toEqual(['Session Claude ◂', 'Mode A [B] C A B [C]', 'Model opus [sonnet] [opus] sonnet', 'Push test [prod] test prod'])
+  expect(rows(open)).toEqual(['Session System ◂', 'Mode A [B] C A B [C]', 'Model* opus [sonnet] [opus] sonnet', 'Push test [prod] test prod'])
   expect(widths(open)).toEqual(['Coverage'.length + 2, 'opus'.length + 'sonnet'.length + 4 + 1 + 2, undefined])
-  // Without saved defaults there is no Claude heading to fold.
+  // Without saved defaults there is no System heading to fold.
   expect(all(settingsBody(ui, data({ saved: undefined }), '', [], () => undefined, fold(true)), 'Button').some(node => node.props.key === 'fold-claude')).toBe(false)
 })
 
@@ -107,13 +111,16 @@ test('an unfolded section shows its body under a header that names it and says w
   expect(box.props.borderStyle).toBe('round')
   const header = all(box, 'Button')[0]
   expect(header.props.key).toBe('fold-settings')
-  expect(words(header)).toBe('▾ Settings  2 changed')
+  // The title is a bold Text beside the arrow, not inside the Button, where the desktop would drop the bold.
+  expect(words(header)).toBe('▾')
+  expect(reads(all(box, 'Box').find(node => node.props.flexDirection === 'row'))).toEqual(['▾', 'Settings', '2 changed'])
+  expect(all(box, 'Text').find(node => words(node) === 'Settings')!.props.bold).toBe(true)
   expect([box, ...all(box, 'Box')].some(node => flat(node.children).includes('BODY'))).toBe(true)
 })
 
 test('a folded section keeps its header and its summary and hides the body', () => {
   const box = section(ui, 'agents', 'Agents', 'mode B', true, () => undefined, 'BODY') as Node
-  expect(words(all(box, 'Button')[0])).toBe('▸ Agents  mode B')
+  expect(reads(all(box, 'Box').find(node => node.props.flexDirection === 'row'))).toEqual(['▸', 'Agents', 'mode B'])
   expect([box, ...all(box, 'Box')].some(node => flat(node.children).includes('BODY'))).toBe(false)
 })
 
@@ -142,12 +149,12 @@ test('Settings waits, and says why when the script could not be read', () => {
   expect(words(settingsBody(ui, null, 'script missing', [], () => undefined))).toBe('script missing')
 })
 
-test('Settings is one table: a label, the options of this session, then those of the saved defaults, under a Session/Claude head', () => {
+test('Settings is one table: a label, the options of this session, then those of the saved defaults, under a Session/System head', () => {
   const body = settingsBody(ui, data(), '', ['a layer is unreadable'], () => undefined)
   const heads = all(body, 'Text').filter(node => node.props.bold).map(words)
-  expect(heads).toEqual(['Session', 'Claude', 'Mode', 'Model', 'Push'])
+  expect(heads).toEqual(['Session', 'System', 'Mode', 'Model*', 'Push'])
   expect(rows(body)).toEqual([
-    'Session Claude ◂', 'Mode A [B] C A B [C]', 'Model opus [sonnet] [opus] sonnet', 'Push test [prod] test prod',
+    'Session System ◂', 'Mode A [B] C A B [C]', 'Model* opus [sonnet] [opus] sonnet', 'Push test [prod] test prod',
   ])
   expect(words(all(body, 'Text').find(node => node.props.color === '#E07B00'))).toBe('! a layer is unreadable')
 })
@@ -158,10 +165,10 @@ test('Main model shows keep as opus, because Opus agents then run on the model t
   expect(all(body, 'Button').find(node => String(node.props.key) === 'session/mode_model=keep')).toBeDefined()
 })
 
-test('the Claude block is left out until the saved defaults are read', () => {
+test('the System column is left out until the saved defaults are read', () => {
   const body = settingsBody(ui, data({ saved: undefined }), '', [], () => undefined)
-  expect(all(body, 'Text').filter(node => node.props.bold).map(words)).toEqual(['Session', 'Mode', 'Model', 'Push'])
-  expect(rows(body)).toEqual(['Session', 'Mode A [B] C', 'Model opus [sonnet]', 'Push test [prod]'])
+  expect(all(body, 'Text').filter(node => node.props.bold).map(words)).toEqual(['Session', 'Mode', 'Model*', 'Push'])
+  expect(rows(body)).toEqual(['Session', 'Mode A [B] C', 'Model* opus [sonnet]', 'Push test [prod]'])
 })
 
 test('a problem is shown in red above the blocks', () => {
@@ -206,41 +213,51 @@ test('Agents waits until the configuration is read', () => {
   expect(words(agentsBody(ui, null, () => undefined))).toBe('Reading the configuration…')
 })
 
-test('Agents puts each role on one line: its checkbox and name, a default checkbox, then the model radios', () => {
+test('Agents puts each role on one line: its checkbox and name, then the model radios; there is no default checkbox', () => {
   const body = agentsBody(ui, data(), () => undefined)
   expect(rows(body)).toEqual([
-    '[analyst] [default] opus [sonnet] haiku fable',
+    '[analyst] opus [sonnet] haiku fable',
     'qa',
-    '[security (added)] [default] opus [sonnet] haiku fable',
+    '[security (added)] opus [sonnet] haiku fable',
   ])
-  const models = all(body, 'Button').filter(node => String(node.props.key).includes('.model='))
-  expect(models.map(node => node.props.key).filter(key => String(key).endsWith('=default'))).toEqual(['agents.analyst.model=default', 'agents.security.model=default'])
+  expect(all(body, 'Button').some(node => String(node.props.key).endsWith('=default'))).toBe(false)
 })
 
-test('a pinned model leaves default unticked; with default ticked, the radio of the model it gives is chosen', () => {
+test('a role whose file says opus carries a star, the same as Model*, which replaces exactly those roles', () => {
+  const body = agentsBody(ui, data({ agents: [
+    agent('qa', { active: true, in_mode: true, defined: 'opus' }),
+    agent('architect', { in_mode: true, defined: 'opus' }),
+    // A full model id is not replaced by Model* (effective_model), so it carries no star.
+    agent('developer', { active: true, in_mode: true, defined: 'claude-opus-5-5', runs_on: 'claude-opus-5-5' }),
+    agent('doc-writer', { active: true, in_mode: true, defined: 'haiku', runs_on: 'haiku', default_model: 'haiku' }),
+  ] }), () => undefined)
+  expect(rows(body)).toEqual(['[qa*] opus [sonnet] haiku fable', 'architect* (off)', '[developer] opus sonnet haiku fable', '[doc] opus sonnet [haiku] fable'])
+  // The star counts in the role column's width, so the radios of a starred longest name line up with the rest.
+  const widths = (one: unknown) => all(one, 'Box').filter(node => node.props.minWidth !== undefined).map(node => node.props.minWidth)
+  const longest = agentsBody(ui, data({ agents: [agent('security', { active: true, defined: 'opus' }), agent('qa', { active: true, in_mode: true })] }), () => undefined)
+  expect(rows(longest)[0]).toBe('[security* (added)] opus [sonnet] haiku fable')
+  expect(widths(longest)).toEqual(['security* (added)'.length + 3, 'security* (added)'.length + 3])
+})
+
+test('the radio of the model the role runs on is chosen, pinned or not', () => {
   const body = agentsBody(ui, data({ agents: [
     agent('qa', { active: true, in_mode: true, model: 'opus', runs_on: 'opus' }),
     agent('doc-writer', { active: true, in_mode: true, runs_on: 'haiku', default_model: 'haiku' }),
   ] }), () => undefined)
-  expect(rows(body)).toEqual(['[qa] default [opus] sonnet haiku fable', '[doc] [default] opus sonnet [haiku] fable'])
+  expect(rows(body)).toEqual(['[qa] [opus] sonnet haiku fable', '[doc] opus sonnet [haiku] fable'])
   const lit = all(body, 'Button').filter(node => node.props.dimColor === false).map(node => String(node.props.key))
-  expect(lit).toEqual(['on-qa', 'agents.qa.model=opus', 'on-doc-writer', 'agents.doc-writer.model=default', 'agents.doc-writer.model=haiku'])
+  expect(lit).toEqual(['on-qa', 'agents.qa.model=opus', 'on-doc-writer', 'agents.doc-writer.model=haiku'])
 })
 
-test('default and the radios write each other: ticking hands back to default, the default model radio ticks default', () => {
+test('the radio of the model default gives writes default, any other pins it', () => {
   const calls: string[][] = []
   const body = agentsBody(ui, data({ agents: [
     agent('qa', { active: true, in_mode: true, model: 'opus', runs_on: 'opus', default_model: 'sonnet' }),
-    agent('doc-writer', { active: true, in_mode: true, runs_on: 'haiku', default_model: 'haiku' }),
   ] }), (key, value) => { calls.push([key, value]) })
   const press = (key: string) => all(body, 'Button').find(node => node.props.key === key)!.props.onPress()
-  press('agents.qa.model=default')           // pinned opus -> back to default
   press('agents.qa.model=sonnet')            // the model default gives -> default
   press('agents.qa.model=haiku')             // another model -> pinned
-  press('agents.doc-writer.model=default')   // unticking default keeps haiku, now pinned
-  expect(calls).toEqual([
-    ['agents.qa.model', 'default'], ['agents.qa.model', 'default'], ['agents.qa.model', 'haiku'], ['agents.doc-writer.model', 'haiku'],
-  ])
+  expect(calls).toEqual([['agents.qa.model', 'default'], ['agents.qa.model', 'haiku']])
 })
 
 test('the radio that writes default is the model default gives, not the model the role file defines', () => {
@@ -254,13 +271,13 @@ test('the radio that writes default is the model default gives, not the model th
   expect(calls).toEqual([['agents.developer.model', 'default'], ['agents.developer.model', 'opus']])
 })
 
-test('from an older script without default_model, the radio of the running model keeps default while it is ticked', () => {
+test('from an older script without default_model, the radio of the running model keeps default while the role is on it', () => {
   const calls: string[][] = []
   const old = { active: true, in_mode: true, default_model: undefined }
   const body = agentsBody(ui, data({ agents: [agent('analyst', { ...old, runs_on: 'sonnet' }), agent('qa', { ...old, model: 'opus', runs_on: 'opus' })] }),
     (key, value) => { calls.push([key, value]) })
   const press = (key: string) => all(body, 'Button').find(node => node.props.key === key)!.props.onPress()
-  press('agents.analyst.model=sonnet')   // default ticked: sonnet is what default gives, so default stays
+  press('agents.analyst.model=sonnet')   // on default: sonnet is what default gives, so default stays
   press('agents.qa.model=sonnet')        // pinned and unknown default: a plain pin
   expect(calls).toEqual([['agents.analyst.model', 'default'], ['agents.qa.model', 'sonnet']])
 })
@@ -273,7 +290,7 @@ test('the role checkbox sits left of the role name, and pressing the name toggle
     ['[analyst]', undefined, false], ['qa', undefined, true], ['[security (added)]', undefined, false],
   ])
   const icons = all(agentsBody(desktop, data(), () => undefined), 'Svg').filter(node => String(node.props.source).includes('<rect'))
-  expect(icons.map(node => node.props.alt)).toEqual(['analyst, chosen', 'default, chosen', 'qa', 'security (added), chosen', 'default, chosen'])
+  expect(icons.map(node => node.props.alt)).toEqual(['analyst, chosen', 'qa', 'security (added), chosen'])
 })
 
 test('the Agents box shows the short role names and keeps the role in the key it writes', () => {
@@ -289,26 +306,25 @@ test('options line up: every head column of a block, and of the Agents box, is o
   const widths = (body: unknown) => all(body, 'Box').filter(node => node.props.minWidth !== undefined).map(node => node.props.minWidth)
   const body = settingsBody(ui, data(), '', [], () => undefined)
   const lines = all(body, 'Box').filter(node => node.props.flexDirection === 'row' && (flat(node.children)[0] as Node).props?.minWidth !== undefined)
-  // Each line: the label column, then the Session column (sized to the widest row's options), then Claude.
+  // Each line: the label column, then the Session column (sized to the widest row's options), then System.
   expect(lines.map(node => flat(node.children).map(child => (child as Node).props.minWidth))).toEqual(
     lines.map(() => ['Coverage'.length + 2, 'opus'.length + 'sonnet'.length + 4 + 1 + 2, undefined]))
   expect(widths(body).length).toBe(lines.length * 2)
-  // Agents: the role column (name, checkbox, gap), then the default column, each one width on every row; a role that is
-  // off has no model columns.
+  // Agents: the role column (name, checkbox, gap), one width on every row; the model radios follow it.
   const agents = widths(agentsBody(ui, data(), () => undefined))
-  expect(agents).toEqual([16 + 3, 10, 16 + 3, 16 + 3, 10])
+  expect(agents).toEqual([16 + 3, 16 + 3, 16 + 3])
   expect('security (added)'.length).toBe(16)
 })
 
 test('on a surface with Svg each option has a radio or checkbox icon and no brackets', () => {
   expect(rows(settingsBody(desktop, data({ saved: undefined }), '', [], () => undefined))).toEqual([
-    'Session', 'Mode ○ A ● B ○ C', 'Model ○ opus ● sonnet', 'Push ☐ test ☑ prod',
+    'Session', 'Mode ○ A ● B ○ C', 'Model* ○ opus ● sonnet', 'Push ☐ test ☑ prod',
   ])
   const icons = all(settingsBody(desktop, data({ saved: undefined }), '', [], () => undefined), 'Svg')
   expect(icons.every(node => String(node.props.source).startsWith('<svg') && node.props.width === 12 && node.props.height === 12)).toBe(true)
   expect(icons.every(node => String(node.props.source).includes('width="12" height="12" viewBox="0 0 12 12"'))).toBe(true)
-  expect(rows(agentsBody(desktop, data(), () => undefined))[0]).toBe('☑ analyst ☑ default ○ opus ● sonnet ○ haiku ○ fable')
-  expect(all(agentsBody(desktop, data(), () => undefined), 'Svg').length).toBe(13)
+  expect(rows(agentsBody(desktop, data(), () => undefined))[0]).toBe('☑ analyst ○ opus ● sonnet ○ haiku ○ fable')
+  expect(all(agentsBody(desktop, data(), () => undefined), 'Svg').length).toBe(11)
 })
 
 test('a box body and the lines of a promotion stage start one step in', () => {
