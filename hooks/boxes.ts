@@ -29,21 +29,21 @@ export const SECTIONS = ['status', 'settings', 'agents', 'promotion'] as const
 export type SectionId = (typeof SECTIONS)[number]
 
 /**
- * What starts folded, so the pane opens as a short card and not as one long list: two boxes, and the Claude column of
+ * What starts folded, so the pane opens as a short card and not as one long list: two boxes, and the System column of
  * Settings (the saved defaults, opened when wanted; user decision 01/11/2026).
  */
 export const FOLDED_AT_START: Record<string, boolean> = { agents: true, promotion: true, claude: true }
-/** What can fold: a box, or the Claude column of Settings. */
+/** What can fold: a box, or the System column of Settings (fold id `claude`, its first name). */
 export type FoldId = SectionId | 'claude'
 
 /** Whether `id` is folded; a state saved before `id` could fold falls back to how it starts. */
 export const isFolded = (fold: Record<string, boolean>, id: FoldId) => fold[id] ?? FOLDED_AT_START[id] ?? false
 /** The fold state after a press on `id`'s header: what it reads as now, turned over. */
 export const nextFold = (fold: Record<string, boolean>, id: FoldId) => ({ ...fold, [id]: !isFolded(fold, id) })
-/** The Claude column's fold: whether it is folded, and what a press on its heading does. */
+/** The System column's fold: whether it is folded, and what a press on its heading does. */
 export type ColumnFold = { folded: boolean; toggle: () => void }
 
-/** The radio group of an agent's model; `default` is a checkbox beside it, not one of the radios. */
+/** The radio group of an agent's model. */
 const AGENT_MODELS = ['opus', 'sonnet', 'haiku', 'fable']
 const TARGETS = ['dev', 'test', 'prod']
 /** One indentation step, in cells: the width of a box header's `▾ `. */
@@ -77,7 +77,8 @@ const targets = (prefix: string, names = TARGETS): Item[] => names.map(name => (
 /** The lines of a settings block, in order. A setting the schema has and no row names is still drawn (see `block`). */
 const ROWS: Row[] = [
   { label: 'Mode', key: 'mode' },
-  { label: 'Model', key: 'mode_model', names: { keep: 'opus' } },
+  // The star ties it to the Agents rows it acts on: the roles whose file says opus carry the same star.
+  { label: 'Model*', key: 'mode_model', names: { keep: 'opus' } },
   { label: 'Pod', items: [{ key: 'pod.connect', name: 'on' }] },
   { label: 'Format', key: 'pod.message_format' },
   { label: 'Tests', items: [{ key: 'write.unit_tests', name: 'unit' }, { key: 'write.e2e', name: 'e2e' }] },
@@ -176,16 +177,19 @@ function settingLines(ui: Ui, schema: Spec[], press: Press): SettingLine[] {
 /** The cells one row's options take: each name with its brackets or icon, a gap between them. */
 const cells = (names: string[]) => names.reduce((sum, name) => sum + name.length + 2, 0) + Math.max(0, names.length - 1)
 
-/** One bordered box with a header that folds it; the summary stays visible while it is folded. */
+/**
+ * One bordered box with a header that folds it; the summary stays visible while it is folded. The title is a bold Text and
+ * only the arrow is pressable: inside a Button the desktop drops the bold (user decision 01/11/2026).
+ */
 export function section(ui: Ui, id: SectionId, title: string, summary: string, folded: boolean, toggle: () => void, body: unknown) {
   const { h } = ui
   return h(
     ui.Box,
     { flexDirection: 'column', borderStyle: 'round', paddingX: 1, marginBottom: 1 },
-    h(ui.Button, { key: `fold-${id}`, plain: true, onPress: toggle },
-      folded ? '▸ ' : '▾ ',
+    h(ui.Box, { flexDirection: 'row', columnGap: 1 },
+      h(ui.Button, { key: `fold-${id}`, plain: true, onPress: toggle }, folded ? '▸' : '▾'),
       h(ui.Text, { bold: true }, title),
-      summary ? h(ui.Text, { dimColor: true }, `  ${summary}`) : ''),
+      summary ? h(ui.Text, { dimColor: true }, summary) : null),
     folded ? null : h(ui.Box, { flexDirection: 'column', marginLeft: INDENT }, body),
   )
 }
@@ -210,8 +214,10 @@ export function promotionSummary(data: PromotionData | null): string {
 /**
  * The settings as one table (user decision 01/11/2026): a label, this session's options (a press changes this session
  * only), then the saved defaults' options (a press changes `~/.claude/adyusuf.json`, which new sessions start from). The
- * Claude heading folds that column; folded, only the heading is left, right beside Session and pointing right (`Claude ▸`),
- * and open it sits over its column pointing back (`Claude ◂`) (user decision 01/11/2026).
+ * System heading folds that column; folded, only the heading is left, right beside Session and pointing right (`System ▸`),
+ * and open it sits over its column pointing back (`System ◂`) (user decisions 01/11/2026). The heading is a bold Text with
+ * only the arrow pressable: the desktop draws a Button as a native button, which drops the bold and pads the text out of
+ * line with the column. The fold keeps its first id, `claude`, so a saved fold state still applies.
  */
 function table(ui: Ui, data: SettingsData, press: Press, claude: ColumnFold) {
   const { h } = ui
@@ -222,7 +228,8 @@ function table(ui: Ui, data: SettingsData, press: Press, claude: ColumnFold) {
   const heads = [
     h(ui.Text, { bold: true }, 'Session'),
     data.saved
-      ? h(ui.Button, { key: 'fold-claude', plain: true, onPress: claude.toggle }, h(ui.Text, { bold: true }, 'Claude'), claude.folded ? ' ▸' : ' ◂')
+      ? h(ui.Box, { flexDirection: 'row', columnGap: 1 }, h(ui.Text, { bold: true }, 'System'),
+        h(ui.Button, { key: 'fold-claude', plain: true, onPress: claude.toggle }, claude.folded ? '▸' : '◂'))
       : null,
   ].filter(head => head !== null)
   return h(ui.Box, { flexDirection: 'column' },
@@ -248,21 +255,19 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
   const { h } = ui
   if (!data) return h(ui.Text, { dimColor: true }, 'Reading the configuration…')
   const mode = String(data.values.mode)
-  const name = (agent: AgentRow) => `${ROLE_NAMES[agent.role] ?? agent.role}${!agent.in_mode && agent.active ? ' (added)' : ''}${agent.in_mode && !agent.active && mode !== 'A' ? ' (off)' : ''}`
+  // A star marks a role whose file says opus, exactly the roles Model* replaces (effective_model in adyusuf_config.py).
+  const name = (agent: AgentRow) => `${ROLE_NAMES[agent.role] ?? agent.role}${agent.defined === 'opus' ? '*' : ''}${!agent.in_mode && agent.active ? ' (added)' : ''}${agent.in_mode && !agent.active && mode !== 'A' ? ' (off)' : ''}`
   // The role column is as wide as the longest name with its checkbox (icon or brackets) and a gap, so the next columns line up.
   const width = Math.max(0, ...data.agents.map(agent => name(agent).length)) + 3
-  // User decision 01/11/2026: a row is the role's checkbox with its name (pressing the name toggles it, as in Settings), a
-  // `default` checkbox, then the model as one radio group. The radio of the model the role runs on is chosen; `default`
-  // ticked means it runs on the model `default` gives it, and choosing that model's radio ticks `default` again.
+  // User decisions 01/11/2026: a row is the role's checkbox with its name (pressing the name toggles it, as in Settings),
+  // then the model as one radio group; the `default` checkbox that sat between them is gone. The radio of the model the
+  // role runs on is chosen; choosing the model `default` gives writes `default`, any other pins that model.
   const role = (agent: AgentRow) => option(ui, `on-${agent.role}`, name(agent), 'check', agent.active, () => {
     if (mode === 'A') return
     press(`agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
   })
   const key = (agent: AgentRow) => `agents.${agent.role}.model`
-  const byDefault = (agent: AgentRow) => option(ui, `${key(agent)}=default`, 'default', 'check', agent.model === 'default',
-    // Unticking keeps the model the role runs on, now pinned; ticking hands it back to `default`.
-    () => press(key(agent), agent.model === 'default' ? agent.runs_on : 'default'))
-  // The model `default` gives; from an older script without `default_model`, known only while `default` is ticked.
+  // The model `default` gives; from an older script without `default_model`, known only while the role is on `default`.
   const givenByDefault = (agent: AgentRow) => agent.default_model ?? (agent.model === 'default' ? agent.runs_on : undefined)
   const models = (agent: AgentRow) => AGENT_MODELS.map(model => option(ui, `${key(agent)}=${model}`, model, 'radio', model === agent.runs_on,
     () => press(key(agent), model === givenByDefault(agent) ? 'default' : model)))
@@ -270,7 +275,7 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
     ui.Box,
     { flexDirection: 'column' },
     data.agents.map(agent =>
-      line(ui, role(agent), agent.active ? [[byDefault(agent)], models(agent)] : [null], width, cells(['default']) + 1)),
+      line(ui, role(agent), agent.active ? [models(agent)] : [null], width)),
   )
 }
 
