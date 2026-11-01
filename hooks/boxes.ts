@@ -17,7 +17,9 @@ export type Scope = 'session' | 'saved'
 export type Press = (key: string, value: string, scope?: Scope) => void
 
 type Spec = { key: string; type: 'bool' | 'enum'; label: string; group: string; options?: string[] }
-type AgentRow = { role: string; defined: string; runs_on: string; active: boolean; in_mode: boolean; enabled: string; model: string }
+type AgentRow = {
+  role: string; defined: string; runs_on: string; default_model?: string; active: boolean; in_mode: boolean; enabled: string; model: string
+}
 type Layer = { values: Record<string, boolean | string>; sources: Record<string, string> }
 type SettingsData = Layer & { schema: Spec[]; saved?: Layer; agents: AgentRow[] }
 type Stage = { branch: string; origin: string; unpushed: number; waived: string[] }
@@ -29,7 +31,8 @@ export type SectionId = (typeof SECTIONS)[number]
 /** Sections that start folded, so the pane opens as a short card and not as one long list. */
 export const FOLDED_AT_START: Record<string, boolean> = { agents: true, promotion: true }
 
-const AGENT_MODELS = ['default', 'opus', 'sonnet', 'haiku', 'fable']
+/** The radio group of an agent's model; `default` is a checkbox beside it, not one of the radios. */
+const AGENT_MODELS = ['opus', 'sonnet', 'haiku', 'fable']
 const TARGETS = ['dev', 'test', 'prod']
 /** One indentation step, in cells: the width of a box header's `▾ `. */
 const INDENT = 2
@@ -224,31 +227,26 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
   if (!data) return h(ui.Text, { dimColor: true }, 'Reading the configuration…')
   const mode = String(data.values.mode)
   const name = (agent: AgentRow) => `${ROLE_NAMES[agent.role] ?? agent.role}${!agent.in_mode && agent.active ? ' (added)' : ''}${agent.in_mode && !agent.active && mode !== 'A' ? ' (off)' : ''}`
-  // The role column is as wide as the longest name and a gap, so the on column and the model options line up.
-  const width = Math.max(0, ...data.agents.map(agent => name(agent).length)) + 2
-  // A row reads like a settings row (user decision 01/11/2026): the name as a bold label, an `on` checkbox (the same icon or
-  // brackets as Settings), then the model radios. The name cannot itself be the pressable part: a Button's text is drawn
-  // unstyled on the desktop, so it could not be bold.
-  const on = (agent: AgentRow) => option(ui, `on-${agent.role}`, 'on', 'check', agent.active, () => {
+  // The role column is as wide as the longest name with its checkbox (icon or brackets) and a gap, so the next columns line up.
+  const width = Math.max(0, ...data.agents.map(agent => name(agent).length)) + 3
+  // User decision 01/11/2026: a row is the role's checkbox with its name (pressing the name toggles it, as in Settings), a
+  // `default` checkbox, then the model as one radio group. The radio of the model the role runs on is chosen; `default`
+  // ticked means it runs on the model `default` gives it, and choosing that model's radio ticks `default` again.
+  const role = (agent: AgentRow) => option(ui, `on-${agent.role}`, name(agent), 'check', agent.active, () => {
     if (mode === 'A') return
     press(`agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
   })
+  const key = (agent: AgentRow) => `agents.${agent.role}.model`
+  const byDefault = (agent: AgentRow) => option(ui, `${key(agent)}=default`, 'default', 'check', agent.model === 'default',
+    // Unticking keeps the model the role runs on, now pinned; ticking hands it back to `default`.
+    () => press(key(agent), agent.model === 'default' ? agent.runs_on : 'default'))
+  const models = (agent: AgentRow) => AGENT_MODELS.map(model => option(ui, `${key(agent)}=${model}`, model, 'radio', model === agent.runs_on,
+    () => press(key(agent), model === agent.default_model ? 'default' : model)))
   return h(
     ui.Box,
     { flexDirection: 'column' },
     data.agents.map(agent =>
-      line(ui,
-        h(ui.Text, { bold: true, dimColor: !agent.active }, name(agent)),
-        [[on(agent)],
-          // With `default` chosen, the model it resolves to is marked too (filled icon or brackets), so the model the role
-          // runs on is visible at a glance (user decision 01/11/2026).
-          agent.active
-            ? AGENT_MODELS.map(model => {
-              const marked = model === agent.model || (agent.model === 'default' && model === agent.runs_on)
-              return option(ui, `agents.${agent.role}.model=${model}`, model, 'radio', marked, () => press(`agents.${agent.role}.model`, model))
-            })
-            : null],
-        width, cells(['on']) + 1)),
+      line(ui, role(agent), agent.active ? [[byDefault(agent)], models(agent)] : [null], width, cells(['default']) + 1)),
   )
 }
 
