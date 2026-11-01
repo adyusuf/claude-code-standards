@@ -1,6 +1,9 @@
 {
   "mode": "C",
   "mode_model": "sonnet",
+  "reply": {
+    "length": "short"
+  },
   "pod": {
     "connect": false,
     "message_format": "short"

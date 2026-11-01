@@ -12,8 +12,10 @@ export type Change = { key: string; from: unknown; to: unknown }
 /** The rules a setting can steer, each in a few words (the full text is in CLAUDE.md). */
 export const RULES: Record<string, string> = {
   '#8': 'tests get updated',
+  '#15': 'report the truth: red tests and skipped steps are said at every reply length',
   '#19': 'security scanning is automatic',
   '#25': 'the shared gate runs at every promotion',
+  '#24': 'the completeness check before done, deferred items listed',
   '#26': 'work off dev, one commit per task, merged through a gate',
   '#27': 'the operating mode is selectable and the selection is the approval',
   '#28': 'the auditor checks, sends work back and gets it fixed',
@@ -27,6 +29,7 @@ export const RULES: Record<string, string> = {
 const RULES_OF: Array<[RegExp, string[]]> = [
   [/^mode$/, ['#27', '#28']],
   [/^mode_model$/, ['#27']],
+  [/^reply\.length$/, ['#15', '#24']],
   [/^agents\./, ['#27', '#28']],
   [/^write\.unit_tests$/, ['#8', '#32', '#29']],
   [/^write\.e2e$/, ['#33', '#31']],
