@@ -10,10 +10,10 @@ mobile client**, so there is no `.env` file to fill in and no port to open. What
 
 | You want to... | Do this |
 |---|---|
-| Read it, or take a few rules into your own `~/.claude` | Nothing to install. Follow Levels 0-3 in [`README.md`](README.md#how-to-use-this) |
+| Read it, or take a few rules into your own `~/.claude` | Nothing to install. Follow steps 1-3 in [`README.md`](README.md#how-to-use-it) |
 | Use it in every session (the `adyusuf` plugin) | §6 below |
 | Change it (rules, scripts, agents) and pass its own gate | §1-§5 |
-| Put the gate into another project | [`README.md`](README.md#putting-the-gate-in-a-project-of-your-own) |
+| Put the gate into another project | [`scripts/README.md`](scripts/README.md#putting-the-gate-in-a-project-of-your-own) |
 
 ## 1. Prerequisites
 
@@ -193,7 +193,7 @@ agents, so the global rules, the guard and the 14 roles are not there. The plugi
 `SubagentStart` hooks print `CLAUDE.md` through `scripts/rules-context.py`), every `/adyusuf:*` skill and command,
 the 14 role agents as `adyusuf:<role>`, the destructive-command guard and the `CLAUDE.md` size hook. Nothing is
 written into `~/.claude` by hand; read the warning in
-[`README.md` Level 4](README.md#level-4--run-it-live-the-way-i-do) first.
+[`README.md` › How to use it](README.md#how-to-use-it) first.
 
 - **The right-hand boxes (part of the plugin):** one pane with the Status, Settings, Agents and Promotion boxes (each folds by its header) opens at session start
   and with `/adyusuf:panels`. They run `git` and `python3` locally (no shell: on Windows both must be on the desktop app's `PATH`) and contact no server. They show the settings of the
