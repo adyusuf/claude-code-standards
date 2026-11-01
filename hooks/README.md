@@ -37,8 +37,8 @@ What the mod runs and reads:
   `~/.claude/adyusuf.json`.
 
 It opens no network connection. The code is split so the drawing can be tested without the engine: `boxes.ts` (Settings,
-Agents, Promotion), `status.ts` (Status), `choose.ts` (pure decisions), `notices.ts` (chat lines); `register.tsx` is the
-engine glue. Tests: `deno test --sloppy-imports --import-map=scripts/ts-shim/import_map.json hooks/*.test.ts` (66 tests).
+Agents, Promotion), `controls.ts` (the shared icons, options and aligned lines), `status.ts` (Status), `choose.ts` (pure decisions), `notices.ts` (chat lines); `register.tsx` is the
+engine glue. Tests: `deno test --sloppy-imports --import-map=scripts/ts-shim/import_map.json hooks/*.test.ts` (68 tests).
 
 ## The four boxes
 
@@ -70,9 +70,10 @@ reopening them.
 - **Agents — "mode C".** One line per role: the role's checkbox and name (pressing either switches the role on or off),
   then the model as one radio group (`opus`, `sonnet`, `haiku`, `fable`). The chosen radio is always the model the role
   runs on. Choosing the model its file and *Model\** give it writes `default`; choosing any other pins it. A `*` after
-  the name marks a role whose file says opus, the roles *Model\** acts on. (The screenshot is older: it still shows a
+  the name marks a role whose file says opus, the roles *Model\** acts on. The name column has the same width as the
+  Settings label column, so the radios start where the Settings options do; only roles that are on count for it. (The screenshot is older: it still shows a
   `default` checkbox between the name and the radios, since removed.) Five roles show a short name: `product`, `tester`, `doc`, `coverage`, `e2e`. The roles that are off belong to
-  mode D; ticking one adds it to this session and marks it `(added)`.
+  mode D; ticking one adds it to this session and marks it `(added)` at the end of its row.
 - **Promotion — "dev 15538900 · test 6657f48d · prod 41d8d4d3".** One block per `dev`/`test`/`prod` branch: the commit
   `origin` holds, then `pushed` or `N not pushed`, and below it any `Gate-Waived` line on the commits waiting to come in
   from the stage before it; *no waived gate on the way in* means none.

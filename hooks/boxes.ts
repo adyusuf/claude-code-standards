@@ -8,10 +8,11 @@
 // where it does not (terminal) the chosen one is drawn `[in brackets]` (underline was tried first: the desktop draws a Button
 // as a native button and drops a Text's underline inside it); a box's body and a block's lines start one step in.
 import { enabledFor, settingGroups } from './choose'
+import { cells, INDENT, label, line, option, WARN } from './controls'
+import type { Ui } from './controls'
 
-export type Factory = (type: unknown, props: Record<string, unknown> | null, ...children: unknown[]) => unknown
-/** `Svg` is in the element table only where the surface draws it (desktop, not the terminal). */
-export type Ui = { h: Factory; Box: unknown; Text: unknown; Button: unknown; Svg?: unknown }
+export type { Factory, Ui } from './controls'
+
 /** `session`: this session only; `saved`: the saved defaults every new session starts from (the user's file). */
 export type Scope = 'session' | 'saved'
 export type Press = (key: string, value: string, scope?: Scope) => void
@@ -46,29 +47,10 @@ export type ColumnFold = { folded: boolean; toggle: () => void }
 /** The radio group of an agent's model. */
 const AGENT_MODELS = ['opus', 'sonnet', 'haiku', 'fable']
 const TARGETS = ['dev', 'test', 'prod']
-/** One indentation step, in cells: the width of a box header's `▾ `. */
-const INDENT = 2
-/** A warning (a waived gate, an unreadable settings file): orange as hex, which the terminal and the desktop both draw. */
-const WARN = '#E07B00'
 /** The names the Agents box shows; the role (agent file, settings key) keeps its own name. */
 const ROLE_NAMES: Record<string, string> = {
   'product-manager': 'product', 'test-writer': 'tester', 'doc-writer': 'doc', 'coverage-auditor': 'coverage', 'e2e-writer': 'e2e',
 }
-const ICON_ON = '#378ADD'
-const ICON_OFF = '#888780'
-// Exactly the shape's size: an empty margin inside the image read as a space after the icon (user decision 01/11/2026).
-const svg = (body: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">${body}</svg>`
-const ICONS = {
-  radio: {
-    on: svg(`<circle cx="6" cy="6" r="5" fill="none" stroke="${ICON_ON}" stroke-width="1.2"/><circle cx="6" cy="6" r="2.5" fill="${ICON_ON}"/>`),
-    off: svg(`<circle cx="6" cy="6" r="5" fill="none" stroke="${ICON_OFF}" stroke-width="1.2"/>`),
-  },
-  check: {
-    on: svg(`<rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${ICON_ON}" stroke-width="1.2"/><path d="M3.5 6.2l2 2 3.8-4.2" fill="none" stroke="${ICON_ON}" stroke-width="1.5"/>`),
-    off: svg(`<rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${ICON_OFF}" stroke-width="1.2"/>`),
-  },
-}
-type Kind = keyof typeof ICONS
 
 type Item = { key: string; name: string }
 type Row = { label: string; items: Item[] } | { label: string; key: string; names?: Record<string, string> }
@@ -96,31 +78,22 @@ const ROWS: Row[] = [
 /** The width of the label column of a settings block, in cells: the longest label and a gap. */
 const LABEL_WIDTH = Math.max(...ROWS.map(row => row.label.length)) + 2
 
-/**
- * One line: its head (a label, a role) in a column of `width` cells, then one column of parts per layer, side by side.
- * Every column but the last is `columnWidth` cells at least, so the next one starts at the same place on every line.
- */
-function line(ui: Ui, head: unknown, columns: unknown[], width = LABEL_WIDTH, columnWidth = 0) {
-  const { h } = ui
-  return h(ui.Box, { flexDirection: 'row', columnGap: 1 },
-    h(ui.Box, { minWidth: width, flexShrink: 0 }, head),
-    columns.map((parts, at) => h(ui.Box, {
-      flexDirection: 'row', flexWrap: 'wrap', columnGap: 1, ...(at < columns.length - 1 ? { minWidth: columnWidth, flexShrink: 0 } : {}),
-    }, parts)))
+/** The name an Agents row shows: the short name and a star for an opus role (Model* replaces exactly those roles). */
+const agentName = (agent: AgentRow) => `${ROLE_NAMES[agent.role] ?? agent.role}${agent.defined === 'opus' ? '*' : ''}`
+
+/** Whether a role was added to the mode or taken out of it; drawn at the end of its row, so it never widens the names. */
+function agentMark(agent: AgentRow, mode: string) {
+  if (!agent.in_mode && agent.active) return '(added)'
+  return agent.in_mode && !agent.active && mode !== 'A' ? '(off)' : ''
 }
 
-const label = (ui: Ui, text: string) => (text === '' ? null : ui.h(ui.Text, { bold: true }, text))
-
 /**
- * One pressable part. `chosen` fills its icon (desktop) or puts it in brackets (terminal) and draws it at full strength,
- * the rest dimmed. The icon sits beside the Button: a Button holds text only.
+ * The head column of Settings and Agents, one width for both, so their options start at the same place (user decision
+ * 01/11/2026): the longest label, or the longest name of a role that is on (its checkbox and a gap counted). A role
+ * that is off has no radios after it, so its name does not widen the column.
  */
-function option(ui: Ui, key: string, text: string, kind: Kind, chosen: boolean, onPress: () => void) {
-  const { h } = ui
-  const button = h(ui.Button, { key, plain: true, dimColor: !chosen, onPress }, ui.Svg || !chosen ? text : `[${text}]`)
-  if (!ui.Svg) return button
-  return h(ui.Box, { flexDirection: 'row', alignItems: 'center' },
-    h(ui.Svg, { source: ICONS[kind][chosen ? 'on' : 'off'], alt: chosen ? `${text}, chosen` : text, width: 12, height: 12 }), button)
+export function headWidth(data: SettingsData) {
+  return Math.max(LABEL_WIDTH, ...data.agents.filter(agent => agent.active).map(agent => agentName(agent).length + 3))
 }
 
 /** The options of one setting, the chosen one marked. */
@@ -174,9 +147,6 @@ function settingLines(ui: Ui, schema: Spec[], press: Press): SettingLine[] {
   return lines
 }
 
-/** The cells one row's options take: each name with its brackets or icon, a gap between them. */
-const cells = (names: string[]) => names.reduce((sum, name) => sum + name.length + 2, 0) + Math.max(0, names.length - 1)
-
 /**
  * One bordered box with a header that folds it; the summary stays visible while it is folded. The title is a bold Text and
  * only the arrow is pressable: inside a Button the desktop drops the bold (user decision 01/11/2026).
@@ -223,6 +193,7 @@ function table(ui: Ui, data: SettingsData, press: Press, claude: ColumnFold) {
   const { h } = ui
   const lines = settingLines(ui, data.schema, press)
   const width = Math.max(0, ...lines.map(one => cells(one.names))) + 2
+  const head = headWidth(data)
   const saved = data.saved && !claude.folded ? [['saved', data.saved] as [Scope, Layer]] : []
   const layers: [Scope, Layer][] = [['session', data], ...saved]
   const heads = [
@@ -234,8 +205,8 @@ function table(ui: Ui, data: SettingsData, press: Press, claude: ColumnFold) {
       : null,
   ].filter(head => head !== null)
   return h(ui.Box, { flexDirection: 'column' },
-    line(ui, null, heads, LABEL_WIDTH, claude.folded ? 0 : width),
-    lines.map(one => line(ui, label(ui, one.label), layers.map(([scope, layer]) => one.draw(scope, layer)), LABEL_WIDTH, width)))
+    line(ui, null, heads, head, claude.folded ? 0 : width),
+    lines.map(one => line(ui, label(ui, one.label), layers.map(([scope, layer]) => one.draw(scope, layer)), head, width)))
 }
 
 const OPEN: ColumnFold = { folded: false, toggle: () => undefined }
@@ -256,27 +227,25 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
   const { h } = ui
   if (!data) return h(ui.Text, { dimColor: true }, 'Reading the configuration…')
   const mode = String(data.values.mode)
-  // A star marks a role whose file says opus, exactly the roles Model* replaces (effective_model in adyusuf_config.py).
-  const name = (agent: AgentRow) => `${ROLE_NAMES[agent.role] ?? agent.role}${agent.defined === 'opus' ? '*' : ''}${!agent.in_mode && agent.active ? ' (added)' : ''}${agent.in_mode && !agent.active && mode !== 'A' ? ' (off)' : ''}`
-  // The role column is as wide as the longest name with its checkbox (icon or brackets) and a gap, so the next columns line up.
-  const width = Math.max(0, ...data.agents.map(agent => name(agent).length)) + 3
+  const width = headWidth(data)
   // User decisions 01/11/2026: a row is the role's checkbox with its name (pressing the name toggles it, as in Settings),
   // then the model as one radio group; the `default` checkbox that sat between them is gone. The radio of the model the
   // role runs on is chosen; choosing the model `default` gives writes `default`, any other pins that model.
-  const role = (agent: AgentRow) => option(ui, `on-${agent.role}`, name(agent), 'check', agent.active, () => {
+  const role = (agent: AgentRow) => option(ui, `on-${agent.role}`, agentName(agent), 'check', agent.active, () => {
     if (mode === 'A') return
     press(`agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
   })
   const key = (agent: AgentRow) => `agents.${agent.role}.model`
   // The model `default` gives; from an older script without `default_model`, known only while the role is on `default`.
   const givenByDefault = (agent: AgentRow) => agent.default_model ?? (agent.model === 'default' ? agent.runs_on : undefined)
+  const mark = (agent: AgentRow) => (agentMark(agent, mode) === '' ? null : h(ui.Text, { dimColor: true }, agentMark(agent, mode)))
   const models = (agent: AgentRow) => AGENT_MODELS.map(model => option(ui, `${key(agent)}=${model}`, model, 'radio', model === agent.runs_on,
     () => press(key(agent), model === givenByDefault(agent) ? 'default' : model)))
   return h(
     ui.Box,
     { flexDirection: 'column' },
     data.agents.map(agent =>
-      line(ui, role(agent), agent.active ? [models(agent)] : [null], width)),
+      line(ui, role(agent), [[...(agent.active ? models(agent) : []), mark(agent)]], width)),
   )
 }
 
