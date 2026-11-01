@@ -1,8 +1,9 @@
 // What the boxes of the adyusuf pane show, kept apart from the engine so it can be tested without one: no import from
 // 'claude-code', no JSX. The element factory `h` and the elements themselves (Box, Text, Button) are handed in as
 // `ui`: each surface has its own elements, and a test hands in a recording factory instead of the engine's. A choice among
-// several values is a radio list (`(•)` on the chosen one), not a dropdown (user decision 24/10/2026); every setting sits on
-// one line, the label first and its pressable parts after it (user decision 28/10/2026).
+// several values is a row of options, not a dropdown (user decision 24/10/2026); every setting sits on one line, the label
+// first and its pressable parts after it (user decision 28/10/2026). What is chosen or on is UNDERLINED, with no `(•)`/`[x]`
+// marker, and the labels are short, with no trailing colon (user decision 01/11/2026).
 import { enabledFor, settingGroups } from './choose'
 
 export type Factory = (type: unknown, props: Record<string, unknown> | null, ...children: unknown[]) => unknown
@@ -33,19 +34,20 @@ const targets = (prefix: string, names = TARGETS): Item[] => names.map(name => (
 
 /** The lines of a settings block, in order. A setting the schema has and no row names is still drawn (see `block`). */
 const ROWS: Row[] = [
-  { label: 'Working mode', key: 'mode' },
-  { label: 'Main model', key: 'mode_model', names: { keep: 'opus' } },
-  { label: 'Pod', items: [{ key: 'pod.connect', name: 'Connect to pod' }] },
-  { label: 'Message format:', key: 'pod.message_format' },
-  { label: 'Write', items: [{ key: 'write.unit_tests', name: 'unit tests' }, { key: 'write.e2e', name: 'e2e tests' }] },
-  { label: 'Merge into', items: targets('merge') },
-  { label: 'After merge push', items: targets('push') },
-  { label: 'Run gates before pushing', items: targets('gates_before_push') },
-  { label: 'Run coverage before pushing', items: targets('coverage_before_push') },
-  { label: 'Run CI after pushing', items: targets('ci_after_push') },
-  { label: 'CI runner:', key: 'ci.runner' },
-  { label: 'After pushing update:', items: targets('deploy_after_push', ['test', 'prod']) },
-  { label: 'Run e2e before deploying', items: targets('e2e_before_deploy', ['test', 'prod']) },
+  { label: 'Mode', key: 'mode' },
+  { label: 'Model', key: 'mode_model', names: { keep: 'opus' } },
+  { label: 'Pod', items: [{ key: 'pod.connect', name: 'connected' }] },
+  { label: 'Format', key: 'pod.message_format' },
+  { label: 'Tests', items: [{ key: 'write.unit_tests', name: 'unit' }, { key: 'write.e2e', name: 'e2e' }] },
+  { label: 'Merge', items: targets('merge') },
+  { label: 'Push', items: targets('push') },
+  { label: 'Gates', items: targets('gates_before_push') },
+  { label: 'Coverage', items: targets('coverage_before_push') },
+  { label: 'CI', items: targets('ci_after_push') },
+  // Display names only: the stored values stay `hosted` / `self-hosted`, which CI and sdlc_settings.py read.
+  { label: 'Runner', key: 'ci.runner', names: { hosted: 'cloud', 'self-hosted': 'local' } },
+  { label: 'Deploy', items: targets('deploy_after_push', ['test', 'prod']) },
+  { label: 'E2E', items: targets('e2e_before_deploy', ['test', 'prod']) },
 ]
 
 /** One line: the label, then its pressable parts side by side (they wrap when the pane is narrow). */
@@ -54,19 +56,24 @@ function line(ui: Ui, label: string, parts: unknown) {
   return h(ui.Box, { flexDirection: 'row', flexWrap: 'wrap', columnGap: 1 }, label === '' ? null : h(ui.Text, {}, label), parts)
 }
 
-/** The radio options of one setting, the chosen one marked `(•)`. */
+/** The text of one pressable part, underlined when it is the chosen option or a setting that is on. */
+function mark(ui: Ui, name: string, chosen: boolean) {
+  return ui.h(ui.Text, { underline: chosen }, name)
+}
+
+/** The options of one setting, the chosen one underlined. */
 function choices(ui: Ui, scope: Scope, key: string, options: Item[], value: string, press: Press) {
   return options.map(option =>
     ui.h(ui.Button, { key: `${scope}/${key}=${option.key}`, plain: true, onPress: () => press(key, option.key, scope) },
-      `${option.key === value ? '(•)' : '( )'}${option.name}`))
+      mark(ui, option.name, option.key === value)))
 }
 
-/** The yes/no settings of one line, each pressable part `[x]name` or `[ ]name`; pressing asks for the opposite. */
+/** The yes/no settings of one line, each underlined while it is on; pressing asks for the opposite. */
 function checks(ui: Ui, scope: Scope, items: Item[], values: Layer['values'], press: Press) {
   return items.map(item => {
     const on = values[item.key] === true
     return ui.h(ui.Button, { key: `${scope}/${item.key}`, plain: true, onPress: () => press(item.key, on ? 'no' : 'yes', scope) },
-      `${on ? '[x]' : '[ ]'}${item.name}`)
+      mark(ui, item.name, on))
   })
 }
 
@@ -94,7 +101,7 @@ function block(ui: Ui, title: string, scope: Scope, schema: Spec[], layer: Layer
   for (const spec of shown.filter(one => !covered.has(one.key))) {
     lines.push(spec.type === 'bool'
       ? line(ui, '', checks(ui, scope, [{ key: spec.key, name: spec.label }], layer.values, press))
-      : line(ui, `${spec.label}:`, choices(ui, scope, spec.key, (spec.options ?? []).map(option => ({ key: option, name: option })),
+      : line(ui, spec.label, choices(ui, scope, spec.key, (spec.options ?? []).map(option => ({ key: option, name: option })),
         String(layer.values[spec.key]), press)))
   }
   return h(ui.Box, { flexDirection: 'column', marginBottom: 1 }, h(ui.Text, { bold: true }, title), lines)
@@ -160,11 +167,13 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
             if (mode === 'A') return
             press(`agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
           },
-        }, `${agent.active ? '[x]' : '[ ]'}${agent.role}${!agent.in_mode && agent.active ? ' (added)' : ''}${agent.in_mode && !agent.active && mode !== 'A' ? ' (off)' : ''}`),
+        }, mark(ui, agent.role, agent.active),
+        `${!agent.in_mode && agent.active ? ' (added)' : ''}${agent.in_mode && !agent.active && mode !== 'A' ? ' (off)' : ''}`),
+        // `default` is the choice; the model it resolves to is underlined too, so the model the role runs on stays visible.
         agent.active
           ? AGENT_MODELS.map(option =>
             h(ui.Button, { key: `agents.${agent.role}.model=${option}`, plain: true, onPress: () => press(`agents.${agent.role}.model`, option) },
-              `${option === agent.model ? '(•)' : '( )'}${option === 'default' ? agent.runs_on : option}`))
+              mark(ui, option, option === agent.model || (agent.model === 'default' && option === agent.runs_on))))
           : null,
       ])),
   )
