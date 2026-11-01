@@ -2,13 +2,16 @@
 // 'claude-code', no JSX. The element factory `h` and the elements themselves (Box, Text, Button) are handed in as
 // `ui`: each surface has its own elements, and a test hands in a recording factory instead of the engine's. A choice among
 // several values is a row of options, not a dropdown (user decision 24/10/2026); every setting sits on one line, the label
-// first and its pressable parts after it (user decision 28/10/2026). The labels are short and bold, with no trailing colon;
-// what is chosen or on is drawn at full strength and the rest dimmed, with no `(•)`/`[x]` marker (user decision 01/11/2026:
-// underline was asked for, but the desktop draws a Button as a native button and drops a Text's underline inside it).
+// first and its pressable parts after it (user decision 28/10/2026). User decisions of 01/11/2026: the labels are short and
+// bold, with no trailing colon, in a column of one width so every row's options start at the same place; what is chosen or on
+// is at full strength and the rest dimmed; where the surface draws `Svg` (desktop) each option has a radio or checkbox icon,
+// where it does not (terminal) the chosen one is drawn `[in brackets]` (underline was tried first: the desktop draws a Button
+// as a native button and drops a Text's underline inside it); a box's body and a block's lines start one step in.
 import { enabledFor, settingGroups } from './choose'
 
 export type Factory = (type: unknown, props: Record<string, unknown> | null, ...children: unknown[]) => unknown
-export type Ui = { h: Factory; Box: unknown; Text: unknown; Button: unknown }
+/** `Svg` is in the element table only where the surface draws it (desktop, not the terminal). */
+export type Ui = { h: Factory; Box: unknown; Text: unknown; Button: unknown; Svg?: unknown }
 /** `session`: this session only; `saved`: the saved defaults every new session starts from (the user's file). */
 export type Scope = 'session' | 'saved'
 export type Press = (key: string, value: string, scope?: Scope) => void
@@ -28,6 +31,28 @@ export const FOLDED_AT_START: Record<string, boolean> = { agents: true, promotio
 
 const AGENT_MODELS = ['default', 'opus', 'sonnet', 'haiku', 'fable']
 const TARGETS = ['dev', 'test', 'prod']
+/** One indentation step, in cells: the width of a box header's `▾ `. */
+const INDENT = 2
+/** A warning (a waived gate, an unreadable settings file): orange as hex, which the terminal and the desktop both draw. */
+const WARN = '#E07B00'
+/** The names the Agents box shows; the role (agent file, settings key) keeps its own name. */
+const ROLE_NAMES: Record<string, string> = {
+  'product-manager': 'product', 'test-writer': 'tester', 'doc-writer': 'doc', 'coverage-auditor': 'coverage', 'e2e-writer': 'e2e',
+}
+const ICON_ON = '#378ADD'
+const ICON_OFF = '#888780'
+const svg = (body: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="12" viewBox="0 0 16 12">${body}</svg>`
+const ICONS = {
+  radio: {
+    on: svg(`<circle cx="6" cy="6" r="5" fill="none" stroke="${ICON_ON}" stroke-width="1.2"/><circle cx="6" cy="6" r="2.5" fill="${ICON_ON}"/>`),
+    off: svg(`<circle cx="6" cy="6" r="5" fill="none" stroke="${ICON_OFF}" stroke-width="1.2"/>`),
+  },
+  check: {
+    on: svg(`<rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${ICON_ON}" stroke-width="1.2"/><path d="M3.5 6.2l2 2 3.8-4.2" fill="none" stroke="${ICON_ON}" stroke-width="1.5"/>`),
+    off: svg(`<rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${ICON_OFF}" stroke-width="1.2"/>`),
+  },
+}
+type Kind = keyof typeof ICONS
 
 type Item = { key: string; name: string }
 type Row = { label: string; items: Item[] } | { label: string; key: string; names?: Record<string, string> }
@@ -51,28 +76,42 @@ const ROWS: Row[] = [
   { label: 'E2E', items: targets('e2e_before_deploy', ['test', 'prod']) },
 ]
 
-/** One line: the label, then its pressable parts side by side (they wrap when the pane is narrow). */
-function line(ui: Ui, label: string, parts: unknown) {
+/** The width of the label column of a settings block, in cells: the longest label and a gap. */
+const LABEL_WIDTH = Math.max(...ROWS.map(row => row.label.length)) + 2
+
+/** One line: its head (a label, a role) in a column of `width` cells, then its parts side by side (they wrap when narrow). */
+function line(ui: Ui, head: unknown, parts: unknown, width = LABEL_WIDTH) {
   const { h } = ui
-  return h(ui.Box, { flexDirection: 'row', flexWrap: 'wrap', columnGap: 1 }, label === '' ? null : h(ui.Text, { bold: true }, label), parts)
+  return h(ui.Box, { flexDirection: 'row', columnGap: 1 },
+    h(ui.Box, { minWidth: width, flexShrink: 0 }, head),
+    h(ui.Box, { flexDirection: 'row', flexWrap: 'wrap', columnGap: 1 }, parts))
 }
 
-/** One pressable part: at full strength when it is the chosen option or a setting that is on, dimmed otherwise. */
-function option(ui: Ui, key: string, text: string, chosen: boolean, onPress: () => void) {
-  return ui.h(ui.Button, { key, plain: true, dimColor: !chosen, onPress }, text)
+const label = (ui: Ui, text: string) => (text === '' ? null : ui.h(ui.Text, { bold: true }, text))
+
+/**
+ * One pressable part. `chosen` fills its icon (desktop) or puts it in brackets (terminal); `lit` (chosen, or the model a
+ * `default` resolves to) draws it at full strength, the rest dimmed. The icon sits beside the Button: a Button holds text only.
+ */
+function option(ui: Ui, key: string, text: string, kind: Kind, chosen: boolean, onPress: () => void, lit = chosen) {
+  const { h } = ui
+  const button = h(ui.Button, { key, plain: true, dimColor: !lit, onPress }, ui.Svg || !chosen ? text : `[${text}]`)
+  if (!ui.Svg) return button
+  return h(ui.Box, { flexDirection: 'row', alignItems: 'center' },
+    h(ui.Svg, { source: ICONS[kind][chosen ? 'on' : 'off'], alt: chosen ? `${text}, chosen` : text, width: 16, height: 12 }), button)
 }
 
-/** The options of one setting, the chosen one at full strength. */
+/** The options of one setting, the chosen one marked. */
 function choices(ui: Ui, scope: Scope, key: string, options: Item[], value: string, press: Press) {
   return options.map(one =>
-    option(ui, `${scope}/${key}=${one.key}`, one.name, one.key === value, () => press(key, one.key, scope)))
+    option(ui, `${scope}/${key}=${one.key}`, one.name, 'radio', one.key === value, () => press(key, one.key, scope)))
 }
 
-/** The yes/no settings of one line, each at full strength while it is on; pressing asks for the opposite. */
+/** The yes/no settings of one line, each marked while it is on; pressing asks for the opposite. */
 function checks(ui: Ui, scope: Scope, items: Item[], values: Layer['values'], press: Press) {
   return items.map(item => {
     const on = values[item.key] === true
-    return option(ui, `${scope}/${item.key}`, item.name, on, () => press(item.key, on ? 'no' : 'yes', scope))
+    return option(ui, `${scope}/${item.key}`, item.name, 'check', on, () => press(item.key, on ? 'no' : 'yes', scope))
   })
 }
 
@@ -87,23 +126,24 @@ function block(ui: Ui, title: string, scope: Scope, schema: Spec[], layer: Layer
     if ('items' in row) {
       const items = row.items.filter(item => has.has(item.key))
       items.forEach(item => covered.add(item.key))
-      if (items.length > 0) lines.push(line(ui, row.label, checks(ui, scope, items, layer.values, press)))
+      if (items.length > 0) lines.push(line(ui, label(ui, row.label), checks(ui, scope, items, layer.values, press)))
       continue
     }
     const spec = shown.find(one => one.key === row.key)
     if (!spec) continue
     covered.add(row.key)
     const options = (spec.options ?? []).map(option => ({ key: option, name: row.names?.[option] ?? option }))
-    lines.push(line(ui, row.label, choices(ui, scope, row.key, options, String(layer.values[row.key]), press)))
+    lines.push(line(ui, label(ui, row.label), choices(ui, scope, row.key, options, String(layer.values[row.key]), press)))
   }
   // A setting no row names (a newer plugin than this pane) must not vanish from view.
   for (const spec of shown.filter(one => !covered.has(one.key))) {
     lines.push(spec.type === 'bool'
-      ? line(ui, '', checks(ui, scope, [{ key: spec.key, name: spec.label }], layer.values, press))
-      : line(ui, spec.label, choices(ui, scope, spec.key, (spec.options ?? []).map(option => ({ key: option, name: option })),
+      ? line(ui, null, checks(ui, scope, [{ key: spec.key, name: spec.label }], layer.values, press))
+      : line(ui, label(ui, spec.label), choices(ui, scope, spec.key, (spec.options ?? []).map(option => ({ key: option, name: option })),
         String(layer.values[spec.key]), press)))
   }
-  return h(ui.Box, { flexDirection: 'column', marginBottom: 1 }, h(ui.Text, { bold: true }, title), lines)
+  return h(ui.Box, { flexDirection: 'column', marginBottom: 1 }, h(ui.Text, { bold: true }, title),
+    h(ui.Box, { flexDirection: 'column', marginLeft: INDENT }, lines))
 }
 
 /** One bordered box with a header that folds it; the summary stays visible while it is folded. */
@@ -116,7 +156,7 @@ export function section(ui: Ui, id: SectionId, title: string, summary: string, f
       folded ? '▸ ' : '▾ ',
       h(ui.Text, { bold: true }, title),
       summary ? h(ui.Text, { dimColor: true }, `  ${summary}`) : ''),
-    folded ? null : body,
+    folded ? null : h(ui.Box, { flexDirection: 'column', marginLeft: INDENT }, body),
   )
 }
 
@@ -144,7 +184,7 @@ export function settingsBody(ui: Ui, data: SettingsData | null, problem: string,
     ui.Box,
     { flexDirection: 'column' },
     problem !== '' ? h(ui.Text, { color: 'red' }, problem) : null,
-    problems.map(line => h(ui.Text, { color: 'yellow' }, `! ${line}`)),
+    problems.map(line => h(ui.Text, { color: WARN }, `! ${line}`)),
     block(ui, 'Session settings', 'session', data.schema, data, press),
     data.saved ? block(ui, 'Claude settings', 'saved', data.schema, data.saved, press) : null,
   )
@@ -154,24 +194,25 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
   const { h } = ui
   if (!data) return h(ui.Text, { dimColor: true }, 'Reading the configuration…')
   const mode = String(data.values.mode)
+  const name = (agent: AgentRow) => `${ROLE_NAMES[agent.role] ?? agent.role}${!agent.in_mode && agent.active ? ' (added)' : ''}${agent.in_mode && !agent.active && mode !== 'A' ? ' (off)' : ''}`
+  // The role column is as wide as the longest name, its brackets or icon, and a gap, so the model options line up.
+  const width = Math.max(0, ...data.agents.map(agent => name(agent).length)) + 3
   return h(
     ui.Box,
     { flexDirection: 'column' },
     data.agents.map(agent =>
-      line(ui, '', [
-        option(ui, `on-${agent.role}`,
-          `${agent.role}${!agent.in_mode && agent.active ? ' (added)' : ''}${agent.in_mode && !agent.active && mode !== 'A' ? ' (off)' : ''}`,
-          agent.active, () => {
-            if (mode === 'A') return
-            press(`agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
-          }),
+      line(ui,
+        option(ui, `on-${agent.role}`, name(agent), 'check', agent.active, () => {
+          if (mode === 'A') return
+          press(`agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
+        }),
         // `default` is the choice; the model it resolves to is at full strength too, so the model the role runs on stays visible.
         agent.active
           ? AGENT_MODELS.map(model =>
-            option(ui, `agents.${agent.role}.model=${model}`, model,
-              model === agent.model || (agent.model === 'default' && model === agent.runs_on), () => press(`agents.${agent.role}.model`, model)))
+            option(ui, `agents.${agent.role}.model=${model}`, model, 'radio', model === agent.model, () => press(`agents.${agent.role}.model`, model),
+              model === agent.model || (agent.model === 'default' && model === agent.runs_on)))
           : null,
-      ])),
+        width)),
   )
 }
 
@@ -185,9 +226,10 @@ export function promotionBody(ui: Ui, data: PromotionData | null) {
     data.stages.map(stage =>
       h(ui.Box, { flexDirection: 'column', marginBottom: 1 },
         h(ui.Text, { bold: true }, `${stage.branch.padEnd(5)} origin ${stage.origin}${stage.unpushed > 0 ? `  ${stage.unpushed} not pushed` : '  pushed'}`),
-        stage.waived.length === 0
-          ? h(ui.Text, { dimColor: true }, 'no waived gate on the way in')
-          : stage.waived.map(line => h(ui.Text, { color: 'yellow' }, `waived ${line}`)))),
+        h(ui.Box, { flexDirection: 'column', marginLeft: INDENT },
+          stage.waived.length === 0
+            ? h(ui.Text, { dimColor: true }, 'no waived gate on the way in')
+            : stage.waived.map(line => h(ui.Text, { color: WARN }, `waived ${line}`))))),
     data.stages.length === 0 ? h(ui.Text, { dimColor: true }, 'No dev, test or prod branch here.') : null,
   )
 }
