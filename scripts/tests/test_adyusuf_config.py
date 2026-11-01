@@ -296,6 +296,17 @@ class RetiredKeys(Tool):
         self.assertIn('dev: merge yes, gates before push no, coverage before push no, push yes, CI after push no', out)
         self.assertIn('e2e before deploy: on dev before deploying test no, on test before deploying prod no', out)
 
+    def test_the_context_says_the_settings_steer_code_work_only(self):
+        out, _, _ = self.run_tool('context')
+        self.assertIn("for code work: changing a project repository's files.", out)
+        self.assertIn('makes no branch or commit and runs no merge, push, gate, coverage, CI, deploy, e2e, test writing or '
+                      'agent; replies, the Status box and #14/#15/#24 still apply (standards/13 §8a).', out)
+        # The section the line points at holds the rule and its boundary.
+        with open(os.path.join(cfg.ROOT, 'standards', '13-pr-and-review.md'), encoding='utf-8') as handle:
+            standard = handle.read()
+        for part in ('**The settings steer code work only', "Claude's\nown bookkeeping is no-code too", 'still code work for #8'):
+            self.assertIn(part, standard)
+
     def test_the_context_says_how_long_a_reply_is_and_what_that_level_asks(self):
         # Shipped default: short, with what short asks; every level points at the standard that defines it.
         out, _, _ = self.run_tool('context')

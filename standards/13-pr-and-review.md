@@ -178,6 +178,21 @@ Since 17/10/2026 Claude **does not ask** whether to merge, run a gate or push: t
 time was too much work for the user, so the defaults say what normally happens and whoever wants something else changes
 the setting once, or for one session.
 
+**The settings steer code work only (user decision 01/11/2026).** *Code work* is a task that creates or changes files
+of a project repository: source, tests, build/CI/config, or that repository's documents. Everything else is a *no-code
+task*: a question, research, reading code to answer, an explanation, a document outside a project repository. Claude's
+own bookkeeping is no-code too, even where it sits inside a git repository such as `~/.claude`: memory files, the
+Status file, the settings and session layers, `.claude/mode`, the scratchpad.
+
+- A no-code task fetches nothing, creates no branch or worktree, makes no commit, runs no merge, push, gate, coverage,
+  CI, deploy or e2e step, writes no tests and calls no agent, whatever the settings and the mode.
+- *Replies* (`standards/00` §5a) and the Status box (`standards/00` §10d) still apply, and so do the rules that are not
+  settings (#14, #15, #24). Writing a permanent decision into a repository (#14) is code work from that step on.
+- The class follows what the task does, not how it began: once a question turns into changing a project repository's
+  files, every setting applies from that point (#26 first: fetch `dev`, branch).
+- Code written outside any repository is still code work for #8 (tests) and the mode's review; only the repository
+  steps have nothing to act on.
+
 **Read the panel, then act at once (user decision 01/11/2026).** When a piece of work is done, Claude reads the settings
 afresh (`adyusuf_config.py show --session <id>`, this session's layer included; the panel may have changed since the
 session started) and carries out the merges, gates and pushes below **straight away**: no question, no waiting for a
