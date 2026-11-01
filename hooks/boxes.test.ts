@@ -82,20 +82,22 @@ test('a press turns over what the header reads as now, also for a state saved be
   expect(nextFold(FOLDED_AT_START, 'status').status).toBe(true)
 })
 
-test('the Claude column folds by its heading: folded, only the heading is left, and a press asks to unfold', () => {
+test('the Claude column folds by its heading: folded, only the heading is left beside Session, and a press asks to unfold', () => {
   let pressed = 0
   const fold = (folded: boolean) => ({ folded, toggle: () => { pressed += 1 } })
   const shut = settingsBody(ui, data(), '', [], () => undefined, fold(true))
-  expect(rows(shut)).toEqual(['Session ▸ Claude', 'Mode A [B] C', 'Model opus [sonnet]', 'Push test [prod]'])
+  expect(rows(shut)).toEqual(['Session Claude ▸', 'Mode A [B] C', 'Model opus [sonnet]', 'Push test [prod]'])
   expect(all(shut, 'Button').some(node => String(node.props.key).startsWith('saved/'))).toBe(false)
   const heading = all(shut, 'Button').find(node => node.props.key === 'fold-claude')!
   heading.props.onPress()
   expect(pressed).toBe(1)
-  // The Session column keeps its open width, so the heading does not jump when the column opens.
-  const head = all(shut, 'Box').find(node => node.props.flexDirection === 'row')!
-  expect(flat(head.children).map(child => (child as Node).props.minWidth)).toEqual(['Coverage'.length + 2, 'opus'.length + 'sonnet'.length + 4 + 1 + 2, undefined])
+  // Folded, the heading follows Session at once; open, it sits over its own column.
+  const head = (body: unknown) => all(body, 'Box').find(node => node.props.flexDirection === 'row')!
+  const widths = (body: unknown) => flat(head(body).children).map(child => (child as Node).props.minWidth)
+  expect(widths(shut)).toEqual(['Coverage'.length + 2, 0, undefined])
   const open = settingsBody(ui, data(), '', [], () => undefined, fold(false))
-  expect(rows(open)).toEqual(['Session ▾ Claude', 'Mode A [B] C A B [C]', 'Model opus [sonnet] [opus] sonnet', 'Push test [prod] test prod'])
+  expect(rows(open)).toEqual(['Session Claude ◂', 'Mode A [B] C A B [C]', 'Model opus [sonnet] [opus] sonnet', 'Push test [prod] test prod'])
+  expect(widths(open)).toEqual(['Coverage'.length + 2, 'opus'.length + 'sonnet'.length + 4 + 1 + 2, undefined])
   // Without saved defaults there is no Claude heading to fold.
   expect(all(settingsBody(ui, data({ saved: undefined }), '', [], () => undefined, fold(true)), 'Button').some(node => node.props.key === 'fold-claude')).toBe(false)
 })
@@ -145,7 +147,7 @@ test('Settings is one table: a label, the options of this session, then those of
   const heads = all(body, 'Text').filter(node => node.props.bold).map(words)
   expect(heads).toEqual(['Session', 'Claude', 'Mode', 'Model', 'Push'])
   expect(rows(body)).toEqual([
-    'Session ▾ Claude', 'Mode A [B] C A B [C]', 'Model opus [sonnet] [opus] sonnet', 'Push test [prod] test prod',
+    'Session Claude ◂', 'Mode A [B] C A B [C]', 'Model opus [sonnet] [opus] sonnet', 'Push test [prod] test prod',
   ])
   expect(words(all(body, 'Text').find(node => node.props.color === '#E07B00'))).toBe('! a layer is unreadable')
 })

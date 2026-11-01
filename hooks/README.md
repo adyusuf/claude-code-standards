@@ -54,8 +54,9 @@ reopening them.
   does a background gate or promotion ([`standards/00-working-method.md`](../standards/00-working-method.md) §10d).
 - **Settings — "3 changed in this session".** One row per setting: the label, then the **Session** column (what this
   session runs on) and the **Claude** column (the saved defaults in `~/.claude/adyusuf.json`, which every new session
-  starts from). The Claude column folds by its heading (`▸ Claude` / `▾ Claude`) and starts folded, so the defaults
-  are changed only when you open it; the screenshot shows it open. The summary counts the settings this session has
+  starts from). The Claude column folds by its heading and starts folded, so the defaults are changed only when you
+  open it: folded, `Claude ▸` sits right beside *Session*; open, `Claude ◂` sits over its column (the screenshot shows
+  it open, before the arrow). The summary counts the settings this session has
   changed away from its defaults.
   - *Mode* A–E (rule #27) and *Model*, the model that replaces Opus in the Opus agents.
   - *Pod* and *Format* are stored only; nothing acts on them yet.
