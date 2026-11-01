@@ -557,7 +557,7 @@ load mods, the command falls back to printing the same settings as a table and p
   the block title.
   - *Mode* A–E (here C, the full team; rule #27) and *Model*, the model that replaces Opus in the Opus agents (here
     sonnet).
-  - *Pod* (`connected`) and *Format* are stored only; nothing acts on them yet.
+  - *Pod* (`on`) and *Format* are stored only; nothing acts on them yet.
   - *Tests* (`unit`, `e2e`) says whether Claude writes unit tests and e2e specs. *Merge*, *Push*, *Gates*, *Coverage*
     and *CI* (wait for CI after the push) are set per target (dev, test, prod). Rule #34 follows them instead of
     asking: when a piece of work is done Claude reads them afresh and merges and pushes at once
@@ -569,7 +569,8 @@ load mods, the command falls back to printing the same settings as a table and p
   is also written into the conversation. Each line says which layer changed (*this session* or *saved defaults*), the
   key with its old → new value, and the rules it touches. The screenshot shows *Model* (`mode_model`) switched back
   and forth between `keep` and `sonnet`.
-- **Agents — "mode C".** One line per role, with a checkbox for whether it is on; the nine on in the screenshot are
+- **Agents — "mode C".** One line per role: a `☑`/`☐` checkbox you press to switch it on or off, then its name in bold
+  (a pressable name could not be bold: the desktop draws a button's text unstyled); the nine on in the screenshot are
   mode C's team. Five roles show a short name: `product` (product-manager), `tester` (test-writer), `doc`
   (doc-writer), `coverage` (coverage-auditor) and `e2e` (e2e-writer); the agents and their settings keys keep the full
   name. The five that are off (`data`, `observability`, `security`, `coverage`, `e2e`) belong to mode D; pressing one
