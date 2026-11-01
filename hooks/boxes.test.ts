@@ -193,6 +193,8 @@ test('a pinned model is the only one lit; with default, the model it resolves to
 
 test('an agent name is bold text beside a pressable checkbox that carries no label of its own', () => {
   const body = agentsBody(ui, data(), () => undefined)
+  const heads = all(body, 'Box').filter(node => flat(node.children).some(child => (child as Node).type === 'Text' && (child as Node).props.bold))
+  expect(heads.map(node => node.props.columnGap)).toEqual([undefined, undefined, undefined])
   const names = all(body, 'Text').filter(node => node.props.bold).map(words)
   expect(names).toEqual(['analyst', 'qa', 'security (added)'])
   const toggles = all(body, 'Button').filter(node => String(node.props.key).startsWith('on-'))
@@ -228,7 +230,8 @@ test('on a surface with Svg each option has a radio or checkbox icon and no brac
     'Session', 'Mode ○ A ● B ○ C', 'Model ○ opus ● sonnet', 'Push ☐ test ☑ prod',
   ])
   const icons = all(settingsBody(desktop, data({ saved: undefined }), '', [], () => undefined), 'Svg')
-  expect(icons.every(node => String(node.props.source).startsWith('<svg') && node.props.width === 16)).toBe(true)
+  expect(icons.every(node => String(node.props.source).startsWith('<svg') && node.props.width === 12 && node.props.height === 12)).toBe(true)
+  expect(icons.every(node => String(node.props.source).includes('width="12" height="12" viewBox="0 0 12 12"'))).toBe(true)
   expect(rows(agentsBody(desktop, data(), () => undefined))[0]).toBe('☑ analyst ● default ○ opus ○ sonnet ○ haiku ○ fable')
   expect(all(agentsBody(desktop, data(), () => undefined), 'Svg').length).toBe(10)
 })
