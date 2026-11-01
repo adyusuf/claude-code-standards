@@ -5,7 +5,7 @@ Last updated: 22/10/2026 · Maintainer: Adnan Yusuf (<https://github.com/adyusuf
 The `adyusuf` plugin is a set of working rules, skills, commands, role agents, hooks and scripts for Claude
 Code. It has **no service of its own**: nothing it contains runs on a server the maintainer operates, and the
 maintainer receives no data from it. The full inventory is in
-[README › What this does to your machine](README.md#what-this-does-to-your-machine).
+[`hooks/README.md`](hooks/README.md).
 
 ## What it reads
 

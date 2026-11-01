@@ -1,6 +1,14 @@
-# CLAUDE.md maintenance tools (the canonical copy)
+# scripts — the gate, the hook scripts, measurement and install
 
-Three tools, one family. **Their canonical form lives here**; every project takes
+33 scripts (`.sh`/`.py`) and their tests in `tests/`:
+`python3 -m unittest discover -s scripts/tests -p 'test_*.py'` (820 tests on 01/11/2026). The sections:
+[CLAUDE.md maintenance](#claudemd-maintenance-tools) ·
+[measurement and commit gate](#measurement-and-commit-gate-scripts) · [the shared gate](#gate-coresh--the-shared-gate-in-two-layers) ·
+[the gate in your own project](#putting-the-gate-in-a-project-of-your-own).
+
+## CLAUDE.md maintenance tools
+
+Four tools, one family. **Their canonical form lives here**; every project takes
 a **copy** into its own `scripts/` directory and commits that copy.
 
 ⚠️ Projects never call this directory **directly**. A project's gate cannot depend
@@ -20,7 +28,7 @@ lost: it sat under a directory that belonged to no git repository, and although
 The `/adyusuf:apply-project-standards` command does this. By hand:
 
 ```bash
-mkdir -p scripts && cp <this repository>/scripts/md-*.sh <this repository>/scripts/md-*.py scripts/
+mkdir -p scripts && cp <this repository>/scripts/{md-size-gate.sh,md-rule-gate.py,md-split.py} scripts/
 bash scripts/md-size-gate.sh --init     # writes your budget: every CLAUDE.md, ceiling = today's size
 ```
 
@@ -66,10 +74,16 @@ directory, it usually is not — a ratcheted ceiling is enough there.
 | `coverage.sh` | Line coverage of this repository's own scripts (#29). JavaScript (none here) is measured with Node's built-in coverage, and a file no test loads is NOT MEASURED. Python is measured with `coverage` in a venv **outside** the repository (`COVERAGE_VENV`, default `~/.cache/claude-standards/venv`; subprocesses included) against `.coveragerc`, threshold 80% (`COVERAGE_MIN`); shell is measured by `coverage-shell.sh` (kcov; `scripts/*.sh`), and reported NOT MEASURED only when kcov or a traceable bash is missing. Exit 0 all measured and passing · 1 red tests or below threshold · 3 something not measured (blocks like a failure). `gate-core.sh` runs it as its coverage step. Current numbers and the plan: `docs/coverage-gap.md`. |
 | `real-name-check.sh`, `commit-msg.sh` | **A real project name must never enter a commit.** `real-name-check.sh --staged` (step 4 of `pre-commit.sh`) checks staged file names and ADDED lines; `commit-msg.sh` (installed as the `commit-msg` hook by `pre-commit.sh --install`) checks the message. Three names reached this repository's history through a script comment, a generated log and three commit messages — places a content scan never looked. The names come from the local, git-ignored `docs/project-nicknames.tsv`: column 1 (the key) and column 3 (comma-separated aliases) are searched case-insensitively; a 4th column `public` marks a name that is not secret. A missing map is a visible warning (`NOT RUN`), not a silent pass (`REAL_NAMES_STRICT=1` makes it a failure). No environment bypass; an exception is the user's (`--no-verify`). Tests: `python3 -m unittest scripts/tests/test_real_name_check.py`. |
 | `require-private-remote.sh` | A `pre-push` hook for a repository whose content is only safe while it is PRIVATE (`~/.claude`, which tracks per-project memory under real names). It asks GitHub, authenticated (`gh api repos/<owner>/<repo> --jq .private`), on every push and refuses unless the answer is `true`; **fails closed** (no `gh`, not logged in, offline, or not a github.com remote all refuse). Install: `ln -s <checkout>/scripts/require-private-remote.sh ~/.claude/.git/hooks/pre-push`. Tests: `python3 -m unittest scripts/tests/test_require_private_remote.py`. |
-| `plugin-setup.py` | **Install or update the plugin from GitHub** — one standalone file, standard library only, downloadable before any checkout exists (`README.md` Level 3). It asks GitHub (`git ls-remote`) for the newest commit of the marketplace's branch and compares it with `installed_plugins.json`: not installed → `claude plugin marketplace add` + `install`; already newest → nothing (adds a missing marketplace link); older → asks "Remove the old one and install the new one?" and on yes refreshes the marketplace, `uninstall --keep-data` in the installed scope, `install`, then verifies that `~/.claude/adyusuf.json` (copied to `~/.claude-standards/backups/` first, put back if disturbed), the enabled state and the marketplace link are unchanged. `--check` reports only (exit 1 when work is due), `--yes` skips the question (required without a terminal), `--ref` picks the branch for a first link; a marketplace already linked keeps its branch, and one linked to a non-GitHub source is left alone. `claude` is looked up on `PATH`, then in the installers' usual folders and the Claude desktop app's own copy (`…/Claude/claude-code/<version>/<hash>/`, newest first); a folder found that way joins `PATH` for that run only, `--claude <path>` overrides, and with nothing found the message gives the two `/plugin` commands for the app's Code tab. A failed step stops the run with the command to retry (exit 2). It is the repository's only install script. Tests: `python3 -m unittest discover -s scripts/tests -p 'test_plugin_setup*.py'`. |
+| `plugin-setup.py` | **Install or update the plugin from GitHub** — one standalone file, standard library only, downloadable before any checkout exists (the root `README.md`, *Install*). It asks GitHub (`git ls-remote`) for the newest commit of the marketplace's branch and compares it with `installed_plugins.json`: not installed → `claude plugin marketplace add` + `install`; already newest → nothing (adds a missing marketplace link); older → asks "Remove the old one and install the new one?" and on yes refreshes the marketplace, `uninstall --keep-data` in the installed scope, `install`, then verifies that `~/.claude/adyusuf.json` (copied to `~/.claude-standards/backups/` first, put back if disturbed), the enabled state and the marketplace link are unchanged. `--check` reports only (exit 1 when work is due), `--yes` skips the question (required without a terminal), `--ref` picks the branch for a first link; a marketplace already linked keeps its branch, and one linked to a non-GitHub source is left alone. `claude` is looked up on `PATH`, then in the installers' usual folders and the Claude desktop app's own copy (`…/Claude/claude-code/<version>/<hash>/`, newest first); a folder found that way joins `PATH` for that run only, `--claude <path>` overrides, and with nothing found the message gives the two `/plugin` commands for the app's Code tab. A failed step stops the run with the command to retry (exit 2). It is the repository's only install script. Tests: `python3 -m unittest discover -s scripts/tests -p 'test_plugin_setup*.py'`. |
 | `adyusuf_session.py` | The session layer of the configuration (`adyusuf_config.py`): the rail boxes write `~/.claude/adyusuf-session/<session id>.json` through `set --session <id>`; it ranks above the user's and the project's files and ends with the session — a new session has a new id and starts from the saved defaults. Holds the folder (`ADYUSUF_SESSION_DIR` overrides it), the id check (letters, digits, `-`, `_`: it becomes a file name) and `prune` (files untouched for 14 days go). Tests: `python3 -m unittest scripts/tests/test_adyusuf_session.py`. |
 | `rules-context.py` | **The global rules for a plugin install:** a plugin cannot ship a `CLAUDE.md` that loads, so the plugin's `hooks/hooks.json` runs this on `SessionStart` (plain text) and `SubagentStart` (JSON `additionalContext`). It cuts `CLAUDE.md` at its `## ` / numbered-rule boundaries into parts that each print under Claude Code's 10,000-character hook cap (the JSON parts are cut smaller, since escaping lengthens them) and prints one part per hook; if the rules ever need more parts than are registered, the last part says so. `CLAUDE.md` stays the single source. `python3 scripts/rules-context.py session\|subagent <part> <registered>`. Tests: `python3 -m unittest scripts/tests/test_rules_context.py`. |
-| `guard-destructive.sh` | A `PreToolUse(Bash)` hook that BLOCKS the never-do commands: forced push, push straight to `main`/`prod`, `--no-verify`, `DROP`/`TRUNCATE`, `rm -rf` on `/` `~` `.` `*`. Exit 2; **no env-variable bypass** — the user runs it themselves. A grep prefilter keeps it a few ms on ordinary calls. It matches text, so a commit message that merely *mentions* one of these is blocked too: reword it. A plugin hook (`hooks/hooks.json`, `PreToolUse` Bash); tests: `python3 -m unittest scripts/tests/test_guard_destructive.py`. |
+| `guard-destructive.sh` | A `PreToolUse(Bash)` hook that BLOCKS the never-do commands: forced push, push straight to `main` (a push to `prod` is not judged: it follows `push.prod` in the configuration), `--no-verify`, `DROP`/`TRUNCATE`, `rm -rf` on `/` `~` `.` `*`. Exit 2; **no env-variable bypass** — the user runs it themselves. A grep prefilter keeps it a few ms on ordinary calls. It matches text, so a commit message that merely *mentions* one of these is blocked too: reword it. A plugin hook (`hooks/hooks.json`, `PreToolUse` Bash); tests: `python3 -m unittest scripts/tests/test_guard_destructive.py`. |
+| `adyusuf_config.py` | The configuration behind `/adyusuf:config` and the pane: `show`, `get`, `set`, `unset`, `apply`, `schema`, `agents`, `reset-agents`, and the two hooks `context` (SessionStart) and `notify` (a setting changed). Layers: the shipped `defaults/adyusuf.json` < `~/.claude/adyusuf.json` < the project's `.claude/adyusuf.json` < the session (`--session <id>`). Tests: `python3 -m unittest scripts/tests/test_adyusuf_config.py`. |
+| `adyusuf_status.py` | The session's status table that the pane's Status box shows (`now`, `next`, `row`, `drop`, `clear`, `show`): `<session id>.json` in `ADYUSUF_STATUS_DIR` (absolute; default `~/.claude/adyusuf-status`), written under a lock and atomically; files untouched for 14 days are pruned. Tests: `python3 -m unittest scripts/tests/test_adyusuf_status.py`. |
+| `codeql-scan.sh` | SAST for this repository (#19): CodeQL for Python and JavaScript, ShellCheck for shell. `gate-core.sh` calls it through `SAST_CMD` in `merge-gate.conf`. |
+| `twin-drift.sh` + `twins.txt` | `twins.txt` is the ONE list of scripts every project copies (gate, `md-*`, guards, `doc-check.py`, …). `twin-drift.sh` compares each sibling project's committed `origin/dev` copy with this branch (exit 1 on drift); `md-hook.sh` reads the same list to warn inside a project. |
+| `md-gate-triage.json` | The justified triage for `md-rule-gate.py`: rule lines that were deliberately dropped or reworded, each with its reason. |
+| `ts-shim/` | The import map that lets `deno test` run the mod's tests in `hooks/` without the engine. |
 | `evidence-check.py` + `evidence-block.schema.json` | Validates the §7 completeness-check block of a role's report against the schema: evidence in `Verification`, a mapped item, `Not covered`, and a `YES` that carries `BACK TO: <who> · <what> · <closing evidence>`. **A report with no block fails** (unaudited is not clean). Usage: `python3 scripts/evidence-check.py report.md` (or `-` for stdin). Tests: `python3 -m unittest scripts/tests/test_evidence_check.py`. |
 
 ⚠️ **Counting traps (found by measurement):** a heredoc **body** is data, not a
@@ -86,7 +100,11 @@ adds whatever that project needs — and CALLS the core for the shared steps. So
 step definition lives in one place while a project can ADD steps without forking
 it. The canonical copy lives here; every project commits a copy, because a
 project's gate cannot depend on a path outside its repository (CI runners do not
-have the configuration checked out). The drift test in `md-hook.sh` covers it.
+have the configuration checked out). `twin-drift.sh` and `md-hook.sh` catch a copy that drifted.
+
+The core sources three libraries beside it, `gate-lib.sh` (counters, helpers, stack detection, the verdict),
+`gate-lib-node.sh` (the Node steps) and `gate-lib-prod.sh` (the test-deploy check and e2e, both only on request); they
+were split out so no file passes 300 lines (#9) and are copied with it.
 
 `gate-core.sh <target> --list` prints the steps that WOULD run and the command
 each resolves to, and runs nothing — use it when rolling the gate into a project.
@@ -104,7 +122,8 @@ Whether the coverage step runs at all is the panel's `coverage_before_push.<targ
 | Target | What runs |
 |---|---|
 | `dev`, `test`, `prod` | **The SAME set at every target (29/10/2026), everything except running e2e:** formatter/linter, typecheck, build, unit tests, coverage (80% per codebase), secret scan, dependency CVE, SAST, backward-compatibility scan, the **project documents check** (`SETUP.md`, `.env.example`, the secret inventory heading — missing ones FAIL, rule #16), the CLAUDE.md size and rule gates, and a CHECK for missing e2e specs — a warning in BOTH directions, never blocking; the gaps are written at the `test → prod` gate (#33 step 2). |
-| `prod` (extras) | On top of the shared set above: the `test` branch and the test environment are **not checked** (04/10/2026) — the gate warns; `GATE_CHECK_TEST_DEPLOY=1` verifies the deployed SHA through the version endpoint and a mismatch then blocks. **E2E is optional and is not run** — the gate warns "e2e was NOT run" and carries on; `GATE_RUN_E2E=1` runs the suite and a red result then blocks. |
+| `test`, `prod` (extras) | **E2E is optional and is not run** — the gate warns "e2e was NOT run" and carries on; `GATE_RUN_E2E=1` runs the suite and a red result then blocks. |
+| `prod` (extras) | On top of the shared set above: the `test` branch and the test environment are **not checked** (04/10/2026) — the gate warns; `GATE_CHECK_TEST_DEPLOY=1` verifies the deployed SHA through the version endpoint and a mismatch then blocks. |
 
 Stacks are auto-detected (.NET solution, `web/`, `mobile/`, `e2e/`, `.maestro/`).
 Per-project settings live in `scripts/merge-gate.conf` (sourced if present):
@@ -116,14 +135,43 @@ the project already has instead of renaming those scripts.
 and the gate exits non-zero with INCOMPLETE — never green. A project may ADD
 steps; it may never remove one.
 
-## Adopting these scripts in a new project
+## Putting the gate in a project of your own
+
+This is the part that does the work — a rule nothing executes is documentation.
+
+1. **Copy the scripts into the project** — committed copies, not symlinks and not a path into your home folder: at
+   least `gate-*.sh`, `pre-commit.sh` and `md-size-gate.sh`; the full list is [below](#which-files-to-copy). A CI runner checks out your project and nothing
+   else, so a gate that reads `$HOME/.claude` passes on your laptop and dies in the pipeline.
+2. **Write `scripts/merge-gate.conf` beside it** — this is where the gate learns your project:
+
+   ```sh
+   COVERAGE_CMD="bash scripts/coverage.sh"
+   SAST_CMD="bash scripts/codeql-scan.sh"
+   ACCEPTED_GAPS="dependency CVE"
+   ACCEPTED_GAPS_REASON="no lockfile in this repository yet; tracked in docs/gates.md"
+   ```
+
+   The commands are yours: point them at the scripts your project already has (`coverage.sh` and `codeql-scan.sh`
+   are this repository's own, not twins).
+
+   `ACCEPTED_GAPS` is the **only** way a missing step stops failing the gate, and it is ignored unless a reason is set
+   with it. `coverage` cannot be accepted at all — the core refuses it by name (#29).
+3. **Dry-run it before you trust it:** `bash scripts/gate-core.sh dev --list` prints every step and runs none;
+   `bash scripts/gate-core.sh dev` is the real thing, and its exit code is the gate.
+4. **Install the commit hooks** — the `CLAUDE.md` size gate plus a secret scan over staged content:
+   `bash scripts/pre-commit.sh --install`.
+5. **Prove the gate is real.** Break something on purpose — add two hundred lines to a budgeted `CLAUDE.md`, or stage
+   a fake-looking key — and confirm the commit is *refused*. A gate you have never watched fail is a gate you do not
+   yet know is wired up (#19).
+
+### Which files to copy
 
 Not everything here is meant to be copied, and some copied files must be edited.
 `/adyusuf:apply-project-standards` does the document part; this is the script part.
 
 | File | What to do | Note |
 |---|---|---|
-| `gate-core.sh` | **Copy as is** | Configure it through `scripts/merge-gate.conf`, never by editing the copy. |
+| `gate-core.sh` + `gate-lib.sh`, `gate-lib-node.sh`, `gate-lib-prod.sh` | **Copy all four as is** | The core sources the three libraries from beside itself. Configure it through `scripts/merge-gate.conf`, never by editing the copy. |
 | `merge-gate.sh` | **Write your own** | The project's orchestrator: pull, merge, push, and a call to `gate-core.sh`. This repository ships no template for it. |
 | `merge-gate.conf` | **Create, values are yours** | The commands, `TEST_VERSION_URL`, `ACCEPTED_GAPS` with a written reason. The values shown in `gate-core.sh`'s header are examples, not defaults to keep. |
 | `md-size-gate.sh`, `md-rule-gate.py`, `md-split.py`, `audit-triage.py` | **Copy as is** | `audit-triage.tsv` is yours and starts absent: no file, no waiver. |
@@ -137,7 +185,7 @@ Not everything here is meant to be copied, and some copied files must be edited.
 | `md-hook.sh` | **Do not copy** | A plugin hook (`hooks/hooks.json`, `PostToolUse` Edit/Write and `Stop`); it finds its sibling scripts beside itself. |
 | `step-stats.py` (+ its `step_stats_*.py` parts), `measurement-cuts.tsv` | **Do not copy** | They read the transcripts of *all* projects under `~/.claude/projects`; there is one canonical copy, here. The ledger, its per-day reports and the per-session cost tool USED to sit beside them and now live in ~/.claude/measurement/ (outside this repository, and deliberately so: it records per-session token and cost metadata, which a published rule set has no business carrying, and a ledger next to the rules keeps session metadata on disk longer than the platform's own retention). |
 
-Every file marked **copy as is** is drift-checked against the plugin's `scripts/` by `md-hook.sh` (the list is its `TWINS` variable; the configuration repository itself is exempt, since it is the canonical set).
+Every file marked **copy as is** is listed in `twins.txt` and drift-checked: by `md-hook.sh` inside a project against the plugin's `scripts/` (the configuration repository itself is exempt, since it is the canonical set), and by `twin-drift.sh` across every project's `origin/dev`.
 
 After copying, run `python3 scripts/doc-check.py` and `bash scripts/gate-core.sh dev --list`:
 the second prints every step that would run and the command it resolves to, without running any.
