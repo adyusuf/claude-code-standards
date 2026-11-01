@@ -8,7 +8,7 @@ token cost stays low.
 
 | File | Topic |
 |---|---|
-| `00-working-method.md` | The protocol for working with Claude: planning, approval, **phased work kept on the on-screen task list (§1a)**, verification, context management, **human actions kept in one file (§14)** |
+| `00-working-method.md` | The protocol for working with Claude: planning, approval, **phased work kept on the on-screen task list (§1a)**, verification, **reply length (§5a)**, context management, **the Status box (§10d)**, **human actions kept in one file (§14)** |
 | `01-product-design.md` | Problem definition, user stories, acceptance criteria, scope, MVP, ADRs |
 | `02-ui-ux.md` | Design system, state design, responsive layout, accessibility, i18n |
 | `03-coding-general.md` | Naming, file size, error handling, logging, dead code, comments |
@@ -21,7 +21,7 @@ token cost stays low.
 | `10-test-strategy.md` | The test pyramid, unit-test rules, contract tests, the flaky policy, the screen-by-screen audit (`test-inventory`) |
 | `11-playwright.md` | Web e2e: selectors, fixtures, isolation, CI |
 | `12-maestro.md` | Mobile e2e: flow structure, testIDs, the device matrix |
-| `13-pr-and-review.md` | Commits, branches, PR size, the review checklist and severity levels |
+| `13-pr-and-review.md` | Commits, branches, PR size, the review checklist and severity levels, **merges and pushes follow the settings, for code work only (§8a)** |
 | `14-devops.md` | Environments, branching flow, CI/CD, containers, deploys, rollback, backups |
 | `15-security.md` | AuthN/AuthZ, OWASP, secret management, data protection/PII, dependency scanning |
 | `16-performance.md` | Budgets, N+1, caching, bundles, Core Web Vitals, load testing |
