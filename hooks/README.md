@@ -37,8 +37,9 @@ What the mod runs and reads:
   `~/.claude/adyusuf.json`.
 
 It opens no network connection. The code is split so the drawing can be tested without the engine: `boxes.ts` (Settings,
-Agents, Promotion), `controls.ts` (the shared icons, options and aligned lines), `status.ts` (Status), `choose.ts` (pure decisions), `notices.ts` (chat lines); `register.tsx` is the
-engine glue. Tests: `deno test --sloppy-imports --import-map=scripts/ts-shim/import_map.json hooks/*.test.ts` (67 tests).
+Agents, Promotion), `controls.ts` (the shared icons, options, aligned lines and hover cards), `help.ts` (what the hover
+cards say), `status.ts` (Status), `choose.ts` (pure decisions), `notices.ts` (chat lines); `register.tsx` is the
+engine glue. Tests: `deno test --sloppy-imports --import-map=scripts/ts-shim/import_map.json hooks/*.test.ts` (73 tests).
 
 ## The four boxes
 
@@ -46,7 +47,9 @@ engine glue. Tests: `deno test --sloppy-imports --import-map=scripts/ts-shim/imp
 
 The screenshot is of 01/11/2026. The left two-thirds are the app's session list and the conversation, blurred on purpose.
 Each box folds by the arrow before its bold title (`▾` open, `▸` folded); Agents and Promotion start folded. The header
-is the arrow and the title alone, with nothing beside it (the screenshot is older and still shows a summary there). The
+is the arrow and the title alone, with nothing beside it (the screenshot is older and still shows a summary there).
+Resting the pointer on a box title, a column heading (*Session*, *System*), a Settings label, an Agents role or a Status
+label or heading opens a card under it that explains it; a role's card is its agent file's description. The
 boxes refresh after every turn, so a merge, a push or a `/adyusuf:config` change shows without
 reopening them.
 
