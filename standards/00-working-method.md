@@ -335,6 +335,9 @@ finished into one row and give the remaining work its own rows.
 Where the `adyusuf` pane runs, the table is ALSO kept in the session's status file, and the pane's **Status** box (the
 first box) shows it. It does not replace the table in the reply; the reply table stays the deliverable.
 
+- **Every task, not only a long run (user decision 01/11/2026):** from the first step of any task with more than one step
+  to its end, the box shows what runs now, what runs next and one row per piece; it is never left empty or stale while
+  work goes on, and it is cleared only when the work is done.
 - **Claude writes it at every state change**, with `scripts/adyusuf_status.py --session <id>` (the installed plugin's
   copy): `now` (what runs now), `next` (what runs next), `row ITEM STATE FIGURE WAITING` (one row, replaced by its item),
   `drop`, `clear` when the work is done (`clear` also replaces a corrupt file). The session id is the one the plugin's
