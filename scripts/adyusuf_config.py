@@ -407,7 +407,8 @@ def notify(event, payload_text):
     if not remember() or before is None:
         return None
     text = ('adyusuf settings changed (/adyusuf:config). Apply them from the NEXT task on; finish the step in progress as it '
-            'was started, do not restart or split it. Changes: ' + '; '.join(changes) + '.\n' + context(effective, problems, session))
+            'was started, do not restart or split it. Reply length is the exception: it applies from your next reply. '
+            'Changes: ' + '; '.join(changes) + '.\n' + context(effective, problems, session))
     return {'hookSpecificOutput': {'hookEventName': event, 'additionalContext': text}}
 
 
