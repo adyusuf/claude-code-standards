@@ -2116,3 +2116,12 @@ field); any other git failure is shown as a Promotion error and hides nothing (q
 tell a question from code work, so every box shows there and the rule above is followed by Claude, not by the pane.
 Code written outside a repository still follows the mode and tests settings (§8a); the pane just does not show them
 there, and they are changed with `/adyusuf:config`.
+
+**Agents: a role that runs is named in bold (02/11/2026, user decision).** Bold cannot sit inside a Button on the
+desktop, so the name is a Text and only the checkbox before it, a ☑/☐ glyph Button, switches the role; the name is no
+longer pressable (the user had no preference between this and a pressable name that is not bold).
+
+**Reply length applies from the next reply (02/11/2026, user decision).** The user found replies still long after
+choosing `short`: Claude must write at the panel's length before every reply. Unlike the other settings, a change of
+reply length applies from the next reply, not the next task, since it splits no work; the change notice and §5a of
+`standards/00-working-method.md` say so.
