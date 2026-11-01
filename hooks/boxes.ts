@@ -240,8 +240,10 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
   const byDefault = (agent: AgentRow) => option(ui, `${key(agent)}=default`, 'default', 'check', agent.model === 'default',
     // Unticking keeps the model the role runs on, now pinned; ticking hands it back to `default`.
     () => press(key(agent), agent.model === 'default' ? agent.runs_on : 'default'))
+  // The model `default` gives; from an older script without `default_model`, known only while `default` is ticked.
+  const givenByDefault = (agent: AgentRow) => agent.default_model ?? (agent.model === 'default' ? agent.runs_on : undefined)
   const models = (agent: AgentRow) => AGENT_MODELS.map(model => option(ui, `${key(agent)}=${model}`, model, 'radio', model === agent.runs_on,
-    () => press(key(agent), model === agent.default_model ? 'default' : model)))
+    () => press(key(agent), model === givenByDefault(agent) ? 'default' : model)))
   return h(
     ui.Box,
     { flexDirection: 'column' },

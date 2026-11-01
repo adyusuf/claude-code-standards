@@ -207,6 +207,28 @@ test('default and the radios write each other: ticking hands back to default, th
   ])
 })
 
+test('the radio that writes default is the model default gives, not the model the role file defines', () => {
+  const calls: string[][] = []
+  // Defined opus, moved to sonnet by the mode's override (Model = sonnet), pinned to haiku for now.
+  const body = agentsBody(ui, data({ agents: [agent('developer', { active: true, in_mode: true, defined: 'opus', default_model: 'sonnet', model: 'haiku', runs_on: 'haiku' })] }),
+    (key, value) => { calls.push([key, value]) })
+  const press = (key: string) => all(body, 'Button').find(node => node.props.key === key)!.props.onPress()
+  press('agents.developer.model=sonnet')
+  press('agents.developer.model=opus')
+  expect(calls).toEqual([['agents.developer.model', 'default'], ['agents.developer.model', 'opus']])
+})
+
+test('from an older script without default_model, the radio of the running model keeps default while it is ticked', () => {
+  const calls: string[][] = []
+  const old = { active: true, in_mode: true, default_model: undefined }
+  const body = agentsBody(ui, data({ agents: [agent('analyst', { ...old, runs_on: 'sonnet' }), agent('qa', { ...old, model: 'opus', runs_on: 'opus' })] }),
+    (key, value) => { calls.push([key, value]) })
+  const press = (key: string) => all(body, 'Button').find(node => node.props.key === key)!.props.onPress()
+  press('agents.analyst.model=sonnet')   // default ticked: sonnet is what default gives, so default stays
+  press('agents.qa.model=sonnet')        // pinned and unknown default: a plain pin
+  expect(calls).toEqual([['agents.analyst.model', 'default'], ['agents.qa.model', 'sonnet']])
+})
+
 test('the role checkbox sits left of the role name, and pressing the name toggles the role', () => {
   const body = agentsBody(ui, data(), () => undefined)
   expect(all(body, 'Text').filter(node => node.props.bold).length).toBe(0)
