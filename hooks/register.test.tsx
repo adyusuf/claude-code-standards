@@ -1,8 +1,8 @@
 import { expect, test } from 'claude-code/testing'
 
 // The test environment has no process, so the boxes cannot fill from the plugin's script here and `$.state` cannot be
-// seeded; what is pinned is that the pane loads, draws on both surfaces, shows its three bordered boxes with the folded
-// ones summarised, and says what each unfolded one waits for. The data paths are exercised by hand in a session: press a
+// seeded; what is pinned is that the pane loads, draws on both surfaces, shows its bordered boxes under their bare
+// titles, and says what each unfolded one waits for. The data paths are exercised by hand in a session: press a
 // toggle in Settings, pick a mode, run git in the repository.
 const PROPS = { title: 'x', isFocused: false } as never
 
