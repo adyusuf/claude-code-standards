@@ -540,22 +540,20 @@ without reopening them. The plugin's mod draws them (`hooks/register.tsx`, `hook
 load mods, the command falls back to printing the same settings as a table and points you to `/adyusuf:config`
 ([`commands/panels.md`](commands/panels.md)).
 
-![The adyusuf pane in the right-hand rail: Settings, Agents and Promotion boxes, with the setting-change warnings in the chat on the left](docs/images/adyusuf-panels.webp)
+![The adyusuf pane in the right-hand rail: Status, Settings, Agents and Promotion boxes, with an operation notice in the chat on the left](docs/images/adyusuf-panels.webp)
 
 *What the screenshot shows.* The left two-thirds are the app's session list and the conversation, blurred on purpose
 (see [Anonymization](#anonymization)). The right-hand column is the `adyusuf` pane:
 
-- **Status** (added after the screenshot, the first box). The status table of a long run: what runs now, what runs
-  next, then item · state · measured figure (with its signal) · waiting on. Claude writes it at every step with
+- **Status — "nothing running".** The status table of a long run: what runs now, what runs next, then
+  item · state · measured figure (with its signal) · waiting on. Claude writes it at every step with
   `scripts/adyusuf_status.py`, and so does a background gate or promotion; the box re-reads it when a tool call returns
   and every 2 s when the file changed. It shows *nothing running* when the table is empty
   ([`standards/00-working-method.md`](standards/00-working-method.md) §10d).
-
-- **Settings — "2 changed in this session".** One table, one row per setting: the label in bold, then the
+- **Settings — "3 changed in this session".** One table, one row per setting: the label in bold, then the
   **Session** column, then the **Claude** column. *Session* is what this session runs on; a press there changes this
   session only. *Claude* holds the saved defaults in `~/.claude/adyusuf.json`, which every new session starts from; a
-  press there changes the defaults. (The screenshot still shows the older layout: two blocks, *Session settings* and
-  *Claude settings*, one under the other.) The summary counts the settings this session has changed away from its
+  press there changes the defaults. The summary counts the settings this session has changed away from its
   defaults. Each column has one width, so every row's options start at the same place. The engine has no native
   radio or checkbox, so the boxes build them. On the desktop each option has a radio (one of several) or checkbox
   (yes/no) icon, filled when chosen. In the terminal, which cannot draw SVG, the chosen option reads `[C]`, `[dev]`. On
@@ -571,10 +569,10 @@ load mods, the command falls back to printing the same settings as a table and p
     and runs no gate or CI wait. A gate set to no is recorded as `Gate-Waived` on the merge commit.
   - *Runner* (`cloud` = GitHub's runners, `local` = this machine's), *Deploy* (which environment a pushed update is
     deployed to) and *E2E* (run e2e before that deploy; rule #33).
-- **The chat lines `⚠ adyusuf setting changed …`.** Every change, made in a box, through `/adyusuf:config` or by hand,
-  is also written into the conversation. Each line says which layer changed (*this session* or *saved defaults*), the
-  key with its old → new value, and the rules it touches. The screenshot shows *Model* (`mode_model`) switched back
-  and forth between `keep` and `sonnet`.
+- **The chat lines `⚠ adyusuf …`.** Every settings change, made in a box, through `/adyusuf:config` or by hand, is
+  also written into the conversation as `⚠ adyusuf setting changed …`: which layer changed (*this session* or *saved
+  defaults*), the key with its old → new value, and the rules it touches. An operation that rules govern gets a line
+  too: the screenshot shows `⚠ adyusuf operation: git push` with the two rules in play, #34 and #26.
 - **Agents — "mode C".** One line per role: a checkbox with the role name (pressing the name switches the role on or
   off, as in Settings), a `default` checkbox, then the model as one radio group: `opus`, `sonnet`, `haiku`, `fable`. The
   nine on in the screenshot are mode C's team. Five roles show a short name: `product` (product-manager), `tester`
@@ -584,7 +582,7 @@ load mods, the command falls back to printing the same settings as a table and p
   `default` ticked means it runs on the model its file and *Model* give it; ticking `default` selects that model's
   radio, and choosing that model's radio ticks `default`. Choosing any other model unticks `default` and pins that
   model; unticking `default` pins the model it was running on. In the screenshot `qa` is pinned to `opus`.
-- **Promotion — "dev e024c91c · test e980afdf · prod 465a022b".** One block per `dev`/`test`/`prod` branch of the
+- **Promotion — "dev 15538900 · test 6657f48d · prod 41d8d4d3".** One block per `dev`/`test`/`prod` branch of the
   repository the session is in: the commit `origin` holds, then `pushed` or `N not pushed`. Below it, any
   `Gate-Waived` line on the commits waiting to come in from the stage before it (for `test`, what `origin/dev` has and
   `origin/test` does not yet), in orange. *No waived gate on the way in* means nothing waiting carries a waived gate.
@@ -592,12 +590,7 @@ load mods, the command falls back to printing the same settings as a table and p
   be read (`! …`, in Settings) or a waived gate (`waived …`, in Promotion). Dim: summaries, waiting and "nothing to
   report" lines, and the options that are not chosen. Bold: titles and row labels.
 
-The screenshot shows the pane before three changes. On 30/10/2026 *Deploy* became two checkboxes (test, prod) instead
-of a radio, and Settings gained a *Coverage* row per target (rule #29). On 01/11/2026 the `(•)`/`[x]` markers gave way
-to icons (desktop) or brackets (terminal) with the unchosen options faded, the labels were made bold, aligned and
-shortened (*Working mode* → *Mode*, *Run gates before pushing* → *Gates*, *CI runner* → *Runner* with `cloud`/`local`,
-…), five roles got short names, warnings turned orange, the bodies were indented, and an agent's first option reads
-`default` instead of a model name.
+The screenshot is of 01/11/2026 and shows the pane as it is now.
 
 ### Level 4 — run it live, the way I do
 
