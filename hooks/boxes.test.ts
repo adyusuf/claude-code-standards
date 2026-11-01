@@ -16,12 +16,12 @@ function all(node: unknown, type: string): Node[] {
   const here = one.type === type ? [one] : []
   return here.concat(...flat(one.children).map(child => all(child, type)))
 }
-// Underlined text reads `_name_`, so an expectation shows what the pane marks as chosen.
+// A pressable part drawn at full strength (not dimmed) reads `_name_`, so an expectation shows what the pane marks as chosen.
 function words(node: unknown): string {
   if (typeof node === 'string') return node
   if (typeof node !== 'object' || node === null) return ''
   const text = flat((node as Node).children).map(words).join('')
-  return (node as Node).props.underline === true ? `_${text}_` : text
+  return (node as Node).props.dimColor === false ? `_${text}_` : text
 }
 
 const SCHEMA = [
@@ -93,7 +93,7 @@ test('Settings waits, and says why when the script could not be read', () => {
 test('Settings draws the session block and the Claude block, one line per row, the second from the saved defaults', () => {
   const body = settingsBody(ui, data(), '', ['a layer is unreadable'], () => undefined)
   const heads = all(body, 'Text').filter(node => node.props.bold).map(words)
-  expect(heads).toEqual(['Session settings', 'Claude settings'])
+  expect(heads).toEqual(['Session settings', 'Mode', 'Model', 'Push', 'Claude settings', 'Mode', 'Model', 'Push'])
   const lines = all(body, 'Box').filter(node => node.props.flexDirection === 'row').map(node => flat(node.children).map(words).join(' '))
   expect(lines).toEqual([
     'Mode A _B_ C', 'Model opus _sonnet_', 'Push test _prod_',
@@ -110,7 +110,7 @@ test('Main model shows keep as opus, because Opus agents then run on the model t
 
 test('the Claude block is left out until the saved defaults are read', () => {
   const body = settingsBody(ui, data({ saved: undefined }), '', [], () => undefined)
-  expect(all(body, 'Text').filter(node => node.props.bold).map(words)).toEqual(['Session settings'])
+  expect(all(body, 'Text').filter(node => node.props.bold).map(words)).toEqual(['Session settings', 'Mode', 'Model', 'Push'])
 })
 
 test('a problem is shown in red above the blocks', () => {
@@ -161,13 +161,13 @@ test('Agents puts each role on one line with its state and, for the active ones,
   expect(lines).toEqual([
     '_analyst_ _default_ opus _sonnet_ haiku fable',
     'qa',
-    '_security_ (added) _default_ opus _sonnet_ haiku fable',
+    '_security (added)_ _default_ opus _sonnet_ haiku fable',
   ])
   const models = all(body, 'Button').filter(node => String(node.props.key).includes('.model='))
   expect(models.map(node => node.props.key).filter(key => String(key).endsWith('=default'))).toEqual(['agents.analyst.model=default', 'agents.security.model=default'])
 })
 
-test('a pinned model is the only one underlined; with default, the model it resolves to is underlined too', () => {
+test('a pinned model is the only one at full strength; with default, the model it resolves to is at full strength too', () => {
   const body = agentsBody(ui, data({ agents: [
     agent('qa', { active: true, in_mode: true, model: 'opus', runs_on: 'opus' }),
     agent('doc-writer', { active: true, in_mode: true, runs_on: 'haiku' }),

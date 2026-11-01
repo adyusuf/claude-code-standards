@@ -2,8 +2,9 @@
 // 'claude-code', no JSX. The element factory `h` and the elements themselves (Box, Text, Button) are handed in as
 // `ui`: each surface has its own elements, and a test hands in a recording factory instead of the engine's. A choice among
 // several values is a row of options, not a dropdown (user decision 24/10/2026); every setting sits on one line, the label
-// first and its pressable parts after it (user decision 28/10/2026). What is chosen or on is UNDERLINED, with no `(•)`/`[x]`
-// marker, and the labels are short, with no trailing colon (user decision 01/11/2026).
+// first and its pressable parts after it (user decision 28/10/2026). The labels are short and bold, with no trailing colon;
+// what is chosen or on is drawn at full strength and the rest dimmed, with no `(•)`/`[x]` marker (user decision 01/11/2026:
+// underline was asked for, but the desktop draws a Button as a native button and drops a Text's underline inside it).
 import { enabledFor, settingGroups } from './choose'
 
 export type Factory = (type: unknown, props: Record<string, unknown> | null, ...children: unknown[]) => unknown
@@ -53,27 +54,25 @@ const ROWS: Row[] = [
 /** One line: the label, then its pressable parts side by side (they wrap when the pane is narrow). */
 function line(ui: Ui, label: string, parts: unknown) {
   const { h } = ui
-  return h(ui.Box, { flexDirection: 'row', flexWrap: 'wrap', columnGap: 1 }, label === '' ? null : h(ui.Text, {}, label), parts)
+  return h(ui.Box, { flexDirection: 'row', flexWrap: 'wrap', columnGap: 1 }, label === '' ? null : h(ui.Text, { bold: true }, label), parts)
 }
 
-/** The text of one pressable part, underlined when it is the chosen option or a setting that is on. */
-function mark(ui: Ui, name: string, chosen: boolean) {
-  return ui.h(ui.Text, { underline: chosen }, name)
+/** One pressable part: at full strength when it is the chosen option or a setting that is on, dimmed otherwise. */
+function option(ui: Ui, key: string, text: string, chosen: boolean, onPress: () => void) {
+  return ui.h(ui.Button, { key, plain: true, dimColor: !chosen, onPress }, text)
 }
 
-/** The options of one setting, the chosen one underlined. */
+/** The options of one setting, the chosen one at full strength. */
 function choices(ui: Ui, scope: Scope, key: string, options: Item[], value: string, press: Press) {
-  return options.map(option =>
-    ui.h(ui.Button, { key: `${scope}/${key}=${option.key}`, plain: true, onPress: () => press(key, option.key, scope) },
-      mark(ui, option.name, option.key === value)))
+  return options.map(one =>
+    option(ui, `${scope}/${key}=${one.key}`, one.name, one.key === value, () => press(key, one.key, scope)))
 }
 
-/** The yes/no settings of one line, each underlined while it is on; pressing asks for the opposite. */
+/** The yes/no settings of one line, each at full strength while it is on; pressing asks for the opposite. */
 function checks(ui: Ui, scope: Scope, items: Item[], values: Layer['values'], press: Press) {
   return items.map(item => {
     const on = values[item.key] === true
-    return ui.h(ui.Button, { key: `${scope}/${item.key}`, plain: true, onPress: () => press(item.key, on ? 'no' : 'yes', scope) },
-      mark(ui, item.name, on))
+    return option(ui, `${scope}/${item.key}`, item.name, on, () => press(item.key, on ? 'no' : 'yes', scope))
   })
 }
 
@@ -160,20 +159,17 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
     { flexDirection: 'column' },
     data.agents.map(agent =>
       line(ui, '', [
-        h(ui.Button, {
-          key: `on-${agent.role}`,
-          plain: true,
-          onPress: () => {
+        option(ui, `on-${agent.role}`,
+          `${agent.role}${!agent.in_mode && agent.active ? ' (added)' : ''}${agent.in_mode && !agent.active && mode !== 'A' ? ' (off)' : ''}`,
+          agent.active, () => {
             if (mode === 'A') return
             press(`agents.${agent.role}.enabled`, enabledFor(!agent.active, agent.in_mode))
-          },
-        }, mark(ui, agent.role, agent.active),
-        `${!agent.in_mode && agent.active ? ' (added)' : ''}${agent.in_mode && !agent.active && mode !== 'A' ? ' (off)' : ''}`),
-        // `default` is the choice; the model it resolves to is underlined too, so the model the role runs on stays visible.
+          }),
+        // `default` is the choice; the model it resolves to is at full strength too, so the model the role runs on stays visible.
         agent.active
-          ? AGENT_MODELS.map(option =>
-            h(ui.Button, { key: `agents.${agent.role}.model=${option}`, plain: true, onPress: () => press(`agents.${agent.role}.model`, option) },
-              mark(ui, option, option === agent.model || (agent.model === 'default' && option === agent.runs_on))))
+          ? AGENT_MODELS.map(model =>
+            option(ui, `agents.${agent.role}.model=${model}`, model,
+              model === agent.model || (agent.model === 'default' && model === agent.runs_on), () => press(`agents.${agent.role}.model`, model)))
           : null,
       ])),
   )

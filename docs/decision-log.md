@@ -1951,16 +1951,19 @@ problem (its choice is not carried over: the setting was one day old). The `plan
 ticked list (`test`, `prod`, `test,prod` or `none`) and still reads a project's older settings file that holds the single
 string, so a project is not broken until its next merge rewrites `.claude/sdlc-settings.json`.
 
-## The boxes underline what is chosen, with short labels; finished work is promoted at once (01/11/2026, user decision)
+## The boxes mark what is chosen at full strength and dim the rest, with short bold labels; finished work is promoted at once (01/11/2026, user decision)
 
-- **Markers (`hooks/boxes.ts`):** the `(•)`/`( )` and `[x]`/`[ ]` prefixes are gone. Every pressable part is the bare
-  name in a `Text`, `underline` on the chosen option or on a yes/no that is on. Supersedes the marking of the radio-list
-  (24/10/2026) and one-line (28/10/2026) entries; the layout and keys are unchanged.
+- **Markers (`hooks/boxes.ts`):** the `(•)`/`( )` and `[x]`/`[ ]` prefixes are gone. Every pressable part is a plain Button
+  with the bare name, `dimColor` on everything but the chosen option or a yes/no that is on. Supersedes the marking of the
+  radio-list (24/10/2026) and one-line (28/10/2026) entries; the layout and keys are unchanged.
+- **Why not underline (asked for first, shipped and withdrawn the same day):** the desktop draws a Button as a native button
+  and drops the styling of a `Text` inside it, so nothing showed as chosen. Underline works only on a plain `Text`, which
+  cannot be pressed: a yes/no that is on could not be turned off. Dimming applies to the Button itself, on every surface.
 - **Agents:** the first model option reads `default` instead of the model it resolves to. With `default` chosen, both
-  `default` and the resolved model (`runs_on`) are underlined, so the model a role runs on stays visible; a pinned model is
-  the only one underlined. A role that is on has its name underlined.
+  `default` and the resolved model (`runs_on`) are at full strength, so the model a role runs on stays visible; a pinned
+  model is the only one. A role that is on is at full strength.
 - **Labels:** Mode, Model, Pod (`connected`), Format, Tests (`unit`, `e2e`), Merge, Push, Gates, Coverage, CI, Runner
-  (`cloud`, `local`), Deploy, E2E; no label ends in `:`, the fallback line for a setting no row names included. `cloud`
+  (`cloud`, `local`), Deploy, E2E, drawn bold; no label ends in `:`, the fallback line for a setting no row names included. `cloud`
   and `local` are display names; the stored `ci.runner` values stay `hosted` / `self-hosted`. Only the pane changed:
   setting keys, `/adyusuf:config` questions and the chat warnings keep their wording.
 - **Promotion without a question:** when a piece of work is done Claude re-reads the panel (session layer included) and
