@@ -548,10 +548,13 @@ load mods, the command falls back to printing the same settings as a table and p
 - **Settings — "2 changed in this session".** Two blocks with the same rows. **Session settings** is what this session
   runs on; a click there changes this session only. **Claude settings** are the saved defaults in
   `~/.claude/adyusuf.json`, which every new session starts from; a click there changes the defaults. The summary
-  counts the settings this session has changed away from its defaults. Each row is one setting: its label in bold, then
-  its options. The chosen option, or a yes/no that is on, is drawn at full strength and the rest are faded; pressing
-  another option chooses it, pressing
-  a yes/no turns it the other way.
+  counts the settings this session has changed away from its defaults. Each row is one setting: its label in bold in a
+  column of one width, so every row's options start at the same place, then its options. The engine has no native
+  radio or checkbox, so the boxes build them. On the desktop each option has a radio (one of several) or checkbox
+  (yes/no) icon, filled when chosen. In the terminal, which cannot draw SVG, the chosen option reads `[C]`, `[dev]`. On
+  both, what is chosen is at full strength and the rest are faded. Pressing another option chooses it; pressing a
+  yes/no turns it the other way. A box's body starts one step in from its header, and a block's rows one step in from
+  the block title.
   - *Mode* A–E (here C, the full team; rule #27) and *Model*, the model that replaces Opus in the Opus agents (here
     sonnet).
   - *Pod* (`connected`) and *Format* are stored only; nothing acts on them yet.
@@ -566,21 +569,28 @@ load mods, the command falls back to printing the same settings as a table and p
   is also written into the conversation. Each line says which layer changed (*this session* or *saved defaults*), the
   key with its old → new value, and the rules it touches. The screenshot shows *Model* (`mode_model`) switched back
   and forth between `keep` and `sonnet`.
-- **Agents — "mode C".** One line per role. A role at full strength is on; the nine on in the screenshot are mode C's team.
-  The five that are off (`data`, `observability`, `security`, `coverage-auditor`, `e2e-writer`) belong to mode D;
-  pressing one adds it to this session and marks it `(added)`. The options after a role pick its model: `default`
-  (the model its file and *Model* give it), or a pinned `opus`, `sonnet`, `haiku` or `fable`. The choice is
-  at full strength; with `default` the model it resolves to is at full strength as well, so `doc-writer` shows `default`
-  and `haiku` bright. In the screenshot `qa` is pinned to `opus`.
+- **Agents — "mode C".** One line per role, with a checkbox for whether it is on; the nine on in the screenshot are
+  mode C's team. Five roles show a short name: `product` (product-manager), `tester` (test-writer), `doc`
+  (doc-writer), `coverage` (coverage-auditor) and `e2e` (e2e-writer); the agents and their settings keys keep the full
+  name. The five that are off (`data`, `observability`, `security`, `coverage`, `e2e`) belong to mode D; pressing one
+  adds it to this session and marks it `(added)`. The radio options after a role pick its model: `default` (the model
+  its file and *Model* give it), or a pinned `opus`, `sonnet`, `haiku` or `fable`. With `default` chosen, the model it
+  resolves to is at full strength too, so `doc` shows `[default]` and a bright `haiku`. In the screenshot `qa` is
+  pinned to `opus`.
 - **Promotion — "dev e024c91c · test e980afdf · prod 465a022b".** One block per `dev`/`test`/`prod` branch of the
   repository the session is in: the commit `origin` holds, then `pushed` or `N not pushed`. Below it, any
   `Gate-Waived` line on the commits waiting to come in from the stage before it (for `test`, what `origin/dev` has and
-  `origin/test` does not yet). *No waived gate on the way in* means nothing waiting carries a waived gate.
+  `origin/test` does not yet), in orange. *No waived gate on the way in* means nothing waiting carries a waived gate.
+- **Colours.** Red at the top of Settings: the configuration could not be read. Orange: a settings file that could not
+  be read (`! …`, in Settings) or a waived gate (`waived …`, in Promotion). Dim: summaries, waiting and "nothing to
+  report" lines, and the options that are not chosen. Bold: titles and row labels.
 
 The screenshot shows the pane before three changes. On 30/10/2026 *Deploy* became two checkboxes (test, prod) instead
 of a radio, and Settings gained a *Coverage* row per target (rule #29). On 01/11/2026 the `(•)`/`[x]` markers gave way
-to fading the options that are not chosen, the labels were made bold and shortened (*Working mode* → *Mode*, *Run gates before pushing* → *Gates*, *CI runner*
-→ *Runner* with `cloud`/`local`, …), and an agent's first option reads `default` instead of a model name.
+to icons (desktop) or brackets (terminal) with the unchosen options faded, the labels were made bold, aligned and
+shortened (*Working mode* → *Mode*, *Run gates before pushing* → *Gates*, *CI runner* → *Runner* with `cloud`/`local`,
+…), five roles got short names, warnings turned orange, the bodies were indented, and an agent's first option reads
+`default` instead of a model name.
 
 ### Level 4 — run it live, the way I do
 

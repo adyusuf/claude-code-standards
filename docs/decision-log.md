@@ -1969,3 +1969,20 @@ string, so a project is not broken until its next merge rewrites `.claude/sdlc-s
 - **Promotion without a question:** when a piece of work is done Claude re-reads the panel (session layer included) and
   merges, gates and pushes as it says, straight away; it stops only when the user stops it, on a red gate, or on a step
   that needs approval in every mode. Written in `standards/13-pr-and-review.md` §8a (rule #34).
+
+**Amended the same day (user decisions, 01/11/2026): real-looking controls, alignment, indents, short role names, orange.**
+- **Controls.** The engine has no Checkbox or Radio element (its tables hold Box, Text, Button, Input, Select, Svg,
+  Link, Code, Markdown, Client), and a `Client` module cannot draw `Svg`. So `hooks/boxes.ts` checks the element table it
+  is handed: where it holds `Svg` (desktop, mobile, VS Code) each option is an icon (radio circle for one-of-several,
+  checkbox for yes/no, filled blue when chosen, grey when not) beside the pressable label; where it does not (the
+  terminal) the chosen option is drawn `[in brackets]`. Dimming the unchosen ones stays on both. An agent whose model is
+  `default` has `default` marked chosen; the model it resolves to is lit but not marked, so one radio row never shows two
+  filled circles.
+- **Alignment.** Every line is a head column of one minimum width (`minWidth`, cells) and its options: in a settings
+  block the longest label plus two; in Agents the longest shown role name plus three (its brackets or icon and a gap).
+- **Indents.** A box's body starts one step (two cells, the width of `▾ `) in from its header; a settings block's rows
+  and a promotion stage's waived lines one step in from their title.
+- **Short role names.** product (product-manager), tester (test-writer), doc (doc-writer), coverage (coverage-auditor),
+  e2e (e2e-writer): display only, the agent files, the modes and the `agents.<role>.*` keys keep the full names.
+- **Orange instead of yellow** for the two warnings (an unreadable settings file, a waived gate): hex `#E07B00`, because
+  the terminal's colour names do not include orange.
