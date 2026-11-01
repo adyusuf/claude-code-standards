@@ -2082,3 +2082,16 @@ said at every length, at `short` in one line each. `short` shortens the prose on
 handoff line and end-of-turn block, the #24 deferred list and the #27 agent count and cost stay at every length (qa,
 same day: moving the table to the Status box would have loosened the CLAUDE.md STATUS REPORTING rule). A change
 applies from the next task, like every setting.
+
+## The pane explains itself: hover cards on titles, headings, labels and roles (01/11/2026, user decision)
+
+Resting the pointer on a box title, a Settings column heading, a Settings label, an Agents role or a Status label or
+table heading opens a card that says what it is for. The texts live in `hooks/help.ts`, keyed by the label the pane draws; a role's card is its agent file's
+`description:` line, which `adyusuf_config.py agents --json` now carries (additive field `description`), so a role is
+described in one place. The engine's hover reveal does it with no hook: the label joins a hover group, and a hidden row
+of the same group, right after the label's line, opens while the pointer is on it and pushes the rows below down. A
+first version placed the cards absolutely, counted rows to find their place, and drew them last; qa showed that the
+next box painted over a card's last lines and that a wrapped row put cards on the wrong line, so the cards became rows
+in the flow. The card is in its label's group, so the pointer may move onto it; the theme's text colour behind inverse
+text keeps it readable in either theme. Not verified on screen at the time of writing. Not given cards: the Promotion
+branch lines and the `(added)`/`(off)` marks (data, not labels).

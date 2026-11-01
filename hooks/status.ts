@@ -2,6 +2,8 @@
 // `standards/00-working-method.md` §10 asks for in a reply during a long run. Engine-free like boxes.ts, so a test hands in
 // a recording factory. The file is written by scripts/adyusuf_status.py; register.tsx reads it and hands its text here.
 import type { Ui } from './boxes'
+import { helpCard, hoverable } from './controls'
+import { STATUS_HELP } from './help'
 
 type StatusRow = { item: string; state: string; figure: string; waiting: string }
 export type StatusData = { now: string; next: string; rows: StatusRow[]; updated: string }
@@ -80,14 +82,17 @@ export function statusBody(ui: Ui, data: StatusData | null) {
     Math.min(STATUS_COLUMN, Math.max(head.length, ...data.rows.map(row => (fields(row)[at] ?? '').length))) + 1)
   const cellsOf = (texts: string[], bold: boolean) => h(ui.Box, { flexDirection: 'row', columnGap: 1 },
     texts.map((text, at) => h(ui.Box, at < texts.length - 1 ? { width: widths[at], flexShrink: 0 } : { flexGrow: 1 },
-      h(ui.Text, bold ? { bold: true } : at === 0 ? {} : { dimColor: text === '—' || text === '-' }, text))))
+      bold ? hoverable(ui, `status-${text}`, h(ui.Text, { bold: true }, text)) : h(ui.Text, at === 0 ? {} : { dimColor: text === '—' || text === '-' }, text))))
   const said = (title: string, text: string) => (text === ''
     ? null
-    : h(ui.Box, { flexDirection: 'row', columnGap: 1 }, h(ui.Box, { minWidth: 6, flexShrink: 0 }, h(ui.Text, { bold: true }, title)), h(ui.Text, {}, text)))
+    : [h(ui.Box, { flexDirection: 'row', columnGap: 1 },
+      h(ui.Box, { minWidth: 6, flexShrink: 0 }, hoverable(ui, `status-${title}`, h(ui.Text, { bold: true }, title))), h(ui.Text, {}, text)),
+    helpCard(ui, `status-${title}`, STATUS_HELP[title])])
   return h(ui.Box, { flexDirection: 'column' },
     said('Now', data.now),
     said('Next', data.next),
     data.rows.length === 0 ? null : h(ui.Box, { flexDirection: 'column', marginTop: 1 },
       cellsOf(heads, true),
+      heads.map(head => helpCard(ui, `status-${head}`, STATUS_HELP[head])),
       data.rows.map(row => cellsOf(fields(row), false))))
 }

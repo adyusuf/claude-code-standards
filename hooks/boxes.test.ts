@@ -123,8 +123,11 @@ test('an unfolded section shows its body under a header that is the arrow and th
 
 test('a folded section keeps only its header: nothing beside the title, no body', () => {
   const box = section(ui, 'agents', 'Agents', true, () => undefined, 'BODY') as Node
-  expect(reads(box)).toEqual(['▸', 'Agents'])
-  expect(all(box, 'Text').length).toBe(1)
+  // What is drawn: the arrow and the title; the only other Text is the hidden hover card's.
+  const shown = (node: Node): boolean => node.props.display !== 'none' && flat(node.children).every(child => typeof child !== 'object' || child === null || shown(child as Node))
+  expect(all(box, 'Text').filter(node => node.props.color !== 'inverseText').map(words)).toEqual(['Agents'])
+  expect(all(box, 'Box').filter(node => node.props.display === 'none').length).toBe(1)
+  expect(shown(box)).toBe(false)
   expect([box, ...all(box, 'Box')].some(node => flat(node.children).includes('BODY'))).toBe(false)
 })
 

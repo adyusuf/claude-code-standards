@@ -53,7 +53,7 @@ test('the body shows now and next, then the table under its four headings', () =
   expect(all(body, 'Text').find(node => words(node) === '—')!.props.dimColor).toBe(true)
   // A placeholder of either kind is dimmed; a value, and the item column, are not.
   const plain = statusBody(ui, parseStatus(JSON.stringify({ rows: [{ item: '-', state: '-', figure: '12 tests', waiting: 'x' }] })))
-  const cells = all(plain, 'Text').filter(node => !node.props.bold)
+  const cells = all(plain, 'Text').filter(node => !node.props.bold && node.props.color !== 'inverseText')
   expect(cells.map(node => [words(node), node.props.dimColor])).toEqual([['-', undefined], ['-', true], ['12 tests', false], ['x', false]])
 })
 
@@ -69,7 +69,7 @@ test('an empty table, or none, says nothing running', () => {
   expect(words(statusBody(ui, null))).toBe('nothing running')
   expect(words(statusBody(ui, parseStatus('{"now": "", "rows": []}')))).toBe('nothing running')
   const onlyNow = statusBody(ui, parseStatus('{"now": "tests"}'))
-  expect(all(onlyNow, 'Text').map(words)).toEqual(['Now', 'tests'])
+  expect(all(onlyNow, 'Text').filter(node => node.props.color !== 'inverseText').map(words)).toEqual(['Now', 'tests'])
 })
 
 test('the file is untrusted text: control characters go, each field is one capped line, rows are capped at 50', () => {
