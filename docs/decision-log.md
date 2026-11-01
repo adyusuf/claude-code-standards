@@ -1989,3 +1989,7 @@ string, so a project is not broken until its next merge rewrites `.claude/sdlc-s
 - **Pod and agent names (same day).** The Pod option reads `on` (was `connected`). An agent row's head is a one-glyph
   checkbox Button (`☑`/`☐`, its `label` the role name for a reader) and the role name as bold `Text` beside it: the desktop
   draws a Button's text unstyled, so a pressable name could not be bold. The role column keeps one width.
+- **Settings is one table (same day).** The two blocks (*Session settings*, *Claude settings*) become one table: a head
+  row `Session` / `Claude`, then one row per setting: the bold label, this session's options, the saved defaults'
+  options. The Session column is as wide as the widest row's options (each name with its brackets or icon, a gap
+  between), so the Claude column starts at the same place on every row. Keys, presses and layers are unchanged.

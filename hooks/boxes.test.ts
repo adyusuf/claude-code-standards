@@ -106,26 +106,26 @@ test('Settings waits, and says why when the script could not be read', () => {
   expect(words(settingsBody(ui, null, 'script missing', [], () => undefined))).toBe('script missing')
 })
 
-test('Settings draws the session block and the Claude block, one line per row, the second from the saved defaults', () => {
+test('Settings is one table: a label, the options of this session, then those of the saved defaults, under a Session/Claude head', () => {
   const body = settingsBody(ui, data(), '', ['a layer is unreadable'], () => undefined)
   const heads = all(body, 'Text').filter(node => node.props.bold).map(words)
-  expect(heads).toEqual(['Session settings', 'Mode', 'Model', 'Push', 'Claude settings', 'Mode', 'Model', 'Push'])
+  expect(heads).toEqual(['Session', 'Claude', 'Mode', 'Model', 'Push'])
   expect(rows(body)).toEqual([
-    'Mode A [B] C', 'Model opus [sonnet]', 'Push test [prod]',
-    'Mode A B [C]', 'Model [opus] sonnet', 'Push test prod',
+    'Session Claude', 'Mode A [B] C A B [C]', 'Model opus [sonnet] [opus] sonnet', 'Push test [prod] test prod',
   ])
   expect(words(all(body, 'Text').find(node => node.props.color === '#E07B00'))).toBe('! a layer is unreadable')
 })
 
 test('Main model shows keep as opus, because Opus agents then run on the model their file defines', () => {
   const body = settingsBody(ui, data({ values: { mode: 'B', mode_model: 'sonnet' } }), '', [], () => undefined)
-  expect(all(body, 'Button').map(words).slice(3, 5)).toEqual(['opus', '[sonnet]'])
+  expect(all(body, 'Button').filter(node => String(node.props.key).startsWith('session/mode_model=')).map(words)).toEqual(['opus', '[sonnet]'])
   expect(all(body, 'Button').find(node => String(node.props.key) === 'session/mode_model=keep')).toBeDefined()
 })
 
 test('the Claude block is left out until the saved defaults are read', () => {
   const body = settingsBody(ui, data({ saved: undefined }), '', [], () => undefined)
-  expect(all(body, 'Text').filter(node => node.props.bold).map(words)).toEqual(['Session settings', 'Mode', 'Model', 'Push'])
+  expect(all(body, 'Text').filter(node => node.props.bold).map(words)).toEqual(['Session', 'Mode', 'Model', 'Push'])
+  expect(rows(body)).toEqual(['Session', 'Mode A [B] C', 'Model opus [sonnet]', 'Push test [prod]'])
 })
 
 test('a problem is shown in red above the blocks', () => {
@@ -212,9 +212,12 @@ test('the Agents box shows the short role names and keeps the role in the key it
 
 test('options line up: every head column of a block, and of the Agents box, is one width', () => {
   const widths = (body: unknown) => all(body, 'Box').filter(node => node.props.minWidth !== undefined).map(node => node.props.minWidth)
-  const settings = widths(settingsBody(ui, data(), '', [], () => undefined))
-  expect(new Set(settings).size).toBe(1)
-  expect(settings[0]).toBe('Coverage'.length + 2)
+  const body = settingsBody(ui, data(), '', [], () => undefined)
+  const lines = all(body, 'Box').filter(node => node.props.flexDirection === 'row' && (flat(node.children)[0] as Node).props?.minWidth !== undefined)
+  // Each line: the label column, then the Session column (sized to the widest row's options), then Claude.
+  expect(lines.map(node => flat(node.children).map(child => (child as Node).props.minWidth))).toEqual(
+    lines.map(() => ['Coverage'.length + 2, 'opus'.length + 'sonnet'.length + 4 + 1 + 2, undefined]))
+  expect(widths(body).length).toBe(lines.length * 2)
   const agents = widths(agentsBody(ui, data(), () => undefined))
   expect(new Set(agents).size).toBe(1)
   expect(agents[0]).toBe('security (added)'.length + 3)
@@ -222,7 +225,7 @@ test('options line up: every head column of a block, and of the Agents box, is o
 
 test('on a surface with Svg each option has a radio or checkbox icon and no brackets', () => {
   expect(rows(settingsBody(desktop, data({ saved: undefined }), '', [], () => undefined))).toEqual([
-    'Mode ○ A ● B ○ C', 'Model ○ opus ● sonnet', 'Push ☐ test ☑ prod',
+    'Session', 'Mode ○ A ● B ○ C', 'Model ○ opus ● sonnet', 'Push ☐ test ☑ prod',
   ])
   const icons = all(settingsBody(desktop, data({ saved: undefined }), '', [], () => undefined), 'Svg')
   expect(icons.every(node => String(node.props.source).startsWith('<svg') && node.props.width === 16)).toBe(true)
@@ -230,11 +233,9 @@ test('on a surface with Svg each option has a radio or checkbox icon and no brac
   expect(all(agentsBody(desktop, data(), () => undefined), 'Svg').length).toBe(10)
 })
 
-test('a box body, a settings block and a promotion stage start one step in', () => {
+test('a box body and the lines of a promotion stage start one step in', () => {
   const box = section(ui, 'settings', 'Settings', '', false, () => undefined, 'BODY') as Node
   expect(all(box, 'Box').find(node => flat(node.children).includes('BODY'))!.props.marginLeft).toBe(2)
-  const body = settingsBody(ui, data({ saved: undefined }), '', [], () => undefined)
-  expect(all(body, 'Box').filter(node => node.props.marginLeft === 2).length).toBe(1)
   const promo = promotionBody(ui, { stages: [{ branch: 'dev', origin: 'aaa', unpushed: 0, waived: ['x'] }] })
   expect(words(all(promo, 'Box').find(node => node.props.marginLeft === 2))).toBe('waived x')
   expect(all(promo, 'Text').find(node => words(node) === 'waived x')!.props.color).toBe('#E07B00')
@@ -289,7 +290,7 @@ test('"After pushing update:" is a checkbox line of test and prod, each ticked o
   const calls: string[][] = []
   const body = settingsBody(ui, data({ schema, values: { mode: 'B', mode_model: 'sonnet', 'deploy_after_push.test': true, 'deploy_after_push.prod': false } }), '', [], (key, value, scope) => { calls.push([key, value, String(scope)]) })
   const lines = rows(body)
-  expect(lines).toContain('Deploy [test] prod')
+  expect(lines).toContain('Deploy [test] prod test prod')
   const buttons = all(body, 'Button').filter(node => String(node.props.key).includes('deploy_after_push.'))
   buttons.forEach(node => node.props.onPress())
   // Both blocks draw the two boxes (session first, then the saved defaults, where neither is ticked): each press
