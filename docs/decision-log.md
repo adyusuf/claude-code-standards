@@ -1993,3 +1993,5 @@ string, so a project is not broken until its next merge rewrites `.claude/sdlc-s
   row `Session` / `Claude`, then one row per setting: the bold label, this session's options, the saved defaults'
   options. The Session column is as wide as the widest row's options (each name with its brackets or icon, a gap
   between), so the Claude column starts at the same place on every row. Keys, presses and layers are unchanged.
+- **No space after an icon (same day).** The radio/checkbox images are exactly 12 × 12 px (were 16 wide with 4 px of empty
+  margin, which read as a space), and the agent head draws `☑` and the bold name with no gap between them.
