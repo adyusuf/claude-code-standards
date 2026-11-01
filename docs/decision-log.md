@@ -2001,3 +2001,5 @@ string, so a project is not broken until its next merge rewrites `.claude/sdlc-s
 - **Agent rows read like settings rows (same day).** The bold role name is the row label, then an `on` checkbox (the same
   blue/grey 12 px icon, or `[on]`, as Settings), then the model radios; the `▣`/`□` characters are gone. The `on` column has
   one width, so the model radios line up.
+- **The resolved model is marked (same day).** With `default` chosen, the model it resolves to gets the filled radio (or
+  brackets) too, not only full strength: the model a role runs on is visible at a glance. Supersedes "lit but not marked".

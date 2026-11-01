@@ -576,7 +576,7 @@ load mods, the command falls back to printing the same settings as a table and p
   name. The five that are off (`data`, `observability`, `security`, `coverage`, `e2e`) belong to mode D; ticking its
   `on` adds it to this session and marks it `(added)`. The radio options after a role pick its model: `default` (the model
   its file and *Model* give it), or a pinned `opus`, `sonnet`, `haiku` or `fable`. With `default` chosen, the model it
-  resolves to is at full strength too, so `doc` shows `[default]` and a bright `haiku`. In the screenshot `qa` is
+  resolves to is marked too, so `doc` shows both `default` and `haiku` selected. In the screenshot `qa` is
   pinned to `opus`.
 - **Promotion — "dev e024c91c · test e980afdf · prod 465a022b".** One block per `dev`/`test`/`prod` branch of the
   repository the session is in: the commit `origin` holds, then `pushed` or `N not pushed`. Below it, any

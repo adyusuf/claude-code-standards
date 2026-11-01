@@ -173,20 +173,20 @@ test('Agents waits until the configuration is read', () => {
 test('Agents puts each role on one line with its state and, for the active ones, the model choice', () => {
   const body = agentsBody(ui, data(), () => undefined)
   expect(rows(body)).toEqual([
-    'analyst [on] [default] opus sonnet haiku fable',
+    'analyst [on] [default] opus [sonnet] haiku fable',
     'qa on',
-    'security (added) [on] [default] opus sonnet haiku fable',
+    'security (added) [on] [default] opus [sonnet] haiku fable',
   ])
   const models = all(body, 'Button').filter(node => String(node.props.key).includes('.model='))
   expect(models.map(node => node.props.key).filter(key => String(key).endsWith('=default'))).toEqual(['agents.analyst.model=default', 'agents.security.model=default'])
 })
 
-test('a pinned model is the only one lit; with default, the model it resolves to is lit too but not marked chosen', () => {
+test('a pinned model is the only one marked; with default, the model it resolves to is marked too', () => {
   const body = agentsBody(ui, data({ agents: [
     agent('qa', { active: true, in_mode: true, model: 'opus', runs_on: 'opus' }),
     agent('doc-writer', { active: true, in_mode: true, runs_on: 'haiku' }),
   ] }), () => undefined)
-  expect(rows(body)).toEqual(['qa [on] default [opus] sonnet haiku fable', 'doc [on] [default] opus sonnet haiku fable'])
+  expect(rows(body)).toEqual(['qa [on] default [opus] sonnet haiku fable', 'doc [on] [default] opus sonnet [haiku] fable'])
   const lit = all(body, 'Button').filter(node => node.props.dimColor === false).map(node => String(node.props.key))
   expect(lit).toEqual(['on-qa', 'agents.qa.model=opus', 'on-doc-writer', 'agents.doc-writer.model=default', 'agents.doc-writer.model=haiku'])
 })
@@ -233,7 +233,7 @@ test('on a surface with Svg each option has a radio or checkbox icon and no brac
   const icons = all(settingsBody(desktop, data({ saved: undefined }), '', [], () => undefined), 'Svg')
   expect(icons.every(node => String(node.props.source).startsWith('<svg') && node.props.width === 12 && node.props.height === 12)).toBe(true)
   expect(icons.every(node => String(node.props.source).includes('width="12" height="12" viewBox="0 0 12 12"'))).toBe(true)
-  expect(rows(agentsBody(desktop, data(), () => undefined))[0]).toBe('analyst ☑ on ● default ○ opus ○ sonnet ○ haiku ○ fable')
+  expect(rows(agentsBody(desktop, data(), () => undefined))[0]).toBe('analyst ☑ on ● default ○ opus ● sonnet ○ haiku ○ fable')
   expect(all(agentsBody(desktop, data(), () => undefined), 'Svg').length).toBe(13)
 })
 
