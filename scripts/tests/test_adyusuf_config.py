@@ -492,6 +492,7 @@ class Notify(Tool):
         self.assertIn('push.prod: yes -> no', text)
         self.assertIn('agents.qa.model: default -> haiku', text)
         self.assertIn('NEXT task', text)                       # applies from the next task...
+        self.assertIn('Reply length is the exception: it applies from your next reply.', text)
         self.assertIn('do not restart or split', text)         # ...and never splits the one running
         self.assertIn('qa (haiku)', text)                      # the new effective picture is attached
         self.assertIsNone(self.hook(event='PostToolUse'))      # once
