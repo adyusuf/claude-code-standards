@@ -16,13 +16,29 @@ function all(node: unknown, type: string): Node[] {
   const here = one.type === type ? [one] : []
   return here.concat(...flat(one.children).map(child => all(child, type)))
 }
-// A pressable part drawn at full strength (not dimmed) reads `_name_`, so an expectation shows what the pane marks as chosen.
 function words(node: unknown): string {
   if (typeof node === 'string') return node
   if (typeof node !== 'object' || node === null) return ''
-  const text = flat((node as Node).children).map(words).join('')
-  return (node as Node).props.dimColor === false ? `_${text}_` : text
+  return flat((node as Node).children).map(words).join('')
 }
+// What a person reads on one line, in order: each Button and each Text outside one, an icon as ● ○ ☑ ☐.
+function reads(node: unknown): string[] {
+  if (typeof node !== 'object' || node === null) return typeof node === 'string' && node !== '' ? [node] : []
+  const one = node as Node
+  if (one.type === 'Button' || one.type === 'Text') return [words(one)]
+  if (one.type === 'Svg') {
+    const on = String(one.props.alt).endsWith(', chosen')
+    return [String(one.props.source).includes('<circle') ? (on ? '●' : '○') : (on ? '☑' : '☐')]
+  }
+  return flat(one.children).flatMap(reads)
+}
+// The lines of a body: a row Box whose first child is the head column (a Box with a minWidth).
+function rows(body: unknown): string[] {
+  return all(body, 'Box')
+    .filter(node => node.props.flexDirection === 'row' && (flat(node.children)[0] as Node | undefined)?.props?.minWidth !== undefined)
+    .map(node => reads(node).join(' '))
+}
+const desktop = { ...ui, Svg: 'Svg' }
 
 const SCHEMA = [
   { key: 'mode', type: 'enum' as const, label: 'Working mode', group: 'Session', options: ['A', 'B', 'C'] },
@@ -56,13 +72,13 @@ test('an unfolded section shows its body under a header that names it and says w
   const header = all(box, 'Button')[0]
   expect(header.props.key).toBe('fold-settings')
   expect(words(header)).toBe('▾ Settings  2 changed')
-  expect(flat(box.children).includes('BODY')).toBe(true)
+  expect([box, ...all(box, 'Box')].some(node => flat(node.children).includes('BODY'))).toBe(true)
 })
 
 test('a folded section keeps its header and its summary and hides the body', () => {
   const box = section(ui, 'agents', 'Agents', 'mode B', true, () => undefined, 'BODY') as Node
   expect(words(all(box, 'Button')[0])).toBe('▸ Agents  mode B')
-  expect(flat(box.children).includes('BODY')).toBe(false)
+  expect([box, ...all(box, 'Box')].some(node => flat(node.children).includes('BODY'))).toBe(false)
 })
 
 test('a header without a summary draws no empty summary text, and pressing it folds or unfolds', () => {
@@ -94,17 +110,16 @@ test('Settings draws the session block and the Claude block, one line per row, t
   const body = settingsBody(ui, data(), '', ['a layer is unreadable'], () => undefined)
   const heads = all(body, 'Text').filter(node => node.props.bold).map(words)
   expect(heads).toEqual(['Session settings', 'Mode', 'Model', 'Push', 'Claude settings', 'Mode', 'Model', 'Push'])
-  const lines = all(body, 'Box').filter(node => node.props.flexDirection === 'row').map(node => flat(node.children).map(words).join(' '))
-  expect(lines).toEqual([
-    'Mode A _B_ C', 'Model opus _sonnet_', 'Push test _prod_',
-    'Mode A B _C_', 'Model _opus_ sonnet', 'Push test prod',
+  expect(rows(body)).toEqual([
+    'Mode A [B] C', 'Model opus [sonnet]', 'Push test [prod]',
+    'Mode A B [C]', 'Model [opus] sonnet', 'Push test prod',
   ])
-  expect(words(all(body, 'Text').find(node => node.props.color === 'yellow'))).toBe('! a layer is unreadable')
+  expect(words(all(body, 'Text').find(node => node.props.color === '#E07B00'))).toBe('! a layer is unreadable')
 })
 
 test('Main model shows keep as opus, because Opus agents then run on the model their file defines', () => {
   const body = settingsBody(ui, data({ values: { mode: 'B', mode_model: 'sonnet' } }), '', [], () => undefined)
-  expect(all(body, 'Button').map(words).slice(3, 5)).toEqual(['opus', '_sonnet_'])
+  expect(all(body, 'Button').map(words).slice(3, 5)).toEqual(['opus', '[sonnet]'])
   expect(all(body, 'Button').find(node => String(node.props.key) === 'session/mode_model=keep')).toBeDefined()
 })
 
@@ -124,8 +139,8 @@ test('a setting no row names is still drawn, so a newer plugin never hides one',
   const values = { mode: 'B', mode_model: 'sonnet', 'future.flag': true, 'future.kind': 'y' }
   const body = settingsBody(ui, data({ schema, values }), '', [], () => undefined)
   const buttons = all(body, 'Button').map(words)
-  expect(buttons.includes('_Future flag_')).toBe(true)
-  expect(buttons.includes('x') && buttons.includes('_y_')).toBe(true)
+  expect(buttons.includes('[Future flag]')).toBe(true)
+  expect(buttons.includes('x') && buttons.includes('[y]')).toBe(true)
   expect(all(body, 'Text').map(words).includes('Future kind')).toBe(true)
 })
 
@@ -157,23 +172,61 @@ test('Agents waits until the configuration is read', () => {
 
 test('Agents puts each role on one line with its state and, for the active ones, the model choice', () => {
   const body = agentsBody(ui, data(), () => undefined)
-  const lines = all(body, 'Box').filter(node => node.props.flexDirection === 'row').map(node => flat(node.children).map(words).join(' '))
-  expect(lines).toEqual([
-    '_analyst_ _default_ opus _sonnet_ haiku fable',
+  expect(rows(body)).toEqual([
+    '[analyst] [default] opus sonnet haiku fable',
     'qa',
-    '_security (added)_ _default_ opus _sonnet_ haiku fable',
+    '[security (added)] [default] opus sonnet haiku fable',
   ])
   const models = all(body, 'Button').filter(node => String(node.props.key).includes('.model='))
   expect(models.map(node => node.props.key).filter(key => String(key).endsWith('=default'))).toEqual(['agents.analyst.model=default', 'agents.security.model=default'])
 })
 
-test('a pinned model is the only one at full strength; with default, the model it resolves to is at full strength too', () => {
+test('a pinned model is the only one lit; with default, the model it resolves to is lit too but not marked chosen', () => {
   const body = agentsBody(ui, data({ agents: [
     agent('qa', { active: true, in_mode: true, model: 'opus', runs_on: 'opus' }),
     agent('doc-writer', { active: true, in_mode: true, runs_on: 'haiku' }),
   ] }), () => undefined)
-  const lines = all(body, 'Box').filter(node => node.props.flexDirection === 'row').map(node => flat(node.children).map(words).join(' '))
-  expect(lines).toEqual(['_qa_ default _opus_ sonnet haiku fable', '_doc-writer_ _default_ opus sonnet _haiku_ fable'])
+  expect(rows(body)).toEqual(['[qa] default [opus] sonnet haiku fable', '[doc] [default] opus sonnet haiku fable'])
+  const lit = all(body, 'Button').filter(node => node.props.dimColor === false).map(node => String(node.props.key))
+  expect(lit).toEqual(['on-qa', 'agents.qa.model=opus', 'on-doc-writer', 'agents.doc-writer.model=default', 'agents.doc-writer.model=haiku'])
+})
+
+test('the Agents box shows the short role names and keeps the role in the key it writes', () => {
+  const roles = ['product-manager', 'test-writer', 'doc-writer', 'coverage-auditor', 'e2e-writer', 'analyst']
+  const calls: string[][] = []
+  const body = agentsBody(ui, data({ agents: roles.map(role => agent(role)) }), (key, value) => { calls.push([key, value]) })
+  expect(rows(body)).toEqual(['product', 'tester', 'doc', 'coverage', 'e2e', 'analyst'])
+  all(body, 'Button')[0].props.onPress()
+  expect(calls).toEqual([['agents.product-manager.enabled', 'on']])
+})
+
+test('options line up: every head column of a block, and of the Agents box, is one width', () => {
+  const widths = (body: unknown) => all(body, 'Box').filter(node => node.props.minWidth !== undefined).map(node => node.props.minWidth)
+  const settings = widths(settingsBody(ui, data(), '', [], () => undefined))
+  expect(new Set(settings).size).toBe(1)
+  expect(settings[0]).toBe('Coverage'.length + 2)
+  const agents = widths(agentsBody(ui, data(), () => undefined))
+  expect(new Set(agents).size).toBe(1)
+  expect(agents[0]).toBe('security (added)'.length + 3)
+})
+
+test('on a surface with Svg each option has a radio or checkbox icon and no brackets', () => {
+  expect(rows(settingsBody(desktop, data({ saved: undefined }), '', [], () => undefined))).toEqual([
+    'Mode ○ A ● B ○ C', 'Model ○ opus ● sonnet', 'Push ☐ test ☑ prod',
+  ])
+  const icons = all(settingsBody(desktop, data({ saved: undefined }), '', [], () => undefined), 'Svg')
+  expect(icons.every(node => String(node.props.source).startsWith('<svg') && node.props.width === 16)).toBe(true)
+  expect(rows(agentsBody(desktop, data(), () => undefined))[0]).toBe('☑ analyst ● default ○ opus ○ sonnet ○ haiku ○ fable')
+})
+
+test('a box body, a settings block and a promotion stage start one step in', () => {
+  const box = section(ui, 'settings', 'Settings', '', false, () => undefined, 'BODY') as Node
+  expect(all(box, 'Box').find(node => flat(node.children).includes('BODY'))!.props.marginLeft).toBe(2)
+  const body = settingsBody(ui, data({ saved: undefined }), '', [], () => undefined)
+  expect(all(body, 'Box').filter(node => node.props.marginLeft === 2).length).toBe(1)
+  const promo = promotionBody(ui, { stages: [{ branch: 'dev', origin: 'aaa', unpushed: 0, waived: ['x'] }] })
+  expect(words(all(promo, 'Box').find(node => node.props.marginLeft === 2))).toBe('waived x')
+  expect(all(promo, 'Text').find(node => words(node) === 'waived x')!.props.color).toBe('#E07B00')
 })
 
 test('an agent of the mode that is switched off says so', () => {
@@ -223,8 +276,8 @@ test('"After pushing update:" is a checkbox line of test and prod, each ticked o
   ]
   const calls: string[][] = []
   const body = settingsBody(ui, data({ schema, values: { mode: 'B', mode_model: 'sonnet', 'deploy_after_push.test': true, 'deploy_after_push.prod': false } }), '', [], (key, value, scope) => { calls.push([key, value, String(scope)]) })
-  const lines = all(body, 'Box').filter(node => node.props.flexDirection === 'row').map(node => flat(node.children).map(words).join(' '))
-  expect(lines).toContain('Deploy _test_ prod')
+  const lines = rows(body)
+  expect(lines).toContain('Deploy [test] prod')
   const buttons = all(body, 'Button').filter(node => String(node.props.key).includes('deploy_after_push.'))
   buttons.forEach(node => node.props.onPress())
   // Both blocks draw the two boxes (session first, then the saved defaults, where neither is ticked): each press
@@ -246,10 +299,10 @@ test('labels are short with no trailing colon, and Runner shows cloud/local whil
   const calls: string[][] = []
   const values = { mode: 'B', mode_model: 'sonnet', 'ci.runner': 'self-hosted', 'pod.connect': true, 'write.unit_tests': true, 'write.e2e': false }
   const body = settingsBody(ui, data({ schema, values, saved: undefined }), '', [], (key, value) => { calls.push([key, value]) })
-  const lines = all(body, 'Box').filter(node => node.props.flexDirection === 'row').map(node => flat(node.children).map(words).join(' '))
-  expect(lines).toContain('Runner cloud _local_')
-  expect(lines).toContain('Pod _connected_')
-  expect(lines).toContain('Tests _unit_ e2e')
+  const lines = rows(body)
+  expect(lines).toContain('Runner cloud [local]')
+  expect(lines).toContain('Pod [connected]')
+  expect(lines).toContain('Tests [unit] e2e')
   expect(lines.filter(text => text.split(' ')[0].endsWith(':'))).toEqual([])
   all(body, 'Button').find(node => node.props.key === 'session/ci.runner=hosted')!.props.onPress()
   expect(calls).toEqual([['ci.runner', 'hosted']])
