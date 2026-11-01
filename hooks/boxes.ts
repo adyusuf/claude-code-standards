@@ -41,7 +41,8 @@ const ROLE_NAMES: Record<string, string> = {
 }
 const ICON_ON = '#378ADD'
 const ICON_OFF = '#888780'
-const svg = (body: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="12" viewBox="0 0 16 12">${body}</svg>`
+// Exactly the shape's size: an empty margin inside the image read as a space after the icon (user decision 01/11/2026).
+const svg = (body: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">${body}</svg>`
 const ICONS = {
   radio: {
     on: svg(`<circle cx="6" cy="6" r="5" fill="none" stroke="${ICON_ON}" stroke-width="1.2"/><circle cx="6" cy="6" r="2.5" fill="${ICON_ON}"/>`),
@@ -103,7 +104,7 @@ function option(ui: Ui, key: string, text: string, kind: Kind, chosen: boolean, 
   const button = h(ui.Button, { key, plain: true, dimColor: !lit, onPress }, ui.Svg || !chosen ? text : `[${text}]`)
   if (!ui.Svg) return button
   return h(ui.Box, { flexDirection: 'row', alignItems: 'center' },
-    h(ui.Svg, { source: ICONS[kind][chosen ? 'on' : 'off'], alt: chosen ? `${text}, chosen` : text, width: 16, height: 12 }), button)
+    h(ui.Svg, { source: ICONS[kind][chosen ? 'on' : 'off'], alt: chosen ? `${text}, chosen` : text, width: 12, height: 12 }), button)
 }
 
 /** The options of one setting, the chosen one marked. */
@@ -227,7 +228,7 @@ export function agentsBody(ui: Ui, data: SettingsData | null, press: Press) {
   const width = Math.max(0, ...data.agents.map(agent => name(agent).length)) + 3
   // The head is a one-glyph checkbox Button and the name as bold Text beside it: a Button draws its text unstyled on the
   // desktop, so a pressable name could not be bold (user decision 01/11/2026).
-  const head = (agent: AgentRow) => h(ui.Box, { flexDirection: 'row', columnGap: 1 },
+  const head = (agent: AgentRow) => h(ui.Box, { flexDirection: 'row' },
     h(ui.Button, {
       // No `label`: the desktop draws a Button's label in place of its children, which showed the name twice.
       key: `on-${agent.role}`, plain: true, dimColor: !agent.active,
