@@ -86,8 +86,9 @@ Take the smallest amount that is useful; each step works on its own.
 2. **Take the five rules** above.
 3. **Take the standards for your stack:** the files in `standards/` read independently. Keep the rule numbers if you
    edit; everything cross-references by number.
-4. **Install the plugin** (above). `/adyusuf:config` and the `adyusuf` pane set the mode, the models and what Claude
-   merges and pushes without asking ([`hooks/README.md`](hooks/README.md)).
+4. **Install the plugin** (above). `/adyusuf:config` and the `adyusuf` pane set the mode, the models, how much Claude
+   writes and what it merges and pushes without asking; resting the pointer on a label explains it. Outside a git
+   repository the pane shows only Status and Replies ([`hooks/README.md`](hooks/README.md)).
 5. **Put the gate in a project:** [`scripts/README.md`](scripts/README.md#putting-the-gate-in-a-project-of-your-own).
 
 How I run it myself: the installed plugin is a copy of `prod`, never edited in place. Work happens on a `dev` worktree
