@@ -569,7 +569,7 @@ load mods, the command falls back to printing the same settings as a table and p
   is also written into the conversation. Each line says which layer changed (*this session* or *saved defaults*), the
   key with its old → new value, and the rules it touches. The screenshot shows *Model* (`mode_model`) switched back
   and forth between `keep` and `sonnet`.
-- **Agents — "mode C".** One line per role: a `☑`/`☐` checkbox you press to switch it on or off, then its name in bold
+- **Agents — "mode C".** One line per role: a `▣`/`□` checkbox you press to switch it on or off, then its name in bold
   (a pressable name could not be bold: the desktop draws a button's text unstyled); the nine on in the screenshot are
   mode C's team. Five roles show a short name: `product` (product-manager), `tester` (test-writer), `doc`
   (doc-writer), `coverage` (coverage-auditor) and `e2e` (e2e-writer); the agents and their settings keys keep the full
