@@ -2107,3 +2107,12 @@ still gets tests (#8) and the mode's review (qa, same day: a boundary of "a file
 memory and Status writes in `~/.claude` as repository work). The rule is in
 `standards/13-pr-and-review.md` §8a, the modes' "rules outside the mode", the Settings box's hover card, and the
 session-start settings block, which Claude reads every session.
+
+**The pane follows it (01/11/2026, user decision).** In a session whose folder is in no git repository, the `adyusuf`
+pane shows only Status and Settings, and Settings only *Replies*, with a faded line saying why; Agents and Promotion are
+left out. The signal is the engine's `session.repo()` answering null, which marks the folder `outside` (an additive
+field); any other git failure is shown as a Promotion error and hides nothing (qa, same day: reading every non-zero
+`git` exit as "outside" would have hidden the boxes on a dubious-ownership error). Inside a repository the pane cannot
+tell a question from code work, so every box shows there and the rule above is followed by Claude, not by the pane.
+Code written outside a repository still follows the mode and tests settings (§8a); the pane just does not show them
+there, and they are changed with `/adyusuf:config`.

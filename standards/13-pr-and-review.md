@@ -192,6 +192,9 @@ Status file, the settings and session layers, `.claude/mode`, the scratchpad.
   files, every setting applies from that point (#26 first: fetch `dev`, branch).
 - Code written outside any repository is still code work for #8 (tests) and the mode's review; only the repository
   steps have nothing to act on.
+- The pane cannot see the task, only the folder: outside every git repository it shows only Status and *Replies*
+  (user decision 01/11/2026), so the mode and tests settings that still hold for code written there are changed with
+  `/adyusuf:config`. Inside a repository it shows everything, and the class above is Claude's to follow.
 
 **Read the panel, then act at once (user decision 01/11/2026).** When a piece of work is done, Claude reads the settings
 afresh (`adyusuf_config.py show --session <id>`, this session's layer included; the panel may have changed since the

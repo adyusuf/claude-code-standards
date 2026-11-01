@@ -23,7 +23,8 @@ export type Settings = {
   agents: AgentRow[]
 }
 export type Stage = { branch: string; origin: string; unpushed: number; waived: string[] }
-export type Promotion = { stages: Stage[]; error?: string }
+/** `outside`: the session's folder is in no git repository, so no code work happens there (additive, 01/11/2026). */
+export type Promotion = { stages: Stage[]; error?: string; outside?: boolean }
 /** One row of the session's status table: what it is, where it stands, the measured figure with its signal, what it waits on. */
 export type StatusRow = { item: string; state: string; figure: string; waiting: string }
 /** The session's status table (scripts/adyusuf_status.py writes it): what runs now, what runs next, the rows. */

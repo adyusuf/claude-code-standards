@@ -26,10 +26,25 @@ type AgentRow = {
 type Layer = { values: Record<string, boolean | string>; sources: Record<string, string> }
 type SettingsData = Layer & { schema: Spec[]; saved?: Layer; agents: AgentRow[] }
 type Stage = { branch: string; origin: string; unpushed: number; waived: string[] }
-type PromotionData = { stages: Stage[]; error?: string }
+type PromotionData = { stages: Stage[]; error?: string; outside?: boolean }
 
 export const SECTIONS = ['status', 'settings', 'agents', 'promotion'] as const
 export type SectionId = (typeof SECTIONS)[number]
+
+/**
+ * What the pane shows. Outside a git repository the session is taken as no-code work: only Status and Settings, and
+ * Settings only Replies (user decision 01/11/2026; standards/13 §8a). Until the folder is read, and inside a repository,
+ * everything shows; a git failure that is not "outside" leaves `outside` unset, so it hides nothing.
+ */
+export function paneFor(promotion: PromotionData | null): { sections: SectionId[]; codeWork: boolean } {
+  const outside = promotion?.outside === true
+  return { sections: outside ? ['status', 'settings'] : [...SECTIONS], codeWork: !outside }
+}
+
+/** Whether the session's folder is outside every git repository: the engine's `session.repo()` answers null. */
+export const outsideRepository = (repo: unknown) => repo === null
+/** The one setting a task with no code uses. */
+const NO_CODE_ROWS = ['Replies']
 
 /**
  * What starts folded, so the pane opens as a short card and not as one long list: two boxes, and the System column of
@@ -179,9 +194,9 @@ export function section(ui: Ui, id: SectionId, title: string, folded: boolean, t
  * only the arrow pressable: the desktop draws a Button as a native button, which drops the bold and pads the text out of
  * line with the column. The fold keeps its first id, `claude`, so a saved fold state still applies.
  */
-function table(ui: Ui, data: SettingsData, press: Press, claude: ColumnFold) {
+function table(ui: Ui, data: SettingsData, press: Press, claude: ColumnFold, codeWork: boolean) {
   const { h } = ui
-  const lines = settingLines(ui, data.schema, press)
+  const lines = settingLines(ui, data.schema, press).filter(one => codeWork || NO_CODE_ROWS.includes(one.label))
   const width = Math.max(0, ...lines.map(one => cells(one.names))) + 2
   const head = headWidth(data)
   const saved = data.saved && !claude.folded ? [['saved', data.saved] as [Scope, Layer]] : []
@@ -206,7 +221,8 @@ function table(ui: Ui, data: SettingsData, press: Press, claude: ColumnFold) {
 
 const OPEN: ColumnFold = { folded: false, toggle: () => undefined }
 
-export function settingsBody(ui: Ui, data: SettingsData | null, problem: string, problems: string[], press: Press, claude = OPEN) {
+export function settingsBody(ui: Ui, data: SettingsData | null, problem: string, problems: string[], press: Press, claude = OPEN,
+  codeWork = true) {
   const { h } = ui
   if (!data) return h(ui.Text, { dimColor: true }, problem || 'Reading the configuration…')
   return h(
@@ -214,7 +230,8 @@ export function settingsBody(ui: Ui, data: SettingsData | null, problem: string,
     { flexDirection: 'column' },
     problem !== '' ? h(ui.Text, { color: 'red' }, problem) : null,
     problems.map(line => h(ui.Text, { color: WARN }, `! ${line}`)),
-    table(ui, data, press, claude),
+    codeWork ? null : h(ui.Text, { dimColor: true }, 'No repository here: only Replies shows. Change the rest with /adyusuf:config.'),
+    table(ui, data, press, claude, codeWork),
   )
 }
 
