@@ -74,7 +74,7 @@ reopening them.
     `Gate-Waived` on the merge commit.
   - *Runner* (`cloud` = GitHub's runners, `local` = this machine's), *Deploy* (which environments a pushed update is
     deployed to) and *E2E* (run e2e before that deploy; rule #33).
-- **Agents.** One line per role: a ☑/☐ checkbox that switches the role on or off, the role's name (bold while it runs),
+- **Agents.** One line per role: the role's checkbox and name (pressing either switches the role on or off),
   then the model as one radio group (`opus`, `sonnet`, `haiku`, `fable`). The chosen radio is always the model the role
   runs on. Choosing the model its file and *Model\** give it writes `default`; choosing any other pins it. A `*` after
   the name marks a role whose file says opus, the roles *Model\** acts on. The name column has the same width as the
@@ -85,8 +85,8 @@ reopening them.
   `origin` holds, then `pushed` or `N not pushed`, and below it any `Gate-Waived` line on the commits waiting to come in
   from the stage before it; *no waived gate on the way in* means none.
 - **Colours.** Red: the configuration could not be read. Orange: a settings file that could not be read, or a waived
-  gate. Faded: waiting lines and options that are not chosen. Bold: titles, row labels and the roles that run. On the desktop a
-  chosen option has a filled radio or checkbox icon (an Agents role uses a ☑/☐ glyph on both surfaces); the terminal, which cannot draw SVG, shows it as `[C]`, `[dev]`.
+  gate. Faded: waiting lines and options that are not chosen. Bold: titles and row labels. On the desktop a
+  chosen option has a filled radio or checkbox icon; the terminal, which cannot draw SVG, shows it as `[C]`, `[dev]`.
 
 ## What runs only when you call it
 
