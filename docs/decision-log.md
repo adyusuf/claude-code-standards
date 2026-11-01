@@ -1987,7 +1987,7 @@ string, so a project is not broken until its next merge rewrites `.claude/sdlc-s
 - **Orange instead of yellow** for the two warnings (an unreadable settings file, a waived gate): hex `#E07B00`, because
   the terminal's colour names do not include orange.
 - **Pod and agent names (same day).** The Pod option reads `on` (was `connected`). An agent row's head is a one-glyph
-  checkbox Button (`☑`/`☐`, its `label` the role name for a reader) and the role name as bold `Text` beside it: the desktop
+  checkbox Button (`☑`/`☐`, no `label`: the desktop draws a label in place of the children, which showed the name twice) and the role name as bold `Text` beside it: the desktop
   draws a Button's text unstyled, so a pressable name could not be bold. The role column keeps one width.
 - **Settings is one table (same day).** The two blocks (*Session settings*, *Claude settings*) become one table: a head
   row `Session` / `Claude`, then one row per setting: the bold label, this session's options, the saved defaults'
