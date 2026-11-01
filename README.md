@@ -548,8 +548,9 @@ load mods, the command falls back to printing the same settings as a table and p
 - **Settings — "2 changed in this session".** Two blocks with the same rows. **Session settings** is what this session
   runs on; a click there changes this session only. **Claude settings** are the saved defaults in
   `~/.claude/adyusuf.json`, which every new session starts from; a click there changes the defaults. The summary
-  counts the settings this session has changed away from its defaults. Each row is one setting: its label, then its
-  options. The chosen option, or a yes/no that is on, is **underlined**; pressing another option chooses it, pressing
+  counts the settings this session has changed away from its defaults. Each row is one setting: its label in bold, then
+  its options. The chosen option, or a yes/no that is on, is drawn at full strength and the rest are faded; pressing
+  another option chooses it, pressing
   a yes/no turns it the other way.
   - *Mode* A–E (here C, the full team; rule #27) and *Model*, the model that replaces Opus in the Opus agents (here
     sonnet).
@@ -565,12 +566,12 @@ load mods, the command falls back to printing the same settings as a table and p
   is also written into the conversation. Each line says which layer changed (*this session* or *saved defaults*), the
   key with its old → new value, and the rules it touches. The screenshot shows *Model* (`mode_model`) switched back
   and forth between `keep` and `sonnet`.
-- **Agents — "mode C".** One line per role. An underlined role is on; the nine on in the screenshot are mode C's team.
+- **Agents — "mode C".** One line per role. A role at full strength is on; the nine on in the screenshot are mode C's team.
   The five that are off (`data`, `observability`, `security`, `coverage-auditor`, `e2e-writer`) belong to mode D;
   pressing one adds it to this session and marks it `(added)`. The options after a role pick its model: `default`
   (the model its file and *Model* give it), or a pinned `opus`, `sonnet`, `haiku` or `fable`. The choice is
-  underlined; with `default` the model it resolves to is underlined as well, so `doc-writer` shows `default` and
-  `haiku` underlined. In the screenshot `qa` is pinned to `opus`.
+  at full strength; with `default` the model it resolves to is at full strength as well, so `doc-writer` shows `default`
+  and `haiku` bright. In the screenshot `qa` is pinned to `opus`.
 - **Promotion — "dev e024c91c · test e980afdf · prod 465a022b".** One block per `dev`/`test`/`prod` branch of the
   repository the session is in: the commit `origin` holds, then `pushed` or `N not pushed`. Below it, any
   `Gate-Waived` line on the commits waiting to come in from the stage before it (for `test`, what `origin/dev` has and
@@ -578,7 +579,7 @@ load mods, the command falls back to printing the same settings as a table and p
 
 The screenshot shows the pane before three changes. On 30/10/2026 *Deploy* became two checkboxes (test, prod) instead
 of a radio, and Settings gained a *Coverage* row per target (rule #29). On 01/11/2026 the `(•)`/`[x]` markers gave way
-to underlining, the labels were shortened (*Working mode* → *Mode*, *Run gates before pushing* → *Gates*, *CI runner*
+to fading the options that are not chosen, the labels were made bold and shortened (*Working mode* → *Mode*, *Run gates before pushing* → *Gates*, *CI runner*
 → *Runner* with `cloud`/`local`, …), and an agent's first option reads `default` instead of a model name.
 
 ### Level 4 — run it live, the way I do
