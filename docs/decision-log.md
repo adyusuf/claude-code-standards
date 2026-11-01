@@ -2071,3 +2071,14 @@ The box headers are the arrow and the title alone: Status, Settings, Agents, Pro
 summaries beside them (what runs now, how many settings changed, the mode, the branch commits) made the pane cluttered
 and are removed, folded or open. What runs now, the mode and the commits are in the boxes' bodies; in mode A the Agents
 body says it runs no agents (qa, same day). The count of settings this session changed is no longer shown anywhere.
+
+## Reply length is a setting: short, normal, long; default short (01/11/2026, user decision)
+
+The user found Claude's replies usually too long and wants to choose. `reply.length` (`short` · `normal` · `long`,
+shipped default `short`) is a setting like the others: the *Replies* row in the pane, `/adyusuf:config`, and a line in
+the session-start context that says what the level asks. The levels are defined in `standards/00-working-method.md`
+§5a. Length never hides a fact (#15, #24): a red test, a skipped step, an open finding and what waits on the user are
+said at every length, at `short` in one line each. `short` shortens the prose only: the long-run table (§10), the #28
+handoff line and end-of-turn block, the #24 deferred list and the #27 agent count and cost stay at every length (qa,
+same day: moving the table to the Status box would have loosened the CLAUDE.md STATUS REPORTING rule). A change
+applies from the next task, like every setting.

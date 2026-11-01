@@ -21,7 +21,7 @@ _spec.loader.exec_module(cfg)
 
 # The maintainer's list of 17/10/2026, key by key.
 EXPECTED = {
-    'mode': 'C', 'mode_model': 'sonnet', 'pod.connect': False, 'pod.message_format': 'short',
+    'mode': 'C', 'mode_model': 'sonnet', 'reply.length': 'short', 'pod.connect': False, 'pod.message_format': 'short',
     'write.unit_tests': True, 'write.e2e': True,
     'merge.dev': True, 'merge.test': True, 'merge.prod': True,
     'push.dev': True, 'push.test': True, 'push.prod': True,
@@ -295,6 +295,23 @@ class RetiredKeys(Tool):
         self.assertIn('prod: merge yes, gates before push yes, coverage before push yes, push yes, CI after push yes', out)
         self.assertIn('dev: merge yes, gates before push no, coverage before push no, push yes, CI after push no', out)
         self.assertIn('e2e before deploy: on dev before deploying test no, on test before deploying prod no', out)
+
+    def test_the_context_says_how_long_a_reply_is_and_what_that_level_asks(self):
+        # Shipped default: short, with what short asks; every level points at the standard that defines it.
+        out, _, _ = self.run_tool('context')
+        self.assertIn('  replies: short - write a few sentences: what changed, what is not done or not verified', out)
+        for level in ('normal', 'long'):
+            self.run_tool('set', 'reply.length', level)
+            out, _, _ = self.run_tool('context')
+            self.assertIn('  replies: %s - %s' % (level, cfg.REPLY_MEANING[level]), out)
+        self.assertEqual(set(cfg.REPLY_LENGTHS), set(cfg.REPLY_MEANING))
+        self.assertTrue(all('§5a' in text for text in cfg.REPLY_MEANING.values()))
+        # Short shortens the prose, never what the rules put in a reply (standards/00 §5a, CLAUDE.md #28, #24, #27).
+        for kept in ('a red test', 'a skipped step', 'open finding', 'long-run table', '#28', '#24', '#27'):
+            self.assertIn(kept, cfg.REPLY_MEANING['short'])
+        self.assertEqual('Session', cfg.SPECS['reply.length']['group'])
+        _, err, code = self.run_tool('set', 'reply.length', 'huge')
+        self.assertNotEqual(0, code)
 
     def test_the_old_ci_before_merge_and_e2e_after_deploy_keys_are_retired_and_skipped(self):
         for group in ('ci_before_merge', 'e2e_after_deploy'):
