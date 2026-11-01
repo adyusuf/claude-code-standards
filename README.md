@@ -43,7 +43,7 @@ Windows included: [`SETUP.md`](SETUP.md) §1 and §6.
 | Working rules, loaded into every session | [`CLAUDE.md`](CLAUDE.md) | 34 rules | why each exists: [`docs/decision-log.md`](docs/decision-log.md) |
 | Engineering standards | `standards/` | 24 documents + 8 templates | [`standards/README.md`](standards/README.md) |
 | Operating modes and the role agents | `modes/`, `agents/` | 5 modes, 14 roles | [`modes/README.md`](modes/README.md) |
-| Gate, hook scripts, measurement, install | `scripts/` | 33 scripts, 823 tests | [`scripts/README.md`](scripts/README.md) |
+| Gate, hook scripts, measurement, install | `scripts/` | 35 scripts, 823 tests | [`scripts/README.md`](scripts/README.md) |
 | Hooks and the `adyusuf` pane (`/adyusuf:panels`) | `hooks/` | 76 tests | [`hooks/README.md`](hooks/README.md) |
 | Slash commands | `commands/` | `apply-project-standards`, `panels`, `prod-readiness`, `standards-check` | each file |
 | Skills | `skills/` | `board-plan`, `config`, `software-standards`, `test-inventory`, `working-mode` | each `SKILL.md` |
