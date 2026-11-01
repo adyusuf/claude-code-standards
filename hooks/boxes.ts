@@ -8,10 +8,11 @@
 // where it does not (terminal) the chosen one is drawn `[in brackets]` (underline was tried first: the desktop draws a Button
 // as a native button and drops a Text's underline inside it); a box's body and a block's lines start one step in.
 import { enabledFor, settingGroups } from './choose'
+import { cells, INDENT, label, line, option, WARN } from './controls'
+import type { Ui } from './controls'
 
-export type Factory = (type: unknown, props: Record<string, unknown> | null, ...children: unknown[]) => unknown
-/** `Svg` is in the element table only where the surface draws it (desktop, not the terminal). */
-export type Ui = { h: Factory; Box: unknown; Text: unknown; Button: unknown; Svg?: unknown }
+export type { Factory, Ui } from './controls'
+
 /** `session`: this session only; `saved`: the saved defaults every new session starts from (the user's file). */
 export type Scope = 'session' | 'saved'
 export type Press = (key: string, value: string, scope?: Scope) => void
@@ -46,29 +47,10 @@ export type ColumnFold = { folded: boolean; toggle: () => void }
 /** The radio group of an agent's model. */
 const AGENT_MODELS = ['opus', 'sonnet', 'haiku', 'fable']
 const TARGETS = ['dev', 'test', 'prod']
-/** One indentation step, in cells: the width of a box header's `▾ `. */
-const INDENT = 2
-/** A warning (a waived gate, an unreadable settings file): orange as hex, which the terminal and the desktop both draw. */
-const WARN = '#E07B00'
 /** The names the Agents box shows; the role (agent file, settings key) keeps its own name. */
 const ROLE_NAMES: Record<string, string> = {
   'product-manager': 'product', 'test-writer': 'tester', 'doc-writer': 'doc', 'coverage-auditor': 'coverage', 'e2e-writer': 'e2e',
 }
-const ICON_ON = '#378ADD'
-const ICON_OFF = '#888780'
-// Exactly the shape's size: an empty margin inside the image read as a space after the icon (user decision 01/11/2026).
-const svg = (body: string) => `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 12 12">${body}</svg>`
-const ICONS = {
-  radio: {
-    on: svg(`<circle cx="6" cy="6" r="5" fill="none" stroke="${ICON_ON}" stroke-width="1.2"/><circle cx="6" cy="6" r="2.5" fill="${ICON_ON}"/>`),
-    off: svg(`<circle cx="6" cy="6" r="5" fill="none" stroke="${ICON_OFF}" stroke-width="1.2"/>`),
-  },
-  check: {
-    on: svg(`<rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${ICON_ON}" stroke-width="1.2"/><path d="M3.5 6.2l2 2 3.8-4.2" fill="none" stroke="${ICON_ON}" stroke-width="1.5"/>`),
-    off: svg(`<rect x="1" y="1" width="10" height="10" rx="2" fill="none" stroke="${ICON_OFF}" stroke-width="1.2"/>`),
-  },
-}
-type Kind = keyof typeof ICONS
 
 type Item = { key: string; name: string }
 type Row = { label: string; items: Item[] } | { label: string; key: string; names?: Record<string, string> }
@@ -95,33 +77,6 @@ const ROWS: Row[] = [
 
 /** The width of the label column of a settings block, in cells: the longest label and a gap. */
 const LABEL_WIDTH = Math.max(...ROWS.map(row => row.label.length)) + 2
-
-/**
- * One line: its head (a label, a role) in a column of `width` cells, then one column of parts per layer, side by side.
- * Every column but the last is `columnWidth` cells at least, so the next one starts at the same place on every line.
- */
-function line(ui: Ui, head: unknown, columns: unknown[], width = LABEL_WIDTH, columnWidth = 0) {
-  const { h } = ui
-  return h(ui.Box, { flexDirection: 'row', columnGap: 1 },
-    h(ui.Box, { minWidth: width, flexShrink: 0 }, head),
-    columns.map((parts, at) => h(ui.Box, {
-      flexDirection: 'row', flexWrap: 'wrap', columnGap: 1, ...(at < columns.length - 1 ? { minWidth: columnWidth, flexShrink: 0 } : {}),
-    }, parts)))
-}
-
-const label = (ui: Ui, text: string) => (text === '' ? null : ui.h(ui.Text, { bold: true }, text))
-
-/**
- * One pressable part. `chosen` fills its icon (desktop) or puts it in brackets (terminal) and draws it at full strength,
- * the rest dimmed. The icon sits beside the Button: a Button holds text only.
- */
-function option(ui: Ui, key: string, text: string, kind: Kind, chosen: boolean, onPress: () => void) {
-  const { h } = ui
-  const button = h(ui.Button, { key, plain: true, dimColor: !chosen, onPress }, ui.Svg || !chosen ? text : `[${text}]`)
-  if (!ui.Svg) return button
-  return h(ui.Box, { flexDirection: 'row', alignItems: 'center' },
-    h(ui.Svg, { source: ICONS[kind][chosen ? 'on' : 'off'], alt: chosen ? `${text}, chosen` : text, width: 12, height: 12 }), button)
-}
 
 /** The options of one setting, the chosen one marked. */
 function choices(ui: Ui, scope: Scope, key: string, options: Item[], value: string, press: Press) {
@@ -173,9 +128,6 @@ function settingLines(ui: Ui, schema: Spec[], press: Press): SettingLine[] {
   }
   return lines
 }
-
-/** The cells one row's options take: each name with its brackets or icon, a gap between them. */
-const cells = (names: string[]) => names.reduce((sum, name) => sum + name.length + 2, 0) + Math.max(0, names.length - 1)
 
 /**
  * One bordered box with a header that folds it; the summary stays visible while it is folded. The title is a bold Text and
