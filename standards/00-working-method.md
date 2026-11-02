@@ -20,6 +20,13 @@ message until it is done. A one-question/one-answer exchange gets no list.
 
 - **Phases are visible:** each item carries its phase (`P0 · …`, `P1 · …`); the whole
   plan goes up in the first message, before any work.
+- **Analyse first, then steps in the Status box (user decision 02/11/2026).** Every task is analysed and split into steps
+  (phases where it helps) before any work, and the steps go into the pane's Status box with `adyusuf_status.py step` in
+  order: each with its state (not started · running · done · blocked · did not run), how much of it is done (%), and what
+  blocks it. A request that arrives mid-work is analysed the same way and its steps go in where they belong (`--after`).
+  A subagent writes its own steps under its name (`--agent`); the box shows each group with its %. The setting
+  `steps.enforce` decides how hard: `block` (default) refuses a code edit or a commit until the box holds steps,
+  `remind` only reminds on each message. Claude's own bookkeeping in `~/.claude` and temp files are never blocked.
 - **Open choices are decision tasks:** what cannot be decided from the request, the code
   or a default (platform, framework, backend…) is asked **and** listed as
   `P0 · Decide …`. Once answered it collapses into one completed `Decided: …` line, and
@@ -359,12 +366,16 @@ deliverable.
   to its end, the box shows what runs now, what runs next and one row per piece; it is never left empty or stale while
   work goes on, and it is cleared only when the work is done.
 - **Claude writes it at every state change**, with `scripts/adyusuf_status.py --session <id>` (the installed plugin's
-  copy): `now` (what runs now), `next` (what runs next), `row ITEM STATE FIGURE WAITING` (one row, replaced by its item),
-  `drop`, `clear` when the work is done (`clear` also replaces a corrupt file). The session id is the one the plugin's
+  copy): `now` (what runs now), `next` (what runs next), `step ITEM STATE PERCENT [--blocker] [--agent] [--after]` (one
+  step of the work, §1a, replaced by its item and runner), `drop`, `clear` when the work is done (`clear` also replaces a
+  corrupt file); `row ITEM STATE FIGURE WAITING` still writes an older row. The session id is the one the plugin's
   session-start context names ("this session is <id>"). A background run (a gate, a promotion) writes its own steps the
   same way, so the box moves while Claude waits; writers take a lock, so neither loses the other's rows (no lock on
-  Windows: one writer at a time there). The 10b rules hold for every field: measured figures with their signal, "did not
-  run" for a step that did not run.
+  Windows: one writer at a time there). The 10b rules hold for every field: "did not run" for a step that did not run.
+  **A step's % is counted, not felt:** k of n sub-items done (`3 of 8 files` → 37), or a measured figure; where neither
+  exists it is an estimate and the step's name or blocker says so. A blocked step keeps its % and names its reason
+  (`--blocker`), which the box shows as `-> reason`. The reply table (§10) is unchanged: measured figures with their
+  signal, and a blocked row there states the reason, not a percentage.
 - **Every session, automatically (user decision 02/11/2026):** the plugin's hooks (`adyusuf_status.py hook`) write
   *Now*: `waiting for you` when a session starts, the first line of each message the user sends (a system-started turn
   leaves it), and at each turn's end `waiting for you`, or `waiting for background work` while a background task or a

@@ -157,10 +157,14 @@ class RootPluginTest(unittest.TestCase):
         self.assertEqual(commands_of('SessionStart'), [(None, rules)])
 
     def test_rules_parts_one_to_four_on_subagent_start(self):
-        self.assertEqual(commands_of('SubagentStart'), [(None, [f'{RULES_CTX} subagent {n} 4' for n in range(1, 5)])])
+        subagent_steps = f'python3 "{ROOT}/scripts/adyusuf_status.py" hook subagent'   # a subagent writes its own steps
+        self.assertEqual(commands_of('SubagentStart'), [(None, [f'{RULES_CTX} subagent {n} 4' for n in range(1, 5)] + [subagent_steps])])
 
     def test_the_guard_runs_before_a_bash_call_and_nothing_else_does(self):
-        self.assertEqual(commands_of('PreToolUse'), [('Bash', [f'bash "{ROOT}/scripts/guard-destructive.sh"'])])
+        # The never-do guard on Bash, then the steps-first guard on edits and commits (02/11/2026).
+        steps_guard = f'python3 "{ROOT}/scripts/adyusuf_status.py" hook guard'
+        self.assertEqual(commands_of('PreToolUse'), [('Bash', [f'bash "{ROOT}/scripts/guard-destructive.sh"']),
+                                                     ('Edit|Write|NotebookEdit|Bash', [steps_guard])])
 
     def test_the_size_hook_runs_after_an_edit_or_write_and_at_stop(self):
         size_hook = [f'bash "{ROOT}/scripts/md-hook.sh"']

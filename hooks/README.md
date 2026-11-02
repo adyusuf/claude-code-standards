@@ -13,6 +13,9 @@ All of them run locally; none opens a network connection.
 | `SessionStart` | `scripts/adyusuf_config.py context` | prints the effective settings (mode, models, merge/push/gate per target) and this session's id |
 | `UserPromptSubmit`, `PostToolUse` (Agent, Bash) | `scripts/adyusuf_config.py notify` | when a setting changed since the session last looked, says so; keeps what it saw in `~/.claude/adyusuf-seen/<session id>` |
 | `SessionStart`, `UserPromptSubmit`, `Stop`, `StopFailure` | `scripts/adyusuf_status.py hook` | keeps every session's Status box alive: a session starts `waiting for you`, your message's first line becomes *Now* (`working on: …`; a system-started turn leaves it), the end of a turn sets `waiting for you` or `waiting for background work`; Claude's rows stay. The mod does the same after an interrupted turn. Writes only `~/.claude/adyusuf-status/<session id>.json`, pruned after 14 days |
+| `UserPromptSubmit` (same hook) | `scripts/adyusuf_status.py hook prompt` | also reminds Claude to analyse the message and write or insert its steps first |
+| `SubagentStart` | `scripts/adyusuf_status.py hook subagent` | tells each subagent how to write its own steps into this session's Status box under its name |
+| `PreToolUse` (Edit, Write, NotebookEdit, Bash) | `scripts/adyusuf_status.py hook guard` | with *Steps* on `block`, refuses a code edit or a `git commit` until the Status box holds steps; `~/.claude` and temp files are never refused |
 | `PreToolUse` (Bash) | `scripts/guard-destructive.sh` | refuses the never-do commands (forced push, push to `main`, `--no-verify`, `DROP`/`TRUNCATE`, `rm -rf` on `/` `~` `.` `*`); a push to `prod` is not judged here, it follows `push.prod` in the configuration |
 | `PostToolUse` (Edit, Write), `Stop` | `scripts/md-hook.sh` | checks a touched `CLAUDE.md` against its size budget and for dropped rules, and the copied scripts for drift; warns only |
 
@@ -40,7 +43,7 @@ What the mod runs and reads:
 It opens no network connection. The code is split so the drawing can be tested without the engine: `boxes.ts` (Settings,
 Agents, Promotion), `controls.ts` (the shared icons, options, aligned lines and hover cards), `help.ts` (what the hover
 cards say), `status.ts` (Status), `choose.ts` (pure decisions), `notices.ts` (chat lines); `register.tsx` is the
-engine glue. Tests: `deno test --sloppy-imports --import-map=scripts/ts-shim/import_map.json hooks/*.test.ts` (77 tests).
+engine glue. Tests: `deno test --sloppy-imports --import-map=scripts/ts-shim/import_map.json hooks/*.test.ts` (78 tests).
 
 ## The four boxes
 
@@ -56,9 +59,10 @@ whose folder is in no git repository, no code work happens: the pane shows only 
 boxes refresh after every turn, so a merge, a push or a `/adyusuf:config` change shows without
 reopening them.
 
-- **Status.** The status table of a long run: what runs now, what runs next, then item · state ·
-  measured figure (with its signal) · waiting on. Claude writes it at every step with `scripts/adyusuf_status.py`, and so
-  does a background gate or promotion ([`standards/00-working-method.md`](../standards/00-working-method.md) §10d).
+- **Status.** What runs now and next, then the work's steps: step · state · % · blocked on, a running step in bold.
+  With subagents, each group of steps has a line naming who runs it and how much of it is done. Claude writes the steps
+  first, before any work, with `scripts/adyusuf_status.py step`; a background gate or promotion writes its own
+  ([`standards/00-working-method.md`](../standards/00-working-method.md) §1a, §10d).
 - **Settings.** Two tabs: **Session** (what this session runs on; a press changes this session only) and **System** (the
   saved defaults in `~/.claude/adyusuf.json`, which every new session starts from). One tab shows at a time, Session at
   start; the chosen tab is at full strength (in brackets in the terminal), and the pane remembers it. Under the tabs, one
@@ -66,6 +70,8 @@ reopening them.
   - *Mode* A–E (rule #27) and *Model\**, the model that replaces Opus in the roles marked `*` in Agents.
   - *Replies* (`short`, `normal`, `long`; default `short`): how much Claude writes in a reply
     ([`standards/00-working-method.md`](../standards/00-working-method.md) §5a).
+  - *Steps* (`block`, `remind`; default `block`): every task is split into steps in Status first; `block` refuses a
+    code edit or a commit until the steps exist, `remind` only reminds on each message.
   - *Pod* and *Format* are stored only; nothing acts on them yet.
   - *Tests* (`unit`, `e2e`): whether Claude writes unit tests and e2e specs.
   - *Merge*, *Push*, *Gates*, *Coverage* and *CI* (wait for CI after the push), per target. Rule #34 follows them

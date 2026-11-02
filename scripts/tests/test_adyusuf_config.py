@@ -21,7 +21,7 @@ _spec.loader.exec_module(cfg)
 
 # The maintainer's list of 17/10/2026, key by key.
 EXPECTED = {
-    'mode': 'C', 'mode_model': 'sonnet', 'reply.length': 'short', 'pod.connect': False, 'pod.message_format': 'short',
+    'mode': 'C', 'mode_model': 'sonnet', 'reply.length': 'short', 'steps.enforce': 'block', 'pod.connect': False, 'pod.message_format': 'short',
     'write.unit_tests': True, 'write.e2e': True,
     'merge.dev': True, 'merge.test': True, 'merge.prod': True,
     'push.dev': True, 'push.test': True, 'push.prod': True,
@@ -299,9 +299,11 @@ class RetiredKeys(Tool):
     def test_the_context_tells_a_session_how_to_keep_its_status_box(self):
         out, _, _ = self.run_tool('context', '--stdin', stdin=json.dumps({'session_id': 'abc-1'}))
         script = os.path.join(cfg.ROOT, 'scripts', 'adyusuf_status.py')
-        self.assertIn('status box: from the first step of a task to its end, keep it with python3 "%s" --session abc-1' % script, out)
+        self.assertIn('status box and steps (steps.enforce: block): analyse every task first and write its steps', out)
+        self.assertIn('python3 "%s" --session abc-1 step "<n. step>" "<state>" <percent>' % script, out)
+        self.assertIn('a new request mid-work goes in as steps with --after', out)
         self.assertIn('The hooks set now on each message and "waiting for you" at each turn', out)
-        self.assertNotIn('status box:', self.run_tool('context')[0])        # no session id, no line
+        self.assertNotIn('status box', self.run_tool('context')[0])         # no session id, no line
 
     def test_the_context_says_the_settings_steer_code_work_only(self):
         out, _, _ = self.run_tool('context')

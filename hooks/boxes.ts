@@ -79,6 +79,7 @@ export const ROWS: Row[] = [
   // The star ties it to the Agents rows it acts on: the roles whose file says opus carry the same star.
   { label: 'Model*', key: 'mode_model', names: { keep: 'opus' } },
   { label: 'Replies', key: 'reply.length' },
+  { label: 'Steps', key: 'steps.enforce' },
   { label: 'Pod', items: [{ key: 'pod.connect', name: 'on' }] },
   { label: 'Format', key: 'pod.message_format' },
   { label: 'Tests', items: [{ key: 'write.unit_tests', name: 'unit' }, { key: 'write.e2e', name: 'e2e' }] },
