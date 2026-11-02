@@ -2147,3 +2147,22 @@ The Session and System columns become two tabs at the top of the Settings box; o
 the System column's arrow goes. The engine has no tab component, so a tab is a plain Button, the chosen one at full
 strength (in brackets in the terminal); pressing the chosen tab does nothing. The choice is kept as the old fold id
 `claude` (folded = Session), so a saved state carries over and Session is the tab at start.
+
+## Every task is analysed into steps first; Status tracks the steps (02/11/2026, user decision)
+
+The user wants every piece of work analysed and split into steps (phases where it helps) before it starts, its state
+followed through those steps, and a request that arrives mid-work analysed and inserted among them. The Status box now
+holds steps: step · state · % · blocked on, a running step in bold, and a group per subagent with how much of it is
+done (`adyusuf_status.py step`, `--after` to insert, `--agent` for a subagent). The plugin makes sessions do it: the
+session-start context and a reminder on each user message give the command, each subagent is told how to write its own
+steps, and the new setting *Steps* (`steps.enforce`, chosen by the user as a setting) decides how hard: `block`
+(default) refuses a code edit or a `git commit` until the box holds steps, `remind` only reminds. Claude's own
+bookkeeping in `~/.claude` and temp files are never refused (standards/13 §8a). Rows written the older way still show.
+qa, same day: the guard counts only a step still open (not started, running, blocked) written with `step`, so a plan
+left from a finished task does not let the next task's edits through; a subagent goes on under its own steps or the
+session's and is told to sign them with `--agent`; the bookkeeping exemption is narrowed to notes, plans, the adyusuf
+files, a project's mode files and temp folders (code under `~/.claude` is code work); `git commit` is matched only where
+a command starts. `step` also writes the % into `figure` and the blocker into `waiting`, and the % is read back from
+`figure`, so an older plugin's rewrite keeps them (rule #4); the runner (`--agent`) is lost in such a rewrite until every
+session runs this version, a known window. Past 50 rows, finished subagent steps go first and this session's open steps
+last. A step's % is counted (k of n, or a measured figure), else marked as an estimate (`standards/00` §10d).

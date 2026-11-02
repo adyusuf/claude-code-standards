@@ -52,6 +52,7 @@ went to. Never edit the JSON files by hand when the tool can do it.
 |---|---|---|
 | `mode` | A-E | The operating mode (`modes/README.md`). A per-session choice (`$S/mode`) or a project `.claude/mode` beats it. |
 | `mode_model` | keep, sonnet, haiku, fable | What the Opus-defined agents run on (`keep` = as defined). Same override order as `mode`. |
+| `steps.enforce` | block, remind | Steps first (default block): every task is split into steps in the Status box before work; `block` refuses a code edit or a commit until they exist, `remind` only reminds. `standards/00-working-method.md` §1a. |
 | `reply.length` | short, normal, long | How much Claude writes in a reply (default short); what each level holds: `standards/00-working-method.md` §5a. A red test, a skipped step and what the rules put in a reply (the long-run table, the #28 block) stay at every length. |
 | `agents.<role>.enabled` | auto, on, off | One of the 14 roles: `auto` follows the mode's set, `on` adds it, `off` removes it (mode A runs none). |
 | `agents.<role>.model` | default, opus, sonnet, haiku, fable | The model that one agent runs on; `default` follows its definition and the mode's Opus override. |
