@@ -4,6 +4,9 @@
   "reply": {
     "length": "short"
   },
+  "steps": {
+    "enforce": "block"
+  },
   "pod": {
     "connect": false,
     "message_format": "short"

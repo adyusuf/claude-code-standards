@@ -16,13 +16,16 @@ Usage:
     adyusuf_status.py --session ID next TEXT                 what runs next ('' clears it)
     adyusuf_status.py --session ID row ITEM STATE FIGURE WAITING
                                                              add the row named ITEM, or replace it in place
-    adyusuf_status.py --session ID drop ITEM                 remove the row named ITEM
+    adyusuf_status.py --session ID step ITEM STATE PERCENT [--blocker TEXT] [--agent NAME] [--after ITEM]
+                                                             a step (02/11/2026): its state (STATES), how much is done
+                                                             (0-100), what blocks it, who runs it (a subagent; none =
+                                                             this session); --after puts a new step after that one,
+                                                             else it goes last. Replaced in place.
+    adyusuf_status.py --session ID drop ITEM [--agent NAME]  remove the row named ITEM
     adyusuf_status.py --session ID clear                     empty the table (also replaces a corrupt file)
     adyusuf_status.py --session ID show [--json]             print it
-    adyusuf_status.py hook session|prompt|stop               the plugin's hooks (stdin: the hook payload): a session
-                                                             starts "waiting for you", the user's message sets `now` to
-                                                             its first line, the end of a turn waits for the user or for
-                                                             background work; the rows stay, never fails a session
+    adyusuf_status.py hook EVENT                             the plugin's hooks (stdin: the hook payload), in
+                                                             adyusuf_status_hooks.py
 Exit codes: 0 done, 2 refused (an unusable session id or folder, an unreadable file, a failed write).
 """
 import argparse
@@ -44,6 +47,10 @@ MAX_ID = 100
 MAX_TEXT = 300
 MAX_ROWS = 50
 FIELDS = ('item', 'state', 'figure', 'waiting')
+# A step's own fields (user decision 02/11/2026); a row written by `row` leaves them empty.
+STEP_FIELDS = ('percent', 'blocker', 'agent')
+STATES = ('not started', 'running', 'done', 'blocked', 'did not run')
+OPEN, CLOSED = STATES[:2] + STATES[3:4], (STATES[2], STATES[4])      # a step still to finish, and one that is over
 EMPTY = {'now': '', 'next': '', 'rows': [], 'updated': ''}
 SESSION_ID = re.compile(r'^[A-Za-z0-9_-]{1,%d}$' % MAX_ID)
 STATUS_NAME = re.compile(r'^[A-Za-z0-9_-]{1,%d}\.json$' % MAX_ID)
@@ -84,8 +91,9 @@ def is_table(data):
 
 def normalise(data):
     """Keep only what a status table holds: string fields, rows that are objects, at most MAX_ROWS of them."""
-    rows = [{key: clip(row.get(key)) for key in FIELDS} for row in data.get('rows', []) if isinstance(row, dict)]
-    return {'now': clip(data.get('now')), 'next': clip(data.get('next')), 'rows': rows[-MAX_ROWS:],
+    rows = [dict({key: clip(row.get(key)) for key in FIELDS + STEP_FIELDS}, percent=step_percent(row))
+            for row in data.get('rows', []) if isinstance(row, dict)]
+    return {'now': clip(data.get('now')), 'next': clip(data.get('next')), 'rows': trim(rows),
             'updated': clip(data.get('updated'))}
 
 
@@ -167,19 +175,50 @@ def prune(now=None, keep_days=KEEP_DAYS):
     return removed
 
 
-def put_row(data, item, state, figure, waiting):
-    row = {'item': clip(item), 'state': clip(state), 'figure': clip(figure), 'waiting': clip(waiting)}
+def step_percent(row):
+    """A row's percentage; an older writer keeps only `figure`, where `step` also writes it (`45%`), so it is read back."""
+    given = percent(row.get('percent'))
+    return given or (percent(row.get('figure')) if re.match(r'^\d{1,3}%$', str(row.get('figure') or '')) else '')
+
+
+def trim(rows):
+    """At most MAX_ROWS: a finished subagent step goes first, then any subagent step, then a finished step of this
+    session; a step of this session still to finish goes last (qa, 02/11/2026: the plan must not vanish silently)."""
+    rows = list(rows)
+    picks = (lambda row: row['agent'] and row['state'] in CLOSED, lambda row: row['agent'], lambda row: row['state'] in CLOSED,
+             lambda row: True)
+    while len(rows) > MAX_ROWS:
+        rows.pop(next(at for pick in picks for at, row in enumerate(rows) if pick(row)))
+    return rows
+
+
+def percent(value):
+    """How much of a step is done, as '0'..'100', or '' when not given (`45`, `45%`, `45.5` read as 45)."""
+    match = re.match(r'^\s*(\d+(?:\.\d+)?)\s*%?\s*$', '' if value is None else str(value))
+    return str(min(100, int(float(match.group(1))))) if match else ''
+
+
+def same(one, item, agent):
+    """A row is named by its item and who runs it: two agents may each have a step of the same name."""
+    return one.get('item') == item and one.get('agent', '') == agent
+
+
+def put_row(data, item, state, figure, waiting, step=None, after=None):
+    """Add the row, or replace the one of the same name and runner in place; a new row goes after `after` if given."""
+    row = dict({'item': clip(item), 'state': clip(state), 'figure': clip(figure), 'waiting': clip(waiting)},
+               **dict({key: '' for key in STEP_FIELDS}, **(step or {})))
     rows = [dict(one) for one in data['rows']]
-    at = next((i for i, one in enumerate(rows) if one.get('item') == row['item']), None)
-    if at is None:
-        rows.append(row)
-    else:
+    at = next((i for i, one in enumerate(rows) if same(one, row['item'], row['agent'])), None)
+    if at is not None:
         rows[at] = row
+        return dict(data, rows=rows)
+    anchor = next((i for i, one in enumerate(rows) if after is not None and same(one, clip(after), row['agent'])), None)
+    rows.insert(len(rows) if anchor is None else anchor + 1, row)
     return dict(data, rows=rows)
 
 
-def drop_row(data, item):
-    return dict(data, rows=[one for one in data['rows'] if one.get('item') != clip(item)])
+def drop_row(data, item, agent=''):
+    return dict(data, rows=[one for one in data['rows'] if not same(one, clip(item), clip(agent))])
 
 
 def render(data):
@@ -189,7 +228,11 @@ def render(data):
     if data['next']:
         lines.append('next: ' + data['next'])
     for row in data['rows']:
-        lines.append(' | '.join(row.get(key, '') for key in FIELDS))
+        if row.get('percent') or row.get('agent') or row.get('blocker'):
+            done = row['percent'] + '%' if row['percent'] else ''
+            lines.append(' | '.join([row['agent'] or 'session', row['item'], row['state'], done, row['blocker']]))
+        else:
+            lines.append(' | '.join(row.get(key, '') for key in FIELDS))
     return '\n'.join(lines) if lines else 'nothing running'
 
 
@@ -201,46 +244,14 @@ def change(args):
             data = dict(data, **{args.action: clip(args.text)})
         elif args.action == 'row':
             data = put_row(data, args.item, args.state, args.figure, args.waiting)
+        elif args.action == 'step':
+            step = {'percent': percent(args.percent), 'blocker': clip(args.blocker), 'agent': clip(args.agent)}
+            # The older fields carry the % and the blocker too, so an older writer's rewrite keeps them (rule #4).
+            figure = step['percent'] + '%' if step['percent'] else ''
+            data = put_row(data, args.item, args.state, figure, step['blocker'], step, args.after)
         elif args.action == 'drop':
-            data = drop_row(data, args.item)
+            data = drop_row(data, args.item, args.agent)
         save(args.session, data)
-
-
-# What `now` says when a session starts or a turn ends: it waits for the user, or for its own background work.
-WAITING = 'waiting for you'
-WAITING_BACKGROUND = 'waiting for background work'
-# The turns a person starts: a system-started turn (a task notification, a wake-up) must not replace the user's task.
-USER_SOURCES = (None, 'user', 'sdk')
-
-
-def hook_text(event, payload):
-    """What `now` becomes for one hook payload, or None to leave the table alone."""
-    if event == 'prompt':
-        if payload.get('source') not in USER_SOURCES:
-            return None
-        return 'working on: ' + str(payload.get('prompt') or '').strip().split('\n')[0]
-    if event == 'stop':
-        return WAITING_BACKGROUND if payload.get('background_tasks') or payload.get('session_crons') else WAITING
-    return WAITING if event == 'session' else None
-
-
-def hook(event, payload_text):
-    """The plugin's hooks keep every session's box alive without Claude (user decision 02/11/2026): `now` follows the
-    session start, the user's messages and the turns' ends; `next` empties and the rows stay. Never raises."""
-    try:
-        payload = json.loads(payload_text)
-        session = str(payload.get('session_id') or '')
-        text = hook_text(event, payload) if valid(session) else None
-        if text is None:
-            return
-        with locked(session):
-            try:
-                data = load(session)
-            except StatusError:
-                data = dict(EMPTY, rows=[])          # a corrupt file is replaced, as `clear` would
-            save(session, dict(data, now=clip(text), next=''))
-    except (ValueError, AttributeError, OSError, StatusError):
-        return
 
 
 def main(argv=None):
@@ -250,8 +261,9 @@ def main(argv=None):
             raw = b'' if sys.stdin is None or sys.stdin.isatty() else sys.stdin.buffer.read()
         except (OSError, ValueError, AttributeError):
             raw = b''
-        hook(argv[1] if len(argv) > 1 else '', raw.decode('utf-8', errors='replace'))
-        return 0
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import adyusuf_status_hooks as hooks      # beside this file; loaded only for a hook
+        return hooks.hook(argv[1] if len(argv) > 1 else '', raw.decode('utf-8', errors='replace'))
     parser = argparse.ArgumentParser(description='This session\'s status table for the pane\'s Status box.')
     parser.add_argument('--session', required=True)
     sub = parser.add_subparsers(dest='action', required=True)
@@ -260,7 +272,14 @@ def main(argv=None):
     row = sub.add_parser('row')
     for name in FIELDS:
         row.add_argument(name)
-    sub.add_parser('drop').add_argument('item')
+    step = sub.add_parser('step')
+    for name in ('item', 'state', 'percent'):
+        step.add_argument(name)
+    for name in ('--blocker', '--agent', '--after'):
+        step.add_argument(name, default='' if name != '--after' else None)
+    drop = sub.add_parser('drop')
+    drop.add_argument('item')
+    drop.add_argument('--agent', default='')
     sub.add_parser('clear')
     sub.add_parser('show').add_argument('--json', action='store_true')
     args = parser.parse_args(argv)

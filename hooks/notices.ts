@@ -30,6 +30,7 @@ const RULES_OF: Array<[RegExp, string[]]> = [
   [/^mode$/, ['#27', '#28']],
   [/^mode_model$/, ['#27']],
   [/^reply\.length$/, ['#15', '#24']],
+  [/^steps\.enforce$/, ['#24']],
   [/^agents\./, ['#27', '#28']],
   [/^write\.unit_tests$/, ['#8', '#32', '#29']],
   [/^write\.e2e$/, ['#33', '#31']],
