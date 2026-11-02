@@ -1,16 +1,14 @@
 import type { EngineInterface, Hook, Register } from 'claude-code'
-
 import type { AgentRow, Promotion, Settings, Stage } from '../types'
 import {
   agentsBody, FOLDED_AT_START, isFolded, nextFold, outsideRepository, paneFor, promotionBody, section, settingsBody,
+  type FoldId, type Scope, type SectionId,
 } from './boxes'
-import type { FoldId, Scope, SectionId } from './boxes'
 import {
   countOf, DISCOVER_PY, IS_FILE_PY, overrideNote, parseDiscovery, plannedStages, refSet, scriptDir, waivedLines, waivedRange,
 } from './choose'
 import { operationWarnings, warnings } from './notices'
-import { parseStatus, statusBody, statusDir, statusScript, statusStep } from './status'
-import type { StatusProbe } from './status'
+import { parseStatus, statusBody, statusDir, statusScript, statusStep, type StatusProbe } from './status'
 
 /** One pane, four bordered boxes in it (Status, Settings, Agents, Promotion), each folded by its header. */
 const BOXES = 'adyusuf-boxes'
@@ -234,8 +232,10 @@ const onPanels: Hook<'command.run'> = async $ => {
 
 // The boxes follow the work: a turn may have merged, pushed or changed a setting through /adyusuf:config.
 // An interrupted turn fires no Stop hook, so the pane marks the Status box as waiting itself (qa, 02/11/2026).
-const waitAfterInterrupt = async ($: EngineInterface): Promise<void> => void await $.process.run(['python3', statusScript(await scriptPath(argv => $.process.run(argv))),
-  'hook', 'stop'], { stdin: JSON.stringify({ session_id: await sessionId($) }) })
+async function waitAfterInterrupt($: EngineInterface) {
+  const script = statusScript(await scriptPath(argv => $.process.run(argv)))
+  await $.process.run(['python3', script, 'hook', 'stop'], { stdin: JSON.stringify({ session_id: await sessionId($) }) })
+}
 
 const onTurnComplete: Hook<'turn.complete'> = async ($, e, next) => {
   if (e.isAborted && !e.agentId) await safely($, waitAfterInterrupt($))
@@ -262,7 +262,7 @@ const onShell: Hook<'tool.call'> = async ($, e, next) => {
 }
 
 const onRender: Hook<'ui.render'> = async ($, e) => {
-  const ui = { ...$.ui.resolve(e), h }
+  const ui = { ...$.ui.resolve(e), h: (type: unknown, props: Record<string, unknown> | null, ...children: unknown[]) => h(type as never, props, ...children) }
   const { Box } = ui
   const { value: data = null } = await $.state.get(settings)
   const { value: problem = '' } = await $.state.get(settingsError)
