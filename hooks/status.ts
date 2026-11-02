@@ -5,7 +5,8 @@ import type { Ui } from './boxes'
 import { helpCard, hoverable } from './controls'
 import { STATUS_HELP } from './help'
 
-type StatusRow = { item: string; state: string; figure: string; waiting: string }
+/** A step (user decision 02/11/2026): `percent` done ('' when not given), `blocker`, and `agent` ('' = this session). */
+type StatusRow = { item: string; state: string; figure: string; waiting: string; percent: string; blocker: string; agent: string }
 export type StatusData = { now: string; next: string; rows: StatusRow[]; updated: string }
 
 /** The same caps as scripts/adyusuf_status.py: the file is read as untrusted text, so a foreign file cannot flood the box. */
@@ -66,9 +67,17 @@ export function parseStatus(text: string): StatusData | null {
   const rows = (Array.isArray(one.rows) ? one.rows : [])
     .filter((row): row is Record<string, unknown> => typeof row === 'object' && row !== null && !Array.isArray(row))
     .slice(-MAX_ROWS)
-    .map(row => ({ item: clean(row.item), state: clean(row.state), figure: clean(row.figure), waiting: clean(row.waiting) }))
+    .map(row => ({
+      item: clean(row.item), state: clean(row.state), figure: clean(row.figure), waiting: clean(row.waiting),
+      percent: /^\d{1,3}$/.test(clean(row.percent)) ? clean(row.percent) : '', blocker: clean(row.blocker), agent: clean(row.agent),
+    }))
   return { now: clean(one.now), next: clean(one.next), rows, updated: clean(one.updated) }
 }
+
+/** The state of the step at work: the box draws it in bold. */
+const RUNNING = 'running'
+/** What a writer puts where it has nothing to say: the box leaves it out under a step. */
+const PLACEHOLDERS = ['', '-', '—']
 
 const busy = (data: StatusData | null): data is StatusData =>
   data !== null && (data.now !== '' || data.next !== '' || data.rows.length > 0)
@@ -76,27 +85,53 @@ const busy = (data: StatusData | null): data is StatusData =>
 /** A cap on one table column, in cells: a longer text wraps inside its column instead of pushing the next one away. */
 const STATUS_COLUMN = 36
 
-/** The status table (user decision 01/11/2026): what runs now and next, then item · state · figure · waiting on. */
+/** How much of a group of steps is done: the mean of the steps that give a percentage, or '' when none does. */
+export function donePercent(rows: StatusRow[]): string {
+  const given = rows.filter(row => row.percent !== '').map(row => Number(row.percent))
+  return given.length === 0 ? '' : `${Math.round(given.reduce((sum, one) => sum + one, 0) / given.length)}%`
+}
+
+/** The steps by who runs them: this session first, then each subagent in the order it first wrote. */
+export function stepGroups(rows: StatusRow[]): Array<{ agent: string; rows: StatusRow[] }> {
+  const agents = [...new Set(['', ...rows.map(row => row.agent)])]
+  return agents.map(agent => ({ agent, rows: rows.filter(row => row.agent === agent) })).filter(group => group.rows.length > 0)
+}
+
+/**
+ * The status box (user decisions 01/11 and 02/11/2026): what runs now and next, then the steps under step · state, a
+ * running step in bold. Under a step, with no heading: how much of it is done, and `-> what blocks it`. With subagents,
+ * each group of steps gets a line naming who runs it and how much of it is done. A row written the older way shows its
+ * measured figure as the done line and what it waits on after the arrow.
+ */
 export function statusBody(ui: Ui, data: StatusData | null) {
   const { h } = ui
   if (!busy(data)) return h(ui.Text, { dimColor: true }, 'nothing running')
-  const heads = ['Item', 'State', 'Measured figure (signal)', 'Waiting on']
-  const fields = (row: StatusRow) => [row.item, row.state, row.figure, row.waiting]
+  const heads = ['Step', 'State']
+  const fields = (row: StatusRow) => [row.item, row.state]
+  const done = (row: StatusRow) => (row.percent !== '' ? `${row.percent}%` : PLACEHOLDERS.includes(row.figure) ? '' : row.figure)
+  const blocker = (row: StatusRow) => (PLACEHOLDERS.includes(row.blocker || row.waiting) ? '' : `-> ${row.blocker || row.waiting}`)
+  const under = (row: StatusRow) => [done(row), blocker(row)].filter(Boolean).map(text => h(ui.Text, { dimColor: true }, text))
   const widths = heads.map((head, at) =>
     Math.min(STATUS_COLUMN, Math.max(head.length, ...data.rows.map(row => (fields(row)[at] ?? '').length))) + 1)
-  const cellsOf = (texts: string[], bold: boolean) => h(ui.Box, { flexDirection: 'row', columnGap: 1 },
+  const cellsOf = (texts: string[], kind: 'head' | 'running' | 'plain') => h(ui.Box, { flexDirection: 'row', columnGap: 1 },
     texts.map((text, at) => h(ui.Box, at < texts.length - 1 ? { width: widths[at], flexShrink: 0 } : { flexGrow: 1 },
-      bold ? hoverable(ui, `status-${text}`, h(ui.Text, { bold: true }, text)) : h(ui.Text, at === 0 ? {} : { dimColor: text === '—' || text === '-' }, text))))
+      kind === 'head' ? hoverable(ui, `status-${text}`, h(ui.Text, { bold: true }, text))
+        : h(ui.Text, kind === 'running' ? { bold: true } : at === 0 ? {} : { dimColor: text === '—' || text === '-' || text === '' }, text))))
   const said = (title: string, text: string) => (text === ''
     ? null
     : [h(ui.Box, { flexDirection: 'row', columnGap: 1 },
       h(ui.Box, { minWidth: 6, flexShrink: 0 }, hoverable(ui, `status-${title}`, h(ui.Text, { bold: true }, title))), h(ui.Text, {}, text)),
     helpCard(ui, `status-${title}`, STATUS_HELP[title])])
+  const groups = stepGroups(data.rows)
+  const titled = groups.some(group => group.agent !== '')
   return h(ui.Box, { flexDirection: 'column' },
     said('Now', data.now),
     said('Next', data.next),
     data.rows.length === 0 ? null : h(ui.Box, { flexDirection: 'column', marginTop: 1 },
-      cellsOf(heads, true),
+      cellsOf(heads, 'head'),
       heads.map(head => helpCard(ui, `status-${head}`, STATUS_HELP[head])),
-      data.rows.map(row => cellsOf(fields(row), false))))
+      groups.map(group => [
+        titled ? h(ui.Text, { dimColor: true }, [group.agent || 'this session', donePercent(group.rows)].filter(Boolean).join(' · ')) : null,
+        group.rows.map(row => [cellsOf(fields(row), row.state === RUNNING ? 'running' : 'plain'),
+          under(row).length === 0 ? null : h(ui.Box, { flexDirection: 'column', marginLeft: 2 }, under(row))])])))
 }

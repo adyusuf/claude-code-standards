@@ -25,7 +25,8 @@ SESSION = 'abc-123'
 class StatusTable(unittest.TestCase):
     def setUp(self):
         self.dir = tempfile.mkdtemp()
-        self.env = dict(os.environ, ADYUSUF_STATUS_DIR=self.dir)
+        self.env = dict(os.environ, ADYUSUF_STATUS_DIR=self.dir, ADYUSUF_CONFIG_USER=os.path.join(self.dir, 'u.json'),
+                        ADYUSUF_SESSION_DIR=os.path.join(self.dir, 'sessions'))
 
     def run_tool(self, *args, session=SESSION):
         done = subprocess.run([sys.executable, SCRIPT, '--session', session, *args], env=self.env,
@@ -76,7 +77,8 @@ class StatusTable(unittest.TestCase):
         self.run_tool('row', 'gate', 'running', '1 step', '-')
         self.run_tool('next', 'push')
         out, err, code = self.run_hook('prompt', {'session_id': SESSION, 'prompt': 'add tabs\nto the Settings box'})
-        self.assertEqual((0, '', ''), (code, out, err))
+        self.assertEqual((0, ''), (code, err))
+        self.assertIn('analyse it', json.loads(out)['hookSpecificOutput']['additionalContext'])   # the steps reminder
         data = self.table()
         self.assertEqual(('working on: add tabs', ''), (data['now'], data['next']))
         self.assertEqual(['gate'], [row['item'] for row in data['rows']])        # Claude's rows stay

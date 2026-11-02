@@ -37,6 +37,7 @@ AGENTS_DIR = os.path.join(ROOT, 'agents')
 
 POD_FORMATS = ('short', 'full')
 REPLY_LENGTHS = ('short', 'normal', 'long')       # how much Claude writes in a reply (standards/00 §5a)
+STEP_ENFORCEMENT = ('block', 'remind')            # steps first: refuse a code edit until the Status box holds steps, or remind
 DEPLOY_ENVS = ('test', 'prod')                    # which environment a push is deployed to
 CI_RUNNERS = ('hosted', 'self-hosted')            # where the shared SDLC workflow runs (self-hosted: this Mac's runners)
 AGENT_STATES = ('auto', 'on', 'off')
@@ -48,6 +49,7 @@ SCHEMA = (
     [dict(_enum('mode', 'Working mode', MODES), group='Session'),
      dict(_enum('mode_model', 'Model that replaces Opus in the agents', MODELS), group='Session'),
      dict(_enum('reply.length', 'Reply length', REPLY_LENGTHS), group='Session'),
+     dict(_enum('steps.enforce', 'Steps first', STEP_ENFORCEMENT), group='Session'),
      dict(_bool('pod.connect', 'Connect to pod'), group='Pod'),
      dict(_enum('pod.message_format', 'Message format', POD_FORMATS), group='Pod'),
      dict(_bool('write.unit_tests', 'Write unit tests'), group='Writing'),

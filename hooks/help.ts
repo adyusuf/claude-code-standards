@@ -20,10 +20,8 @@ export const COLUMN_HELP: Record<string, string> = {
 export const STATUS_HELP: Record<string, string> = {
   'Now': 'The step running right now.',
   'Next': 'The step that comes after it.',
-  'Item': 'One piece of the work.',
-  'State': 'Where that piece stands: done, running, blocked or did not run.',
-  'Measured figure (signal)': 'A measured number and where it was read from. Never estimated.',
-  'Waiting on': 'What that piece waits for before it can go on.',
+  'Step': 'One step of the work, in order; a running step is bold. A request that arrives mid-work goes in as new steps.',
+  'State': 'Where that step stands: not started, running, done, blocked or did not run. Under a step: how much of it is done, and -> what blocks it.',
 }
 
 /** The Settings rows, by the label the pane shows. */
@@ -31,6 +29,7 @@ export const ROW_HELP: Record<string, string> = {
   'Mode': 'How many agents work: A none, B three helpers, C the full team with qa review, D wide team, E fan-out.',
   'Model*': 'The model the roles marked * in Agents run on instead of Opus. opus keeps them on Opus.',
   'Replies': 'How much Claude writes: short, normal or long. Red tests and skipped steps are said at every length.',
+  'Steps': 'Every task is split into steps in Status first. block: no code edit or commit until the steps exist. remind: only a reminder.',
   'Pod': 'Connect to a pod. Stored only; nothing acts on it yet.',
   'Format': 'The pod message format. Stored only; nothing acts on it yet.',
   'Tests': 'Whether Claude writes unit tests and e2e specs for its changes.',
