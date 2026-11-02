@@ -2140,3 +2140,10 @@ qa, same day: a system-started turn (a task notification, a wake-up) does not re
 background work running says `waiting for background work`; a session starts `waiting for you`; an API error
 (`StopFailure`) and an interrupt (the mod, on an aborted main-loop `turn.complete`) end a turn too; the hook reads its
 input as UTF-8 bytes and never waits on a terminal.
+
+## Settings: Session and System as tabs (02/11/2026, user decision)
+
+The Session and System columns become two tabs at the top of the Settings box; one shows at a time, at full width, and
+the System column's arrow goes. The engine has no tab component, so a tab is a plain Button, the chosen one at full
+strength (in brackets in the terminal); pressing the chosen tab does nothing. The choice is kept as the old fold id
+`claude` (folded = Session), so a saved state carries over and Session is the tab at start.
