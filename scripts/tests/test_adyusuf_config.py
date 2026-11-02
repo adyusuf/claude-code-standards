@@ -296,6 +296,13 @@ class RetiredKeys(Tool):
         self.assertIn('dev: merge yes, gates before push no, coverage before push no, push yes, CI after push no', out)
         self.assertIn('e2e before deploy: on dev before deploying test no, on test before deploying prod no', out)
 
+    def test_the_context_tells_a_session_how_to_keep_its_status_box(self):
+        out, _, _ = self.run_tool('context', '--stdin', stdin=json.dumps({'session_id': 'abc-1'}))
+        script = os.path.join(cfg.ROOT, 'scripts', 'adyusuf_status.py')
+        self.assertIn('status box: from the first step of a task to its end, keep it with python3 "%s" --session abc-1' % script, out)
+        self.assertIn('The hooks set now on each message and "waiting for you" at each turn', out)
+        self.assertNotIn('status box:', self.run_tool('context')[0])        # no session id, no line
+
     def test_the_context_says_the_settings_steer_code_work_only(self):
         out, _, _ = self.run_tool('context')
         self.assertIn("for code work: changing a project repository's files.", out)

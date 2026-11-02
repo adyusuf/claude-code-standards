@@ -19,6 +19,10 @@ Usage:
     adyusuf_status.py --session ID drop ITEM                 remove the row named ITEM
     adyusuf_status.py --session ID clear                     empty the table (also replaces a corrupt file)
     adyusuf_status.py --session ID show [--json]             print it
+    adyusuf_status.py hook session|prompt|stop               the plugin's hooks (stdin: the hook payload): a session
+                                                             starts "waiting for you", the user's message sets `now` to
+                                                             its first line, the end of a turn waits for the user or for
+                                                             background work; the rows stay, never fails a session
 Exit codes: 0 done, 2 refused (an unusable session id or folder, an unreadable file, a failed write).
 """
 import argparse
@@ -202,7 +206,52 @@ def change(args):
         save(args.session, data)
 
 
+# What `now` says when a session starts or a turn ends: it waits for the user, or for its own background work.
+WAITING = 'waiting for you'
+WAITING_BACKGROUND = 'waiting for background work'
+# The turns a person starts: a system-started turn (a task notification, a wake-up) must not replace the user's task.
+USER_SOURCES = (None, 'user', 'sdk')
+
+
+def hook_text(event, payload):
+    """What `now` becomes for one hook payload, or None to leave the table alone."""
+    if event == 'prompt':
+        if payload.get('source') not in USER_SOURCES:
+            return None
+        return 'working on: ' + str(payload.get('prompt') or '').strip().split('\n')[0]
+    if event == 'stop':
+        return WAITING_BACKGROUND if payload.get('background_tasks') or payload.get('session_crons') else WAITING
+    return WAITING if event == 'session' else None
+
+
+def hook(event, payload_text):
+    """The plugin's hooks keep every session's box alive without Claude (user decision 02/11/2026): `now` follows the
+    session start, the user's messages and the turns' ends; `next` empties and the rows stay. Never raises."""
+    try:
+        payload = json.loads(payload_text)
+        session = str(payload.get('session_id') or '')
+        text = hook_text(event, payload) if valid(session) else None
+        if text is None:
+            return
+        with locked(session):
+            try:
+                data = load(session)
+            except StatusError:
+                data = dict(EMPTY, rows=[])          # a corrupt file is replaced, as `clear` would
+            save(session, dict(data, now=clip(text), next=''))
+    except (ValueError, AttributeError, OSError, StatusError):
+        return
+
+
 def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:1] == ['hook']:
+        try:      # bytes, decoded here: a hook must not fail on the platform's encoding, a closed stdin or a terminal
+            raw = b'' if sys.stdin is None or sys.stdin.isatty() else sys.stdin.buffer.read()
+        except (OSError, ValueError, AttributeError):
+            raw = b''
+        hook(argv[1] if len(argv) > 1 else '', raw.decode('utf-8', errors='replace'))
+        return 0
     parser = argparse.ArgumentParser(description='This session\'s status table for the pane\'s Status box.')
     parser.add_argument('--session', required=True)
     sub = parser.add_subparsers(dest='action', required=True)

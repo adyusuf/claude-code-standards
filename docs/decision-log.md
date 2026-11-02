@@ -2128,3 +2128,15 @@ reply length applies from the next reply, not the next task, since it splits no 
 
 **Reverted the same day (user decision, 02/11/2026): the Agents labels stay as they were.** The blue checkbox icon and
 the pressable name are back; a running role's name is not bold on the desktop, which cannot draw bold inside a Button.
+
+## The Status box is kept in every session, by hooks (02/11/2026, user decision)
+
+The user saw the Status box stay empty: only Claude's own instructions said to write it, and other sessions did not. Now
+the plugin's `UserPromptSubmit` and `Stop` hooks run `adyusuf_status.py hook prompt|stop`: a message's first line becomes
+*Now* and the end of a turn sets it to `waiting for you`, keeping Claude's rows. The session-start context names the
+script with this session's id, so Claude adds `next` and the rows from a task's first step (`standards/00` §10d). The
+hook never fails a session: a bad payload or an unusable id writes nothing, a corrupt table is replaced.
+qa, same day: a system-started turn (a task notification, a wake-up) does not replace the user's task; a turn that leaves
+background work running says `waiting for background work`; a session starts `waiting for you`; an API error
+(`StopFailure`) and an interrupt (the mod, on an aborted main-loop `turn.complete`) end a turn too; the hook reads its
+input as UTF-8 bytes and never waits on a terminal.
