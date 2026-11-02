@@ -98,6 +98,10 @@ def context(effective, problems, session=None):
     if sessions.valid(session):
         lines.append('  this session is %s: what the rail boxes change applies to it only (adyusuf_config.py set --session %s '
                      '<key> <value>); a new session starts from the saved defaults.' % (session, session))
+        lines.append('  status box: from the first step of a task to its end, keep it with python3 "%s" --session %s now|next '
+                     '<text> and row <item> <state> <figure> <waiting on>; clear when done. The hooks set now on each message '
+                     'and "waiting for you" at each turn\'s end (standards/00 §10d).'
+                     % (os.path.join(ROOT, 'scripts', 'adyusuf_status.py'), session))
     lines.extend('  ! ' + problem for problem in problems)
     return '\n'.join(lines)
 

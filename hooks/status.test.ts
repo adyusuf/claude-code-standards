@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { parseStatus, statusBody, statusDir, statusStep } from './status'
+import { parseStatus, statusBody, statusDir, statusScript, statusStep } from './status'
 
 // A recording factory: an element is { type, props, children }, so the tests read what the box would draw.
 type Node = { type: unknown; props: Record<string, any>; children: unknown[] }
@@ -104,4 +104,10 @@ test('the folder: an absolute ADYUSUF_STATUS_DIR, else USERPROFILE, else HOME; n
   expect(statusDir(undefined, undefined, '/home/u/')).toBe('/home/u/.claude/adyusuf-status')
   expect(statusDir('', '', '')).toBe('')
   expect(statusDir(undefined, undefined, undefined)).toBe('')
+})
+
+test('the status script sits beside the configuration script the pane found; none found, none run', () => {
+  expect(statusScript('/cache/adyusuf/1a2b/scripts/adyusuf_config.py')).toBe('/cache/adyusuf/1a2b/scripts/adyusuf_status.py')
+  expect(statusScript('')).toBe('')
+  expect(statusScript('/elsewhere/other.py')).toBe('')
 })

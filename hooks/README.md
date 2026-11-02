@@ -12,6 +12,7 @@ All of them run locally; none opens a network connection.
 | `SessionStart`, `SubagentStart` | `scripts/rules-context.py` (4 parts) | prints the plugin's `CLAUDE.md` into the session and every subagent, in parts of under 10,000 characters; reads only that file |
 | `SessionStart` | `scripts/adyusuf_config.py context` | prints the effective settings (mode, models, merge/push/gate per target) and this session's id |
 | `UserPromptSubmit`, `PostToolUse` (Agent, Bash) | `scripts/adyusuf_config.py notify` | when a setting changed since the session last looked, says so; keeps what it saw in `~/.claude/adyusuf-seen/<session id>` |
+| `SessionStart`, `UserPromptSubmit`, `Stop`, `StopFailure` | `scripts/adyusuf_status.py hook` | keeps every session's Status box alive: a session starts `waiting for you`, your message's first line becomes *Now* (`working on: …`; a system-started turn leaves it), the end of a turn sets `waiting for you` or `waiting for background work`; Claude's rows stay. The mod does the same after an interrupted turn. Writes only `~/.claude/adyusuf-status/<session id>.json`, pruned after 14 days |
 | `PreToolUse` (Bash) | `scripts/guard-destructive.sh` | refuses the never-do commands (forced push, push to `main`, `--no-verify`, `DROP`/`TRUNCATE`, `rm -rf` on `/` `~` `.` `*`); a push to `prod` is not judged here, it follows `push.prod` in the configuration |
 | `PostToolUse` (Edit, Write), `Stop` | `scripts/md-hook.sh` | checks a touched `CLAUDE.md` against its size budget and for dropped rules, and the copied scripts for drift; warns only |
 
@@ -39,7 +40,7 @@ What the mod runs and reads:
 It opens no network connection. The code is split so the drawing can be tested without the engine: `boxes.ts` (Settings,
 Agents, Promotion), `controls.ts` (the shared icons, options, aligned lines and hover cards), `help.ts` (what the hover
 cards say), `status.ts` (Status), `choose.ts` (pure decisions), `notices.ts` (chat lines); `register.tsx` is the
-engine glue. Tests: `deno test --sloppy-imports --import-map=scripts/ts-shim/import_map.json hooks/*.test.ts` (76 tests).
+engine glue. Tests: `deno test --sloppy-imports --import-map=scripts/ts-shim/import_map.json hooks/*.test.ts` (77 tests).
 
 ## The four boxes
 
