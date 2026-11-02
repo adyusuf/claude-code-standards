@@ -61,7 +61,7 @@ function data(over: Record<string, unknown> = {}) {
   }
 }
 
-test('the pane has four sections, Status first, and starts with Agents, Promotion and the System column folded', () => {
+test('the pane has four sections, Status first, and starts with Agents and Promotion folded and Settings on the Session tab', () => {
   expect([...SECTIONS]).toEqual(['status', 'settings', 'agents', 'promotion'])
   expect(FOLDED_AT_START).toEqual({ agents: true, promotion: true, claude: true })
 })
@@ -74,7 +74,7 @@ test('a fold state saved before something could fold falls back to how it starts
   expect(isFolded({}, 'agents')).toBe(true)
 })
 
-test('a press turns over what the header reads as now, also for a state saved before the System column could fold', () => {
+test('a press turns over what the header reads as now, also for a state saved before the Settings tab existed', () => {
   const older = { agents: true, promotion: true }
   const once = nextFold(older, 'claude')
   expect(once).toEqual({ agents: true, promotion: true, claude: false })
@@ -82,31 +82,29 @@ test('a press turns over what the header reads as now, also for a state saved be
   expect(nextFold(FOLDED_AT_START, 'status').status).toBe(true)
 })
 
-test('the System column folds by its arrow: folded, only the heading is left beside Session, and a press asks to unfold', () => {
+test('Settings shows one tab at a time: Session at start, System when chosen; a press on the other tab switches', () => {
   let pressed = 0
-  const fold = (folded: boolean) => ({ folded, toggle: () => { pressed += 1 } })
-  const shut = settingsBody(ui, data(), '', [], () => undefined, fold(true))
-  expect(rows(shut)).toEqual(['Session System ▸', 'Mode A [B] C', 'Model* opus [sonnet]', 'Push test [prod]'])
-  expect(all(shut, 'Button').some(node => String(node.props.key).startsWith('saved/'))).toBe(false)
-  const heading = all(shut, 'Button').find(node => node.props.key === 'fold-claude')!
-  heading.props.onPress()
+  const tabs = (folded: boolean) => ({ folded, toggle: () => { pressed += 1 } })
+  const tab = (body: unknown, name: string) => all(body, 'Button').find(node => node.props.key === `tab-${name}`)!
+  const session = settingsBody(ui, data(), '', [], () => undefined, tabs(true))
+  expect(rows(session)).toEqual(['[Session] System', 'Mode A [B] C', 'Model* opus [sonnet]', 'Push test [prod]'])
+  expect(all(session, 'Button').some(node => String(node.props.key).startsWith('saved/'))).toBe(false)
+  expect([tab(session, 'Session').props.dimColor, tab(session, 'System').props.dimColor]).toEqual([false, true])
+  tab(session, 'Session').props.onPress()          // the chosen tab: nothing
+  expect(pressed).toBe(0)
+  tab(session, 'System').props.onPress()
   expect(pressed).toBe(1)
-  // Only the arrow is a Button: the desktop drops bold inside one and pads it out of line with the column.
-  expect(words(heading)).toBe('▸')
-  expect(all(shut, 'Text').find(node => words(node) === 'System')!.props.bold).toBe(true)
-  expect(all(shut, 'Button').some(node => words(node).includes('System'))).toBe(false)
-  // The arrow sits close to the name: one cell in the terminal, none added on the desktop, whose button pads it already.
-  const gap = (body: unknown) => all(body, 'Box').find(node => flat(node.children).some(child => words(child) === 'System'))!.props.columnGap
-  expect([gap(shut), gap(settingsBody(desktop, data(), '', [], () => undefined, fold(true)))]).toEqual([1, 0])
-  // Folded, the heading follows Session at once; open, it sits over its own column.
-  const head = (body: unknown) => all(body, 'Box').find(node => node.props.flexDirection === 'row')!
-  const widths = (body: unknown) => flat(head(body).children).map(child => (child as Node).props.minWidth)
-  expect(widths(shut)).toEqual(['security'.length + 3, 0, undefined])
-  const open = settingsBody(ui, data(), '', [], () => undefined, fold(false))
-  expect(rows(open)).toEqual(['Session System ◂', 'Mode A [B] C A B [C]', 'Model* opus [sonnet] [opus] sonnet', 'Push test [prod] test prod'])
-  expect(widths(open)).toEqual(['security'.length + 3, 'opus'.length + 'sonnet'.length + 4 + 1 + 2, undefined])
-  // Without saved defaults there is no System heading to fold.
-  expect(all(settingsBody(ui, data({ saved: undefined }), '', [], () => undefined, fold(true)), 'Button').some(node => node.props.key === 'fold-claude')).toBe(false)
+  const system = settingsBody(ui, data(), '', [], () => undefined, tabs(false))
+  expect(rows(system)).toEqual(['Session [System]', 'Mode A B [C]', 'Model* [opus] sonnet', 'Push test prod'])
+  expect(all(system, 'Button').some(node => String(node.props.key).startsWith('session/'))).toBe(false)
+  // On the desktop a tab has a radio icon like every other choice, the chosen one filled and named as chosen.
+  const desk = settingsBody(desktop, data(), '', [], () => undefined, tabs(true))
+  expect(rows(desk)[0]).toBe('● Session ○ System')
+  expect(all(desk, 'Svg').slice(0, 2).map(node => node.props.alt)).toEqual(['Session, chosen', 'System'])
+  // Without saved defaults there is no System tab, whatever the state says.
+  const bare = settingsBody(ui, data({ saved: undefined }), '', [], () => undefined, tabs(false))
+  expect(rows(bare)[0]).toBe('[Session]')
+  expect(all(bare, 'Button').some(node => node.props.key === 'tab-System')).toBe(false)
 })
 
 test('an unfolded section shows its body under a header that is the arrow and the title alone', () => {
@@ -143,13 +141,10 @@ test('Settings waits, and says why when the script could not be read', () => {
   expect(words(settingsBody(ui, null, 'script missing', [], () => undefined))).toBe('script missing')
 })
 
-test('Settings is one table: a label, the options of this session, then those of the saved defaults, under a Session/System head', () => {
+test('Settings is one table under its tab: a label and the options; with no tab state, the Session tab', () => {
   const body = settingsBody(ui, data(), '', ['a layer is unreadable'], () => undefined)
-  const heads = all(body, 'Text').filter(node => node.props.bold).map(words)
-  expect(heads).toEqual(['Session', 'System', 'Mode', 'Model*', 'Push'])
-  expect(rows(body)).toEqual([
-    'Session System ◂', 'Mode A [B] C A B [C]', 'Model* opus [sonnet] [opus] sonnet', 'Push test [prod] test prod',
-  ])
+  expect(all(body, 'Text').filter(node => node.props.bold).map(words)).toEqual(['Mode', 'Model*', 'Push'])
+  expect(rows(body)).toEqual(['[Session] System', 'Mode A [B] C', 'Model* opus [sonnet]', 'Push test [prod]'])
   expect(words(all(body, 'Text').find(node => node.props.color === '#E07B00'))).toBe('! a layer is unreadable')
 })
 
@@ -159,10 +154,10 @@ test('Main model shows keep as opus, because Opus agents then run on the model t
   expect(all(body, 'Button').find(node => String(node.props.key) === 'session/mode_model=keep')).toBeDefined()
 })
 
-test('the System column is left out until the saved defaults are read', () => {
+test('the System tab is left out until the saved defaults are read', () => {
   const body = settingsBody(ui, data({ saved: undefined }), '', [], () => undefined)
-  expect(all(body, 'Text').filter(node => node.props.bold).map(words)).toEqual(['Session', 'Mode', 'Model*', 'Push'])
-  expect(rows(body)).toEqual(['Session', 'Mode A [B] C', 'Model* opus [sonnet]', 'Push test [prod]'])
+  expect(all(body, 'Text').filter(node => node.props.bold).map(words)).toEqual(['Mode', 'Model*', 'Push'])
+  expect(rows(body)).toEqual(['[Session]', 'Mode A [B] C', 'Model* opus [sonnet]', 'Push test [prod]'])
 })
 
 test('a problem is shown in red above the blocks', () => {
@@ -181,26 +176,33 @@ test('a setting no row names is still drawn, so a newer plugin never hides one',
   expect(all(body, 'Text').map(words).includes('Future kind')).toBe(true)
 })
 
-test('pressing a yes/no setting asks for the opposite and an option asks for that option, each on the block it was pressed in', () => {
+test('pressing a yes/no setting asks for the opposite and an option asks for that option, each in the tab it was pressed in', () => {
   const calls: string[][] = []
-  const body = settingsBody(ui, data(), '', [], (key, value, scope) => { calls.push([key, value, String(scope)]) })
-  const press = (key: string) => all(body, 'Button').find(node => node.props.key === key)!.props.onPress()
-  press('session/push.prod')
-  press('session/push.test')
-  press('session/mode=C')
-  press('saved/push.prod')
-  press('saved/mode=A')
+  const tabs = (folded: boolean) => ({ folded, toggle: () => undefined })
+  const record = (key: string, value: string, scope?: string) => { calls.push([key, value, String(scope)]) }
+  const session = settingsBody(ui, data(), '', [], record, tabs(true))
+  const system = settingsBody(ui, data(), '', [], record, tabs(false))
+  const press = (body: unknown, key: string) => all(body, 'Button').find(node => node.props.key === key)!.props.onPress()
+  press(session, 'session/push.prod')
+  press(session, 'session/push.test')
+  press(session, 'session/mode=C')
+  press(system, 'saved/push.prod')
+  press(system, 'saved/mode=A')
   expect(calls).toEqual([
     ['push.prod', 'no', 'session'], ['push.test', 'yes', 'session'], ['mode', 'C', 'session'],
     ['push.prod', 'yes', 'saved'], ['mode', 'A', 'saved'],
   ])
-  expect(all(body, 'Select').length).toBe(0)
+  expect(all(session, 'Select').length).toBe(0)
 })
 
-test('every pressable part is keyed by block, setting and value, so the two blocks never collide', () => {
-  const keys = all(settingsBody(ui, data(), '', [], () => undefined), 'Button').map(node => String(node.props.key))
-  expect(new Set(keys).size).toBe(keys.length)
-  expect(keys.filter(key => key.startsWith('session/')).length).toBe(keys.filter(key => key.startsWith('saved/')).length)
+test('every pressable part is keyed by tab, setting and value, so the two tabs never collide', () => {
+  const keys = (folded: boolean) => all(settingsBody(ui, data(), '', [], () => undefined, { folded, toggle: () => undefined }), 'Button')
+    .map(node => String(node.props.key)).filter(key => !key.startsWith('tab-'))
+  const session = keys(true)
+  const system = keys(false)
+  expect(new Set([...session, ...system]).size).toBe(session.length + system.length)
+  expect([session.every(key => key.startsWith('session/')), system.every(key => key.startsWith('saved/'))]).toEqual([true, true])
+  expect(session.length).toBe(system.length)
 })
 
 test('Agents waits until the configuration is read', () => {
@@ -301,10 +303,9 @@ test('options line up: Settings and Agents share one head column, so their optio
   const widths = (body: unknown) => all(body, 'Box').filter(node => node.props.minWidth !== undefined).map(node => node.props.minWidth)
   const body = settingsBody(ui, data(), '', [], () => undefined)
   const lines = all(body, 'Box').filter(node => node.props.flexDirection === 'row' && (flat(node.children)[0] as Node).props?.minWidth !== undefined)
-  // Each line: the head column (shared with Agents), then the Session column (sized to the widest row's options), then System.
-  expect(lines.map(node => flat(node.children).map(child => (child as Node).props.minWidth))).toEqual(
-    lines.map(() => [headWidth(data()), 'opus'.length + 'sonnet'.length + 4 + 1 + 2, undefined]))
-  expect(widths(body).length).toBe(lines.length * 2)
+  // Each line: the head column (shared with Agents), then the one tab's options.
+  expect(lines.map(node => flat(node.children).map(child => (child as Node).props.minWidth))).toEqual(lines.map(() => [headWidth(data()), undefined]))
+  expect(widths(body).length).toBe(lines.length)
   // Agents: the same head column on every row; the model radios follow it.
   const agents = widths(agentsBody(ui, data(), () => undefined))
   expect(agents).toEqual([headWidth(data()), headWidth(data()), headWidth(data())])
@@ -331,7 +332,7 @@ test('the shared head column is the longest label, or the longest name of a role
 
 test('on a surface with Svg each option has a radio or checkbox icon and no brackets', () => {
   expect(rows(settingsBody(desktop, data({ saved: undefined }), '', [], () => undefined))).toEqual([
-    'Session', 'Mode ○ A ● B ○ C', 'Model* ○ opus ● sonnet', 'Push ☐ test ☑ prod',
+    '● Session', 'Mode ○ A ● B ○ C', 'Model* ○ opus ● sonnet', 'Push ☐ test ☑ prod',
   ])
   const icons = all(settingsBody(desktop, data({ saved: undefined }), '', [], () => undefined), 'Svg')
   expect(icons.every(node => String(node.props.source).startsWith('<svg') && node.props.width === 12 && node.props.height === 12)).toBe(true)
@@ -398,13 +399,14 @@ test('"After pushing update:" is a checkbox line of test and prod, each ticked o
     { key: 'deploy_after_push.prod', type: 'bool' as const, label: 'After pushing update, deploy to prod', group: 'Deploy after push' },
   ]
   const calls: string[][] = []
-  const body = settingsBody(ui, data({ schema, values: { mode: 'B', mode_model: 'sonnet', 'deploy_after_push.test': true, 'deploy_after_push.prod': false } }), '', [], (key, value, scope) => { calls.push([key, value, String(scope)]) })
-  const lines = rows(body)
-  expect(lines).toContain('Deploy [test] prod test prod')
-  const buttons = all(body, 'Button').filter(node => String(node.props.key).includes('deploy_after_push.'))
-  buttons.forEach(node => node.props.onPress())
-  // Both blocks draw the two boxes (session first, then the saved defaults, where neither is ticked): each press
-  // asks for the opposite of its own block's value.
+  const values = { mode: 'B', mode_model: 'sonnet', 'deploy_after_push.test': true, 'deploy_after_push.prod': false }
+  const record = (key: string, value: string, scope?: string) => { calls.push([key, value, String(scope)]) }
+  const bodies = [true, false].map(folded => settingsBody(ui, data({ schema, values }), '', [], record, { folded, toggle: () => undefined }))
+  expect(rows(bodies[0])).toContain('Deploy [test] prod')
+  expect(rows(bodies[1])).toContain('Deploy test prod')
+  bodies.forEach(body => all(body, 'Button').filter(node => String(node.props.key).includes('deploy_after_push.')).forEach(node => node.props.onPress()))
+  // Each tab draws the two boxes (the session's, then the saved defaults', where neither is ticked): each press asks
+  // for the opposite of its own tab's value.
   expect(calls).toEqual([
     ['deploy_after_push.test', 'no', 'session'], ['deploy_after_push.prod', 'yes', 'session'],
     ['deploy_after_push.test', 'yes', 'saved'], ['deploy_after_push.prod', 'yes', 'saved'],
@@ -417,7 +419,7 @@ test('Replies sits under Model* and offers short, normal and long; a press write
   const calls: string[][] = []
   const body = settingsBody(ui, data({ schema, values: { mode: 'B', mode_model: 'sonnet', 'reply.length': 'short', 'pod.message_format': 'short' }, saved: undefined }), '', [],
     (key, value) => { calls.push([key, value]) })
-  expect(rows(body).slice(0, 5)).toEqual(['Session', 'Mode A [B] C', 'Model* opus [sonnet]', 'Replies [short] normal long', 'Format [short] full'])
+  expect(rows(body).slice(0, 5)).toEqual(['[Session]', 'Mode A [B] C', 'Model* opus [sonnet]', 'Replies [short] normal long', 'Format [short] full'])
   all(body, 'Button').find(node => node.props.key === 'session/reply.length=long')!.props.onPress()
   expect(calls).toEqual([['reply.length', 'long']])
 })
