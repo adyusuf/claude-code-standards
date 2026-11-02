@@ -49,7 +49,7 @@ engine glue. Tests: `deno test --sloppy-imports --import-map=scripts/ts-shim/imp
 The screenshot is of 01/11/2026. The left two-thirds are the app's session list and the conversation, blurred on purpose.
 Each box folds by the arrow before its bold title (`▾` open, `▸` folded); Agents and Promotion start folded. The header
 is the arrow and the title alone, with nothing beside it (the screenshot is older and still shows a summary there).
-Resting the pointer on a box title, a column heading (*Session*, *System*), a Settings label, an Agents role or a Status
+Resting the pointer on a box title, a Settings tab (*Session*, *System*), a Settings label, an Agents role or a Status
 label or heading opens a card under it that explains it; a role's card is its agent file's description. In a session
 whose folder is in no git repository, no code work happens: the pane shows only Status and Settings, and Settings only
 *Replies* ([`standards/13-pr-and-review.md`](../standards/13-pr-and-review.md) §8a). The
@@ -59,11 +59,10 @@ reopening them.
 - **Status.** The status table of a long run: what runs now, what runs next, then item · state ·
   measured figure (with its signal) · waiting on. Claude writes it at every step with `scripts/adyusuf_status.py`, and so
   does a background gate or promotion ([`standards/00-working-method.md`](../standards/00-working-method.md) §10d).
-- **Settings.** One row per setting: the label, then the **Session** column (what this
-  session runs on) and the **System** column (the saved defaults in `~/.claude/adyusuf.json`, which every new session
-  starts from). The System column folds by the arrow after its heading and starts folded, so the defaults are changed
-  only when you open it: folded, **System** ▸ sits right beside *Session*; open, **System** ◂ sits over its column. (The
-  screenshot is older: there the heading still reads *Claude*, with no arrow.)
+- **Settings.** Two tabs: **Session** (what this session runs on; a press changes this session only) and **System** (the
+  saved defaults in `~/.claude/adyusuf.json`, which every new session starts from). One tab shows at a time, Session at
+  start; the chosen tab is at full strength (in brackets in the terminal), and the pane remembers it. Under the tabs, one
+  row per setting: the label, then that tab's options. (The screenshot is older: it shows the two as columns.)
   - *Mode* A–E (rule #27) and *Model\**, the model that replaces Opus in the roles marked `*` in Agents.
   - *Replies* (`short`, `normal`, `long`; default `short`): how much Claude writes in a reply
     ([`standards/00-working-method.md`](../standards/00-working-method.md) §5a).
