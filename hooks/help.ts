@@ -1,4 +1,4 @@
-// What the hover cards of the adyusuf pane say (user decision 01/11/2026): one short text per box, per column heading and
+// What the hover cards of the adyusuf pane say (user decision 01/11/2026): one short text per box, per Settings tab and
 // per Settings row, shown while the pointer rests on its title or label. An Agents role shows its own agent file's
 // `description:` instead, so a role is described in one place. Keyed by the label the pane draws.
 
@@ -10,10 +10,10 @@ export const SECTION_HELP: Record<string, string> = {
   promotion: 'Where dev, test and prod stand on origin, and any gate waived on the commits waiting to come in.',
 }
 
-/** The column headings of the Settings table. */
+/** The two tabs of the Settings box. */
 export const COLUMN_HELP: Record<string, string> = {
-  Session: 'What this session runs on. A press changes this session only; a new session starts from the defaults.',
-  System: 'Your saved defaults (~/.claude/adyusuf.json), under any project file. The arrow opens and closes them.',
+  Session: 'This tab: what this session runs on. A press changes this session only; a new session starts from System.',
+  System: 'This tab: your saved defaults (~/.claude/adyusuf.json), under any project file. New sessions start from them.',
 }
 
 /** The labels of the Status box: what runs now and next, and the headings of its table. */

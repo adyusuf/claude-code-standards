@@ -8,7 +8,7 @@
 // where it does not (terminal) the chosen one is drawn `[in brackets]` (underline was tried first: the desktop draws a Button
 // as a native button and drops a Text's underline inside it); a box's body and a block's lines start one step in.
 import { enabledFor, settingGroups } from './choose'
-import { cells, helpCard, hoverable, INDENT, label, line, option, WARN } from './controls'
+import { helpCard, hoverable, INDENT, label, line, option, WARN } from './controls'
 import { COLUMN_HELP, ROW_HELP, SECTION_HELP } from './help'
 import type { Ui } from './controls'
 
@@ -47,18 +47,18 @@ export const outsideRepository = (repo: unknown) => repo === null
 const NO_CODE_ROWS = ['Replies']
 
 /**
- * What starts folded, so the pane opens as a short card and not as one long list: two boxes, and the System column of
- * Settings (the saved defaults, opened when wanted; user decision 01/11/2026).
+ * What starts folded, so the pane opens as a short card and not as one long list: two boxes, and `claude`, which keeps
+ * the Settings tab (folded = Session, the tab at start; the saved defaults are under System, opened when wanted).
  */
 export const FOLDED_AT_START: Record<string, boolean> = { agents: true, promotion: true, claude: true }
-/** What can fold: a box, or the System column of Settings (fold id `claude`, its first name). */
+/** What can fold: a box, or `claude`, the Settings tab (folded = Session; the id is kept from the column it replaced). */
 export type FoldId = SectionId | 'claude'
 
 /** Whether `id` is folded; a state saved before `id` could fold falls back to how it starts. */
 export const isFolded = (fold: Record<string, boolean>, id: FoldId) => fold[id] ?? FOLDED_AT_START[id] ?? false
 /** The fold state after a press on `id`'s header: what it reads as now, turned over. */
 export const nextFold = (fold: Record<string, boolean>, id: FoldId) => ({ ...fold, [id]: !isFolded(fold, id) })
-/** The System column's fold: whether it is folded, and what a press on its heading does. */
+/** The Settings tab: `folded` (the fold id `claude`, folded at start) means the Session tab; `toggle` switches tabs. */
 export type ColumnFold = { folded: boolean; toggle: () => void }
 
 /** The radio group of an agent's model. */
@@ -187,39 +187,32 @@ export function section(ui: Ui, id: SectionId, title: string, folded: boolean, t
 }
 
 /**
- * The settings as one table (user decision 01/11/2026): a label, this session's options (a press changes this session
- * only), then the saved defaults' options (a press changes `~/.claude/adyusuf.json`, which new sessions start from). The
- * System heading folds that column; folded, only the heading is left, right beside Session and pointing right (`System ▸`),
- * and open it sits over its column pointing back (`System ◂`) (user decisions 01/11/2026). The heading is a bold Text with
- * only the arrow pressable: the desktop draws a Button as a native button, which drops the bold and pads the text out of
- * line with the column. The fold keeps its first id, `claude`, so a saved fold state still applies.
+ * The settings under two tabs (user decision 02/11/2026): Session (this session's options; a press changes this session
+ * only) and System (the saved defaults in `~/.claude/adyusuf.json`, which new sessions start from). One tab shows at a
+ * time, the chosen one at full strength (in brackets in the terminal); the choice is kept as the fold id `claude`, so
+ * a saved state from the System column it replaces still applies.
  */
-function table(ui: Ui, data: SettingsData, press: Press, claude: ColumnFold, codeWork: boolean) {
+function table(ui: Ui, data: SettingsData, press: Press, tabs: ColumnFold, codeWork: boolean) {
   const { h } = ui
   const lines = settingLines(ui, data.schema, press).filter(one => codeWork || NO_CODE_ROWS.includes(one.label))
-  const width = Math.max(0, ...lines.map(one => cells(one.names))) + 2
   const head = headWidth(data)
-  const saved = data.saved && !claude.folded ? [['saved', data.saved] as [Scope, Layer]] : []
-  const layers: [Scope, Layer][] = [['session', data], ...saved]
-  const heads = [
-    hoverable(ui, 'column-Session', h(ui.Text, { bold: true }, 'Session')),
-    data.saved
-      // The desktop's native button pads the arrow already, so a gap there would leave it far from the name.
-      ? h(ui.Box, { flexDirection: 'row', columnGap: ui.Svg ? 0 : 1 }, hoverable(ui, 'column-System', h(ui.Text, { bold: true }, 'System')),
-        h(ui.Button, { key: 'fold-claude', plain: true, onPress: claude.toggle }, claude.folded ? '▸' : '◂'))
-      : null,
-  ].filter(head => head !== null)
+  const system = data.saved !== undefined && !tabs.folded
+  const [scope, layer]: [Scope, Layer] = system && data.saved ? ['saved', data.saved] : ['session', data]
+  // A tab is drawn as every other choice of the pane: a radio icon on the desktop, brackets in the terminal.
+  const tab = (name: 'Session' | 'System', chosen: boolean) => hoverable(ui, `column-${name}`,
+    option(ui, `tab-${name}`, name, 'radio', chosen, () => { if (!chosen) tabs.toggle() }))
   // Each card is a hidden row right after its label's line.
   return h(ui.Box, { flexDirection: 'column' },
-    line(ui, null, heads, head, claude.folded ? 0 : width),
+    line(ui, null, [h(ui.Box, { flexDirection: 'row', columnGap: 1 }, tab('Session', !system), data.saved ? tab('System', system) : null)], head),
     helpCard(ui, 'column-Session', COLUMN_HELP.Session),
     data.saved ? helpCard(ui, 'column-System', COLUMN_HELP.System) : null,
     lines.flatMap(one => [
-      line(ui, hoverable(ui, `row-${one.label}`, label(ui, one.label)), layers.map(([scope, layer]) => one.draw(scope, layer)), head, width),
+      line(ui, hoverable(ui, `row-${one.label}`, label(ui, one.label)), [one.draw(scope, layer)], head),
       helpCard(ui, `row-${one.label}`, ROW_HELP[one.label])]))
 }
 
-const OPEN: ColumnFold = { folded: false, toggle: () => undefined }
+/** The Session tab, for a caller that keeps no tab state. */
+const OPEN: ColumnFold = { folded: true, toggle: () => undefined }
 
 export function settingsBody(ui: Ui, data: SettingsData | null, problem: string, problems: string[], press: Press, claude = OPEN,
   codeWork = true) {

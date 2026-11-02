@@ -13,8 +13,9 @@ Layers, lowest first: the plugin's `defaults/adyusuf.json` < the user's `~/.clau
 written to the **user** layer unless the user says "for this project" (the project layer) or "for this session" (the
 session layer, `--session <id>`; the id is on the `this session is <id>` line of the start-of-session block).
 
-**The rail boxes and the clickable questions change the session layer only.** A new session has a new id, finds no
-session file and starts from the saved defaults; nothing a click did is kept. To keep a value, say so ("make it my
+**The clickable questions and the Settings box's Session tab change the session layer only.** A new session has a new
+id, finds no session file and starts from the saved defaults; nothing such a click did is kept. A press in the System
+tab writes the saved defaults (`~/.claude/adyusuf.json`), which every new session starts from. To keep a value, say so ("make it my
 default"): then `set <key> <value>` (user layer) or `--project`. A resumed session keeps its id, so its changes stay;
 `/clear` starts a new one.
 
@@ -73,7 +74,7 @@ When the user wants to change settings without naming them (no argument, "change
 **The rail boxes first.** This plugin's mod (`hooks/register.tsx`, the boxes in `hooks/boxes.ts`) draws ONE pane beside the
 conversation with four bordered boxes, each folded by the arrow before its title, with nothing beside the title: *Status*
 (what runs now and next), *Settings* (a checkbox for every yes/no setting, a radio list for every choice), *Agents* (a
-checkbox per agent, a model radio list; folded at start) and *Promotion* (dev/test/prod, read-only; folded at start). Each click runs `adyusuf_config.py set --session <id>`: it changes this session only. Open them with `/adyusuf:panels`, say that they are
+checkbox per agent, a model radio list; folded at start) and *Promotion* (dev/test/prod, read-only; folded at start). A click in the Session tab runs `adyusuf_config.py set --session <id>` and changes this session only; one in the System tab changes the saved defaults. Open them with `/adyusuf:panels`, say that they are
 there and stop: the user changes the settings in the boxes, not in the chat. Never build a page or an Artifact for this.
 In the Claude desktop app the mod only loads when `CLAUDE_CODE_PLUGIN_DIRS` in `~/.claude/settings.json` names the
 plugin's folder (`SETUP.md` §6); say so rather than falling back to a page.

@@ -83,7 +83,7 @@ test('each Settings card follows its own label line; the System card only when S
   // Every row's card follows the line that starts with its own label.
   for (const label of ROW_LABELS) expect(pairs.some(([owner, before]) => owner === label && before.startsWith(label))).toBe(true)
   // The column cards follow the heading line.
-  expect(pairs.filter(([owner]) => owner === 'Session' || owner.startsWith('System')).map(([, before]) => before.startsWith('Session'))).toEqual([true, true])
+  expect(pairs.filter(([owner]) => owner.includes('Session') || owner.includes('System')).map(([, before]) => before.startsWith('[Session]System'))).toEqual([true, true])
   const bare = settingsBody(ui, data({ schema: SCHEMA, values: {}, saved: undefined }), '', [], () => undefined)
   expect(all(bare, 'Box').filter(isCard).some(card => scope(card) === 'adyusuf-help-column-System')).toBe(false)
 })

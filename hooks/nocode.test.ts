@@ -47,9 +47,9 @@ test('only the engine saying "no repository" (null) counts as outside; an unknow
 
 test('with no code work, Settings shows only Replies and says why; with code work, every row as before', () => {
   const none = settingsBody(ui, data, '', [], () => undefined, undefined, false)
-  expect(labels(none)).toEqual(['Session', 'Replies'])
+  expect(labels(none)).toEqual(['Replies'])
   expect(all(none, 'Text').find(node => node.props.dimColor)!.children).toEqual(['No repository here: only Replies shows. Change the rest with /adyusuf:config.'])
   const code = settingsBody(ui, data, '', [], () => undefined)
-  expect(labels(code)).toEqual(['Session', 'Mode', 'Replies', 'Push'])
+  expect(labels(code)).toEqual(['Mode', 'Replies', 'Push'])
   expect(all(code, 'Text').some(node => words(node).startsWith('No repository here'))).toBe(false)
 })
