@@ -32,6 +32,10 @@ export function statusDir(chosen?: string, profile?: string, home?: string): str
   return base ? `${base.replace(/[\\/]+$/, '')}/.claude/adyusuf-status` : ''
 }
 
+/** The status script beside the configuration script the pane found ('' when none was found). */
+export const statusScript = (configScript: string) =>
+  (configScript.endsWith('/adyusuf_config.py') ? `${configScript.slice(0, -'adyusuf_config.py'.length)}adyusuf_status.py` : '')
+
 /** What a refresh found: no file, a file and its modification time, or an error (unreadable, denied). */
 export type StatusProbe = { kind: 'missing' } | { kind: 'error' } | { kind: 'file'; mtimeMs: number }
 

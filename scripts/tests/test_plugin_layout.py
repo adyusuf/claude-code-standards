@@ -146,13 +146,14 @@ class RootPluginTest(unittest.TestCase):
         self.assertIn('panels', own_names())
         self.assertIn('adyusuf_config.py', read('commands', 'panels.md'))
 
-    def test_hook_events_are_exactly_the_six(self):
+    def test_hook_events_are_exactly_the_seven(self):
         self.assertEqual(sorted(normalised_hooks()),
-                         ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop', 'SubagentStart', 'UserPromptSubmit'])
+                         ['PostToolUse', 'PreToolUse', 'SessionStart', 'Stop', 'StopFailure', 'SubagentStart', 'UserPromptSubmit'])
 
     def test_rules_parts_one_to_four_and_the_configuration_on_session_start_and_nothing_else(self):
         rules = [f'{RULES_CTX} session {n} 4' for n in range(1, 5)]
         rules.append(f'python3 "{ROOT}/scripts/adyusuf_config.py" context --stdin')    # the effective defaults (rule #34)
+        rules.append(f'python3 "{ROOT}/scripts/adyusuf_status.py" hook session')       # the Status box starts waiting
         self.assertEqual(commands_of('SessionStart'), [(None, rules)])
 
     def test_rules_parts_one_to_four_on_subagent_start(self):
@@ -166,8 +167,11 @@ class RootPluginTest(unittest.TestCase):
         notify = lambda event: [f'python3 "{ROOT}/scripts/adyusuf_config.py" notify {event}']  # noqa: E731
         # After a task boundary (an agent call, a shell command) and before each prompt, a changed setting is announced.
         self.assertEqual(commands_of('PostToolUse'), [('Edit|Write', size_hook), ('Agent|Bash', notify('PostToolUse'))])
-        self.assertEqual(commands_of('UserPromptSubmit'), [(None, notify('UserPromptSubmit'))])
-        self.assertEqual(commands_of('Stop'), [(None, size_hook)])
+        # Every session's Status box: a message sets what runs now, the end of a turn says it waits (02/11/2026).
+        status = lambda event: f'python3 "{ROOT}/scripts/adyusuf_status.py" hook {event}'  # noqa: E731
+        self.assertEqual(commands_of('UserPromptSubmit'), [(None, notify('UserPromptSubmit') + [status('prompt')])])
+        self.assertEqual(commands_of('Stop'), [(None, size_hook + [status('stop')])])
+        self.assertEqual(commands_of('StopFailure'), [(None, [status('stop')])])     # an API error ends the turn too
 
     def test_every_hook_is_a_command_hook(self):
         types = {kind for groups in normalised_hooks().values() for _, hooks in groups for kind, _ in hooks}
@@ -177,7 +181,7 @@ class RootPluginTest(unittest.TestCase):
         files = set(tracked())
         scripts = {path for groups in normalised_hooks().values() for _, hooks in groups
                    for _, command in hooks for path in plugin_paths(command)}
-        self.assertEqual(sorted(scripts), ['scripts/adyusuf_config.py', 'scripts/guard-destructive.sh',
+        self.assertEqual(sorted(scripts), ['scripts/adyusuf_config.py', 'scripts/adyusuf_status.py', 'scripts/guard-destructive.sh',
                                            'scripts/md-hook.sh', 'scripts/rules-context.py'])
         for script in scripts:
             self.assertIn(script, files)
