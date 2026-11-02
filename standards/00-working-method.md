@@ -365,6 +365,12 @@ deliverable.
   same way, so the box moves while Claude waits; writers take a lock, so neither loses the other's rows (no lock on
   Windows: one writer at a time there). The 10b rules hold for every field: measured figures with their signal, "did not
   run" for a step that did not run.
+- **Every session, automatically (user decision 02/11/2026):** the plugin's hooks (`adyusuf_status.py hook`) write
+  *Now*: `waiting for you` when a session starts, the first line of each message the user sends (a system-started turn
+  leaves it), and at each turn's end `waiting for you`, or `waiting for background work` while a background task or a
+  session cron runs; an API error (`StopFailure`) and an interrupt (the pane, on `turn.complete`) end a turn too. The
+  session-start context names the script and this session's id, and Claude adds `next` and the rows as above. On
+  Windows, which has no file lock, a hook and a background writer can lose one write if they collide.
 - **How the box stays current:** a trigger (it re-reads the file when any tool call returns) and a poll every 2 s that
   stats the file and re-reads it only when its modification time changed. The file is
   `~/.claude/adyusuf-status/<session id>.json` (`ADYUSUF_STATUS_DIR`, an absolute path, overrides the folder); status

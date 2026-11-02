@@ -41,6 +41,58 @@ class StatusTable(unittest.TestCase):
         self.assertEqual(0, code)
         return json.loads(out)
 
+    def run_hook(self, event, payload, env=None):
+        raw = payload if isinstance(payload, bytes) else (payload if isinstance(payload, str) else json.dumps(payload, ensure_ascii=False)).encode('utf-8')
+        done = subprocess.run([sys.executable, SCRIPT, 'hook', event], env=env or self.env, capture_output=True, input=raw)
+        return done.stdout.decode(), done.stderr.decode(), done.returncode
+
+    def test_a_session_starts_waiting_and_a_system_started_turn_leaves_the_users_task(self):
+        self.run_hook('session', {'session_id': SESSION})
+        self.assertEqual('waiting for you', self.table()['now'])
+        self.run_hook('prompt', {'session_id': SESSION, 'prompt': 'promote dev', 'source': 'user'})
+        for source in ('system', 'loop_wakeup', 'schedule_wakeup'):
+            self.run_hook('prompt', {'session_id': SESSION, 'prompt': '<task-notification>', 'source': source})
+        self.assertEqual('working on: promote dev', self.table()['now'])
+        self.run_hook('prompt', {'session_id': SESSION, 'prompt': 'from the sdk', 'source': 'sdk'})
+        self.assertEqual('working on: from the sdk', self.table()['now'])
+
+    def test_a_turn_that_leaves_background_work_running_waits_for_it_not_for_the_user(self):
+        self.run_hook('stop', {'session_id': SESSION, 'background_tasks': [{'id': 'b1', 'status': 'running'}]})
+        self.assertEqual('waiting for background work', self.table()['now'])
+        self.run_hook('stop', {'session_id': SESSION, 'session_crons': [{'id': 'c1'}]})
+        self.assertEqual('waiting for background work', self.table()['now'])
+        self.run_hook('stop', {'session_id': SESSION, 'background_tasks': [], 'session_crons': []})
+        self.assertEqual('waiting for you', self.table()['now'])
+
+    def test_the_hook_reads_utf8_whatever_the_platform_encoding_and_never_fails_on_its_stdin(self):
+        env = dict(self.env, PYTHONIOENCODING='cp1252')
+        _, err, code = self.run_hook('prompt', {'session_id': SESSION, 'prompt': 'ara Şişman ❌'}, env=env)
+        self.assertEqual((0, ''), (code, err))
+        self.assertEqual('working on: ara Şişman ❌', self.table()['now'])
+        done = subprocess.run([sys.executable, SCRIPT, 'hook', 'stop'], env=self.env, capture_output=True, stdin=subprocess.DEVNULL)
+        self.assertEqual((0, b''), (done.returncode, done.stderr))
+
+    def test_the_hooks_keep_every_sessions_box_alive_a_message_sets_now_the_end_of_a_turn_says_it_waits(self):
+        self.run_tool('row', 'gate', 'running', '1 step', '-')
+        self.run_tool('next', 'push')
+        out, err, code = self.run_hook('prompt', {'session_id': SESSION, 'prompt': 'add tabs\nto the Settings box'})
+        self.assertEqual((0, '', ''), (code, out, err))
+        data = self.table()
+        self.assertEqual(('working on: add tabs', ''), (data['now'], data['next']))
+        self.assertEqual(['gate'], [row['item'] for row in data['rows']])        # Claude's rows stay
+        self.run_hook('stop', {'session_id': SESSION})
+        self.assertEqual(('waiting for you', ['gate']), (self.table()['now'], [row['item'] for row in self.table()['rows']]))
+
+    def test_a_hook_never_fails_a_session_and_writes_nothing_it_cannot_place(self):
+        for payload in ('not json', '[1]', {'prompt': 'x'}, {'session_id': '../escape', 'prompt': 'x'}):
+            self.assertEqual(0, self.run_hook('prompt', payload)[2], payload)
+        self.assertEqual(0, self.run_hook('other', {'session_id': SESSION})[2])
+        self.assertEqual([], os.listdir(self.dir))
+        # A corrupt table is replaced, as `clear` would.
+        self.write_raw('[1, 2]')
+        self.run_hook('stop', {'session_id': SESSION})
+        self.assertEqual('waiting for you', self.table()['now'])
+
     def test_an_unwritten_session_shows_nothing_running(self):
         out, _, code = self.run_tool('show')
         self.assertEqual((0, 'nothing running\n'), (code, out))

@@ -9,7 +9,7 @@ import {
   countOf, DISCOVER_PY, IS_FILE_PY, overrideNote, parseDiscovery, plannedStages, refSet, scriptDir, waivedLines, waivedRange,
 } from './choose'
 import { operationWarnings, warnings } from './notices'
-import { parseStatus, statusBody, statusDir, statusStep } from './status'
+import { parseStatus, statusBody, statusDir, statusScript, statusStep } from './status'
 import type { StatusProbe } from './status'
 
 /** One pane, four bordered boxes in it (Status, Settings, Agents, Promotion), each folded by its header. */
@@ -119,7 +119,6 @@ async function refreshPromotion($: EngineInterface) {
   }
   await $.state.set(promotion, ({ stages }) as Promotion)
 }
-
 
 /** `session` writes this session's layer; `saved` writes the user's file, the defaults every new session starts from. */
 async function setSetting($: EngineInterface, key: string, value: string, scope: Scope) {
@@ -234,7 +233,12 @@ const onPanels: Hook<'command.run'> = async $ => {
 }
 
 // The boxes follow the work: a turn may have merged, pushed or changed a setting through /adyusuf:config.
+// An interrupted turn fires no Stop hook, so the pane marks the Status box as waiting itself (qa, 02/11/2026).
+const waitAfterInterrupt = async ($: EngineInterface): Promise<void> => void await $.process.run(['python3', statusScript(await scriptPath(argv => $.process.run(argv))),
+  'hook', 'stop'], { stdin: JSON.stringify({ session_id: await sessionId($) }) })
+
 const onTurnComplete: Hook<'turn.complete'> = async ($, e, next) => {
+  if (e.isAborted && !e.agentId) await safely($, waitAfterInterrupt($))
   await safely($, refreshSettings($))
   await safely($, refreshPromotion($))
   await refreshStatus($)
