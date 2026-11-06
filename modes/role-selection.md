@@ -470,12 +470,8 @@ What replaces it:
 
 - **The agent count and the estimated cost are reported at the END of the turn** (#27).
   One line. It informs; it does not gate.
-- **In mode E the cost is asked about BEFORE the run.** A fan-out's size is known up
-  front, which is the moment where the answer can still change anything — a stop
-  halfway through leaves half the modules done.
-- **The autonomous run's $100 ceiling stays** (`autonomous-run.md`, #20). That one is a
-  safety stop for work running unattended, not economics, and it is the only cost
-  limit left that halts anything.
+- **No cost limit halts anything, in any mode or run:** mode E's cost question and the
+  autonomous run's $100 ceiling are gone; the money budget stops nothing (user decision 06/11/2026); the spend is followed in the podium plugin's Status box (`budget:` line, podium-flow) (`autonomous-run.md` item 2).
 
 ⚠️ The thing worth keeping from the old section is the reasoning, not the numbers: **a
 brake fires in abnormal conditions, not in normal ones.** A flat threshold set at a
