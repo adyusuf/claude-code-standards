@@ -198,9 +198,8 @@ In every mode, on every turn that uses agents:
    > threshold per mode (B ~$25 · C ~$150 · D ~$260 · E ~$400). Both are gone. The
    > thresholds were never measured — §8 said so itself — so they stopped a chain on
    > a number derived from price ratios, and per-handoff accounting is bookkeeping
-   > most teams have no use for. The one cost limit that remains is the autonomous
-   > run's $100 ceiling, which is a safety stop for unattended work (#20), not
-   > economics.
+   > most teams have no use for. No cost limit halts anything any more (user decision
+   > 06/11/2026; the autonomous run's $100 ceiling went too).
 3. **`product-manager` output goes to user approval**, it does not flow into the
    chain automatically (§2a). **`devops` output goes into `qa`** (§3).
 
@@ -264,7 +263,7 @@ criteria: [`role-selection.md`](role-selection.md).
 
 Leaving long work to run on its own: [`autonomous-run.md`](autonomous-run.md).
 The approval falls under #20 and is CONDITIONAL — task list, definition of done,
-budget ceiling, stall brake, stopping on any irreversible action.
+stall brake, stopping on any irreversible action (the spend is shown, never a stop).
 
 ## Selecting a mode
 

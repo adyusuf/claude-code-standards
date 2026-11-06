@@ -12,37 +12,16 @@ stopping until it is finished, and if a question comes up, the user is to be rea
 — including on mobile.
 
 ⚠️ The approval is **conditional on the conditions in this file**. If one of them is
-not met (no task list, no budget, no definition of done) the run **does not start** —
+not met (no task list, no definition of done) the run **does not start** —
 #20 applies again.
 
-## Before starting (all three are MANDATORY)
+## Before starting (items 1 and 3 are MANDATORY)
 
 1. **A task list + a definition of done.** Every item is tied to **evidence**: a
    command that was run, a test that passed, a number that was measured. *"I looked,
    it's fine"* is not evidence (#15). If there is no list, `product-manager` produces
    one first, I show it to you, and only then does the run start.
-2. **Budget: $100 — MEASURED, not estimated.** The rules:
-   - **On reaching $100, or coming very close:** the run stops, the session state is
-     saved (a handover note is written) and the user is asked to **OPEN A NEW
-     SESSION**. Work does not continue in the same session — a long session is both
-     expensive and unreliable once context is compacted.
-   - **To start a new item there must be room for roughly 2x that item's estimated
-     cost** (e.g. ≥$20 remaining for an item estimated at $10). If less remains, the
-     item is not started and permission is asked. Reason: work abandoned half-done
-     costs more than work never started.
-     ⚠️ A fixed floor does not work here: with a $100 ceiling, a fixed $75 floor means
-     no new item can be started the moment spending passes $25 — the promise of "hand
-     it over and let it run to the end" would end at $28. The headroom has to scale
-     with the item.
-   - ⚠️ **This is a stop reason too** and is listed below.
-   At the end of every turn:
-   ```bash
-   python3 ~/.claude/measurement/session-cost.py <session-id>
-   ```
-   ⚠️ Without running this command, "~$X so far" is **never written** —
-   an unmeasured ceiling is not a ceiling, and the next session will just say
-   "roughly" and move on. The output is API list price (a proxy for consumption, not
-   the subscription invoice).
+2. **[Removed — the money budget is no longer a condition or a stop]** The money budget stops nothing (user decision 06/11/2026); the spend is followed in the podium plugin's Status box (`budget:` line, podium-flow). The original rules are in git history.
 3. **The channel to reach you is verified.** `PushNotification` always reaches the
    terminal; it reaches **the phone only when Remote Control is connected**. If it is
    not, I say so BEFORE the run — starting out with "I'll reach you on mobile" and
@@ -63,13 +42,11 @@ do not get lost among individual notifications.
 The run stops and sends a notification when:
 
 - Every item on the task list is tied to evidence → **done**.
-- The **budget ceiling** is exceeded.
 - An **irreversible** action has been reached.
 - **A stall:** the same error has repeated for **2 turns** in a row. Trying a third
   time is not learning, it is a loop.
 - **The scope changed** — the work is turning into something other than what was asked.
 - An unresolvable conflict between agents (`role-selection.md` §4).
-- **There is not enough budget headroom for the next item** (see the 2x rule above).
 - **A completeness check did not close** — a finding was sent back twice and still did
   not reach clean in 3 passes (`role-selection.md` §5, §7). An unclosed finding is
   **never dropped into the "reversible assumption" bucket**; the run stops and the
@@ -91,7 +68,7 @@ team modes ever open, §9 comes back with them.
 
 ## Visibility
 
-- **Every turn:** what was done · spending so far · the next item.
+- **Every turn:** what was done · the next item (the spend is in the Status box).
 - **Notifications only when needed:** when an assumption is made, when the run stops,
   when it finishes. Routine progress produces **no** notification — unnecessary
   notifications teach the reader to ignore the necessary ones.
